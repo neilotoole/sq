@@ -111,24 +111,44 @@ func ResponseLogValue(resp *http.Response) slog.Value {
 		slog.String("proto", resp.Proto),
 		slog.String("status", resp.Status))
 
-	h := resp.Header
-	var hAttrs []slog.Attr
-	for k := range h {
-		vals := h.Values(k)
-		if len(vals) == 1 {
-			hAttrs = append(hAttrs, slog.String(k, vals[0]))
-			continue
-		}
-
-		// Log all values for a multi-value header, not just the first.
-		hAttrs = append(hAttrs, slog.Any(k, vals))
-	}
-
-	if len(hAttrs) > 0 {
+	if hAttrs := headerLogAttrs(resp.Header); len(hAttrs) > 0 {
 		attrs = append(attrs, slog.Any("headers", slog.GroupValue(hAttrs...)))
 	}
 
 	return slog.GroupValue(attrs...)
+}
+
+// sensitiveHeaders are header names whose values are redacted in log output, to
+// avoid leaking credentials into logs.
+var sensitiveHeaders = map[string]bool{
+	"Authorization":       true,
+	"Proxy-Authorization": true,
+	"Cookie":              true,
+	"Set-Cookie":          true,
+	"Www-Authenticate":    true,
+	"Proxy-Authenticate":  true,
+}
+
+// headerLogAttrs returns slog attrs for h. Credential-bearing headers (see
+// sensitiveHeaders) are redacted; a single-value header is logged as a plain
+// string, and a multi-value header logs all of its values.
+func headerLogAttrs(h http.Header) []slog.Attr {
+	var attrs []slog.Attr
+	for k := range h {
+		if sensitiveHeaders[http.CanonicalHeaderKey(k)] {
+			attrs = append(attrs, slog.String(k, "REDACTED"))
+			continue
+		}
+
+		vals := h.Values(k)
+		if len(vals) == 1 {
+			attrs = append(attrs, slog.String(k, vals[0]))
+			continue
+		}
+
+		attrs = append(attrs, slog.Any(k, vals))
+	}
+	return attrs
 }
 
 // RequestLogValue implements slog.LogValuer for http.Request.
@@ -157,17 +177,7 @@ func RequestLogValue(req *http.Request) slog.Value {
 		attrs = append(attrs, slog.String("host", req.Host))
 	}
 
-	h := req.Header
-	for k := range h {
-		vals := h.Values(k)
-		if len(vals) == 1 {
-			attrs = append(attrs, slog.String(k, vals[0]))
-			continue
-		}
-
-		// Log all values for a multi-value header, not just the first.
-		attrs = append(attrs, slog.Any(k, vals))
-	}
+	attrs = append(attrs, headerLogAttrs(req.Header)...)
 
 	return slog.GroupValue(attrs...)
 }
@@ -203,8 +213,8 @@ func Filename(resp *http.Response) string {
 }
 
 // ReadResponseHeader is a fork of http.ReadResponse that reads only the
-// header from req and not the body. Note that resp.Body will be nil, and
-// that the resp object is borked for general use.
+// header from r (associating it with request req) and not the body. Note that
+// resp.Body will be nil, and that the resp object is borked for general use.
 func ReadResponseHeader(r *bufio.Reader, req *http.Request) (resp *http.Response, err error) {
 	tp := textproto.NewReader(r)
 	resp = &http.Response{Request: req}

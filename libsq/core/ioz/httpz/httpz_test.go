@@ -49,7 +49,9 @@ func TestSlowHeaderServer(t *testing.T) {
 	t.Log(err)
 }
 
-func TestOptRequestTimeout(t *testing.T) {
+// TestOptResponseTimeout verifies that OptResponseTimeout aborts a request
+// whose total time (including body) exceeds the timeout.
+func TestOptResponseTimeout(t *testing.T) {
 	t.Parallel()
 
 	const srvrBody = `Hello World!`

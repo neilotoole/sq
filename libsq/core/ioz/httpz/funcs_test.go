@@ -3,6 +3,7 @@ package httpz_test
 import (
 	"bufio"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -46,7 +47,9 @@ func (h recordHandler) Enabled(context.Context, slog.Level) bool { return true }
 func (h recordHandler) WithAttrs([]slog.Attr) slog.Handler       { return h }
 func (h recordHandler) WithGroup(string) slog.Handler            { return h }
 func (h recordHandler) Handle(_ context.Context, r slog.Record) error {
-	*h.records = append(*h.records, r)
+	// A slog.Record is only valid for the duration of Handle; clone before
+	// retaining it.
+	*h.records = append(*h.records, r.Clone())
 	return nil
 }
 
@@ -128,14 +131,20 @@ func TestResponseLogValue(t *testing.T) {
 			Status:  "200 OK",
 			Header:  http.Header{},
 		}
-		resp.Header.Set("Content-Type", "text/plain")
-		resp.Header.Add("X-Multi", "a")
+		resp.Header.Set("Content-Type", "text/plain") // single value
+		resp.Header.Add("X-Multi", "a")               // multi value
 		resp.Header.Add("X-Multi", "b")
+		resp.Header.Set("Authorization", "Bearer super-secret-token") // sensitive
 		v := httpz.ResponseLogValue(resp)
 		s := v.String()
 		require.Contains(t, s, "GET")
 		require.Contains(t, s, "example.com/x")
 		require.Contains(t, s, "200 OK")
+		// Multi-value header logs all values (regression for the h.Get-only bug).
+		require.Contains(t, s, "[a b]")
+		// Credential-bearing header is redacted.
+		require.Contains(t, s, "REDACTED")
+		require.NotContains(t, s, "super-secret-token")
 	})
 
 	t.Run("request_with_nil_url", func(t *testing.T) {
@@ -219,24 +228,30 @@ func TestOptRequestTimeout_directStub(t *testing.T) {
 		require.NotNil(t, resp)
 	})
 
-	t.Run("cancelled_parent_ctx", func(t *testing.T) {
-		// A pre-cancelled parent context makes the timer goroutine observe
-		// ctx.Done immediately, and drives the error / cause-swap path.
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
+	t.Run("cancelled_parent_ctx_swaps_to_cause", func(t *testing.T) {
+		// A pre-cancelled parent (with a distinct cause) drives the cause-swap
+		// path: the inner tripper returns bare context.Canceled, which must be
+		// swapped for the parent's cause. Using a sentinel cause makes the
+		// assertion distinguishing (it would fail if the swap didn't happen).
+		sentinel := errors.New("parent cause")
+		ctx, cancel := context.WithCancelCause(context.Background())
+		cancel(sentinel)
 		cReq, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com", nil)
 		require.NoError(t, err)
 
 		tf := httpz.OptRequestTimeout(time.Hour)
 		_, err = tf(&stubRoundTripper{err: context.Canceled}, cReq)
-		require.ErrorIs(t, err, context.Canceled)
+		require.ErrorIs(t, err, sentinel, "the bare context error must be swapped for the cause")
 	})
 
 	t.Run("panic_is_repropagated", func(t *testing.T) {
-		// A panicking inner round-tripper must re-panic (and not be swallowed);
-		// the deferred cleanup releases the timer goroutine and context first.
+		// A panicking inner round-tripper must re-panic with the original value
+		// (not be swallowed); the deferred cleanup releases the timer goroutine
+		// and context first.
 		tf := httpz.OptRequestTimeout(time.Hour)
-		require.Panics(t, func() { _, _ = tf(panicRoundTripper{}, req) })
+		require.PanicsWithValue(t, "inner round tripper panic", func() {
+			_, _ = tf(panicRoundTripper{}, req)
+		})
 	})
 }
 
