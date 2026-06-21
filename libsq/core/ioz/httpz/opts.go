@@ -148,17 +148,29 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 		var armed atomic.Bool
 		armed.Store(true)
 
+		// mkTimeoutErr builds the header-timeout error. It's only invoked on an
+		// actual timeout, so the common success path allocates nothing.
+		mkTimeoutErr := func() error {
+			return errz.Wrapf(context.DeadlineExceeded,
+				"http response header not received within %s timeout", timeout)
+		}
+
 		t := time.AfterFunc(timeout, func() {
 			// CompareAndSwap is the single source of truth for "did the timeout
 			// win the race". It succeeds only if the timer fired while still armed,
-			// i.e. before RoundTrip returned and disarmed it: a genuine header
-			// timeout, so warn and cancel. If it fails, RoundTrip already returned;
-			// the timer must not cancel the context the body reads through.
+			// i.e. before RoundTrip returned and disarmed it. If it fails, RoundTrip
+			// already returned; the timer must not cancel the context the body
+			// reads through.
 			if armed.CompareAndSwap(true, false) {
+				if ctx.Err() != nil {
+					// The context is already done, so its cancellation came from the
+					// parent, not this header timer. Don't log a misleading timeout
+					// warning; the parent's cause stands.
+					return
+				}
 				lg.FromContext(ctx).Warn("HTTP header response not received within timeout",
 					lga.Timeout, timeout, lga.URL, req.URL.String())
-				cancelFn(errz.Wrapf(context.DeadlineExceeded,
-					"http response header not received within %s timeout", timeout))
+				cancelFn(mkTimeoutErr())
 			}
 		})
 
@@ -179,20 +191,18 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 		t.Stop()
 
 		if !armed.CompareAndSwap(true, false) {
-			// The timer won the race: it fired and cancelled the context before we
-			// could disarm it, so this is a genuine header timeout. Even if
-			// RoundTrip happened to return a response, the context is cancelled and
-			// the body reads through it, so the response is unusable. Surface the
-			// timeout consistently (never a response with a dead body) and release
-			// the response. context.Cause holds the descriptive error set by the
-			// timer.
+			// The timer won the race: it fired before we could disarm it. This is a
+			// header timeout, or a parent cancellation that beat the timer. Cancel
+			// here too, so the cause is guaranteed set even if the timer's own
+			// cancelFn hasn't run yet (avoiding a (nil, nil) return); this call is a
+			// no-op if the context is already cancelled, so a parent cause is
+			// preserved. Any returned response is unusable: its body reads through
+			// the now-cancelled context, so discard it and surface the cause.
+			cancelFn(mkTimeoutErr())
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()
 			}
-			if cause := context.Cause(ctx); cause != nil {
-				err = cause
-			}
-			return nil, err
+			return nil, context.Cause(ctx)
 		}
 
 		// The timer is disarmed and can no longer cancel the context. Any

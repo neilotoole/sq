@@ -360,6 +360,46 @@ func TestOptRequestTimeout_lateSuccessReportedAsTimeout(t *testing.T) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
+// TestOptRequestTimeout_parentCancelNotReportedAsTimeout verifies that when the
+// parent context is cancelled around the same time the header timer fires, the
+// failure is surfaced with the parent's cause (not a fabricated header timeout)
+// and no misleading header-timeout warning is logged. This is the invariant the
+// old code's `case <-ctx.Done()` select arm enforced.
+func TestOptRequestTimeout_parentCancelNotReportedAsTimeout(t *testing.T) {
+	t.Parallel()
+
+	const timeout = 40 * time.Millisecond
+	sentinel := errors.New("parent cancelled")
+
+	parent, cancel := context.WithCancelCause(context.Background())
+	var records []slog.Record
+	ctx := lg.NewContext(parent, slog.New(recordHandler{&records}))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com", nil)
+	require.NoError(t, err)
+
+	// Cancel the parent up front; the stub ignores the context and returns a
+	// "success" only after the header timeout has elapsed, so the timer fires
+	// while the parent is already cancelled.
+	cancel(sentinel)
+	rt := roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
+		time.Sleep(timeout * 3)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("x")),
+		}, nil
+	})
+
+	tf := httpz.OptRequestTimeout(timeout)
+	resp, err := tf(rt, req)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.ErrorIs(t, err, sentinel, "the parent's cause must be surfaced, not a fabricated timeout")
+	for _, r := range records {
+		require.NotContains(t, r.Message, "not received within timeout",
+			"a parent cancellation must not be logged as a header timeout")
+	}
+}
+
 func TestOptResponseTimeout_logsOnCloseAfterTimeout(t *testing.T) {
 	// When the body is closed after the response timeout has already elapsed,
 	// the ReadCloserNotifier callback logs (the errors.Is(cause, timeoutErr)
