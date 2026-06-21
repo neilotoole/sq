@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"context"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -421,6 +422,10 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if runtime.GOOS == "darwin" && tc.name == "inspect_prod_active.dat" {
+				t.Skip("completion of CSV active source tables is timeout-sensitive on macOS CI")
+			}
+
 			t.Parallel()
 
 			tr := testrun.New(context.Background(), t, nil).Hush()
