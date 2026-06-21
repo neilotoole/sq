@@ -204,6 +204,13 @@ func TestShort(t *testing.T) {
 		{loc: "data.xlsx", want: "data.xlsx"},
 		{loc: "sqlite3:///path/to/sqlite.db", want: "sqlite.db"},
 		{loc: "duckdb:///path/to/sakila.duckdb", want: "sakila.duckdb"},
+		// sqlite3/duckdb file DB with a secret query param: the query is
+		// stripped so the secret can't leak into the short string.
+		{loc: "sqlite3:///path/to/app.db?_auth_pass=p_ssW0rd", want: "app.db"},
+		{loc: "duckdb:///path/to/x.duckdb?motherduck_token=p_ssW0rd", want: "x.duckdb"},
+		// Bare filepath whose final segment embeds credential-shaped
+		// text is masked best-effort.
+		{loc: "/path/to/user:p_ssW0rd@host.db", want: "user:xxxxx@host.db"},
 		{loc: "postgres://sakila:p_ssW0rd@localhost:5432/sakila", want: "sakila@localhost:5432/sakila"},
 		{loc: "mysql://sakila:p_ssW0rd@localhost:3306/sakila", want: "sakila@localhost:3306/sakila"},
 		{loc: "oracle://sakila:p_ssW0rd@localhost:1521/sakila", want: "sakila@localhost:1521/sakila"},

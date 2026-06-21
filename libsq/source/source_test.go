@@ -2103,3 +2103,38 @@ func TestSort_bothNil(t *testing.T) {
 	require.Equal(t, "a", groups[3].Name)
 	require.Equal(t, "b", groups[4].Name)
 }
+
+// TestCollection_Add_nil verifies Add rejects a nil source instead of
+// panicking.
+func TestCollection_Add_nil(t *testing.T) {
+	coll := &source.Collection{}
+	require.Error(t, coll.Add(nil))
+}
+
+// TestCollection_nilSourceEntry verifies that a nil *Source entry in the
+// collection (e.g. from a hand-edited config with a null array element)
+// is skipped rather than panicking in Handles/Groups/Active/indexOf.
+func TestCollection_nilSourceEntry(t *testing.T) {
+	coll := &source.Collection{}
+	err := coll.UnmarshalJSON([]byte(`{"sources":[null,` +
+		`{"handle":"@prod/real","driver":"sqlite3","location":"/tmp/a.db"}]}`))
+	require.NoError(t, err)
+
+	require.Equal(t, []string{"@prod/real"}, coll.Handles())
+	require.NotPanics(t, func() { _ = coll.Groups() })
+	require.NotPanics(t, func() { _ = coll.Active() })
+	require.True(t, coll.IsExistingSource("@prod/real"))
+	require.False(t, coll.IsExistingSource("@ghost"))
+}
+
+// TestSource_String_Group_nil verifies the nil-receiver guards on
+// Source.String and Source.Group.
+func TestSource_String_Group_nil(t *testing.T) {
+	var s *source.Source
+	require.Equal(t, "<nil>", s.String())
+	require.Empty(t, s.Group())
+
+	// A non-nil source with an empty handle exercises the
+	// groupFromHandle empty-string guard.
+	require.Empty(t, (&source.Source{}).Group())
+}

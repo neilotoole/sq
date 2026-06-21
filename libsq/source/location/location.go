@@ -129,9 +129,12 @@ func Short(loc string) string {
 			return redactBestEffort(loc)
 		}
 
-		// True filepath.
+		// True filepath. Mask any credential-shaped text in the base
+		// name (e.g. a segment that embeds "user:pw@" or "password="),
+		// consistent with the URL branch above. Ordinary filenames are
+		// unaffected.
 		loc = filepath.Clean(loc)
-		return filepath.Base(loc)
+		return redactBestEffort(filepath.Base(loc))
 	}
 
 	// It's a SQL driver.
@@ -166,8 +169,15 @@ func Short(loc string) string {
 	}
 
 	if u.Scheme == "sqlite3" || u.Scheme == "duckdb" {
-		// special handling for file-based DBs (sqlite3, duckdb)
-		return path.Base(u.DSN)
+		// Special handling for file-based DBs (sqlite3, duckdb). u.DSN
+		// carries the query string, which may hold secret params (e.g.
+		// SQLCipher's _auth_pass); strip it so secrets don't leak into
+		// the short display string.
+		dsn := u.DSN
+		if i := strings.IndexByte(dsn, '?'); i != -1 {
+			dsn = dsn[:i]
+		}
+		return path.Base(dsn)
 	}
 
 	sb := strings.Builder{}

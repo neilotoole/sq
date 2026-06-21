@@ -69,6 +69,9 @@ func (c *Collection) Data() any {
 		return nil
 	}
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	return c.data
 }
 
@@ -142,6 +145,10 @@ func (c *Collection) Add(src *Source) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if src == nil {
+		return errz.New("cannot add nil source")
+	}
+
 	if err := ValidHandle(src.Handle); err != nil {
 		return err
 	}
@@ -201,7 +208,7 @@ func (c *Collection) isExistingHandle(handle string) bool {
 
 func (c *Collection) indexOf(handle string) (int, *Source) {
 	for i, src := range c.data.Sources {
-		if src.Handle == handle {
+		if src != nil && src.Handle == handle {
 			return i, src
 		}
 	}
@@ -319,13 +326,16 @@ func (c *Collection) RenameGroup(oldGroup, newGroup string) ([]*Source, error) {
 
 	var affectedSrcs []*Source
 
-	var newHandle string
 	for _, oldHandle := range oldHandles {
+		var newHandle string
 		if newGroup == "" {
 			if i := strings.LastIndex(oldHandle, "/"); i != -1 {
 				newHandle = "@" + oldHandle[i+1:]
 			}
-		} else { // else, it's a non-root new group
+		} else {
+			// Non-root new group. oldGroup is always the handle's prefix
+			// after "@" (oldHandle came from handlesInGroup(oldGroup)),
+			// so replacing the first occurrence rewrites the group segment.
 			newHandle = strings.Replace(oldHandle, oldGroup, newGroup, 1)
 		}
 
@@ -373,6 +383,10 @@ func (c *Collection) MoveHandleToGroup(handle, toGroup string) (*Source, error) 
 	var newHandle string
 	oldGroup := src.Group()
 
+	// oldGroup is always the handle's group segment (right after "@"),
+	// so replacing its first occurrence rewrites only that segment. For
+	// a root source (oldGroup == "") the "/"-anchored replaces are no-ops
+	// on a handle that has no "/", which is the intended behavior.
 	switch {
 	case toGroup == "/":
 		newHandle = strings.Replace(handle, oldGroup+"/", "", 1)
@@ -618,9 +632,11 @@ func (c *Collection) Handles() []string {
 }
 
 func (c *Collection) handles() []string {
-	handles := make([]string, len(c.data.Sources))
-	for i := range c.data.Sources {
-		handles[i] = c.data.Sources[i].Handle
+	handles := make([]string, 0, len(c.data.Sources))
+	for _, src := range c.data.Sources {
+		if src != nil {
+			handles = append(handles, src.Handle)
+		}
 	}
 
 	return handles
@@ -716,6 +732,9 @@ func (c *Collection) groups() []string {
 	groups := make([]string, 0, len(c.data.Sources)+1)
 	groups = append(groups, "/")
 	for _, src := range c.data.Sources {
+		if src == nil {
+			continue
+		}
 		h := src.Handle
 
 		if !strings.ContainsRune(h, '/') {

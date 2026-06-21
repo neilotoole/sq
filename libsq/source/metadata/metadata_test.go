@@ -148,6 +148,7 @@ func TestSource_Clone(t *testing.T) {
 		require.Equal(t, src.DBVersion, got.DBVersion)
 		require.Equal(t, src.User, got.User)
 		require.Equal(t, src.Size, got.Size)
+		require.NotSame(t, src.Size, got.Size, "Size must be a deep copy, not a shared pointer")
 		require.Equal(t, src.TableCount, got.TableCount)
 		require.Equal(t, src.ViewCount, got.ViewCount)
 		require.Equal(t, src.SecretsResolved, got.SecretsResolved)
@@ -157,6 +158,10 @@ func TestSource_Clone(t *testing.T) {
 		// Modify clone's DBProperties to verify independence
 		got.DBProperties["new_key"] = "new_value"
 		require.NotEqual(t, src.DBProperties, got.DBProperties)
+
+		// Mutating the clone's Size must not affect the original.
+		*got.Size = 2048
+		require.Equal(t, int64(1024), *src.Size)
 
 		// Verify Tables is a separate slice
 		require.Len(t, got.Tables, 1)
@@ -411,7 +416,11 @@ func TestTable_Clone(t *testing.T) {
 		require.Equal(t, tbl.DBTableType, got.DBTableType)
 		require.Equal(t, tbl.RowCount, got.RowCount)
 		require.Equal(t, tbl.Size, got.Size)
+		require.NotSame(t, tbl.Size, got.Size, "Size must be a deep copy, not a shared pointer")
 		require.Equal(t, tbl.Comment, got.Comment)
+		// Mutating the clone's Size must not affect the original.
+		*got.Size = 2048
+		require.Equal(t, int64(1024), *tbl.Size)
 
 		// Verify Columns is a separate slice
 		require.Len(t, got.Columns, 2)

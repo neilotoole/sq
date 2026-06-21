@@ -97,6 +97,11 @@ func (s *Source) Table(tblName string) *Table {
 
 // Clone returns a deep copy of s. If s is nil, nil is returned.
 //
+// The Size pointer and the Tables are deep-copied. DBProperties is
+// copied one level deep: the map itself is independent, but nested
+// reference values (maps/slices stored as the any value) are shared
+// with the original. Treat DBProperties values as read-only.
+//
 // Clone re-runs [LinkForeignKeys] with a nil logger on the result so
 // the cloned tables' FK.Incoming slices point at the cloned outgoing
 // FK objects rather than at the originals. Passing nil suppresses
@@ -122,10 +127,14 @@ func (s *Source) Clone() *Source {
 		DBProduct:       s.DBProduct,
 		DBVersion:       s.DBVersion,
 		User:            s.User,
-		Size:            s.Size,
 		TableCount:      s.TableCount,
 		ViewCount:       s.ViewCount,
 		SecretsResolved: s.SecretsResolved,
+	}
+
+	if s.Size != nil {
+		size := *s.Size
+		s2.Size = &size
 	}
 
 	if s.DBProperties != nil {
@@ -259,9 +268,13 @@ func (t *Table) Clone() *Table {
 		TableType:   t.TableType,
 		DBTableType: t.DBTableType,
 		RowCount:    t.RowCount,
-		Size:        t.Size,
 		Comment:     t.Comment,
 		Columns:     nil,
+	}
+
+	if t.Size != nil {
+		size := *t.Size
+		c.Size = &size
 	}
 
 	if t.Columns != nil {

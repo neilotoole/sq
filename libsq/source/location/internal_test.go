@@ -333,8 +333,9 @@ func TestReplaceSecretQueryValues_UnescapeFallback(t *testing.T) {
 	require.Equal(t, "my%zzkey=plainval", got)
 }
 
-// TestRedact_EmptyAndPlaceholderEdgeCases covers Redact branches around
-// placeholder handling that the table-driven external test doesn't hit.
+// TestRedact_NoRefsWithDollar covers the Redact branch where loc
+// contains "${" but no well-formed placeholder ref, which the
+// table-driven external test doesn't hit.
 func TestRedact_NoRefsWithDollar(t *testing.T) {
 	// loc contains "${" but ExtractRefs finds no well-formed ref (the
 	// brace is unterminated), so Redact takes the redactRaw(loc, nil)
