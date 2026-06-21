@@ -409,8 +409,10 @@ func (d *driveri) Renderer() *render.Renderer {
 func locationWithDefaultPort(loc string) (string, bool, error) {
 	u, err := url.Parse(loc)
 	if err != nil {
-		// Don't include loc in the error: it may carry credentials.
-		return "", false, errz.Wrap(err, "rqlite: parse location")
+		// The *url.Error from url.Parse embeds the raw loc (including any
+		// inline credentials) in its message; stripURLError drops that
+		// wrapper so only the underlying cause is reported.
+		return "", false, errz.Wrap(stripURLError(err), "rqlite: parse location")
 	}
 
 	if u.Hostname() == "" {
