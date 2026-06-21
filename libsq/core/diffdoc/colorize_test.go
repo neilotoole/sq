@@ -20,6 +20,15 @@ import (
 // former bug where the single-char branch was unreachable (gated on the
 // impossible length == 0) and miscolored "+" as a deletion.
 func TestColorizer_singleCharLines(t *testing.T) {
+	// Neutralize ambient NO_COLOR / FORCE_COLOR and force color on, so the
+	// assertions always exercise non-empty, distinct sequences regardless of
+	// the environment (color.New bakes ambient NO_COLOR into the instance).
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("FORCE_COLOR", "")
+	previous := color.NoColor
+	t.Cleanup(func() { color.NoColor = previous })
+	color.NoColor = false
+
 	seqs := func(c *color.Color) (prefix, suffix string) {
 		s := colorz.ExtractSeqs(c)
 		return string(s.Prefix), string(s.Suffix)
@@ -30,6 +39,13 @@ func TestColorizer_singleCharLines(t *testing.T) {
 	insP, insS := seqs(clrs.Insertion)
 	ctxP, ctxS := seqs(clrs.Context)
 	cmdP, cmdS := seqs(clrs.CmdTitle)
+
+	// Guard the guard: if any sequence were empty, or deletion and insertion
+	// shared a color, the table assertions could pass without actually
+	// validating colorization. Fail loudly instead.
+	require.NotEmpty(t, delP)
+	require.NotEmpty(t, insP)
+	require.NotEqual(t, delP, insP, "deletion and insertion must use distinct colors")
 
 	testCases := []struct {
 		name string

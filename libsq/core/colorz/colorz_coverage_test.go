@@ -118,6 +118,13 @@ func TestMonoPrinter_Block(t *testing.T) {
 	require.Equal(t, 13, n)
 	require.Equal(t, "Hello,\nworld!", buf.String())
 
+	// Empty input: per the Printer.Block contract, w is not written to. A
+	// failWriter that errors on any write confirms no (even zero-length) write
+	// is issued.
+	n, err = p.Block(&failWriter{failAfter: 0}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
 	// Error path.
 	n, err = p.Block(&failWriter{failAfter: 0}, []byte("hello"))
 	require.Error(t, err)
