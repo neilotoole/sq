@@ -14,6 +14,7 @@ import (
 	"github.com/rqlite/gorqlite/stdlib"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
 // sqDBDrvrName is the registration name of sq's wrapper around
@@ -247,6 +248,8 @@ const (
 	convBool
 	// convBlob base64-decodes strings for BLOB columns.
 	convBlob
+	// convInt converts raw JSON numbers to int64 for integer columns.
+	convInt
 )
 
 // wireConvsForTypes derives the per-column conversion from rqlite's
@@ -263,6 +266,22 @@ func wireConvsForTypes(types []string) []wireConv {
 			convs[i] = convBool
 		case "blob":
 			convs[i] = convBlob
+		default:
+			// gorqlite decodes every JSON number as float64. For an
+			// integer-kind column the scan destination is *sql.NullInt64,
+			// and database/sql formats the float64 via FormatFloat(_, 'g', _)
+			// before ParseInt; any value whose shortest form is exponential
+			// (every integer >= 1e6, and all values > 2^53) then fails the
+			// scan outright. Converting to int64 at the wire layer sidesteps
+			// that path. Exact for |v| <= 2^53; larger magnitudes are already
+			// imprecise from gorqlite's float64 decode (a full fix needs
+			// gorqlite to decode with json.Number). Keyed off kindFromDBTypeName
+			// so it tracks exactly which columns scan into *sql.NullInt64;
+			// rqlite reports "integer" for literals, COUNT, SUM-of-int, and
+			// arithmetic too, so those are covered.
+			if kindFromDBTypeName(context.Background(), "", typ, nil) == kind.Int {
+				convs[i] = convInt
+			}
 		}
 	}
 	return convs
@@ -282,6 +301,9 @@ func wireConvsForTypes(types []string) []wireConv {
 //     wire format; rqlite's ?blob_array disambiguator is not
 //     reachable through gorqlite, which hardcodes its API query
 //     strings.)
+//   - convInt: raw JSON numbers become int64 for integer columns, whose
+//     scan destination (*sql.NullInt64) otherwise rejects a float64 that
+//     database/sql formats in exponential notation. See wireConvsForTypes.
 //
 // All other values pass through unchanged.
 func convertWireValue(conv wireConv, v any) driver.Value {
@@ -297,6 +319,10 @@ func convertWireValue(conv wireConv, v any) driver.Value {
 				return b
 			}
 			return []byte(s)
+		}
+	case convInt:
+		if f, ok := v.(float64); ok {
+			return int64(f)
 		}
 	}
 	return v
