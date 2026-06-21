@@ -89,6 +89,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- [#900]: HTTPS requests (used when downloading remote sources) now require a minimum of
+  TLS 1.2, matching the Go standard library default. TLS 1.0 and 1.1, deprecated by
+  RFC 8996, are no longer accepted.
 - [#851]: In colored output, structural punctuation is now rendered muted rather than bold,
   so values stand out.
 - [#846]: YAML now renders decimal values as quoted strings by default, matching JSON. Set
@@ -1743,6 +1746,7 @@ make working with lots of sources much easier.
 [#863]: https://github.com/neilotoole/sq/pull/863
 [#866]: https://github.com/neilotoole/sq/issues/866
 [#868]: https://github.com/neilotoole/sq/issues/868
+[#900]: https://github.com/neilotoole/sq/pull/900
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
