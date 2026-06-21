@@ -29,6 +29,7 @@ import (
 var (
 	KindFromDBTypeName = kindFromDBTypeName
 	RTypeNullTime      = rtypeNullTime
+	GetTblRowCounts    = getTblRowCounts
 )
 
 // ExecNonTx executes query as a single non-transactional request via

@@ -171,6 +171,29 @@ func Test_sqStmt_CheckNamedValue(t *testing.T) {
 	}
 }
 
+// Test_sqStmt_CheckNamedValue_ConvertError covers the branch where
+// driver.DefaultParameterConverter rejects an unconvertible argument.
+func Test_sqStmt_CheckNamedValue_ConvertError(t *testing.T) {
+	s := &sqStmt{}
+	nv := &driver.NamedValue{Ordinal: 1, Value: make(chan int)}
+	require.Error(t, s.CheckNamedValue(nv))
+}
+
+// Test_sqRows_ColumnTypeDatabaseTypeName covers in-range lookups and the
+// out-of-range guards (which mirror the database/sql default of "").
+func Test_sqRows_ColumnTypeDatabaseTypeName(t *testing.T) {
+	rows := newTestRows(t,
+		[]string{"a", "b"}, []string{"INTEGER", "TEXT"},
+		[][]any{{float64(1), "x"}})
+	sr, ok := rows.(*sqRows)
+	require.True(t, ok)
+
+	require.Equal(t, "INTEGER", sr.ColumnTypeDatabaseTypeName(0))
+	require.Equal(t, "TEXT", sr.ColumnTypeDatabaseTypeName(1))
+	require.Equal(t, "", sr.ColumnTypeDatabaseTypeName(-1))
+	require.Equal(t, "", sr.ColumnTypeDatabaseTypeName(99))
+}
+
 // Test_sqRows_Next_PassThrough verifies that columns outside the three
 // affected type classes are delivered unchanged, including columns with
 // parameterized type names and expression columns with no type at all.
