@@ -12,18 +12,32 @@ import (
 // ByteSize is a type for representing data sizes in bytes.
 type ByteSize = datasize.ByteSize
 
+// Parse parses t as a ByteSize, e.g. "10MB". On error, the returned
+// error is wrapped via errz so it carries a stack trace.
 func Parse(t []byte) (ByteSize, error) {
-	return datasize.Parse(t)
+	v, err := datasize.Parse(t)
+	if err != nil {
+		return v, errz.Err(err)
+	}
+	return v, nil
 }
 
+// MustParse is like Parse, but panics on error. It is intended for use
+// with constant input, typically at package-init.
 func MustParse(t []byte) ByteSize {
-	return datasize.MustParse(t)
+	v, err := Parse(t)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
+// ParseString is like Parse, but accepts a string.
 func ParseString(s string) (ByteSize, error) {
 	return Parse([]byte(s))
 }
 
+// MustParseString is like MustParse, but accepts a string.
 func MustParseString(s string) ByteSize {
 	return MustParse([]byte(s))
 }
@@ -60,8 +74,6 @@ func (op Opt) Process(o options.Options) (options.Options, error) {
 	}
 
 	switch v := v.(type) {
-	case string:
-		// continue below
 	case ByteSize:
 		return o, nil
 	case uint:
@@ -80,26 +92,18 @@ func (op Opt) Process(o options.Options) (options.Options, error) {
 		o = o.Clone()
 		o[key] = ByteSize(v) //nolint:gosec // ignore overflow concern
 		return o, nil
+	case string:
+		var f ByteSize
+		if err := f.UnmarshalText([]byte(v)); err != nil {
+			return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", key, f)
+		}
+		o = o.Clone()
+		o[key] = f
+		return o, nil
 	default:
 		return nil, errz.Errorf("option {%s} should be a string, int, or {%T} but got {%T}: %v",
-			ByteSize(0), "", v, v)
+			key, ByteSize(0), v, v)
 	}
-
-	var s string
-	s, ok = v.(string)
-	if !ok {
-		return nil, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
-			key, s, v, v)
-	}
-
-	var f ByteSize
-	if err := f.UnmarshalText([]byte(s)); err != nil {
-		return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", key, f)
-	}
-
-	o = o.Clone()
-	o[key] = f
-	return o, nil
 }
 
 // GetAny implements options.Opt.
