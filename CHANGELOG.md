@@ -57,6 +57,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   header-receipt timeout limits only how long `sq` waits for the response headers, but in a
   narrow timing window it could fire just after the headers had arrived and cancel the
   in-progress body download.
+- [`sq inspect --overview`](https://sq.io/docs/inspect) on SQL Server now reports the
+  `IsExternalGovernanceEnabled` server property. A malformed property name meant the value
+  was always queried as NULL and silently omitted.
 
 ## [v0.54.0] - 2026-06-19
 
