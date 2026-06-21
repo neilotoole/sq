@@ -76,7 +76,7 @@ func (d *driveri) ConnParams() map[string][]string {
 		"connectionAttributes":     nil,
 		"interpolateParams":        {"false", "true"},
 		"loc":                      {"UTC"},
-		"maxAllowedPackage":        {"0", "67108864"},
+		"maxAllowedPacket":         {"0", "67108864"},
 		"multiStatements":          {"false", "true"},
 		"parseTime":                {"false", "true"},
 		"readTimeout":              {"0"},
@@ -212,7 +212,8 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Ta
 
 // AlterTableAddColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN `%s` ", tbl, col) + dbTypeNameFromKind(knd)
+	q := "ALTER TABLE " + stringz.BacktickQuote(tbl) + " ADD COLUMN " +
+		stringz.BacktickQuote(col) + " " + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
@@ -379,14 +380,15 @@ func (d *driveri) CatalogExists(_ context.Context, _ sqlz.DB, catalog string) (b
 
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	q := fmt.Sprintf("RENAME TABLE `%s` TO `%s`", tbl, newName)
+	q := "RENAME TABLE " + stringz.BacktickQuote(tbl) + " TO " + stringz.BacktickQuote(newName)
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf("ALTER TABLE `%s` RENAME COLUMN `%s` TO `%s`", tbl, col, newName)
+	q := "ALTER TABLE " + stringz.BacktickQuote(tbl) + " RENAME COLUMN " +
+		stringz.BacktickQuote(col) + " TO " + stringz.BacktickQuote(newName)
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
@@ -654,14 +656,14 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// For whatever reason, the "affected" count from TRUNCATE
 	// always returns zero. So, we're going to synthesize it.
 	var beforeCount int64
-	err = tx.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tbl)).Scan(&beforeCount)
+	err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+stringz.BacktickQuote(tbl)).Scan(&beforeCount)
 	if err != nil {
-		return 0, errz.Append(err, errw(tx.Rollback()))
+		return 0, errz.Append(errw(err), errw(tx.Rollback()))
 	}
 
-	affected, err = sqlz.ExecAffected(ctx, tx, fmt.Sprintf("TRUNCATE TABLE `%s`", tbl))
+	affected, err = sqlz.ExecAffected(ctx, tx, "TRUNCATE TABLE "+stringz.BacktickQuote(tbl))
 	if err != nil {
-		return affected, errz.Append(err, errw(tx.Rollback()))
+		return affected, errz.Append(errw(err), errw(tx.Rollback()))
 	}
 
 	if affected != 0 {

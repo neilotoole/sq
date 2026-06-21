@@ -94,6 +94,16 @@ func TestDSNFromLocation(t *testing.T) {
 			wantDSN:   "sakila:p_ssW0rd@tcp(localhost:3306)/sqtest?allowCleartextPasswords=true&allowOldPasswords=true&parseTime=true",
 			parseTime: true,
 		},
+		{
+			// Wrong scheme: not a mysql:// location.
+			loc:     "postgres://sakila:p_ssW0rd@localhost:5432/sqtest",
+			wantErr: true,
+		},
+		{
+			// Too short: prefix matches but there's nothing after it.
+			loc:     "mysql://",
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {
