@@ -136,7 +136,7 @@ func headerLogAttrs(h http.Header) []slog.Attr {
 	var attrs []slog.Attr
 	for k := range h {
 		if sensitiveHeaders[http.CanonicalHeaderKey(k)] {
-			attrs = append(attrs, slog.String(k, "REDACTED"))
+			attrs = append(attrs, slog.String(k, stringz.Redacted))
 			continue
 		}
 

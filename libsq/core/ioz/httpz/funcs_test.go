@@ -142,8 +142,8 @@ func TestResponseLogValue(t *testing.T) {
 		require.Contains(t, s, "200 OK")
 		// Multi-value header logs all values (regression for the h.Get-only bug).
 		require.Contains(t, s, "[a b]")
-		// Credential-bearing header is redacted.
-		require.Contains(t, s, "REDACTED")
+		// Credential-bearing header is redacted (using the repo's redaction token).
+		require.Contains(t, s, "xxxxx")
 		require.NotContains(t, s, "super-secret-token")
 	})
 
@@ -264,13 +264,15 @@ func TestOptResponseTimeout_logsOnCloseAfterTimeout(t *testing.T) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com", nil)
 	require.NoError(t, err)
 
-	tf := httpz.OptResponseTimeout(40 * time.Millisecond)
+	// Short timeout with a generous sleep margin so the timeout has reliably
+	// elapsed (and the context cause is the timeout error) before Close, even
+	// under loaded CI.
+	tf := httpz.OptResponseTimeout(20 * time.Millisecond)
 	stub := &stubRoundTripper{resp: &http.Response{Body: io.NopCloser(strings.NewReader("x"))}}
 	resp, err := tf(stub, req)
 	require.NoError(t, err)
 
-	// Let the timeout elapse so the context cause becomes the timeout error.
-	time.Sleep(120 * time.Millisecond)
+	time.Sleep(250 * time.Millisecond)
 	require.NoError(t, resp.Body.Close())
 
 	var logged bool
@@ -427,7 +429,26 @@ func TestOptRequestDelay(t *testing.T) {
 		require.GreaterOrEqual(t, time.Since(start), 50*time.Millisecond)
 	})
 
-	t.Run("cancelled_context_aborts_delay", func(t *testing.T) {
+	t.Run("cancelled_context_aborts_delay_direct", func(t *testing.T) {
+		// Direct stub so we unambiguously exercise OptRequestDelay's ctx.Done
+		// branch: a pre-cancelled context must abort the delay, return the
+		// cause, and never call next (rather than the stdlib client
+		// short-circuiting before the delay TripFunc runs).
+		ctx, cancel := context.WithCancelCause(context.Background())
+		sentinel := errors.New("delay cancel cause")
+		cancel(sentinel)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com", nil)
+		require.NoError(t, err)
+
+		tf := httpz.OptRequestDelay(time.Hour)
+		stub := &stubRoundTripper{resp: &http.Response{StatusCode: http.StatusOK}}
+		_, err = tf(stub, req)
+		require.ErrorIs(t, err, sentinel)
+		require.False(t, stub.called, "delay must abort before calling next")
+	})
+
+	t.Run("cancelled_context_via_client", func(t *testing.T) {
+		// Through NewClient (exercises the outermost contextCause swap).
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)

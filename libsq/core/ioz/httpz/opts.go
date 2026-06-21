@@ -28,6 +28,11 @@ var _ Opt = (*OptInsecureSkipVerify)(nil)
 type OptInsecureSkipVerify bool
 
 func (b OptInsecureSkipVerify) apply(tr *http.Transport) {
+	// Guard against a nil config: NewClient applies the min-TLS opt first (which
+	// creates the config), but don't assume that ordering here.
+	if tr.TLSClientConfig == nil {
+		tr.TLSClientConfig = &tls.Config{}
+	}
 	tr.TLSClientConfig.InsecureSkipVerify = bool(b)
 }
 

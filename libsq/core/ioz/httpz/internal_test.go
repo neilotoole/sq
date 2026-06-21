@@ -42,3 +42,17 @@ func TestMinTLSVersion_apply(t *testing.T) {
 	require.NotSame(t, existing, tr2.TLSClientConfig, "config must be cloned")
 	require.Zero(t, existing.MinVersion, "the original config must not be mutated")
 }
+
+func TestOptInsecureSkipVerify_apply(t *testing.T) {
+	// Nil config: a fresh config is created and the flag set.
+	tr1 := &http.Transport{}
+	OptInsecureSkipVerify(true).apply(tr1)
+	require.NotNil(t, tr1.TLSClientConfig)
+	require.True(t, tr1.TLSClientConfig.InsecureSkipVerify)
+
+	// Existing config: the flag is set and other fields preserved.
+	tr2 := &http.Transport{TLSClientConfig: &tls.Config{ServerName: "example.com"}}
+	OptInsecureSkipVerify(true).apply(tr2)
+	require.True(t, tr2.TLSClientConfig.InsecureSkipVerify)
+	require.Equal(t, "example.com", tr2.TLSClientConfig.ServerName)
+}
