@@ -18,6 +18,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
+### Changed
+
+- The column-rename templates ([`ingest.column.rename`](https://sq.io/docs/config#ingestcolumnrename)
+  and [`result.column.rename`](https://sq.io/docs/config#resultcolumnrename)) no longer expose
+  the non-deterministic and environment-reading template functions (`env`, `expandenv`, `now`,
+  `randAlphaNum`, `uuidv4`, and similar). Column names now depend only on the source data, so the
+  same input always produces the same schema, and templates can't read the process environment.
+
 ### Fixed
 
 - [`sq diff --data`](https://sq.io/docs/cmd/diff) output no longer contains NUL
