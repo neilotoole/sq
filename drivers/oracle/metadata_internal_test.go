@@ -29,10 +29,11 @@ func openOracleForInternalTest(t *testing.T) *sql.DB {
 	if dsn == "" {
 		dsn = oracleTestDSN
 	}
+	// sql.Open only fails if the "oracle" driver isn't registered or the DSN
+	// is malformed; both are real regressions, so require success here and
+	// skip only when the instance itself is unreachable (PingContext).
 	db, err := sql.Open("oracle", dsn)
-	if err != nil {
-		t.Skipf("Oracle open failed: %v", err)
-	}
+	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err = db.PingContext(ctx); err != nil {
