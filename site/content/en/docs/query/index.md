@@ -1,7 +1,7 @@
 ---
 title: Query Guide
 description: Guide to sq's query language
-lead: ''
+lead: ""
 draft: false
 images: []
 weight: 1035
@@ -44,7 +44,7 @@ ED          CHASE
 You can probably guess what's going on above. This query has 5 _segments_:
 
 | Handle       | Table    | Filter                  | Column(s)                 | Row Range |
-|--------------|----------|-------------------------|---------------------------|-----------|
+| ------------ | -------- | ----------------------- | ------------------------- | --------- |
 | `@sakila_pg` | `.actor` | `where(.actor_id < 10)` | `.first_name, .last_name` | `.[0:3]`  |
 
 Ultimately the SLQ query is translated to a SQL query, which is executed
@@ -152,7 +152,7 @@ actor_id  first_name  last_name  last_update
 ```
 
 | Operator | Description              |
-|----------|--------------------------|
+| -------- | ------------------------ |
 | `==`     | Equal to                 |
 | `!=`     | Not equal to             |
 | `<`      | Less than                |
@@ -583,8 +583,8 @@ type has a short form and a synonym, e.g. `fojoin` and `full_outer_join`. You ca
 either form in your query.
 
 | Join type | Synonym            | SQL                | Notes                                                              |
-|-----------|--------------------|--------------------|--------------------------------------------------------------------|
-| `join`    | `inner_join`       | `INNER JOIN`       | <small>A plain SQL `JOIN` is actually an  `INNER JOIN`</small>     |
+| --------- | ------------------ | ------------------ | ------------------------------------------------------------------ |
+| `join`    | `inner_join`       | `INNER JOIN`       | <small>A plain SQL `JOIN` is actually an `INNER JOIN`</small>      |
 | `ljoin`   | `left_join`        | `LEFT JOIN`        |                                                                    |
 | `lojoin`  | `left_outer_join`  | `LEFT OUTER JOIN`  |                                                                    |
 | `rjoin`   | `right_join`       | `RIGHT JOIN`       |                                                                    |
@@ -593,9 +593,9 @@ either form in your query.
 | `xjoin`   | `cross_join`       | `CROSS JOIN`       | <small>Doesn't take a predicate, e.g. `xjoin(.film_actor)`</small> |
 
 [^1]: `NATURAL JOIN` is not implemented, for several reasons. It's not universally
-supported (e.g. [SQL Server](/docs/drivers/sqlserver)). It's considered an [anti-pattern](https://stackoverflow.com/a/6039758) by some.
-And in testing, it doesn't always work consistently from one DB to the other, leading to user surprise.
-That said, it's possible this decision will be reconsidered based on [user feedback](https://github.com/neilotoole/sq/issues/new/choose).
+    supported (e.g. [SQL Server](/docs/drivers/sqlserver)). It's considered an [anti-pattern](https://stackoverflow.com/a/6039758) by some.
+    And in testing, it doesn't always work consistently from one DB to the other, leading to user surprise.
+    That said, it's possible this decision will be reconsidered based on [user feedback](https://github.com/neilotoole/sq/issues/new/choose).
 
 ### Join predicate
 
@@ -900,7 +900,7 @@ per-function sections that follow have the details.
 Result kind by function:
 
 | Function                                           | Result kind        | Notes                                                                                                                                            |
-|----------------------------------------------------|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| -------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [`avg`](#avg)                                      | `float`            | Always floating-point, for portability. Can lose precision beyond roughly 15 to 17 significant digits.                                           |
 | [`sum`](#sum)                                      | `decimal`          | Exact for integer and decimal columns. A float column's sum is surfaced as `decimal` too, with precision that depends on the driver (see below). |
 | [`count`](#count), [`count_unique`](#count_unique) | `int`              | Row and value counts are always integers.                                                                                                        |
@@ -925,7 +925,7 @@ uniform, `sq` injects a SQL cast, or, where a cast can't help, pins the kind.
 The mechanism and any fidelity caveat vary by driver:
 
 | Driver                                   | `avg`                             | `sum`                                     | Fidelity notes                                                                                                                               |
-|------------------------------------------|-----------------------------------|-------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------------------------------------- | --------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`postgres`](/docs/drivers/postgres)     | cast result to `DOUBLE PRECISION` | cast result to unconstrained `NUMERIC`    | Sum is exact; full scale preserved.                                                                                                          |
 | [`mysql`](/docs/drivers/mysql)           | cast result to `DOUBLE`           | cast result to `DECIMAL(65, 30)`          | Full scale preserved (MySQL maxima).                                                                                                         |
 | [`sqlite3`](/docs/drivers/sqlite)        | native (float)                    | kind pinned, no SQL cast                  | A sum over a non-integer column is computed in float, so small drift is possible.                                                            |
@@ -1107,8 +1107,8 @@ case-sensitive matching:
 - **SQLite:** `instr()` (SQLite's default `LIKE` is ASCII case-insensitive).
 
 An empty pattern matches every non-NULL row, consistent across all
-drivers. That is, `contains(.col, "")`, [`startswith`](#startswith)`(.col, "")`,
-and [`endswith`](#endswith)`(.col, "")` each behave like `.col IS NOT NULL`.
+drivers. That is, `contains(.col, "")`, [`startswith`](#startswith) `(.col, "")`,
+and [`endswith`](#endswith) `(.col, "")` each behave like `.col IS NOT NULL`.
 
 Unlike jq's polymorphic `contains`, SLQ's `contains` is string-only: it
 does not operate on arrays or objects.
@@ -1209,8 +1209,7 @@ matches every non-NULL row.
 matches any sequence and `_` matches any single character. Unlike
 [`contains`](#contains) and friends, wildcards in `pattern` are
 **not** auto-escaped: the user controls them. `pattern` may be either
-a quoted string literal or a column selector — see [Column as
-pattern](#column-as-pattern) below.
+a quoted string literal or a column selector — see [Column as pattern](#column-as-pattern) below.
 
 ```shell
 $ sq '.actor | where(like(.first_name, "Pen%"))'
@@ -1247,7 +1246,7 @@ applies in `LIKE` patterns unless the session sets the
 which auto-escapes wildcards in the pattern.
 
 An empty pattern matches only empty strings (`col = ''`) — not every
-non-NULL row, in contrast with [`contains`](#contains)`(.col, "")`.
+non-NULL row, in contrast with [`contains`](#contains) `(.col, "")`.
 That difference is intentional and matches standard SQL `LIKE`
 semantics.
 
@@ -1414,16 +1413,16 @@ However, sometimes you simply need to invoke a function that exists only
 in Postgres, or SQL Server, etc. To invoke such a function, simply prefix
 the proprietary function name with an underscore.
 
-  ```shell
-  # SQLite "strftime"
-  $ sq '@sakila | .payment | _strftime("%m", .payment_date)'
+```shell
+# SQLite "strftime"
+$ sq '@sakila | .payment | _strftime("%m", .payment_date)'
 
-  # MySQL "date_format"
-  $ sq '@sakila/mysql | .payment | _date_format(.payment_date, "%m")'
+# MySQL "date_format"
+$ sq '@sakila/mysql | .payment | _date_format(.payment_date, "%m")'
 
-  # Postgres "date_trunc" func
-  $ sq '@sakila/postgres | .payment | _date_trunc("month", .payment_date)'
+# Postgres "date_trunc" func
+$ sq '@sakila/postgres | .payment | _date_trunc("month", .payment_date)'
 
-  # SQL Server "month" func
-  $ sq '@sakila | .payment | _month(.payment_date)'
-  ```
+# SQL Server "month" func
+$ sq '@sakila | .payment | _month(.payment_date)'
+```

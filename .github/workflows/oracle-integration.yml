@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions'
+  BUILD_TAGS: "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions"
 
 jobs:
   oracle:

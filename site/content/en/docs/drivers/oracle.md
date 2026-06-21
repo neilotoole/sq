@@ -7,6 +7,7 @@ weight: 4037
 toc: true
 url: /docs/drivers/oracle
 ---
+
 The `sq` Oracle driver implements connectivity for
 [Oracle Database](https://www.oracle.com/database/).
 
@@ -79,7 +80,7 @@ Oracle's catalog and schema concepts differ from other databases:
   `ALL_USERS`, but `CREATE SCHEMA` and `DROP SCHEMA` are not Oracle
   operations; create or drop Oracle users instead.
 
-The connection URL's *service name* is a connection-time routing identifier
+The connection URL's _service name_ is a connection-time routing identifier
 the listener uses to pick which database/PDB to attach you to. It is not
 itself the catalog — once the session is established, `catalog()` reflects
 the database/PDB the service routed you into.
@@ -121,7 +122,7 @@ required.
 #### Source-level fields
 
 | Field            | Source                                                                                                                                                                                        |
-|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name`, `schema` | `SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')`                                                                                                                                                    |
 | `catalog`        | `SYS_CONTEXT('USERENV', 'DB_NAME')` (PDB name in multitenant; database name otherwise)                                                                                                        |
 | `user`           | `SYS_CONTEXT('USERENV', 'SESSION_USER')`                                                                                                                                                      |
@@ -132,7 +133,7 @@ required.
 #### Per-table fields
 
 | Field                                    | Source                                                                                                                                                                         |
-|------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `row_count` (tables, materialized views) | `NUM_ROWS` from `USER_TABLES` / `USER_MVIEWS`, with a live `SELECT COUNT(*)` fallback when the dictionary value is NULL (it stays NULL until `DBMS_STATS` / `ANALYZE` has run) |
 | `row_count` (views)                      | always live `SELECT COUNT(*)` — `USER_VIEWS` carries no row count                                                                                                              |
 | `size` (tables, materialized views)      | `SUM(bytes)` from `USER_SEGMENTS` for the matching segment name                                                                                                                |
@@ -146,7 +147,7 @@ Oracle SQL rendering differs from several other SQL drivers:
 - `rownum()` renders as the portable `row_number() OVER (ORDER BY ...)`
   window function, threading the query's `ORDER BY` through the window
   definition. Oracle's `ROWNUM` pseudo-column is intentionally not used
-  because it is assigned at fetch time, *before* `ORDER BY` is applied,
+  because it is assigned at fetch time, _before_ `ORDER BY` is applied,
   which silently produces wrong row numbers when the query also sorts.
 - `catalog()` renders as `SYS_CONTEXT('USERENV', 'DB_NAME')`, which yields
   the PDB name in multitenant deployments and the database name in non-CDB
@@ -171,7 +172,7 @@ Oracle SQL rendering differs from several other SQL drivers:
 Common Oracle types map to `sq` kinds as follows:
 
 | Oracle type                                                        | `sq` kind  |
-|--------------------------------------------------------------------|------------|
+| ------------------------------------------------------------------ | ---------- |
 | `VARCHAR2`, `NVARCHAR2`, `CHAR`, `NCHAR`, `CLOB`, `NCLOB`, `ROWID` | `text`     |
 | `NUMBER(p,0)` where `p` is 1-19                                    | `int`      |
 | Other `NUMBER` values                                              | `decimal`  |

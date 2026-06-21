@@ -1,7 +1,7 @@
 ---
 title: Overview
 description: Introduction to sq
-lead: ''
+lead: ""
 draft: false
 images: []
 weight: 1010
@@ -21,7 +21,7 @@ every data source as if it were a SQL database.
 ## Key Concepts
 
 - `sq` is the command-line utility itself.
-- A *source* is a specific data source such as a database instance, or Excel or CSV file etc.
+- A _source_ is a specific data source such as a database instance, or Excel or CSV file etc.
   Each source has a:
   - `driver`: such as [`postgres`](/docs/drivers/postgres),
     [`sqlserver`](/docs/drivers/sqlserver),
@@ -29,11 +29,11 @@ every data source as if it were a SQL database.
     [`csv`](/docs/drivers/csv), or [`xlsx`](/docs/drivers/xlsx).
   - `location`: URI or filepath of the source, such as `postgres://sakila:****@localhost/sakila`
     or `/Users/neilotoole/sq/xl_demo.xlsx`.
-  - `handle`: this is how `sq` refers to that particular *source*, e.g. `@sakila_pg`,
+  - `handle`: this is how `sq` refers to that particular _source_, e.g. `@sakila_pg`,
     `@prod/customer` or `@xl_demo`. The handle must begin with `@`.
 - [Active Source](/docs/concepts/#active-source) is the default source upon which `sq` acts
   if no other source is specified.
-- [`sq inspect`](/docs/cmd/inspect) returns *metadata* about your source, such as table names
+- [`sq inspect`](/docs/cmd/inspect) returns _metadata_ about your source, such as table names
   or number of rows.
 
 Read more in [Concepts](/docs/concepts).

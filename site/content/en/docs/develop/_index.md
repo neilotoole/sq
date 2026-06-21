@@ -1,5 +1,5 @@
 ---
-title : "Develop"
+title: "Develop"
 description: "Develop"
 draft: false
 images: []

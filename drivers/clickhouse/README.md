@@ -61,7 +61,7 @@ clickhouse://default:@localhost:9000/default
 **Default Ports:**
 
 | Protocol | Non-Secure | Secure (TLS) |
-|----------|------------|--------------|
+| -------- | ---------- | ------------ |
 | Native   | 9000       | 9440         |
 | HTTP     | 8123       | 8443         |
 
@@ -94,8 +94,9 @@ which maps to `kind.Text`.
 #### ClickHouse → sq (reading/querying)
 
 <!-- markdownlint-disable MD013 MD060 -->
+
 | ClickHouse Type                       | sq Kind         | Notes                              |
-|---------------------------------------|-----------------|------------------------------------|
+| ------------------------------------- | --------------- | ---------------------------------- |
 | `Int8`, `Int16`, `Int32`, `Int64`     | `kind.Int`      | All signed integers                |
 | `UInt8`, `UInt16`, `UInt32`, `UInt64` | `kind.Int`      | All unsigned integers              |
 | `Float32`, `Float64`                  | `kind.Float`    |                                    |
@@ -110,13 +111,15 @@ which maps to `kind.Text`.
 | `Enum8(...)`, `Enum16(...)`           | `kind.Text`     | Fallback to text                   |
 | `Map(K,V)`, `Tuple(...)`              | `kind.Text`     | Fallback to text                   |
 | Unknown types                         | `kind.Text`     | Safe fallback                      |
+
 <!-- markdownlint-enable MD013 MD060 -->
 
 #### sq → ClickHouse (writing/creating tables)
 
 <!-- markdownlint-disable MD013 MD060 -->
+
 | sq Kind                     | ClickHouse Type | Notes                            |
-|-----------------------------|-----------------|----------------------------------|
+| --------------------------- | --------------- | -------------------------------- |
 | `kind.Text`                 | `String`        |                                  |
 | `kind.Int`                  | `Int64`         |                                  |
 | `kind.Float`                | `Float64`       |                                  |
@@ -127,6 +130,7 @@ which maps to `kind.Text`.
 | `kind.Time`                 | `DateTime`      | ClickHouse has no time-only type |
 | `kind.Bytes`                | `String`        | Binary data stored as String     |
 | `kind.Unknown`, `kind.Null` | `String`        |                                  |
+
 <!-- markdownlint-enable MD013 MD060 -->
 
 Nullable columns are wrapped with `Nullable(T)` (e.g.,
@@ -183,8 +187,7 @@ The following capabilities are fully functional with ClickHouse:
 - **Table Engine**: MergeTree required. SQ uses
   `ENGINE = MergeTree()` with `ORDER BY` on first column.
 - **Updates**: Uses `ALTER TABLE ... UPDATE` syntax (not standard
-  UPDATE). See [Synchronous vs Asynchronous
-  Operations](#synchronous-vs-asynchronous-operations) below.
+  UPDATE). See [Synchronous vs Asynchronous Operations](#synchronous-vs-asynchronous-operations) below.
 - **Schema/Catalog**: ClickHouse "database" maps to SQ
   schema/catalog concepts.
 - **System Tables**: Metadata from `system.databases`,
@@ -206,16 +209,18 @@ remains unmodified — a subsequent `SELECT` can return stale
 #### Operations Overview
 
 <!-- markdownlint-disable MD013 MD060 -->
-| Operation | SQL Form | Sync by Default? | sq Behavior |
-|-----------|----------|-------------------|-------------|
-| Batch insert | `INSERT INTO ... VALUES` | Yes | Synchronous (native Batch API) |
-| Single-row insert | `INSERT INTO ... VALUES` | Yes | Synchronous (prepared statement) |
-| Copy table | `INSERT INTO ... SELECT` | Yes | Synchronous |
-| Update | `ALTER TABLE ... UPDATE` | **No** | Forced synchronous (`mutations_sync = 1`) |
-| Update | Standard `UPDATE` | Yes | Lightweight mutations (requires table settings) |
-| Delete | Standard `DELETE` | Yes | Lightweight mutations (requires table settings) |
-| Delete | `ALTER TABLE ... DELETE` | **No** | Not implemented in sq |
-| DDL (CREATE, DROP, TRUNCATE) | Standard DDL | Yes | Synchronous |
+
+| Operation                    | SQL Form                 | Sync by Default? | sq Behavior                                     |
+| ---------------------------- | ------------------------ | ---------------- | ----------------------------------------------- |
+| Batch insert                 | `INSERT INTO ... VALUES` | Yes              | Synchronous (native Batch API)                  |
+| Single-row insert            | `INSERT INTO ... VALUES` | Yes              | Synchronous (prepared statement)                |
+| Copy table                   | `INSERT INTO ... SELECT` | Yes              | Synchronous                                     |
+| Update                       | `ALTER TABLE ... UPDATE` | **No**           | Forced synchronous (`mutations_sync = 1`)       |
+| Update                       | Standard `UPDATE`        | Yes              | Lightweight mutations (requires table settings) |
+| Delete                       | Standard `DELETE`        | Yes              | Lightweight mutations (requires table settings) |
+| Delete                       | `ALTER TABLE ... DELETE` | **No**           | Not implemented in sq                           |
+| DDL (CREATE, DROP, TRUNCATE) | Standard DDL             | Yes              | Synchronous                                     |
+
 <!-- markdownlint-enable MD013 MD060 -->
 
 #### Inserts Are Synchronous
@@ -285,11 +290,13 @@ setting controls whether the statement waits for the mutation to
 complete:
 
 <!-- markdownlint-disable MD013 MD060 -->
-| Value | Behavior |
-|-------|----------|
-| `0` (default) | Asynchronous: returns immediately, mutation runs in background |
-| `1` | Synchronous: waits for mutation to complete on the current replica |
-| `2` | Synchronous + replicated: waits for mutation on all replicas |
+
+| Value         | Behavior                                                           |
+| ------------- | ------------------------------------------------------------------ |
+| `0` (default) | Asynchronous: returns immediately, mutation runs in background     |
+| `1`           | Synchronous: waits for mutation to complete on the current replica |
+| `2`           | Synchronous + replicated: waits for mutation on all replicas       |
+
 <!-- markdownlint-enable MD013 MD060 -->
 
 sq uses `mutations_sync = 1` to ensure that when
@@ -347,13 +354,15 @@ these via `ExecContext()` directly, with no special handling needed.
 #### Comparison with Other Databases
 
 <!-- markdownlint-disable MD013 MD060 -->
-| Database | UPDATE Sync? | INSERT Sync? | RowsAffected for UPDATE? |
-|----------|-------------|-------------|--------------------------|
-| PostgreSQL | Yes | Yes | Yes (accurate count) |
-| MySQL | Yes | Yes | Yes (accurate count) |
-| SQLite | Yes | Yes | Yes (accurate count) |
-| SQL Server | Yes | Yes | Yes (accurate count) |
+
+| Database       | UPDATE Sync?                             | INSERT Sync?                           | RowsAffected for UPDATE?    |
+| -------------- | ---------------------------------------- | -------------------------------------- | --------------------------- |
+| PostgreSQL     | Yes                                      | Yes                                    | Yes (accurate count)        |
+| MySQL          | Yes                                      | Yes                                    | Yes (accurate count)        |
+| SQLite         | Yes                                      | Yes                                    | Yes (accurate count)        |
+| SQL Server     | Yes                                      | Yes                                    | Yes (accurate count)        |
 | **ClickHouse** | **No** (forced via `mutations_sync = 1`) | Yes (unless `async_insert` is enabled) | **No** (always returns `0`) |
+
 <!-- markdownlint-enable MD013 MD060 -->
 
 ## Testing
@@ -388,14 +397,16 @@ welcome.
 ### Limitations Overview
 
 <!-- markdownlint-disable MD013 MD060 -->
-| # | Limitation                                                                               | Category      | Severity   | Workaround                           | Follow-up                                            |
-|---|------------------------------------------------------------------------------------------|---------------|------------|--------------------------------------|------------------------------------------------------|
-| 1 | [~~Batch insert connection corruption~~](#1-batch-insert-connection-corruption-resolved) | Insert        | ~~High~~   | **Resolved**: native Batch API       |                                                      |
-| 2 | [~~PrepareUpdateStmt not supported~~](#2-prepareupdatestmt-resolved)                     | Update/Delete | ~~High~~   | **Resolved**: ExecContext workaround |                                                      |
-| 3 | [~~Standard SQL UPDATE/DELETE syntax not supported~~](#3-standard-sql-updatedelete-syntax-not-supported-resolved) | Update/Delete | ~~Medium~~ | **Resolved**: lightweight mutations  |                                                      |
-| 4 | [Type roundtrip issues](#4-type-roundtrip-issues-544)                                    | Types         | Low        | Tests skipped                        | [#544](https://github.com/neilotoole/sq/issues/544) |
-| 5 | [~~DML rows affected unsupported~~](#5-dml-rows-affected-unsupported-resolved)            | Metadata      | ~~Low~~    | **Resolved**: handled in CLI/driver  |                                                      |
-| 6 | [Array types flattened to text](#array-type-architecture)                                 | Types         | Low        | CSV string conversion                | [#545](https://github.com/neilotoole/sq/issues/545) |
+
+| # | Limitation                                                                                                        | Category      | Severity   | Workaround                           | Follow-up                                           |
+| - | ----------------------------------------------------------------------------------------------------------------- | ------------- | ---------- | ------------------------------------ | --------------------------------------------------- |
+| 1 | [~~Batch insert connection corruption~~](#1-batch-insert-connection-corruption-resolved)                          | Insert        | ~~High~~   | **Resolved**: native Batch API       |                                                     |
+| 2 | [~~PrepareUpdateStmt not supported~~](#2-prepareupdatestmt-resolved)                                              | Update/Delete | ~~High~~   | **Resolved**: ExecContext workaround |                                                     |
+| 3 | [~~Standard SQL UPDATE/DELETE syntax not supported~~](#3-standard-sql-updatedelete-syntax-not-supported-resolved) | Update/Delete | ~~Medium~~ | **Resolved**: lightweight mutations  |                                                     |
+| 4 | [Type roundtrip issues](#4-type-roundtrip-issues-544)                                                             | Types         | Low        | Tests skipped                        | [#544](https://github.com/neilotoole/sq/issues/544) |
+| 5 | [~~DML rows affected unsupported~~](#5-dml-rows-affected-unsupported-resolved)                                    | Metadata      | ~~Low~~    | **Resolved**: handled in CLI/driver  |                                                     |
+| 6 | [Array types flattened to text](#array-type-architecture)                                                         | Types         | Low        | CSV string conversion                | [#545](https://github.com/neilotoole/sq/issues/545) |
+
 <!-- markdownlint-enable MD013 MD060 -->
 
 ### Insert Limitations
@@ -509,19 +520,21 @@ Key design decisions:
 ###### Files Changed
 
 <!-- markdownlint-disable MD013 MD060 -->
-| File | Change |
-|------|--------|
-| `libsq/driver/driver.go` | Added `NewBatchInsert` to `SQLDriver` interface |
-| `libsq/driver/batch.go` | `DefaultNewBatchInsert` (standard multi-row INSERT); `NewBatchInsert` (low-level constructor) |
-| `drivers/clickhouse/batch.go` | New: native Batch API implementation |
-| `drivers/postgres/postgres.go` | Added `NewBatchInsert` (delegates to `DefaultNewBatchInsert`) |
-| `drivers/mysql/mysql.go` | Added `NewBatchInsert` (delegates) |
-| `drivers/sqlite3/sqlite3.go` | Added `NewBatchInsert` (delegates) |
-| `drivers/sqlserver/sqlserver.go` | Added `NewBatchInsert` (delegates) |
-| `libsq/dbwriter.go` | Updated call site |
-| `testh/testh.go` | Updated call site |
-| `drivers/xlsx/ingest.go` | Updated call site |
-| `libsq/driver/driver_test.go` | Updated call site, removed ClickHouse skip |
+
+| File                             | Change                                                                                        |
+| -------------------------------- | --------------------------------------------------------------------------------------------- |
+| `libsq/driver/driver.go`         | Added `NewBatchInsert` to `SQLDriver` interface                                               |
+| `libsq/driver/batch.go`          | `DefaultNewBatchInsert` (standard multi-row INSERT); `NewBatchInsert` (low-level constructor) |
+| `drivers/clickhouse/batch.go`    | New: native Batch API implementation                                                          |
+| `drivers/postgres/postgres.go`   | Added `NewBatchInsert` (delegates to `DefaultNewBatchInsert`)                                 |
+| `drivers/mysql/mysql.go`         | Added `NewBatchInsert` (delegates)                                                            |
+| `drivers/sqlite3/sqlite3.go`     | Added `NewBatchInsert` (delegates)                                                            |
+| `drivers/sqlserver/sqlserver.go` | Added `NewBatchInsert` (delegates)                                                            |
+| `libsq/dbwriter.go`              | Updated call site                                                                             |
+| `testh/testh.go`                 | Updated call site                                                                             |
+| `drivers/xlsx/ingest.go`         | Updated call site                                                                             |
+| `libsq/driver/driver_test.go`    | Updated call site, removed ClickHouse skip                                                    |
+
 <!-- markdownlint-enable MD013 MD060 -->
 
 ### Update/Delete Limitations
@@ -653,10 +666,10 @@ that first validated standard UPDATE/DELETE against ClickHouse.
 Some `kind.Kind` types cannot roundtrip through ClickHouse because
 it lacks native equivalents:
 
-| sq Kind      | Created As | Read Back As    | Notes               |
-|--------------|------------|-----------------|---------------------|
-| `kind.Time`  | `DateTime` | `kind.Datetime` | No time-only type   |
-| `kind.Bytes` | `String`   | `kind.Text`     | Binary as String    |
+| sq Kind      | Created As | Read Back As    | Notes             |
+| ------------ | ---------- | --------------- | ----------------- |
+| `kind.Time`  | `DateTime` | `kind.Datetime` | No time-only type |
+| `kind.Bytes` | `String`   | `kind.Text`     | Binary as String  |
 
 The `kind.Bytes` roundtrip issue means binary data inserted as
 `[]byte` is read back as `string` (`kind.Text`). ClickHouse's
@@ -769,7 +782,7 @@ two-step process:
 When a ClickHouse query returns `Array(String)` data:
 
 | Stage              | Value                         | Type        |
-|--------------------|-------------------------------|-------------|
+| ------------------ | ----------------------------- | ----------- |
 | ClickHouse returns | `["Action", "Drama"]`         | `[]string`  |
 | After scan         | `[]string{"Action", "Drama"}` | Go slice    |
 | After conversion   | `"Action,Drama"`              | `string`    |
@@ -778,7 +791,7 @@ When a ClickHouse query returns `Array(String)` data:
 ### Array Support Across Databases
 
 | Database       | Array Support           | sq Handling             |
-|----------------|-------------------------|-------------------------|
+| -------------- | ----------------------- | ----------------------- |
 | **ClickHouse** | Native `Array(T)`       | Converted to CSV string |
 | **PostgreSQL** | Native (`text[]`, etc.) | Mapped to `kind.Text`   |
 | **MySQL**      | None (JSON has arrays)  | JSON stored as-is       |

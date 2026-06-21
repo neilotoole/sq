@@ -10,6 +10,7 @@ menu:
 toc: false
 url: /docs/cmd/config-keyring
 ---
+
 The `sq config keyring` command group manages keyring entries directly.
 [`sq add --store keyring`](/docs/cmd/add) and the
 [`secrets.store`](/docs/config#secretsstore) option write entries automatically;
@@ -35,7 +36,7 @@ This keyring support is beta and may change in a future release.
 on its own, it just prints help. Use one of its subcommands:
 
 | Command                                                         | What it does                                                   |
-|-----------------------------------------------------------------|----------------------------------------------------------------|
+| --------------------------------------------------------------- | -------------------------------------------------------------- |
 | [`sq config keyring ls`](/docs/cmd/config-keyring-ls)           | List every entry, tagged referenced, orphan, or missing.       |
 | [`sq config keyring prune`](/docs/cmd/config-keyring-prune)     | Delete orphaned entries (those no source references).          |
 | [`sq config keyring create`](/docs/cmd/config-keyring-create)   | Create a new entry at `PATH`. Errors if `PATH` already exists. |

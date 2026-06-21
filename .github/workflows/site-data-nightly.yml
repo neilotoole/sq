@@ -20,7 +20,7 @@ name: Site data (nightly)
 
 on:
   schedule:
-    - cron: "0 7 * * *"   # daily at 07:00 UTC
+    - cron: "0 7 * * *" # daily at 07:00 UTC
   workflow_dispatch:
 
 # Only the read-only version/stars fetch uses the built-in token; the git push
