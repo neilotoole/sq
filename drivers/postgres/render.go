@@ -64,14 +64,14 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 // The implementation is minimal: it does not honor PK, FK, etc.
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
-	sb.WriteString(`CREATE TABLE "`)
-	sb.WriteString(tblDef.Name)
-	sb.WriteString("\" (")
+	sb.WriteString("CREATE TABLE ")
+	sb.WriteString(idSanitize(tblDef.Name))
+	sb.WriteString(" (")
 
 	for i, colDef := range tblDef.Cols {
-		sb.WriteString("\n\"")
-		sb.WriteString(colDef.Name)
-		sb.WriteString("\" ")
+		sb.WriteString("\n")
+		sb.WriteString(idSanitize(colDef.Name))
+		sb.WriteString(" ")
 		sb.WriteString(dbTypeNameFromKind(colDef.Kind))
 
 		if colDef.NotNull {
@@ -96,11 +96,16 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	sb := strings.Builder{}
-	sb.WriteString(`UPDATE "`)
-	sb.WriteString(tbl)
-	sb.WriteString(`" SET "`)
-	sb.WriteString(strings.Join(cols, `" = ?, "`))
-	sb.WriteString(`" = ?`)
+	sb.WriteString("UPDATE ")
+	sb.WriteString(idSanitize(tbl))
+	sb.WriteString(" SET ")
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(idSanitize(col))
+		sb.WriteString(" = ?")
+	}
 	if where != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(where)

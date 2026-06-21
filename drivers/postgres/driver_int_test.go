@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -188,6 +189,47 @@ func TestDriver_CreateAlterTable(t *testing.T) {
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(newName)) })
 
 	exists, err = drvr.TableExists(ctx, db, newName)
+	require.NoError(t, err)
+	require.True(t, exists)
+}
+
+// TestDriver_AlterTable_QuotedIdentifiers pins that the AlterTable* methods
+// quote identifiers correctly for Postgres, including names that contain a
+// double-quote (which must be doubled, not backslash-escaped). A table/column
+// name with an embedded `"` round-trips through add, rename-column, and
+// rename-table.
+func TestDriver_AlterTable_QuotedIdentifiers(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.Pg)
+	ctx := th.Context
+
+	// Embedded double-quote in the table name.
+	tblName := stringz.UniqTableName(`we"ird`)
+	tblDef := schema.NewTable(tblName, []string{"a"}, []kind.Kind{kind.Int})
+	require.NoError(t, drvr.CreateTable(ctx, db, tblDef))
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+
+	// Add a column whose name also contains a double-quote.
+	weirdCol := `c"ol`
+	require.NoError(t, drvr.AlterTableAddColumn(ctx, db, tblName, weirdCol, kind.Text))
+
+	// Rename that column to another quote-containing name.
+	weirdCol2 := `c"ol2`
+	require.NoError(t, drvr.AlterTableRenameColumn(ctx, db, tblName, weirdCol, weirdCol2))
+
+	cols, err := postgres.GetTableColumnNames(ctx, db, tblName)
+	require.NoError(t, err)
+	require.Contains(t, cols, weirdCol2)
+	require.NotContains(t, cols, weirdCol)
+
+	// Rename the table itself.
+	newTbl := stringz.UniqTableName(`we"ird2`)
+	require.NoError(t, drvr.AlterTableRename(ctx, db, tblName, newTbl))
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(newTbl)) })
+
+	exists, err := drvr.TableExists(ctx, db, newTbl)
 	require.NoError(t, err)
 	require.True(t, exists)
 }
