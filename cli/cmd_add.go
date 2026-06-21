@@ -189,14 +189,14 @@ More examples:
 	cmd.Flags().BoolP(flag.PasswordPrompt, flag.PasswordPromptShort, false, flag.PasswordPromptUsage)
 	cmd.Flags().String(flag.AddStore, "", flag.AddStoreUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.AddStore,
-		completeStrings(1, flag.AddStoreInline, flag.AddStoreKeyring)))
+		completeStrings(flag.AddStoreInline, flag.AddStoreKeyring)))
 	cmd.Flags().Bool(flag.SkipVerify, false, flag.SkipVerifyUsage)
 	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
 
 	addOptionFlag(cmd.Flags(), driver.OptIngestHeader)
 	addOptionFlag(cmd.Flags(), csv.OptEmptyAsNull)
 	addOptionFlag(cmd.Flags(), csv.OptDelim)
-	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Flag().Name, completeStrings(-1, csv.NamedDelims()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Flag().Name, completeStrings(csv.NamedDelims()...)))
 
 	return cmd
 }
@@ -376,7 +376,7 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 		// string. Same expansion is needed for ${env:...}, ${file:...},
 		// or any composition form.
 		var pingSrc *source.Source
-		pingSrc, err = driver.ResolveSourceSecrets(ctx, src)
+		pingSrc, err = driver.ResolveSourceSecrets(ctx, ru.SecretRegistry, src)
 		if err != nil {
 			return err
 		}
@@ -828,7 +828,10 @@ func detectConnParamsForAdd(ctx context.Context, cmd *cobra.Command,
 		return nil
 	}
 
-	probeSrc, err := driver.ResolveSourceSecrets(ctx, src)
+	// len(refs) == 0 is guaranteed by the early return above, so
+	// ResolveSourceSecrets only unescapes "$$" and never consults the
+	// registry: pass nil rather than reaching back into the context.
+	probeSrc, err := driver.ResolveSourceSecrets(ctx, nil, src)
 	if err != nil {
 		return err
 	}

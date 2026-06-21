@@ -1,5 +1,5 @@
 // Package v0_54_0 upgrades YAML config to v0.54.0.
-package v0_54_0 //nolint:revive
+package v0_54_0
 
 import (
 	"context"

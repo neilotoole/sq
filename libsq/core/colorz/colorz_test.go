@@ -9,6 +9,13 @@ import (
 )
 
 func TestPrinter(t *testing.T) {
+	// This test exercises colorized output, so neutralize any ambient
+	// NO_COLOR / FORCE_COLOR env vars. Otherwise color.New (below) bakes the
+	// ambient NO_COLOR into the instance, defeating the color.NoColor override
+	// and making the test environment-dependent.
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("FORCE_COLOR", "")
+
 	previous := color.NoColor
 	t.Cleanup(func() {
 		color.NoColor = previous
@@ -48,6 +55,12 @@ func TestPrinter(t *testing.T) {
 }
 
 func TestHasEffect(t *testing.T) {
+	// Neutralize ambient NO_COLOR / FORCE_COLOR: color.New captures NO_COLOR
+	// into the instance, which would defeat the color.NoColor override below
+	// and make the test environment-dependent.
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("FORCE_COLOR", "")
+
 	c := color.New(color.FgBlue)
 	c.EnableColor()
 	got := HasEffect(c)

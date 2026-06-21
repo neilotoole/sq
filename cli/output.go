@@ -611,11 +611,16 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 
 	switch {
 	case forceProg, termz.IsColorTerminal(stderr) && !monochrome:
-		// Either forceProg is true, or stderr is a color terminal and we're
-		// colorizing, thus we enable progress if allowed and if ctx is non-nil.
+		// Either forceProg is true, or stderr should be colorized (TTY or
+		// FORCE_COLOR), thus we enable progress if allowed and if ctx is non-nil.
 		var colorize bool
 		if f, ok := stderr.(*os.File); ok {
 			outCfg.errOut = colorable.NewColorable(f)
+			colorize = true
+		} else if termz.IsColorTerminal(stderr) {
+			// Color is forced via FORCE_COLOR but stderr is not *os.File (pipe,
+			// buffer): write raw ANSI, matching the stdout branch below.
+			outCfg.errOut = stderr
 			colorize = true
 		} else {
 			outCfg.errOut = colorable.NewNonColorable(stderr)
@@ -657,15 +662,23 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 		outCfg.out = stdout
 		outCfg.outPr.EnableColor(false)
 	case termz.IsColorTerminal(stdout) && !monochrome:
-		// stdout is a color terminal and we're colorizing.
-		outCfg.out = colorable.NewColorable(stdout.(*os.File))
+		// stdout should be colorized (TTY or FORCE_COLOR). Guard the type
+		// assertion: IsColorTerminal can return true when color is forced via
+		// FORCE_COLOR, in which case stdout may not be an *os.File (e.g. a
+		// bytes.Buffer in tests, or a pipe). go-colorable's NewColorable
+		// requires an *os.File, so fall back to writing raw ANSI to non-file
+		// writers, which pass through unchanged on non-Windows.
+		if f, ok := stdout.(*os.File); ok {
+			outCfg.out = colorable.NewColorable(f)
+		} else {
+			outCfg.out = stdout
+		}
 		outCfg.outPr.EnableColor(true)
-	case termz.IsTerminal(stderr):
-		// stdout is a terminal, but won't be colorized.
-		outCfg.out = colorable.NewNonColorable(stdout)
-		outCfg.outPr.EnableColor(false)
 	default:
-		// stdout is a not a terminal at all. No color.
+		// stdout is either a non-color terminal or not a terminal at all, and
+		// won't be colorized either way. Unlike the stderr switch above, there's
+		// no progress bar riding on stdout, so the terminal-vs-not distinction
+		// makes no observable difference here; a single arm covers both.
 		outCfg.out = colorable.NewNonColorable(stdout)
 		outCfg.outPr.EnableColor(false)
 	}

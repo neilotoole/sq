@@ -356,7 +356,7 @@ func TestPlaceholderLocation_Connect(t *testing.T) {
 	reg.Register("env", env.NewResolver())
 
 	th := testh.New(t)
-	ctx := secret.NewContext(th.Context, reg)
+	ctx := th.Context
 
 	src := &source.Source{
 		Handle:   "@gh798",
@@ -364,7 +364,7 @@ func TestPlaceholderLocation_Connect(t *testing.T) {
 		Location: "${env:SQ_TEST_GH798_DB_PATH}",
 	}
 
-	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	resolved, err := driver.ResolveSourceSecrets(ctx, reg, src)
 	require.NoError(t, err)
 	require.Equal(t, "sqlite3://"+filepath.ToSlash(dbPath), resolved.Location)
 
@@ -1330,10 +1330,69 @@ func TestNewScratchSource_SecretsResolved(t *testing.T) {
 	require.True(t, src.SecretsResolved,
 		"internally constructed literal locations must be marked resolved")
 
-	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	resolved, err := driver.ResolveSourceSecrets(ctx, nil, src)
 	require.NoError(t, err)
 	require.Equal(t, src.Location, resolved.Location,
 		"resolution must not alter the literal scratch path")
+}
+
+// TestNewScratchSource_RelaxedDurability verifies gh868: the scratch
+// (disposable) cache DB is opened with relaxed durability pragmas, so
+// large document ingests don't pay a per-INSERT fsync. The params must
+// be both present in the Location and actually applied on the connection
+// by the underlying driver.
+func TestNewScratchSource_RelaxedDurability(t *testing.T) {
+	th := testh.New(t)
+	fpath := filepath.Join(t.TempDir(), "scratch.sqlite")
+
+	src, clnup, err := sqlite3.NewScratchSource(th.Context, fpath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = clnup() })
+
+	require.True(t, strings.HasSuffix(src.Location, "?_synchronous=OFF&_journal_mode=MEMORY"),
+		"scratch location must carry the relaxed-durability params")
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	// PRAGMA synchronous reports the numeric level: 0 == OFF.
+	var sync int
+	require.NoError(t, db.QueryRowContext(th.Context, `PRAGMA synchronous`).Scan(&sync))
+	require.Zero(t, sync, "synchronous must be OFF (0)")
+
+	var journalMode string
+	require.NoError(t, db.QueryRowContext(th.Context, `PRAGMA journal_mode`).Scan(&journalMode))
+	require.Equal(t, "memory", strings.ToLower(journalMode), "journal_mode must be MEMORY")
+
+	// Close the grip before the test returns so t.TempDir()'s cleanup can
+	// delete the DB file: Windows cannot remove a file that still has an open
+	// handle, and the testh Helper otherwise closes the grip only after
+	// t.TempDir()'s RemoveAll runs. grip.Close is idempotent (closeOnce), so
+	// the Helper's later close is a harmless no-op.
+	require.NoError(t, grip.Close())
+}
+
+// TestNewScratchSource_CleanupRemovesJournal verifies that the scratch
+// cleanup func targets SQLite's rollback journal sibling file
+// ("<fpath>-journal"), not the bogus "<fpath>/.db-journal" child path it
+// used previously. journal_mode=MEMORY means no journal is normally
+// created, so this guards the corrected path against regression (gh868).
+func TestNewScratchSource_CleanupRemovesJournal(t *testing.T) {
+	th := testh.New(t)
+	fpath := filepath.Join(t.TempDir(), "scratch.sqlite")
+
+	// Simulate an on-disk scratch DB plus a stale rollback journal.
+	require.NoError(t, os.WriteFile(fpath, []byte("db"), 0o600))
+	journal := fpath + "-journal"
+	require.NoError(t, os.WriteFile(journal, []byte("journal"), 0o600))
+
+	_, clnup, err := sqlite3.NewScratchSource(th.Context, fpath)
+	require.NoError(t, err)
+
+	require.NoError(t, clnup())
+	require.NoFileExists(t, fpath, "scratch DB file must be removed")
+	require.NoFileExists(t, journal, "scratch DB journal sibling must be removed")
 }
 
 // TestDriveri_CopyTable_CopiesIndexesAndTriggers verifies gh758:

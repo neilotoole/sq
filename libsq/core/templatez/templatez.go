@@ -12,8 +12,15 @@ import (
 
 // NewTemplate returns a new text template, with the sprig
 // functions already loaded.
+//
+// Only sprig's hermetic (repeatable) functions are loaded. The
+// non-hermetic functions (e.g. "env", "now", "randAlphaNum",
+// "uuidv4") are excluded: they read the process environment or
+// global state, which both leaks information into user-supplied
+// templates and makes template output non-deterministic. Excluding
+// them keeps a given template's output a pure function of its input.
 func NewTemplate(name, tpl string) (*template.Template, error) {
-	t, err := template.New(name).Funcs(sprig.FuncMap()).Parse(tpl)
+	t, err := template.New(name).Funcs(sprig.HermeticTxtFuncMap()).Parse(tpl)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -37,7 +44,7 @@ func ExecuteTemplate(name, tpl string, data any) (string, error) {
 
 	buf := &bytes.Buffer{}
 	if err = t.Execute(buf, data); err != nil {
-		return "", err
+		return "", errz.Err(err)
 	}
 
 	return buf.String(), nil

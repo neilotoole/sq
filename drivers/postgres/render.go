@@ -15,8 +15,7 @@ import (
 // tblfmt formats a table name for use in a query. The arg can be a string,
 // or a tablefq.T.
 func tblfmt[T string | tablefq.T](tbl T) string {
-	tfq := tablefq.From(tbl)
-	return tfq.Render(stringz.DoubleQuote)
+	return tablefq.Format(tbl, stringz.DoubleQuote)
 }
 
 func dbTypeNameFromKind(knd kind.Kind) string {

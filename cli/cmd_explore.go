@@ -13,6 +13,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/progress"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
 
@@ -128,7 +129,7 @@ func execExplore(cmd *cobra.Command, args []string) error {
 // can't or shouldn't run. It honors --emit-handle by also writing the
 // initial address.
 func runExploreNoTUI(ctx context.Context, ru *run.Run, src *source.Source, emit bool, table string) error {
-	grip, err := ru.Grips.Open(ctx, src)
+	grip, err := ru.Grips.Open(ctx, src, driver.ModeReadOnly)
 	if err != nil {
 		return errz.Wrapf(err, "failed to open %s", src.Handle)
 	}

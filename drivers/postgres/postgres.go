@@ -261,7 +261,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		return 0, errw(err)
 	}
 
-	truncateQuery := "TRUNCATE TABLE " + idSanitize(tbl)
+	truncateQuery := "TRUNCATE TABLE " + idSanitize(tbl) //nolint:gosec // G202: tbl is sanitized
 	if reset {
 		// if reset & src.DBVersion >= 8.2
 		truncateQuery += " RESTART IDENTITY" // default is CONTINUE IDENTITY
@@ -687,7 +687,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	sb.WriteString("SELECT\n")
 	for i, colName := range colNames {
 		colNameQuoted := enquote(colName)
-		sb.WriteString(fmt.Sprintf("  (SELECT %s FROM %s LIMIT 1) AS %s", colNameQuoted, tblNameQuoted, colNameQuoted))
+		fmt.Fprintf(&sb, "  (SELECT %s FROM %s LIMIT 1) AS %s", colNameQuoted, tblNameQuoted, colNameQuoted)
 		if i < len(colNames)-1 {
 			sb.WriteRune(',')
 		}

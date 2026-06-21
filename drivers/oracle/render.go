@@ -221,10 +221,10 @@ func renderRowRange(_ *render.Context, rr *ast.RowRangeNode) (string, error) {
 	offset := max(rr.Offset, 0)
 
 	var buf strings.Builder
-	buf.WriteString(fmt.Sprintf("OFFSET %d ROWS", offset))
+	fmt.Fprintf(&buf, "OFFSET %d ROWS", offset)
 
 	if rr.Limit > -1 {
-		buf.WriteString(fmt.Sprintf(" FETCH NEXT %d ROWS ONLY", rr.Limit))
+		fmt.Fprintf(&buf, " FETCH NEXT %d ROWS ONLY", rr.Limit)
 	}
 
 	return buf.String(), nil

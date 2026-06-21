@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -111,7 +112,7 @@ func (rf *runFetcher) FetchSourceOverview(ctx context.Context, handle string) (*
 	if err != nil {
 		return nil, err
 	}
-	grip, err := rf.ru.Grips.Open(ctx, src)
+	grip, err := rf.ru.Grips.Open(ctx, src, driver.ModeReadOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +147,7 @@ func (rf *runFetcher) RefreshSource(ctx context.Context, handle string) ([]strin
 	if err != nil {
 		return nil, err
 	}
-	grip, err := rf.ru.Grips.Open(ctx, src)
+	grip, err := rf.ru.Grips.Open(ctx, src, driver.ModeReadOnly)
 	if err != nil {
 		return nil, err
 	}

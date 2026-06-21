@@ -42,6 +42,10 @@ func newSLQCmd() *cobra.Command {
 	cmd.Flags().Bool(flag.RenderSQL, false, flag.RenderSQLUsage)
 
 	cmd.Flags().StringArray(flag.Arg, nil, flag.ArgUsage)
+	// The --arg value is a free-form variable name (and then a literal value),
+	// so there's nothing to suggest; register completeNone to at least suppress
+	// cobra's default filename completion.
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.Arg, completeNone))
 
 	// Explicitly add flagVersion because people like to do "sq --version"
 	// as much as "sq version".
@@ -422,11 +426,11 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	addOptionFlag(cmd.Flags(), OptFormatDecimal)
 	panicOn(cmd.RegisterFlagCompletionFunc(
 		OptFormat.Flag().Name,
-		completeStrings(-1, stringz.Strings(format.All())...),
+		completeStrings(stringz.Strings(format.All())...),
 	))
 	panicOn(cmd.RegisterFlagCompletionFunc(
 		OptFormatDecimal.Flag().Name,
-		completeStrings(-1, "string", "number"),
+		completeStrings("string", "number"),
 	))
 	addResultFormatFlags(cmd)
 	cmd.MarkFlagsMutuallyExclusive(append(
@@ -446,7 +450,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 		(&handleTableCompleter{onlySQL: true, handleRequired: true}).complete))
 
 	cmd.Flags().String(flag.ActiveSrc, "", flag.ActiveSrcUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSrc, completeHandle(0, false)))
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSrc, completeHandleFlag(false)))
 
 	cmd.Flags().String(flag.ActiveSchema, "", flag.ActiveSchemaUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.ActiveSchema,
@@ -459,7 +463,7 @@ func addQueryCmdFlags(cmd *cobra.Command) {
 	addOptionFlag(cmd.Flags(), driver.OptIngestHeader)
 	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
 	addOptionFlag(cmd.Flags(), csv.OptDelim)
-	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Key(), completeStrings(-1, csv.NamedDelims()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Key(), completeStrings(csv.NamedDelims()...)))
 	addOptionFlag(cmd.Flags(), csv.OptEmptyAsNull)
 }
 

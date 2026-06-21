@@ -53,7 +53,11 @@ func CopyFile(dst, src string, mkdir bool) error {
 		_ = os.Remove(tmp.Name())
 		return errz.Err(err)
 	}
-	return errz.Err(os.Rename(tmp.Name(), dst))
+	if err = os.Rename(tmp.Name(), dst); err != nil {
+		_ = os.Remove(tmp.Name())
+		return errz.Err(err)
+	}
+	return nil
 }
 
 // PrintFile reads file from name and writes it to stdout.
@@ -89,7 +93,9 @@ func IsPathToRegularFile(path string) bool {
 	return fi.Mode().IsRegular()
 }
 
-// FileAccessible returns true if path is a file that can be read.
+// FileAccessible returns true if path exists, i.e. os.Stat(path) succeeds. It
+// does not verify that path is a regular file or that it is readable: a
+// directory, or a regular file whose mode forbids reading, also yields true.
 func FileAccessible(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
@@ -140,8 +146,19 @@ func FileInfoEqual(a, b os.FileInfo) bool {
 
 // WriteToFile writes the contents of r to fp. If fp doesn't exist,
 // the file is created (including any parent dirs). If fp exists, it is
-// truncated. The write operation is context-aware.
+// truncated. The write operation is context-aware: if ctx is already done,
+// WriteToFile returns before touching fp, so an existing file is left intact.
+// Cancellation partway through the copy may still leave a truncated or partial
+// file behind, as the write is not atomic (see [WriteFileAtomic]).
 func WriteToFile(ctx context.Context, fp string, r io.Reader) (written int64, err error) {
+	// Check ctx before opening with O_TRUNC, so an already-cancelled write
+	// doesn't destroy the existing contents of fp.
+	select {
+	case <-ctx.Done():
+		return 0, errz.Err(ctx.Err())
+	default:
+	}
+
 	if err = RequireDir(filepath.Dir(fp)); err != nil {
 		return 0, err
 	}

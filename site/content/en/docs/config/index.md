@@ -368,6 +368,10 @@ other options, it can be set per invocation via the matching
 
 {{< readfile file="../cmd/options/monochrome.help.txt" code="true" lang="text" >}}
 
+See [Output modifiers: monochrome and environment variables](/docs/output#no_color-and-force_color)
+for how `--monochrome` interacts with `NO_COLOR`, `FORCE_COLOR`, and terminal
+detection.
+
 ### `verbose`
 
 {{< readfile file="../cmd/options/verbose.help.txt" code="true" lang="text" >}}

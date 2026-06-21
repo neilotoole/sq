@@ -24,7 +24,7 @@ concurrency:
 
 env:
   GORELEASER_VERSION: 2.13.3
-  GOLANGCI_LINT_VERSION: v2.9.0
+  GOLANGCI_LINT_VERSION: v2.12.2
   TPARSE_VERSION: v0.18.0
   BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
 
@@ -37,14 +37,15 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      # Full run (no -short, with coverage) nightly, on release tags, and on
-      # manual dispatch. The PR/master dev loop runs -short without coverage,
-      # skipping long-running tests (e.g. large-fixture JSON/XLSX ingest).
+      # Full run (no -short) nightly, on release tags, and on manual dispatch.
+      # The PR/master dev loop runs -short, skipping long-running tests (e.g.
+      # large-fixture JSON/XLSX ingest). Coverage is no longer instrumented
+      # here; it runs in the dedicated coverage workflow (see coverage.yml, #871).
       FULL_RUN: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -64,23 +65,14 @@ jobs:
           set -eo pipefail
 
           test_args=()
-          cover_args=()
-          if [ "${FULL_RUN}" = "true" ]; then
-            # Full run: instrument coverage on the ubuntu-24.04 runner only
-            # (uploaded to Codecov below); macOS runs without coverage.
-            # "-coverpkg=./..." attributes coverage across all packages (e.g.
-            # integration tests exercising other packages).
-            if [ "${{ matrix.os }}" = "ubuntu-24.04" ]; then
-              cover_args=(-cover -coverpkg=./... -coverprofile=coverage.out)
-            fi
-          else
+          if [ "${FULL_RUN}" != "true" ]; then
             # Dev loop (PRs, master merges): skip long-running tests. The full
             # suite runs nightly and on release tags.
             test_args=(-short)
           fi
 
           go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json \
-            "${test_args[@]}" "${cover_args[@]}" ./... | tee gotest.out.json
+            "${test_args[@]}" ./... | tee gotest.out.json
 
       - name: 'Test output'
         if: always()
@@ -89,15 +81,6 @@ jobs:
           set -e
           go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
           tparse -all -sort=elapsed -file gotest.out.json
-
-      - name: Upload coverage to Codecov
-        if: always() && matrix.os == 'ubuntu-24.04' && env.FULL_RUN == 'true'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          files: ./coverage.out
-          flags: ${{ matrix.os }}
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
 
 
   test-windows-smoke:
@@ -110,7 +93,7 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -142,7 +125,7 @@ jobs:
 #        path-type: inherit
 
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         fetch-depth: 1
 
@@ -181,7 +164,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -214,7 +197,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -245,7 +228,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -276,7 +259,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -313,7 +296,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -352,7 +335,7 @@ jobs:
       - binaries-windows
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -421,7 +404,7 @@ jobs:
       id-token: write # cosign keyless signing via sigstore/fulcio.
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

@@ -16,6 +16,48 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Changed
+
+- The column-rename templates ([`ingest.column.rename`](https://sq.io/docs/config#ingestcolumnrename)
+  and [`result.column.rename`](https://sq.io/docs/config#resultcolumnrename)) no longer expose
+  the non-deterministic and environment-reading template functions (`env`, `expandenv`, `now`,
+  `randAlphaNum`, `uuidv4`, and similar). Column names now depend only on the source data, so the
+  same input always produces the same schema, and templates can't read the process environment.
+
+### Fixed
+
+- [`sq diff --data`](https://sq.io/docs/cmd/diff) output no longer contains NUL
+  padding bytes. The data diff emitted thousands of trailing zero bytes after each
+  hunk header, corrupting output redirected to a file or piped to another program.
+  Terminals silently dropped the NUL bytes, so the corruption was invisible on screen.
+- [#863]: Fixed `FORCE_COLOR` handling to follow the [force-color.org](https://force-color.org/)
+  convention: `FORCE_COLOR=0` (and `false`) disables color output instead of forcing it
+  on. [NO_COLOR](https://no-color.org/) continues to take precedence over `FORCE_COLOR`.
+- [#863]: Forcing color to a non-terminal stdout (e.g. when `FORCE_COLOR` is set and
+  output is a pipe or buffer) no longer panics; `sq` writes raw ANSI to non-`*os.File`
+  writers instead of performing an unchecked type assertion.
+- [#866]: Ingesting JSON and JSONL is now much faster, especially on Windows, where a large
+  JSONL file could previously take minutes. Each ingest now runs as a single transaction, so a
+  failed ingest no longer leaves a partially-populated cache.
+- [#868]: Ingesting any document source (CSV, Excel, JSON, etc.) is now faster, especially on
+  Windows and other slow filesystems. The disposable ingest cache DB is opened with relaxed
+  durability, so writes no longer pay a per-row disk sync. The cache is rebuilt from the source
+  if it is ever missing or corrupt, so there is no loss of correctness.
+- Shell completion for flag values now works even when the command already has a
+  positional argument. Previously, tab-completing values for flags such as
+  [`add --store`](https://sq.io/docs/cmd/add) (`inline | keyring`), `config get --src`,
+  `config set --src`, `--log.level`, and `--log.format` produced nothing once a
+  positional arg was present (which is the usual case). The `--error.format` flag also
+  now offers completion, and `--arg` no longer offers irrelevant suggestions (filenames
+  for its variable name, or table names for its value), since both are free-form.
+- Downloading a remote source whose body streams in slowly no longer intermittently fails
+  with a spurious `http response header not received within timeout` error. The
+  header-receipt timeout limits only how long `sq` waits for the response headers, but in a
+  narrow timing window it could fire just after the headers had arrived and cancel the
+  in-progress body download.
+
 ## [v0.54.0] - 2026-06-19
 
 ### Added
@@ -52,6 +94,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- [#900]: HTTPS requests (used when downloading remote sources) now require a minimum of
+  TLS 1.2, matching the Go standard library default. TLS 1.0 and 1.1, deprecated by
+  RFC 8996, are no longer accepted.
 - [#851]: In colored output, structural punctuation is now rendered muted rather than bold,
   so values stand out.
 - [#846]: YAML now renders decimal values as quoted strings by default, matching JSON. Set
@@ -1708,6 +1753,10 @@ make working with lots of sources much easier.
 [#846]: https://github.com/neilotoole/sq/issues/846
 [#851]: https://github.com/neilotoole/sq/issues/851
 [#853]: https://github.com/neilotoole/sq/issues/853
+[#863]: https://github.com/neilotoole/sq/pull/863
+[#866]: https://github.com/neilotoole/sq/issues/866
+[#868]: https://github.com/neilotoole/sq/issues/868
+[#900]: https://github.com/neilotoole/sq/pull/900
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

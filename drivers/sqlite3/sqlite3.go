@@ -1119,6 +1119,37 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 
 var _ driver.ScratchSrcFunc = NewScratchSource
 
+// scratchConnParams is the "?key=val&..." connection-string suffix appended
+// to scratch (disposable) SQLite DB locations: the ingest cache DB for
+// document sources (CSV, Excel, JSON, etc.), join work DBs, and ephemeral
+// DBs. These DBs are never authoritative: each is rebuilt from its source if
+// it is missing, stale, or corrupt, so durability buys nothing.
+//
+// synchronous=OFF + journal_mode=MEMORY drops the per-write fsync that
+// otherwise dominates large ingests: with SQLite's defaults (synchronous=FULL,
+// rollback journal) every autocommit INSERT performs a full fsync. On a slow
+// filesystem that cost is brutal (gh #866: a 5,462-row JSONL ingest took ~408s
+// on Windows vs ~12s on Linux/macOS, one fsync per row). MEMORY is chosen over
+// WAL because the latter leaves -wal/-shm sidecar files that the scratch
+// cleanup would have to track, whereas an in-memory journal needs no on-disk
+// state. The only durability downside, a torn DB after a hard crash or power
+// loss, is self-healing: the cache is regenerated from source on next use.
+//
+// An in-memory rollback journal can in principle grow large enough to OOM,
+// but not for the ingest workload: ingest always targets a freshly-created
+// (empty) cache DB and the document drivers build no secondary indexes, so
+// inserts only append to the table's rowid b-tree. SQLite does not journal
+// pages allocated beyond the database's size at transaction start (rollback
+// just truncates), so the in-memory journal holds only the constant handful
+// of pre-existing pages that get modified, regardless of row count. CAVEAT:
+// if a future change maintains a secondary index (or otherwise rewrites many
+// pre-existing pages) inside a single ingest transaction, the in-memory
+// journal would grow with the data and this choice should be revisited (e.g.
+// switch to synchronous=NORMAL + journal_mode=WAL, whose journal is on disk).
+//
+// See gh #868.
+const scratchConnParams = "?_synchronous=OFF&_journal_mode=MEMORY"
+
 // NewScratchSource returns a new scratch src. The supplied fpath
 // must be the absolute path to the location to create the SQLite DB file,
 // typically in the user cache dir.
@@ -1128,14 +1159,19 @@ func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, cl
 	src = &source.Source{
 		Type:     drivertype.SQLite,
 		Handle:   source.ScratchHandle,
-		Location: Prefix + fpath,
+		Location: Prefix + fpath + scratchConnParams,
 		// The path is an internally constructed literal, not a
 		// placeholder template: mark it so resolution is a no-op.
 		SecretsResolved: true,
 	}
 
 	clnup = func() error {
-		if journal := filepath.Join(fpath, ".db-journal"); ioz.FileAccessible(journal) {
+		// SQLite's rollback journal for "<fpath>" is the sibling file
+		// "<fpath>-journal", not a "<fpath>/.db-journal" child path. Under
+		// scratchConnParams' journal_mode=MEMORY no on-disk journal is
+		// normally created, but remove a stale one defensively (e.g. left by
+		// an earlier abnormal exit before this DB's mode was applied).
+		if journal := fpath + "-journal"; ioz.FileAccessible(journal) {
 			lg.WarnIfError(log, "Delete sqlite3 db journal file", os.Remove(journal))
 		}
 
