@@ -77,7 +77,7 @@ func TestTemplate(t *testing.T) {
 func TestFuncMap(t *testing.T) {
 	t.Setenv("TEMPLATEZ_TEST_SECRET", "revealed")
 
-	// Plain (hermetic) sprig funcs are available.
+	// Plain sprig funcs are available.
 	got, err := templatez.ExecuteTemplate(t.Name(), `{{"abc" | upper}}`, nil)
 	require.NoError(t, err)
 	require.Equal(t, "ABC", got)
