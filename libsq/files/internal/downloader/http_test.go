@@ -892,4 +892,7 @@ func TestLogResp(t *testing.T) {
 
 	// req nil, err non-nil -> no_request + Warn.
 	logResp(log, nil, nil, time.Second, errors.New("boom2"))
+
+	// req non-nil, err nil -> happy-path Info branch with request fields.
+	logResp(log, req, &http.Response{StatusCode: http.StatusOK}, time.Second, nil)
 }

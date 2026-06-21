@@ -386,16 +386,19 @@ func TestGet_etagRevalidation(t *testing.T) {
 }
 
 // TestGet_varyEcho exercises the Vary-handling loop in get(): when the response
-// declares a Vary header, get() iterates the varied keys to record request
-// values under "X-Varied-" keys. The downloader's internally-built request
-// carries no user headers, so the reqValue != "" store is not taken, but the
-// loop body still runs.
+// declares a Vary header, get() records the matching request header values under
+// "X-Varied-" keys. The response varies on User-Agent, which httpz's default
+// client sets directly on req.Header (via the OptUserAgent TripFunc), so the
+// downloader's req.Header.Get("User-Agent") is non-empty and the reqValue != ""
+// store branch is taken. (Accept-Encoding wouldn't work here: net/http injects
+// it on an internal request clone, so it never appears on the req.Header that
+// get() inspects.)
 func TestGet_varyEcho(t *testing.T) {
 	ctx := newDownloaderTestCtx(t)
 
 	const body = "vary body"
 	srvr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Vary", "Accept-Encoding")
+		w.Header().Set("Vary", "User-Agent")
 		w.Header().Set("Cache-Control", "max-age=300")
 		w.Header().Set("Date", time.Now().UTC().Format(http.TimeFormat))
 		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
@@ -407,8 +410,6 @@ func TestGet_varyEcho(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dl.Clear(ctx))
 
-	// The default HTTP client sets Accept-Encoding: gzip, which matches the
-	// Vary header and drives the reqValue != "" echo branch.
 	_, stream, err := dl.Get(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, stream)
