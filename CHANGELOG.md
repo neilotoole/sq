@@ -28,6 +28,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- Querying a remote (HTTP) source while offline no longer panics. When a cached
+  download had gone stale and the refresh request failed at the transport layer
+  (e.g. no network), `sq` crashed instead of falling back to the cached file.
+  It now serves the stale download, as the "airplane mode" behavior intends.
 - [`sq diff --data`](https://sq.io/docs/cmd/diff) output no longer contains NUL
   padding bytes. The data diff emitted thousands of trailing zero bytes after each
   hunk header, corrupting output redirected to a file or piped to another program.
