@@ -87,7 +87,7 @@ func (s *Source) Table(tblName string) *Table {
 	}
 
 	for _, tbl := range s.Tables {
-		if tbl.Name == tblName {
+		if tbl != nil && tbl.Name == tblName {
 			return tbl
 		}
 	}
@@ -95,7 +95,21 @@ func (s *Source) Table(tblName string) *Table {
 	return nil
 }
 
+// clonePtr returns a pointer to a copy of *p, or nil if p is nil.
+func clonePtr[T any](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	v := *p
+	return &v
+}
+
 // Clone returns a deep copy of s. If s is nil, nil is returned.
+//
+// The Size pointer and the Tables are deep-copied. DBProperties is
+// copied one level deep: the map itself is independent, but nested
+// reference values (maps/slices stored as the any value) are shared
+// with the original. Treat DBProperties values as read-only.
 //
 // Clone re-runs [LinkForeignKeys] with a nil logger on the result so
 // the cloned tables' FK.Incoming slices point at the cloned outgoing
@@ -122,7 +136,7 @@ func (s *Source) Clone() *Source {
 		DBProduct:       s.DBProduct,
 		DBVersion:       s.DBVersion,
 		User:            s.User,
-		Size:            s.Size,
+		Size:            clonePtr(s.Size),
 		TableCount:      s.TableCount,
 		ViewCount:       s.ViewCount,
 		SecretsResolved: s.SecretsResolved,
@@ -134,9 +148,11 @@ func (s *Source) Clone() *Source {
 	}
 
 	if s.Tables != nil {
-		s2.Tables = make([]*Table, len(s.Tables))
-		for i := range s.Tables {
-			s2.Tables[i] = s.Tables[i].Clone()
+		s2.Tables = make([]*Table, 0, len(s.Tables))
+		for _, tbl := range s.Tables {
+			if tbl != nil {
+				s2.Tables = append(s2.Tables, tbl.Clone())
+			}
 		}
 
 		// Per-table Clone() copies FK.Outgoing as independent values;
@@ -150,11 +166,18 @@ func (s *Source) Clone() *Source {
 	return s2
 }
 
-// TableNames is a convenience method that returns md's table names.
+// TableNames is a convenience method that returns the source's table names.
+// If s is nil, a nil slice is returned. Nil table entries are skipped.
 func (s *Source) TableNames() []string {
-	names := make([]string, len(s.Tables))
-	for i, tblDef := range s.Tables {
-		names[i] = tblDef.Name
+	if s == nil {
+		return nil
+	}
+
+	names := make([]string, 0, len(s.Tables))
+	for _, tblDef := range s.Tables {
+		if tblDef != nil {
+			names = append(names, tblDef.Name)
+		}
 	}
 	return names
 }
@@ -252,15 +275,17 @@ func (t *Table) Clone() *Table {
 		TableType:   t.TableType,
 		DBTableType: t.DBTableType,
 		RowCount:    t.RowCount,
-		Size:        t.Size,
+		Size:        clonePtr(t.Size),
 		Comment:     t.Comment,
 		Columns:     nil,
 	}
 
 	if t.Columns != nil {
-		c.Columns = make([]*Column, len(t.Columns))
-		for i := range t.Columns {
-			c.Columns[i] = t.Columns[i].Clone()
+		c.Columns = make([]*Column, 0, len(t.Columns))
+		for _, col := range t.Columns {
+			if col != nil {
+				c.Columns = append(c.Columns, col.Clone())
+			}
 		}
 	}
 
@@ -285,10 +310,14 @@ func (t *Table) Clone() *Table {
 	return c
 }
 
-// Column returns the named col or nil.
+// Column returns the named col or nil. If t is nil, nil is returned.
 func (t *Table) Column(colName string) *Column {
+	if t == nil {
+		return nil
+	}
+
 	for _, col := range t.Columns {
-		if col.Name == colName {
+		if col != nil && col.Name == colName {
 			return col
 		}
 	}
@@ -297,11 +326,15 @@ func (t *Table) Column(colName string) *Column {
 }
 
 // PKCols returns a possibly empty slice of cols that are part
-// of the table primary key.
+// of the table primary key. If t is nil, nil is returned.
 func (t *Table) PKCols() []*Column {
+	if t == nil {
+		return nil
+	}
+
 	var pkCols []*Column
 	for _, col := range t.Columns {
-		if col.PrimaryKey {
+		if col != nil && col.PrimaryKey {
 			pkCols = append(pkCols, col)
 		}
 	}
@@ -754,7 +787,8 @@ func warnOrphans[T any](log *slog.Logger, label string, orphans map[string][]T) 
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		log.Warn("metadata: dropped rows for unknown owning table",
+		log.Warn(
+			"metadata: dropped rows for unknown owning table",
 			slog.String("kind", label),
 			slog.String("table", name),
 			slog.Int("dropped", len(orphans[name])),
@@ -851,7 +885,8 @@ func LinkForeignKeys(log *slog.Logger, s *Source) {
 				// or (oracle) a parent table whose per-table fetch was
 				// warn-suppressed. Also surfaces real driver bugs
 				// (case-folding mismatches, typos in bulk FK SQL).
-				log.Warn("metadata: outgoing FK references unknown table",
+				log.Warn(
+					"metadata: outgoing FK references unknown table",
 					slog.String("constraint", fk.Name),
 					slog.String("table", fk.Table),
 					slog.String("ref_table", fk.RefTable),
