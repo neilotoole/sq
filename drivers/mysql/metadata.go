@@ -177,7 +177,7 @@ func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 // implementation of Grip.TableMetadata.
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
-(SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count
+(SELECT COUNT(*) FROM ` + stringz.BacktickQuote(tblName) + `) AS row_count
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 
