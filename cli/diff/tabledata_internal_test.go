@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -108,6 +109,74 @@ func runRecordDiffer(t *testing.T, numLines, hunkMaxSize int, equal []bool) (*fa
 	require.NoError(t, err)
 
 	return fake, string(out)
+}
+
+// TestRecordDifferExec_CancelMidLookahead is the regression test for issue
+// #906. When the context is cancelled while exec is in its look-ahead loop, exec
+// has already created a hunk (via doc.NewHunk) but has not yet populated it (the
+// only path that seals it). exec must seal that orphaned hunk before returning,
+// otherwise a reader that traverses the doc's hunks blocks forever on the
+// unsealed hunk.
+func TestRecordDifferExec_CancelMidLookahead(t *testing.T) {
+	fake := &fakeHunkWriter{}
+	rd := &recordDiffer{
+		cfg: &Config{
+			// numLines=1 means the look-ahead needs two contiguous matching pairs
+			// before it stops, so a single matching pair leaves exec blocked in the
+			// look-ahead select, waiting for more.
+			Lines:            1,
+			HunkMaxSize:      100,
+			RecordHunkWriter: fake,
+		},
+		recMetaFn: func() (rm1, rm2 record.Meta) { return nil, nil },
+	}
+
+	doc := diffdoc.NewHunkDoc(
+		diffdoc.Titlef(nil, "test diff"),
+		diffdoc.Headerf(nil, "left", "right"),
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Unbuffered channel: each send completes only once exec receives it, which
+	// makes the sequence below deterministic with no timing assumptions.
+	ch := make(chan record.Pair)
+	execErrCh := make(chan error, 1)
+	go func() {
+		execErrCh <- rd.exec(ctx, ch, doc)
+	}()
+
+	// A differing pair makes exec create a hunk and enter the look-ahead loop.
+	ch <- record.NewPair(0, record.Record{"a0"}, record.Record{"b0"})
+	// A matching pair is consumed inside the look-ahead select; with numLines=1
+	// it is not enough to stop, so exec loops back to the select and waits.
+	ch <- record.NewPair(1, record.Record{"r1"}, record.Record{"r1"})
+	// Now exec is committed to the look-ahead select with an empty channel, so
+	// cancelling makes it take the ctx-done branch (break LOOP) with a hunk
+	// created but not populated.
+	cancel()
+
+	err := <-execErrCh
+	require.Error(t, err, "exec should return the context error")
+
+	// Seal the doc without an error to force the reader to traverse the hunks.
+	// (The production caller seals with the error, which short-circuits Read and
+	// masks an unsealed hunk; sealing nil here exposes it.)
+	doc.Seal(nil)
+
+	done := make(chan struct{})
+	go func() {
+		_, _ = io.ReadAll(doc)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Reader completed: every hunk exec created was sealed.
+	case <-time.After(10 * time.Second):
+		t.Fatal("io.ReadAll hung: exec left a hunk unsealed (issue #906)")
+	}
 }
 
 func TestRecordDifferExec(t *testing.T) {
