@@ -40,7 +40,7 @@ func (v minTLSVersion) apply(tr *http.Transport) {
 		// We allow tls.VersionTLS10, even though it's not considered
 		// secure these days. Ultimately this could become a config
 		// option.
-		tr.TLSClientConfig = &tls.Config{MinVersion: uint16(v)} //nolint:gosec
+		tr.TLSClientConfig = &tls.Config{MinVersion: uint16(v)}
 	} else {
 		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
 		tr.TLSClientConfig.MinVersion = uint16(v)
@@ -80,7 +80,7 @@ func OptResponseTimeout(timeout time.Duration) TripFunc {
 
 		resp, err := next.RoundTrip(req.WithContext(ctx))
 		if err == nil {
-			if resp.Body == nil {
+			if resp == nil || resp.Body == nil {
 				// Shouldn't happen, but just in case.
 				cancelFn()
 			} else {

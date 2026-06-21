@@ -98,10 +98,10 @@ func ResponseLogValue(resp *http.Response) slog.Value {
 
 	var attrs []slog.Attr
 	if resp.Request != nil {
-		attrs = append(attrs,
-			slog.String("method", resp.Request.Method),
-			slog.String("url", resp.Request.URL.String()),
-		)
+		attrs = append(attrs, slog.String("method", resp.Request.Method))
+		if resp.Request.URL != nil {
+			attrs = append(attrs, slog.String("url", resp.Request.URL.String()))
+		}
 	}
 	attrs = append(attrs,
 		slog.String("proto", resp.Proto),
@@ -132,9 +132,12 @@ func RequestLogValue(req *http.Request) slog.Value {
 		return slog.Value{}
 	}
 
-	p := req.URL.Path
-	if p == "" {
-		p = req.URL.RawPath
+	var p string
+	if req.URL != nil {
+		p = req.URL.Path
+		if p == "" {
+			p = req.URL.RawPath
+		}
 	}
 
 	attrs := []slog.Attr{
@@ -182,6 +185,9 @@ func Filename(resp *http.Response) string {
 	}
 
 	if filename == "" {
+		if resp.Request == nil || resp.Request.URL == nil {
+			return ""
+		}
 		filename = path.Base(resp.Request.URL.Path)
 	} else {
 		filename = filepath.Base(filename)
