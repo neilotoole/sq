@@ -285,7 +285,7 @@ func (fs *Files) sourceHash(src *source.Source) string {
 
 			buf.WriteString(k)
 			v := src.Options[k]
-			buf.WriteString(fmt.Sprintf("%v", v))
+			fmt.Fprintf(&buf, "%v", v)
 			mUsedKeys[k] = v
 		}
 	}

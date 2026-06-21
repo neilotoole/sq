@@ -261,7 +261,7 @@ func buildSakilaDiff(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("read %s: %w", srcPath, err)
 	}
-	err = os.WriteFile(dstPath, data, 0o600)
+	err = os.WriteFile(dstPath, data, 0o600) //nolint:gosec // G703: constant fixture path in dev-only tool
 	if err != nil {
 		return fmt.Errorf("write %s: %w", dstPath, err)
 	}

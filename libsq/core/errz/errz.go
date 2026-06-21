@@ -380,7 +380,7 @@ func SprintTreeTypes(err error) string {
 	errChain := Chain(err)
 	var sb strings.Builder
 	for i, e := range errChain {
-		sb.WriteString(fmt.Sprintf("%T", e))
+		fmt.Fprintf(&sb, "%T", e)
 		if me, ok := e.(multipleErrorer); ok {
 			children := me.Unwrap()
 			childText := make([]string, len(children))
