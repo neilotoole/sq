@@ -29,7 +29,7 @@ func Apply[T any](collection []T, fn func(item T) T) []T {
 
 // MustTypedSlice calls TypedSlice, but panics if the conversion fails.
 func MustTypedSlice[T, S any](in ...S) []T {
-	out, ok := TypedSlice[T, S](in...)
+	out, ok := TypedSlice[T](in...)
 	if !ok {
 		var s S
 		var t T
@@ -189,7 +189,7 @@ func ZeroIfNil[T comparable](t *T) T {
 // from ch, or false otherwise. This is useful for a succinct
 // "if done" idiom, e.g.:
 //
-//	if someCondition && loz.Take(doneCh) {
+//	if someCondition && langz.Take(doneCh) {
 //		return
 //	}
 //
@@ -211,6 +211,10 @@ func Take[C any](ch <-chan C) bool {
 
 // Remove returns a slice without v, preserving order. If order is not
 // important, use RemoveUnordered instead, as it's faster.
+//
+// The input slice a is modified in place: its backing array is shifted to
+// close the gap, leaving a stale element at the old tail. Callers must use
+// the returned slice and not retain references to a.
 func Remove[T any](a []*T, v *T) []*T {
 	// https://stackoverflow.com/a/37335777/6004734
 	for i := range a {
@@ -223,6 +227,10 @@ func Remove[T any](a []*T, v *T) []*T {
 
 // RemoveUnordered returns a slice without v, but order is not
 // guaranteed to preserved. If order is important, use Remove instead.
+//
+// The input slice a is modified in place: the removed element is overwritten
+// with the tail element, leaving a stale element at the old tail. Callers must
+// use the returned slice and not retain references to a.
 func RemoveUnordered[T any](a []*T, v *T) []*T {
 	// https://stackoverflow.com/a/37335777/6004734
 	for i := range a {
