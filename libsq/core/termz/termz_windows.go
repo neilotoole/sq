@@ -5,18 +5,7 @@ import (
 	"os"
 
 	"golang.org/x/sys/windows"
-	"golang.org/x/term"
 )
-
-// IsTerminal returns true if w is a terminal.
-func IsTerminal(w io.Writer) bool {
-	switch v := w.(type) {
-	case *os.File:
-		return term.IsTerminal(int(v.Fd()))
-	default:
-		return false
-	}
-}
 
 // IsColorTerminal returns true if w is a colorable terminal.
 // It respects [NO_COLOR], [FORCE_COLOR] and TERM=dumb environment variables.
