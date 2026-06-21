@@ -118,6 +118,13 @@ func TestCmd_String_Variants(t *testing.T) {
 	require.Equal(t, "A=1 B=2 pg_dump", got)
 }
 
+// TestExec_NilCmd verifies that Exec returns an error (rather than panicking
+// in the deferred cleanup) when cmd is nil.
+func TestExec_NilCmd(t *testing.T) {
+	err := execz.Exec(context.Background(), nil)
+	require.Error(t, err)
+}
+
 // TestExec_Success verifies that a command exiting 0 returns no error and that
 // its stdout is written to the configured writer.
 func TestExec_Success(t *testing.T) {
@@ -275,9 +282,20 @@ func TestExec_CmdDirPath(t *testing.T) {
 	require.NoError(t, execz.Exec(context.Background(), cmd))
 
 	if runtime.GOOS != "windows" {
-		require.Contains(t, stdout.String(), filepath.Dir(os.Args[0]),
+		require.Contains(t, stdout.String(), filepath.Dir(testExe(t)),
 			"CmdDirPath should put the command's own dir on PATH")
 	}
+}
+
+// testExe returns the absolute, on-disk path of the running test binary. It's
+// used (rather than os.Args[0], which is only "the name used to invoke the
+// program") so the subprocess re-exec and the CmdDirPath assertion stay stable
+// across runners.
+func testExe(t *testing.T) string {
+	t.Helper()
+	exe, err := os.Executable()
+	require.NoError(t, err)
+	return exe
 }
 
 // helperControl configures the behavior of the helper subprocess.
@@ -316,7 +334,7 @@ func helperCmd(t *testing.T, ctrl helperControl) *execz.Cmd {
 	}
 
 	return &execz.Cmd{
-		Name: os.Args[0],
+		Name: testExe(t),
 		Args: []string{"-test.run=^TestHelperProcess$", "--"},
 		Env: append(base,
 			"GO_EXECZ_WANT_HELPER_PROCESS=1",

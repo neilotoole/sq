@@ -181,8 +181,12 @@ func (c *Cmd) LogValue() slog.Value {
 	return slog.GroupValue(attrs...)
 }
 
-// Exec executes cmd.
+// Exec executes cmd. It returns an error if cmd is nil.
 func Exec(ctx context.Context, cmd *Cmd) (err error) {
+	if cmd == nil {
+		return errz.New("execz: nil cmd")
+	}
+
 	defer func() {
 		if err != nil && cmd.UsesOutputFile != "" {
 			// If an error occurred, we want to remove the output file.
