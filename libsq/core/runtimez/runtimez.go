@@ -35,15 +35,18 @@ func MemStats() *runtime.MemStats {
 		memStats = &ms
 		memStatsNextRefresh = now.Add(MemStatsRefresh)
 	}
+	// Capture the pointer while holding the lock; reading the package-level
+	// memStats after Unlock would race a concurrent refresh.
+	ms := memStats
 	memStatsMu.Unlock()
 
-	return memStats
+	return ms
 }
 
 // StartMemStatsTracker starts a goroutine that tracks memory stats, returning
-// the peak values of [runtime.MemStats.Sys], [runtime.MemStats.TotalAlloc] and
-// [runtime.MemStats.PauseTotalNs]. The goroutine sleeps for sampleFreq between
-// each sample and exits when ctx is done.
+// the peak values of [runtime.MemStats.Sys], [runtime.MemStats.Alloc],
+// [runtime.MemStats.TotalAlloc] and [runtime.MemStats.PauseTotalNs]. The
+// goroutine samples every [MemStatsRefresh] and exits when ctx is done.
 //
 //nolint:revive // datarace
 func StartMemStatsTracker(ctx context.Context) (sys, curAllocs, totalAllocs, gcPauseNs *atomic.Uint64) {
@@ -79,7 +82,11 @@ func StartMemStatsTracker(ctx context.Context) (sys, curAllocs, totalAllocs, gcP
 				var ms runtime.MemStats
 				runtime.ReadMemStats(&ms)
 				if ms.Sys > sys.Load() {
-					sys.Store(stats.Sys)
+					sys.Store(ms.Sys)
+				}
+
+				if ms.Alloc > curAllocs.Load() {
+					curAllocs.Store(ms.Alloc)
 				}
 
 				totalAllocs.Store(ms.TotalAlloc)
