@@ -93,7 +93,15 @@ func (c *Collection) UnmarshalJSON(b []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	return json.Unmarshal(b, &c.data)
+	if err := json.Unmarshal(b, &c.data); err != nil {
+		return err
+	}
+
+	// Drop any nil source entries (a config whose sources list contains
+	// a null element unmarshals to a nil *Source). This keeps the
+	// collection's no-nil-entry invariant so readers don't have to.
+	c.data.Sources = lo.Compact(c.data.Sources)
+	return nil
 }
 
 // MarshalYAML implements yaml.Marshaler.
@@ -109,7 +117,12 @@ func (c *Collection) UnmarshalYAML(unmarshal func(any) error) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	return unmarshal(&c.data)
+	if err := unmarshal(&c.data); err != nil {
+		return err
+	}
+
+	c.data.Sources = lo.Compact(c.data.Sources)
+	return nil
 }
 
 // Sources returns a new slice containing the set's sources.
@@ -849,8 +862,9 @@ func (c *Collection) SourcesInGroup(group string) ([]*Source, error) {
 func (c *Collection) sourcesInGroup(group string, directMembersOnly bool) ([]*Source, error) {
 	group = strings.TrimSpace(group)
 	if group == "" || group == "/" {
-		srcs := make([]*Source, len(c.data.Sources))
-		copy(srcs, c.data.Sources)
+		// lo.Compact both copies the slice and drops any nil entries
+		// (defense in depth; the collection should already be nil-free).
+		srcs := lo.Compact(c.data.Sources)
 
 		if directMembersOnly {
 			srcs = lo.Reject(srcs, func(item *Source, _ int) bool {

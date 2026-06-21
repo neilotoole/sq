@@ -2029,13 +2029,15 @@ func TestVerifyIntegrity_branches(t *testing.T) {
 		require.False(t, repaired)
 	})
 
-	t.Run("nil_source_in_collection", func(t *testing.T) {
+	t.Run("null_entry_stripped_at_load", func(t *testing.T) {
 		coll := &source.Collection{}
 		err := coll.UnmarshalJSON([]byte(`{"sources":[null]}`))
 		require.NoError(t, err)
+		// The null entry is dropped at unmarshal, so integrity passes.
 		repaired, verr := source.VerifyIntegrity(coll)
-		require.Error(t, verr)
+		require.NoError(t, verr)
 		require.False(t, repaired)
+		require.Empty(t, coll.Handles())
 	})
 
 	t.Run("duplicate_handle", func(t *testing.T) {
@@ -2111,35 +2113,24 @@ func TestCollection_Add_nil(t *testing.T) {
 	require.Error(t, coll.Add(nil))
 }
 
-// TestCollection_nilSourceEntry verifies that a nil *Source entry in the
-// collection (e.g. from a hand-edited config with a null array element)
-// is skipped rather than panicking in Handles/Groups/Active/indexOf.
-func TestCollection_nilSourceEntry(t *testing.T) {
+// TestCollection_nullEntryStrippedOnLoad verifies that a null entry in a
+// config's sources list is dropped at unmarshal, so the collection never
+// carries a nil *Source through the public load path. The per-reader
+// nil guards (defense in depth, for a nil that bypasses this boundary)
+// are covered by the internal TestCollection_nilEntryDefenseInDepth.
+func TestCollection_nullEntryStrippedOnLoad(t *testing.T) {
 	coll := &source.Collection{}
 	err := coll.UnmarshalJSON([]byte(`{"sources":[null,` +
 		`{"handle":"@prod/real","driver":"sqlite3","location":"/tmp/a.db"}]}`))
 	require.NoError(t, err)
 
 	require.Equal(t, []string{"@prod/real"}, coll.Handles())
-	require.NotPanics(t, func() { _ = coll.Groups() })
-	require.NotPanics(t, func() { _ = coll.Active() })
 	require.True(t, coll.IsExistingSource("@prod/real"))
-	require.False(t, coll.IsExistingSource("@ghost"))
 
-	// Every reader that ranges over Sources must skip the nil entry
-	// rather than panic.
-	require.NotPanics(t, func() { _, _ = coll.SetActive("@prod/real", false) })
-	require.NotPanics(t, func() { _, _ = coll.SetScratch("@prod/real") })
-	require.NotPanics(t, func() { _, _ = coll.HandlesInGroup("prod") })
-	require.NotPanics(t, func() { _, _ = coll.SourcesInGroup("prod") })
-	require.NotPanics(t, func() { _, _ = coll.Tree("/") })
-	require.NotPanics(t, func() {
-		_ = coll.Visit(func(*source.Source) error { return nil })
-	})
-
-	// Clone must drop the nil entry, leaving only the real source.
-	clone := coll.Clone()
-	require.Equal(t, []string{"@prod/real"}, clone.Handles())
+	// The stripped collection passes integrity verification.
+	repaired, verr := source.VerifyIntegrity(coll)
+	require.NoError(t, verr)
+	require.False(t, repaired)
 }
 
 // TestSource_String_Group_nil verifies the nil-receiver guards on
@@ -2152,4 +2143,14 @@ func TestSource_String_Group_nil(t *testing.T) {
 	// A non-nil source with an empty handle exercises the
 	// groupFromHandle empty-string guard.
 	require.Empty(t, (&source.Source{}).Group())
+}
+
+// TestCollection_Unmarshal_errPaths covers the error returns of
+// UnmarshalJSON and UnmarshalYAML.
+func TestCollection_Unmarshal_errPaths(t *testing.T) {
+	coll := &source.Collection{}
+	require.Error(t, coll.UnmarshalJSON([]byte("{invalid json")))
+	require.Error(t, coll.UnmarshalYAML(func(any) error {
+		return errors.New("boom")
+	}))
 }

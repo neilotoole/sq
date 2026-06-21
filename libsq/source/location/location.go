@@ -215,7 +215,7 @@ func Short(loc string) string {
 // display. The mask only runs when the name actually contains a
 // credential-shaped byte ('@' or '='), so ordinary filenames skip the
 // regex entirely. This keeps the common Short() path cheap while still
-// masking pathological names like "user:pw@host.db" or "x.db?pwd=...".
+// masking a pathological name that embeds userinfo, e.g. "user:pw@x.db".
 func shortFileName(name string) string {
 	if strings.ContainsAny(name, "@=") {
 		return redactBestEffort(name)

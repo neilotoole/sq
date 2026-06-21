@@ -112,3 +112,44 @@ func TestGroupsFilterOnlyDirectChildren(t *testing.T) {
 		})
 	}
 }
+
+// TestCollection_nilEntryDefenseInDepth verifies the per-reader nil
+// guards: even if a nil *Source entry bypasses the unmarshal/Add
+// boundary (which strip/reject nil) and lands in c.data.Sources, the
+// collection's readers skip it rather than panicking, and
+// VerifyIntegrity reports it as corruption.
+func TestCollection_nilEntryDefenseInDepth(t *testing.T) {
+	newColl := func() *Collection {
+		c := &Collection{}
+		c.data.Sources = []*Source{
+			nil,
+			{Handle: "@prod/real", Type: drivertype.Type("sqlite3"), Location: "/tmp/a.db"},
+		}
+		return c
+	}
+
+	c := newColl()
+	require.Equal(t, []string{"@prod/real"}, c.Handles())
+	require.NotPanics(t, func() { _ = c.Groups() })
+	require.NotPanics(t, func() { _ = c.Active() })
+	require.NotPanics(t, func() { _ = c.Visit(func(*Source) error { return nil }) })
+	require.True(t, c.IsExistingSource("@prod/real"))
+
+	srcs, err := c.SourcesInGroup("/")
+	require.NoError(t, err)
+	require.Len(t, srcs, 1)
+	require.Equal(t, "@prod/real", srcs[0].Handle)
+
+	require.NotPanics(t, func() { _, _ = c.SourcesInGroup("prod") })
+	require.NotPanics(t, func() { _, _ = c.HandlesInGroup("prod") })
+	require.NotPanics(t, func() { _, _ = c.Tree("/") })
+	require.NotPanics(t, func() { _, _ = c.SetActive("@prod/real", false) })
+	require.NotPanics(t, func() { _, _ = c.SetScratch("@prod/real") })
+
+	clone := newColl().Clone()
+	require.Equal(t, []string{"@prod/real"}, clone.Handles())
+
+	// VerifyIntegrity reports the nil entry as corruption.
+	_, verr := VerifyIntegrity(newColl())
+	require.Error(t, verr)
+}
