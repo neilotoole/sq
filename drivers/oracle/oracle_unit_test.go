@@ -206,9 +206,11 @@ func TestKindFromDBTypeName_RemainingBranches(t *testing.T) {
 		})
 	}
 
-	// Unknown type with a non-nil logger exercises the log.Warn branch.
+	// Unknown type with a non-nil logger exercises the log.Warn branch. Use a
+	// discard logger so the warning doesn't print to stderr during the run.
+	discard := slog.New(slog.DiscardHandler)
 	require.Equal(t, kind.Unknown,
-		kindFromDBTypeName(slog.Default(), "col", "SOME_UNKNOWN_TYPE"))
+		kindFromDBTypeName(discard, "col", "SOME_UNKNOWN_TYPE"))
 }
 
 // TestDriveri_UnsupportedFeatures pins the error-returning stubs for features

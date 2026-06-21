@@ -170,12 +170,17 @@ func loadUserSchemaObjectsMetadata(
 	// Oracle backs every materialized view with a container table of the
 	// same name, so that name appears in USER_TABLES as well as USER_MVIEWS.
 	// Exclude MV container tables here so the MV is reported once (via
-	// getMaterializedViewMetadata below) rather than twice.
+	// getMaterializedViewMetadata below) rather than twice. NOT EXISTS (not
+	// NOT IN) avoids the SQL footgun where a NULL in the subquery would
+	// filter out every row, and matches the ListTableNames approach.
 	baseNames, err := queryOracleObjectNames(ctx, db,
-		`SELECT table_name FROM user_tables
-WHERE temporary = 'N'
-  AND table_name NOT IN (SELECT mview_name FROM user_mviews)
-ORDER BY table_name`)
+		`SELECT t.table_name FROM user_tables t
+WHERE t.temporary = 'N'
+  AND NOT EXISTS (
+    SELECT 1 FROM user_mviews m
+    WHERE m.mview_name = t.table_name
+  )
+ORDER BY t.table_name`)
 	if err != nil {
 		return nil, err
 	}

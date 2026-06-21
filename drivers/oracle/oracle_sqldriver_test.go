@@ -302,10 +302,16 @@ func TestDriver_ListTableNames_Variants(t *testing.T) {
 	t.Parallel()
 	th, s := requireOracle(t)
 
+	// Membership checks only: sibling parallel tests create and drop temp
+	// tables in this shared schema, so any assertion on total counts would be
+	// racy. The views/tables/both split is verified by the presence and
+	// absence of a known base table (ACTOR) and view (CUSTOMER_LIST).
+
 	// Empty schema → CurrentSchema fallback; views only.
 	views, err := s.drvr.ListTableNames(th.Context, s.db, "", false, true)
 	require.NoError(t, err)
 	require.Contains(t, views, "CUSTOMER_LIST", "Sakila ships the customer_list view")
+	require.NotContains(t, views, "ACTOR", "base tables excluded when tables=false")
 
 	tablesOnly, err := s.drvr.ListTableNames(th.Context, s.db, "SAKILA", true, false)
 	require.NoError(t, err)
@@ -314,9 +320,8 @@ func TestDriver_ListTableNames_Variants(t *testing.T) {
 
 	both, err := s.drvr.ListTableNames(th.Context, s.db, "SAKILA", true, true)
 	require.NoError(t, err)
-	require.Contains(t, both, "ACTOR")
-	require.Contains(t, both, "CUSTOMER_LIST")
-	require.True(t, len(both) > len(tablesOnly), "tables+views is a superset of tables")
+	require.Contains(t, both, "ACTOR", "tables+views includes base tables")
+	require.Contains(t, both, "CUSTOMER_LIST", "tables+views includes views")
 }
 
 // TestDriver_QueryAggregates is a package-local regression for the computed-
