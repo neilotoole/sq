@@ -208,6 +208,8 @@ func TestShort(t *testing.T) {
 		// stripped so the secret can't leak into the short string.
 		{loc: "sqlite3:///path/to/app.db?_auth_pass=p_ssW0rd", want: "app.db"},
 		{loc: "duckdb:///path/to/x.duckdb?motherduck_token=p_ssW0rd", want: "x.duckdb"},
+		// Credential-shaped text in a file-DB path is masked too.
+		{loc: "sqlite3:///data/user:p_ssW0rd@host.db", want: "user:xxxxx@host.db"},
 		// Bare filepath whose final segment embeds credential-shaped
 		// text is masked best-effort.
 		{loc: "/path/to/user:p_ssW0rd@host.db", want: "user:xxxxx@host.db"},

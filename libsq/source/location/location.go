@@ -129,12 +129,9 @@ func Short(loc string) string {
 			return redactBestEffort(loc)
 		}
 
-		// True filepath. Mask any credential-shaped text in the base
-		// name (e.g. a segment that embeds "user:pw@" or "password="),
-		// consistent with the URL branch above. Ordinary filenames are
-		// unaffected.
+		// True filepath.
 		loc = filepath.Clean(loc)
-		return redactBestEffort(filepath.Base(loc))
+		return shortFileName(filepath.Base(loc))
 	}
 
 	// It's a SQL driver.
@@ -171,13 +168,9 @@ func Short(loc string) string {
 	if u.Scheme == "sqlite3" || u.Scheme == "duckdb" {
 		// Special handling for file-based DBs (sqlite3, duckdb). u.DSN
 		// carries the query string, which may hold secret params (e.g.
-		// SQLCipher's _auth_pass); strip it so secrets don't leak into
-		// the short display string.
-		dsn := u.DSN
-		if i := strings.IndexByte(dsn, '?'); i != -1 {
-			dsn = dsn[:i]
-		}
-		return path.Base(dsn)
+		// SQLCipher's _auth_pass); drop it before taking the base name.
+		dsn, _, _ := strings.Cut(u.DSN, "?")
+		return shortFileName(path.Base(dsn))
 	}
 
 	sb := strings.Builder{}
@@ -216,6 +209,18 @@ func Short(loc string) string {
 	sb.WriteRune('/')
 	sb.WriteString(db)
 	return sb.String()
+}
+
+// shortFileName masks credential-shaped text in a file's base name for
+// display. The mask only runs when the name actually contains a
+// credential-shaped byte ('@' or '='), so ordinary filenames skip the
+// regex entirely. This keeps the common Short() path cheap while still
+// masking pathological names like "user:pw@host.db" or "x.db?pwd=...".
+func shortFileName(name string) string {
+	if strings.ContainsAny(name, "@=") {
+		return redactBestEffort(name)
+	}
+	return name
 }
 
 // Fields is a parsed representation of a source location.

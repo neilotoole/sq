@@ -95,6 +95,15 @@ func (s *Source) Table(tblName string) *Table {
 	return nil
 }
 
+// clonePtr returns a pointer to a copy of *p, or nil if p is nil.
+func clonePtr[T any](p *T) *T {
+	if p == nil {
+		return nil
+	}
+	v := *p
+	return &v
+}
+
 // Clone returns a deep copy of s. If s is nil, nil is returned.
 //
 // The Size pointer and the Tables are deep-copied. DBProperties is
@@ -127,14 +136,10 @@ func (s *Source) Clone() *Source {
 		DBProduct:       s.DBProduct,
 		DBVersion:       s.DBVersion,
 		User:            s.User,
+		Size:            clonePtr(s.Size),
 		TableCount:      s.TableCount,
 		ViewCount:       s.ViewCount,
 		SecretsResolved: s.SecretsResolved,
-	}
-
-	if s.Size != nil {
-		size := *s.Size
-		s2.Size = &size
 	}
 
 	if s.DBProperties != nil {
@@ -143,9 +148,11 @@ func (s *Source) Clone() *Source {
 	}
 
 	if s.Tables != nil {
-		s2.Tables = make([]*Table, len(s.Tables))
-		for i := range s.Tables {
-			s2.Tables[i] = s.Tables[i].Clone()
+		s2.Tables = make([]*Table, 0, len(s.Tables))
+		for _, tbl := range s.Tables {
+			if tbl != nil {
+				s2.Tables = append(s2.Tables, tbl.Clone())
+			}
 		}
 
 		// Per-table Clone() copies FK.Outgoing as independent values;
@@ -268,19 +275,17 @@ func (t *Table) Clone() *Table {
 		TableType:   t.TableType,
 		DBTableType: t.DBTableType,
 		RowCount:    t.RowCount,
+		Size:        clonePtr(t.Size),
 		Comment:     t.Comment,
 		Columns:     nil,
 	}
 
-	if t.Size != nil {
-		size := *t.Size
-		c.Size = &size
-	}
-
 	if t.Columns != nil {
-		c.Columns = make([]*Column, len(t.Columns))
-		for i := range t.Columns {
-			c.Columns[i] = t.Columns[i].Clone()
+		c.Columns = make([]*Column, 0, len(t.Columns))
+		for _, col := range t.Columns {
+			if col != nil {
+				c.Columns = append(c.Columns, col.Clone())
+			}
 		}
 	}
 

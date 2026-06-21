@@ -64,6 +64,11 @@ type collData struct {
 //  1. The color encoder needs to be able to handle json.RawMessage.
 //  2. Refactor source.Collection so that it doesn't have this weird internal
 //     representation.
+//
+// The returned value is a point-in-time snapshot read under the lock,
+// but it shares the underlying Sources backing array with the
+// collection. Callers that need isolation from later mutation must
+// [Collection.Clone] first (as the source writers do).
 func (c *Collection) Data() any {
 	if c == nil {
 		return nil
