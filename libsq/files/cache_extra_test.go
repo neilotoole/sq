@@ -191,25 +191,32 @@ func TestFiles_CacheClearAll_TempDirUnusable(t *testing.T) {
 }
 
 // TestFiles_CacheClearAll_RemovesStrayDeadCache verifies that CacheClearAll
-// cleans up leftover relocated cache dirs (dead_cache_*) from a previous clear
-// whose deletion failed. They are siblings of the cache dir, so the cache
-// sweep doesn't reach them; the next clear must remove them (self-healing).
+// cleans up sq's leftover relocated cache dirs from a previous clear whose
+// deletion failed. They are siblings of the cache dir, so the cache sweep
+// doesn't reach them; the next clear must remove them (self-healing). It must
+// also leave foreign dirs in the shared cache root untouched, since that root
+// is not owned by sq.
 func TestFiles_CacheClearAll_RemovesStrayDeadCache(t *testing.T) {
 	ctx, fs := newTestFiles(t)
 	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
 
 	require.NoError(t, ioz.RequireDir(fs.CacheDir()))
-
-	// Simulate a leftover from a prior failed clear: a non-empty dead_cache_*
-	// dir sitting next to the cache dir.
 	parent := filepath.Dir(fs.CacheDir())
-	stray := filepath.Join(parent, "dead_cache_stale")
+
+	// An sq-owned leftover from a prior failed clear: must be removed.
+	stray := filepath.Join(parent, "sq_dead_cache_stale")
 	require.NoError(t, os.MkdirAll(filepath.Join(stray, "sub"), 0o700))
-	require.True(t, ioz.DirExists(stray))
+
+	// A foreign dir in the shared cache root that merely resembles the old
+	// naming: must NOT be removed.
+	foreign := filepath.Join(parent, "dead_cache_not_ours")
+	require.NoError(t, os.MkdirAll(foreign, 0o700))
 
 	require.NoError(t, fs.CacheClearAll(ctx))
 	require.False(t, ioz.DirExists(stray),
-		"stray dead_cache dir should be cleaned up by the next clear")
+		"sq's stray relocated cache dir should be cleaned up by the next clear")
+	require.True(t, ioz.DirExists(foreign),
+		"a foreign dir in the shared cache root must be left untouched")
 }
 
 // TestFiles_CacheClearSource verifies both clearDownloads modes.

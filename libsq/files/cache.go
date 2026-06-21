@@ -517,6 +517,12 @@ func clearCacheDirContents(cacheDir string, clearDownloads bool, handle string) 
 	return nil
 }
 
+// relocateDirPrefix is the name prefix for the temporary dir that
+// doCacheClearAll moves the cache dir to before deleting it. It is
+// sq-specific because the dir is created in the shared user-cache root, and
+// the self-healing cleanup must only remove dirs that sq itself created.
+const relocateDirPrefix = "sq_dead_cache_"
+
 func (fs *Files) doCacheClearAll(ctx context.Context) error {
 	log := lg.FromContext(ctx).With(lga.Dir, fs.cacheDir)
 	log.Debug("Clearing cache dir")
@@ -541,15 +547,17 @@ func (fs *Files) doCacheClearAll(ctx context.Context) error {
 	// Best-effort: remove leftover relocated cache dirs from previous clears
 	// whose deletion failed (e.g. a file was still open). They are siblings of
 	// the cache dir, so doCacheSweep doesn't reach them; cleaning them here
-	// makes repeated clears self-healing rather than accumulating cruft.
-	strays, _ := filepath.Glob(filepath.Join(parent, "dead_cache_*"))
+	// makes repeated clears self-healing rather than accumulating cruft. The
+	// name is sq-specific (relocateDirPrefix) because parent is the shared
+	// user-cache root: we must only remove dirs that sq itself created.
+	strays, _ := filepath.Glob(filepath.Join(parent, relocateDirPrefix+"*"))
 	for _, stray := range strays {
 		if err := os.RemoveAll(stray); err != nil {
 			log.Warn("Could not remove stray relocated cache dir", lga.Path, stray, lga.Err, err)
 		}
 	}
 
-	relocateDir := filepath.Join(parent, "dead_cache_"+stringz.Uniq8())
+	relocateDir := filepath.Join(parent, relocateDirPrefix+stringz.Uniq8())
 	if err := os.Rename(fs.cacheDir, relocateDir); err != nil {
 		return errz.Wrap(err, "cache clear: relocate")
 	}
