@@ -112,7 +112,7 @@ func runRecordDiffer(t *testing.T, numLines, hunkMaxSize int, equal []bool) (*fa
 }
 
 // TestRecordDifferExec_CancelMidLookahead is the regression test for issue
-// #906. When the context is cancelled while exec is in its look-ahead loop, exec
+// #906. When the context is canceled while exec is in its look-ahead loop, exec
 // has already created a hunk (via doc.NewHunk) but has not yet populated it (the
 // only path that seals it). exec must seal that orphaned hunk before returning,
 // otherwise a reader that traverses the doc's hunks blocks forever on the
@@ -153,27 +153,39 @@ func TestRecordDifferExec_CancelMidLookahead(t *testing.T) {
 	// it is not enough to stop, so exec loops back to the select and waits.
 	ch <- record.NewPair(1, record.Record{"r1"}, record.Record{"r1"})
 	// Now exec is committed to the look-ahead select with an empty channel, so
-	// cancelling makes it take the ctx-done branch (break LOOP) with a hunk
+	// canceling makes it take the ctx-done branch (break LOOP) with a hunk
 	// created but not populated.
 	cancel()
 
 	err := <-execErrCh
 	require.Error(t, err, "exec should return the context error")
 
+	// The hunk was orphaned mid-look-ahead: it was created but populateHunk (the
+	// only path that calls the writer) never ran. Asserting the writer saw no
+	// hunks confirms we are exercising the orphaned-hunk path, not a normally
+	// populated one, so the test cannot pass for the wrong reason.
+	require.Empty(t, fake.hunks, "populateHunk must not have run on the cancel path")
+
 	// Seal the doc without an error to force the reader to traverse the hunks.
 	// (The production caller seals with the error, which short-circuits Read and
 	// masks an unsealed hunk; sealing nil here exposes it.)
 	doc.Seal(nil)
 
-	done := make(chan struct{})
+	type readResult struct {
+		err error
+	}
+	done := make(chan readResult, 1)
 	go func() {
-		_, _ = io.ReadAll(doc)
-		close(done)
+		_, readErr := io.ReadAll(doc)
+		done <- readResult{err: readErr}
 	}()
 
 	select {
-	case <-done:
-		// Reader completed: every hunk exec created was sealed.
+	case res := <-done:
+		// Reader completed (did not hang): the orphaned hunk was sealed. It was
+		// sealed with the context error, so reading it surfaces that error, which
+		// also proves a hunk really was created and is now readable.
+		require.Error(t, res.err, "the orphaned hunk should be sealed with the context error")
 	case <-time.After(10 * time.Second):
 		t.Fatal("io.ReadAll hung: exec left a hunk unsealed (issue #906)")
 	}
