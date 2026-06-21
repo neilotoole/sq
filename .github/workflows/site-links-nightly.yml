@@ -1,4 +1,4 @@
-# Nightly external link crawl for sq.io (Hugo + Bun) under site/
+# Nightly link crawl for sq.io (Hugo + Bun) under site/
 name: Site Links (nightly)
 
 on:
@@ -40,5 +40,5 @@ jobs:
       - name: Install dependencies
         run: make deps
 
-      - name: Full external link crawl
-        run: bun run lint:links
+      - name: Internal link crawl
+        run: bun run lint:links:internal
