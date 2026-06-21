@@ -87,7 +87,7 @@ func (s *Source) Table(tblName string) *Table {
 	}
 
 	for _, tbl := range s.Tables {
-		if tbl.Name == tblName {
+		if tbl != nil && tbl.Name == tblName {
 			return tbl
 		}
 	}
@@ -151,7 +151,12 @@ func (s *Source) Clone() *Source {
 }
 
 // TableNames is a convenience method that returns md's table names.
+// If s is nil, a nil slice is returned.
 func (s *Source) TableNames() []string {
+	if s == nil {
+		return nil
+	}
+
 	names := make([]string, len(s.Tables))
 	for i, tblDef := range s.Tables {
 		names[i] = tblDef.Name
@@ -285,8 +290,12 @@ func (t *Table) Clone() *Table {
 	return c
 }
 
-// Column returns the named col or nil.
+// Column returns the named col or nil. If t is nil, nil is returned.
 func (t *Table) Column(colName string) *Column {
+	if t == nil {
+		return nil
+	}
+
 	for _, col := range t.Columns {
 		if col.Name == colName {
 			return col
@@ -297,8 +306,12 @@ func (t *Table) Column(colName string) *Column {
 }
 
 // PKCols returns a possibly empty slice of cols that are part
-// of the table primary key.
+// of the table primary key. If t is nil, nil is returned.
 func (t *Table) PKCols() []*Column {
+	if t == nil {
+		return nil
+	}
+
 	var pkCols []*Column
 	for _, col := range t.Columns {
 		if col.PrimaryKey {

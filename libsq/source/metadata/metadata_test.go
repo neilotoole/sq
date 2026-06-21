@@ -185,6 +185,11 @@ func TestSource_TableNames(t *testing.T) {
 		want []string
 	}{
 		{
+			name: "nil_source",
+			src:  nil,
+			want: nil,
+		},
+		{
 			name: "multiple_tables",
 			src: &metadata.Source{
 				Tables: []*metadata.Table{
@@ -230,6 +235,12 @@ func TestTable_Column(t *testing.T) {
 		colName string
 		want    *metadata.Column
 	}{
+		{
+			name:    "nil_table",
+			tbl:     nil,
+			colName: "actor_id",
+			want:    nil,
+		},
 		{
 			name: "column_found",
 			tbl: &metadata.Table{
@@ -278,6 +289,11 @@ func TestTable_PKCols(t *testing.T) {
 		tbl  *metadata.Table
 		want []string
 	}{
+		{
+			name: "nil_table",
+			tbl:  nil,
+			want: nil,
+		},
 		{
 			name: "single_pk",
 			tbl: &metadata.Table{
@@ -377,6 +393,48 @@ func TestTable_Clone(t *testing.T) {
 		require.NotNil(t, got)
 		require.Nil(t, got.Columns)
 	})
+
+	t.Run("fk_uc_indexes_deep_copied", func(t *testing.T) {
+		fk := &metadata.ForeignKey{
+			Name:       "fk_film_language",
+			Table:      "film",
+			Columns:    []string{"language_id"},
+			RefTable:   "language",
+			RefColumns: []string{"language_id"},
+		}
+		uc := &metadata.UniqueConstraint{
+			Name:    "uq_film_title",
+			Table:   "film",
+			Columns: []string{"title"},
+		}
+		idx := &metadata.Index{
+			Name:    "idx_film_title",
+			Table:   "film",
+			Columns: []string{"title"},
+		}
+		tbl := &metadata.Table{
+			Name:              "film",
+			FK:                metadata.NewFKGroup([]*metadata.ForeignKey{fk}, nil),
+			UniqueConstraints: []*metadata.UniqueConstraint{uc},
+			Indexes:           []*metadata.Index{idx},
+		}
+
+		got := tbl.Clone()
+		require.NotNil(t, got)
+
+		require.NotNil(t, got.FK)
+		require.Len(t, got.FK.Outgoing, 1)
+		require.NotSame(t, fk, got.FK.Outgoing[0], "FK must be deep-copied")
+		require.Equal(t, fk, got.FK.Outgoing[0])
+
+		require.Len(t, got.UniqueConstraints, 1)
+		require.NotSame(t, uc, got.UniqueConstraints[0], "unique constraint must be deep-copied")
+		require.Equal(t, uc, got.UniqueConstraints[0])
+
+		require.Len(t, got.Indexes, 1)
+		require.NotSame(t, idx, got.Indexes[0], "index must be deep-copied")
+		require.Equal(t, idx, got.Indexes[0])
+	})
 }
 
 func TestTable_String(t *testing.T) {
@@ -473,6 +531,76 @@ func TestLinkForeignKeys(t *testing.T) {
 		src := &metadata.Source{}
 		metadata.LinkForeignKeys(nil, src)
 		require.Nil(t, src.Tables)
+	})
+
+	t.Run("nil_table_entries_skipped", func(t *testing.T) {
+		// A source whose Tables slice contains nil entries (defensive:
+		// shouldn't happen in practice, but must not panic) must still
+		// link the valid FKs and leave the nil holes untouched.
+		fk := &metadata.ForeignKey{
+			Name:       "fk_film_language",
+			Table:      "film",
+			Columns:    []string{"language_id"},
+			RefTable:   "language",
+			RefColumns: []string{"language_id"},
+		}
+		src := &metadata.Source{
+			Tables: []*metadata.Table{
+				nil,
+				{
+					Name: "film",
+					FK:   metadata.NewFKGroup([]*metadata.ForeignKey{fk}, nil),
+				},
+				nil,
+				{Name: "language"},
+				nil,
+			},
+		}
+
+		require.NotPanics(t, func() { metadata.LinkForeignKeys(nil, src) })
+
+		require.Len(t, src.Table("language").FK.Incoming, 1)
+		require.Same(t, fk, src.Table("language").FK.Incoming[0])
+	})
+
+	t.Run("nil_fk_in_outgoing_skipped", func(t *testing.T) {
+		// A nil entry in FK.Outgoing must be skipped without panicking,
+		// and a sibling valid FK in the same slice must still link.
+		good := &metadata.ForeignKey{
+			Name:       "fk_film_language",
+			Table:      "film",
+			Columns:    []string{"language_id"},
+			RefTable:   "language",
+			RefColumns: []string{"language_id"},
+		}
+		src := &metadata.Source{
+			Tables: []*metadata.Table{
+				{
+					Name: "film",
+					FK:   &metadata.FKGroup{Outgoing: []*metadata.ForeignKey{nil, good, nil}},
+				},
+				{Name: "language"},
+			},
+		}
+
+		require.NotPanics(t, func() { metadata.LinkForeignKeys(nil, src) })
+		require.Len(t, src.Table("language").FK.Incoming, 1)
+		require.Same(t, good, src.Table("language").FK.Incoming[0])
+	})
+
+	t.Run("empty_fk_wrapper_dropped", func(t *testing.T) {
+		// A table that arrives with a non-nil but empty FKGroup (both
+		// Outgoing and Incoming empty) must have its FK set back to nil
+		// so JSON / YAML omit the empty `fk: {}` wrapper.
+		src := &metadata.Source{
+			Tables: []*metadata.Table{
+				{Name: "standalone", FK: &metadata.FKGroup{}},
+			},
+		}
+
+		metadata.LinkForeignKeys(nil, src)
+		require.Nil(t, src.Table("standalone").FK,
+			"an empty FKGroup must be dropped to nil after linking")
 	})
 
 	t.Run("simple_fk", func(t *testing.T) {
@@ -1145,6 +1273,14 @@ func TestAssignForeignKeys(t *testing.T) {
 		require.Equal(t, []*metadata.ForeignKey{fkOK}, tables[0].FK.Outgoing)
 	})
 
+	t.Run("nil_table_entry_skipped", func(t *testing.T) {
+		fkOK := &metadata.ForeignKey{Table: "film", RefTable: "language"}
+		tables := []*metadata.Table{nil, {Name: "film"}, nil}
+		metadata.AssignForeignKeys(nil, tables, []*metadata.ForeignKey{fkOK})
+		require.NotNil(t, tables[1].FK)
+		require.Equal(t, []*metadata.ForeignKey{fkOK}, tables[1].FK.Outgoing)
+	})
+
 	t.Run("replaces_existing_outgoing", func(t *testing.T) {
 		old := &metadata.ForeignKey{Table: "film", RefTable: "old_ref"}
 		new1 := &metadata.ForeignKey{Table: "film", RefTable: "language"}
@@ -1236,6 +1372,13 @@ func TestAssignUniqueConstraints(t *testing.T) {
 		require.Equal(t, []*metadata.UniqueConstraint{uc}, tables[0].UniqueConstraints)
 	})
 
+	t.Run("nil_table_entry_skipped", func(t *testing.T) {
+		uc := &metadata.UniqueConstraint{Name: "u", Table: "t"}
+		tables := []*metadata.Table{nil, {Name: "t"}, nil}
+		metadata.AssignUniqueConstraints(nil, tables, []*metadata.UniqueConstraint{uc})
+		require.Equal(t, []*metadata.UniqueConstraint{uc}, tables[1].UniqueConstraints)
+	})
+
 	t.Run("replaces_existing", func(t *testing.T) {
 		old := &metadata.UniqueConstraint{Name: "u_old", Table: "t"}
 		new1 := &metadata.UniqueConstraint{Name: "u_new", Table: "t"}
@@ -1281,6 +1424,13 @@ func TestAssignIndexes(t *testing.T) {
 		tables := []*metadata.Table{{Name: "t"}}
 		metadata.AssignIndexes(nil, tables, []*metadata.Index{nil, idx, nil})
 		require.Equal(t, []*metadata.Index{idx}, tables[0].Indexes)
+	})
+
+	t.Run("nil_table_entry_skipped", func(t *testing.T) {
+		idx := &metadata.Index{Name: "i", Table: "t"}
+		tables := []*metadata.Table{nil, {Name: "t"}, nil}
+		metadata.AssignIndexes(nil, tables, []*metadata.Index{idx})
+		require.Equal(t, []*metadata.Index{idx}, tables[1].Indexes)
 	})
 
 	t.Run("replaces_existing", func(t *testing.T) {
@@ -1332,6 +1482,74 @@ func TestFKGroup_Clone_StandaloneDropsIncoming(t *testing.T) {
 		require.NotSame(t, outFK, clone.Outgoing[0],
 			"Outgoing entries must be deep-copied, not aliased to the original")
 		require.Equal(t, outFK.Name, clone.Outgoing[0].Name)
+	})
+}
+
+func TestForeignKey_String(t *testing.T) {
+	fk := &metadata.ForeignKey{
+		Name:     "fk_film_language",
+		Table:    "film",
+		Columns:  []string{"language_id"},
+		RefTable: "language",
+	}
+	got := fk.String()
+	require.NotEmpty(t, got)
+	require.Contains(t, got, "fk_film_language")
+
+	// A nil receiver must not panic; json.Marshal of a nil pointer
+	// yields "null".
+	var nilFK *metadata.ForeignKey
+	require.Equal(t, "null", nilFK.String())
+}
+
+func TestUniqueConstraint_String(t *testing.T) {
+	uc := &metadata.UniqueConstraint{
+		Name:    "uq_film_title",
+		Table:   "film",
+		Columns: []string{"title"},
+	}
+	got := uc.String()
+	require.NotEmpty(t, got)
+	require.Contains(t, got, "uq_film_title")
+
+	var nilUC *metadata.UniqueConstraint
+	require.Equal(t, "null", nilUC.String())
+}
+
+func TestIndex_String(t *testing.T) {
+	idx := &metadata.Index{
+		Name:    "idx_film_title",
+		Table:   "film",
+		Columns: []string{"title"},
+	}
+	got := idx.String()
+	require.NotEmpty(t, got)
+	require.Contains(t, got, "idx_film_title")
+
+	var nilIdx *metadata.Index
+	require.Equal(t, "null", nilIdx.String())
+}
+
+func TestNewFKGroup(t *testing.T) {
+	t.Run("both_empty_returns_nil", func(t *testing.T) {
+		require.Nil(t, metadata.NewFKGroup(nil, nil))
+		require.Nil(t, metadata.NewFKGroup([]*metadata.ForeignKey{}, []*metadata.ForeignKey{}))
+	})
+
+	t.Run("outgoing_only", func(t *testing.T) {
+		fk := &metadata.ForeignKey{Table: "film", RefTable: "language"}
+		g := metadata.NewFKGroup([]*metadata.ForeignKey{fk}, nil)
+		require.NotNil(t, g)
+		require.Equal(t, []*metadata.ForeignKey{fk}, g.Outgoing)
+		require.Nil(t, g.Incoming)
+	})
+
+	t.Run("incoming_only", func(t *testing.T) {
+		fk := &metadata.ForeignKey{Table: "other", RefTable: "film"}
+		g := metadata.NewFKGroup(nil, []*metadata.ForeignKey{fk})
+		require.NotNil(t, g)
+		require.Nil(t, g.Outgoing)
+		require.Equal(t, []*metadata.ForeignKey{fk}, g.Incoming)
 	})
 }
 
