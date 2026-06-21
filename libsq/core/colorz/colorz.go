@@ -50,34 +50,47 @@ var _ Printer = (*monoPrinter)(nil)
 type monoPrinter struct{}
 
 func (p monoPrinter) Block(w io.Writer, b []byte) (n int, err error) {
-	n, err = w.Write(b)
-	return n, errz.Err(err)
+	return writeAll(w, 0, b)
 }
 
 var newline = []byte{'\n'}
 
+// writeAll writes each non-empty chunk to w in order, accumulating the byte
+// count into n (seeded by the caller with any bytes already written). It stops
+// at the first write error, returning the running count and the error wrapped
+// via errz.Err. Empty chunks are skipped, so passing one is a no-op.
+func writeAll(w io.Writer, n int, chunks ...[]byte) (int, error) {
+	for _, c := range chunks {
+		if len(c) == 0 {
+			continue
+		}
+		n2, err := w.Write(c)
+		n += n2
+		if err != nil {
+			return n, errz.Err(err)
+		}
+	}
+	return n, nil
+}
+
 func (p monoPrinter) Line(w io.Writer, b []byte) (n int, err error) {
 	if len(b) == 0 {
-		n, err = w.Write(newline)
-		return n, errz.Err(err)
+		return writeAll(w, 0, newline)
 	}
 
-	n, err = w.Write(b)
-	if err != nil {
-		return n, errz.Err(err)
+	if n, err = writeAll(w, 0, b); err != nil {
+		return n, err
 	}
 
 	if b[len(b)-1] == '\n' {
 		return n, nil
 	}
 
-	n2, err := w.Write(newline)
-	return n + n2, errz.Err(err)
+	return writeAll(w, n, newline)
 }
 
 func (p monoPrinter) Fragment(w io.Writer, b []byte) (n int, err error) {
-	n, err = w.Write(b)
-	return n, errz.Err(err)
+	return writeAll(w, 0, b)
 }
 
 var _ Printer = (*colorPrinter)(nil)
@@ -90,57 +103,23 @@ func (p colorPrinter) Fragment(w io.Writer, b []byte) (n int, err error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
-	n, err = w.Write(p.prefix)
-	if err != nil {
-		return n, errz.Err(err)
-	}
-
-	var n2 int
-	n2, err = w.Write(b)
-	n += n2
-	if err != nil {
-		return n, errz.Err(err)
-	}
-
-	n2, err = w.Write(p.suffix)
-	n += n2
-	if err != nil {
-		return n, errz.Err(err)
-	}
-
-	return n, nil
+	return writeAll(w, 0, p.prefix, b, p.suffix)
 }
 
 func (p colorPrinter) Line(w io.Writer, b []byte) (n int, err error) {
 	if len(b) == 0 {
-		n, err = w.Write(newline)
-		return n, errz.Err(err)
+		return writeAll(w, 0, newline)
 	}
 
-	n, err = w.Write(p.prefix)
-	if err != nil {
-		return n, errz.Err(err)
-	}
-
-	var n2 int
-	n2, err = w.Write(b)
-	n += n2
-	if err != nil {
-		return n, errz.Err(err)
-	}
-
-	n2, err = w.Write(p.suffix)
-	n += n2
-	if err != nil {
-		return n, errz.Err(err)
+	if n, err = writeAll(w, 0, p.prefix, b, p.suffix); err != nil {
+		return n, err
 	}
 
 	if b[len(b)-1] == '\n' {
 		return n, nil
 	}
 
-	n2, err = w.Write(newline)
-	return n + n2, errz.Err(err)
+	return writeAll(w, n, newline)
 }
 
 func (p colorPrinter) Block(w io.Writer, b []byte) (n int, err error) {
@@ -152,7 +131,6 @@ func (p colorPrinter) Block(w io.Writer, b []byte) (n int, err error) {
 	// single line at bufio.MaxScanTokenSize (64KB) and strips a '\r' preceding
 	// the '\n'; doing it by hand removes the size limit and preserves the exact
 	// bytes (including any '\r') of each line.
-	var n2 int
 	for len(b) > 0 {
 		line, rest, hasNewline := bytes.Cut(b, newline)
 		b = rest
@@ -160,30 +138,14 @@ func (p colorPrinter) Block(w io.Writer, b []byte) (n int, err error) {
 		// Only wrap non-empty line content in color sequences; a blank line
 		// emits just its newline, with no empty colorized span.
 		if len(line) > 0 {
-			n2, err = w.Write(p.prefix)
-			n += n2
-			if err != nil {
-				return n, errz.Err(err)
-			}
-
-			n2, err = w.Write(line)
-			n += n2
-			if err != nil {
-				return n, errz.Err(err)
-			}
-
-			n2, err = w.Write(p.suffix)
-			n += n2
-			if err != nil {
-				return n, errz.Err(err)
+			if n, err = writeAll(w, n, p.prefix, line, p.suffix); err != nil {
+				return n, err
 			}
 		}
 
 		if hasNewline {
-			n2, err = w.Write(newline)
-			n += n2
-			if err != nil {
-				return n, errz.Err(err)
+			if n, err = writeAll(w, n, newline); err != nil {
+				return n, err
 			}
 		}
 	}
@@ -237,19 +199,12 @@ func (s Seqs) Write(w io.Writer, p []byte) {
 // empty, only a newline is written. If p is already newline-terminated, an
 // additional newline is NOT written.
 func (s Seqs) Writeln(w io.Writer, p []byte) {
-	switch {
-	case len(p) == 0:
+	if len(p) == 0 {
 		_, _ = w.Write(newline)
 		return
-	case len(s.Prefix) == 0:
-		// No colorization.
-		_, _ = w.Write(p)
-	default:
-		_, _ = w.Write(s.Prefix)
-		_, _ = w.Write(p)
-		_, _ = w.Write(s.Suffix)
 	}
 
+	s.Write(w, p)
 	if p[len(p)-1] != '\n' {
 		_, _ = w.Write(newline)
 	}
