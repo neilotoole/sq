@@ -92,11 +92,11 @@ type fibonacci struct {
 // second return value is a stop flag (false means keep retrying); a bare
 // fibonacci backoff never signals stop on its own.
 func (f fibonacci) Next() (next time.Duration, stop bool) {
-	d, stop := f.fib.Next()
-	if d > maxFibBackoff {
-		d = maxFibBackoff
+	next, stop = f.fib.Next()
+	if next > maxFibBackoff {
+		next = maxFibBackoff
 	}
-	return d, stop
+	return next, stop
 }
 
 // newFibonacci returns a backoff that clamps each interval to 5 seconds.
