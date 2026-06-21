@@ -366,9 +366,17 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 	owner := strings.ToUpper(schma)
 
 	if tables {
-		const queryTables = `SELECT table_name FROM all_tables
-WHERE owner = :1 AND temporary = 'N'
-ORDER BY table_name`
+		// A materialized view's container table appears in ALL_TABLES under
+		// the same name as the MV in ALL_MVIEWS. Exclude those container
+		// tables so the MV name isn't returned twice (once here, once from
+		// the ALL_MVIEWS query below).
+		const queryTables = `SELECT t.table_name FROM all_tables t
+WHERE t.owner = :1 AND t.temporary = 'N'
+  AND NOT EXISTS (
+    SELECT 1 FROM all_mviews m
+    WHERE m.owner = t.owner AND m.mview_name = t.table_name
+  )
+ORDER BY t.table_name`
 		rows, err := db.QueryContext(ctx, queryTables, owner)
 		if err != nil {
 			return nil, errw(err)
