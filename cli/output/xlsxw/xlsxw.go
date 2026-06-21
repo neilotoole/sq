@@ -210,7 +210,7 @@ func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 
 // setColWidth takes the zero-indexed col, and sets its width.
 func (w *recordWriter) setColWidth(col, width int) error {
-	colName := string(rune('A' + col))
+	colName := string(rune('A' + col)) //nolint:gosec // G115: col is a bounded column index
 	err := w.xfile.SetColWidth(SheetName, colName, colName, float64(width))
 	return errw(err)
 }

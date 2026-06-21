@@ -496,7 +496,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	}
 
 	// ClickHouse uses TRUNCATE TABLE syntax
-	truncateQuery := "TRUNCATE TABLE " + stringz.BacktickQuote(tbl)
+	truncateQuery := "TRUNCATE TABLE " + stringz.BacktickQuote(tbl) //nolint:gosec // G202: tbl is backtick-quoted
 	_, err = db.ExecContext(ctx, truncateQuery)
 	if err != nil {
 		return 0, errw(err)
