@@ -43,10 +43,21 @@ type copier struct {
 	writer
 }
 
-var _ io.WriteCloser = (*copyCloser)(nil)
+var (
+	_ io.WriteCloser = (*copyCloser)(nil)
+	_ io.ReaderFrom  = (*copyCloser)(nil)
+)
 
 type copyCloser struct {
 	writeCloser
+}
+
+// ReadFrom implements io.ReaderFrom with context awareness, mirroring
+// [copier.ReadFrom], so that a wrapped io.WriteCloser also benefits from the
+// io.Copy ReaderFrom strategy (as promised by [NewWriter]).
+func (w *copyCloser) ReadFrom(r io.Reader) (n int64, err error) {
+	c := copier{writer: w.writer}
+	return c.ReadFrom(r)
 }
 
 // NewWriter wraps an io.Writer to handle context cancellation.
