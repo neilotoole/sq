@@ -407,7 +407,7 @@ func TestDriver_Open_BadLocation_MSSQL(t *testing.T) {
 	bad := src.Clone()
 	bad.Location = "sqlserver://sq:wrongpw@localhost:1433?database=sakila"
 	_, err := drvr.Open(th.Context, bad, driver.ModeReadWrite)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // TestDriver_Open_WithCatalog_MSSQL covers the doOpen branch that rewrites the
