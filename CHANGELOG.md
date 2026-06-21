@@ -28,6 +28,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [`sq tbl truncate`](https://sq.io/docs/cmd/tbl-truncate) on a Postgres source no longer
+  leaks a database connection pool on each invocation.
+- Postgres: table and column names containing a double-quote are now escaped correctly in
+  generated DDL (create table, add/rename column, rename table) and update statements,
+  instead of producing malformed SQL.
 - Querying a remote (HTTP) source while offline no longer panics. When a cached
   download had gone stale and the refresh request failed at the transport layer
   (e.g. no network), `sq` crashed instead of falling back to the cached file.
