@@ -97,12 +97,8 @@ func (c *Cmd) String() string {
 }
 
 // redactedCmd returns a redacted rendering of c, suitable for logging (but
-// not execution).
+// not execution). The sole caller, [Cmd.LogValue], guarantees a non-nil c.
 func (c *Cmd) redactedCmd() string {
-	if c == nil {
-		return ""
-	}
-
 	env := c.redactedEnv()
 	args := c.redactedArgs()
 
