@@ -17,7 +17,6 @@ import (
 	"io"
 	"sync"
 
-	"github.com/neilotoole/sq/libsq/core/bytez"
 	"github.com/neilotoole/sq/libsq/core/colorz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
@@ -57,7 +56,7 @@ var (
 // the doc should be sealed via [UnifiedDoc.Seal].
 func NewUnifiedDoc(cmdTitle Title, opts ...Opt) *UnifiedDoc {
 	doc := &UnifiedDoc{
-		title:  bytez.TerminateNewline(cmdTitle),
+		title:  terminateNewline(cmdTitle),
 		sealed: make(chan struct{}),
 	}
 
@@ -241,7 +240,7 @@ func Titlef(clrs *Colors, format string, a ...any) []byte {
 		title = clrs.CmdTitle.Sprint(title)
 	}
 
-	return bytez.TerminateNewline([]byte(title))
+	return terminateNewline([]byte(title))
 }
 
 var _ Doc = (*HunkDoc)(nil)
@@ -539,4 +538,20 @@ type optBufferFactory struct {
 }
 
 func (o optBufferFactory) apply() {
+}
+
+// terminateNewline returns a slice whose last byte is newline, if b is
+// non-empty. If b is empty or already newline-terminated, b is returned as-is.
+// When a newline is appended, the result is a fresh copy that does not share a
+// backing array with b.
+func terminateNewline(b []byte) []byte {
+	const newline = '\n'
+	if len(b) == 0 || b[len(b)-1] == newline {
+		return b
+	}
+
+	s := make([]byte, len(b)+1)
+	copy(s, b)
+	s[len(b)] = newline
+	return s
 }
