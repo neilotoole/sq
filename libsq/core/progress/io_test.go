@@ -97,6 +97,10 @@ func TestWriter_Write_underlyingErr(t *testing.T) {
 
 	_, err := w.Write([]byte("hello"))
 	require.ErrorIs(t, err, wantErr)
+
+	bar, ok := progress.WriterBar(w)
+	require.True(t, ok)
+	require.True(t, progress.BarIsDestroyed(bar), "bar should be stopped on write error")
 }
 
 func TestWriter_Close_underlyingCloser(t *testing.T) {
@@ -206,6 +210,10 @@ func TestReader_Read_underlyingErr(t *testing.T) {
 
 	_, err := r.Read(make([]byte, 8))
 	require.ErrorIs(t, err, wantErr)
+
+	bar, ok := progress.ReaderBar(r)
+	require.True(t, ok)
+	require.True(t, progress.BarIsDestroyed(bar), "bar should be stopped on read error")
 }
 
 func TestReader_Close_underlyingCloser(t *testing.T) {
@@ -270,6 +278,11 @@ func TestCopier_ReadFrom_readerFrom_destErr(t *testing.T) {
 	n, err := rf.ReadFrom(strings.NewReader("payload"))
 	require.ErrorIs(t, err, wantErr)
 	require.Zero(t, n)
+
+	// The fix: a destination error in the ReaderFrom branch must stop the bar.
+	bar, ok := progress.WriterBar(w)
+	require.True(t, ok)
+	require.True(t, progress.BarIsDestroyed(bar), "bar should be stopped on destination error")
 }
 
 // TestCopier_ReadFrom_notReaderFrom exercises the non-ReaderFrom branch of

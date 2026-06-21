@@ -1,6 +1,9 @@
 package progress
 
-import "time"
+import (
+	"io"
+	"time"
+)
 
 // This file exposes internals to the progress_test package (white-box tests)
 // so that the lifecycle, refresh, and group-bar machinery can be driven
@@ -106,4 +109,48 @@ func GroupIncrDelta(b Bar) (int, bool) {
 // CalculateGroupIncr exposes the group bar's aggregate increment calculation.
 func (p *Progress) CalculateGroupIncr() int {
 	return p.groupBar.calculateIncr()
+}
+
+// HasLife reports whether the Progress currently has a live lifecycle.
+func (p *Progress) HasLife() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.life != nil
+}
+
+// NotBefore exposes the Progress's next-show checkpoint for tests.
+func (p *Progress) NotBefore() time.Time {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.notBefore
+}
+
+// WriterBar returns the underlying Bar driven by a progress.Writer, or false if
+// w isn't backed by one (e.g. the no-progress delegation adapter).
+func WriterBar(w Writer) (Bar, bool) {
+	if pc, ok := w.(*progCopier); ok {
+		return pc.b, true
+	}
+	return nil, false
+}
+
+// ReaderBar returns the underlying Bar driven by a progress reader, or false if
+// r isn't backed by one.
+func ReaderBar(r io.Reader) (Bar, bool) {
+	if pr, ok := r.(*progReader); ok {
+		return pr.b, true
+	}
+	return nil, false
+}
+
+// BarIsDestroyed reports whether b is a virtualBar that has been destroyed
+// (i.e. stopped). Returns false for any other Bar implementation.
+func BarIsDestroyed(b Bar) bool {
+	vb, ok := b.(*virtualBar)
+	if !ok {
+		return false
+	}
+	vb.mu.Lock()
+	defer vb.mu.Unlock()
+	return vb.destroyed
 }

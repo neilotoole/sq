@@ -165,6 +165,45 @@ func TestColors_EnableColor(t *testing.T) {
 	})
 }
 
+// TestHideOnWriter verifies that writing to the HideOnWriter-wrapped writer
+// passes bytes through, kills the live lifecycle (hiding the progress), and
+// pushes the next-show checkpoint out by the render delay.
+func TestHideOnWriter(t *testing.T) {
+	t.Parallel()
+
+	// A long render delay ensures that, once hidden, the background loop won't
+	// immediately recreate the lifecycle, keeping the assertions deterministic.
+	p := progress.New(context.Background(), io.Discard, progress.DefaultMaxBars, time.Hour, nil)
+	t.Cleanup(p.Stop)
+
+	bar := p.NewWaiter("waiter")
+	bar.Incr(1)
+	require.True(t, p.EnsureLife(), "lifecycle should have been established")
+	require.True(t, p.HasLife())
+
+	before := time.Now()
+	buf := &bytes.Buffer{}
+	w := p.HideOnWriter(buf)
+
+	n, err := w.Write([]byte("main output"))
+	require.NoError(t, err)
+	require.Equal(t, len("main output"), n)
+	require.Equal(t, "main output", buf.String())
+
+	require.False(t, p.HasLife(), "lifecycle should be killed after a write")
+	require.True(t, p.NotBefore().After(before),
+		"next-show checkpoint should be pushed past the write time")
+}
+
+// TestHideOnWriter_nilWriter verifies the guard for a nil underlying writer.
+func TestHideOnWriter_nilWriter(t *testing.T) {
+	t.Parallel()
+
+	p := progress.New(context.Background(), io.Discard, progress.DefaultMaxBars, time.Millisecond, nil)
+	t.Cleanup(p.Stop)
+	require.Nil(t, p.HideOnWriter(nil))
+}
+
 // TestGroupIncrDelta verifies the group-bar increment accounting: each call
 // returns only the delta accumulated since the previous call.
 func TestGroupIncrDelta(t *testing.T) {
