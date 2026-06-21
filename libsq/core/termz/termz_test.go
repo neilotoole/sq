@@ -24,6 +24,11 @@ func TestIsTerminal(t *testing.T) {
 
 	// A nil writer must not panic, and is not a terminal.
 	require.False(t, IsTerminal(nil))
+
+	// A typed-nil *os.File must not panic either: (*os.File).Fd() is nil-safe
+	// (it returns ^uintptr(0)), so this resolves to a non-terminal fd.
+	var nilFile *os.File
+	require.NotPanics(t, func() { require.False(t, IsTerminal(nilFile)) })
 }
 
 // TestIsColorTerminal_FileWriter verifies that, absent any env override, a
@@ -40,6 +45,11 @@ func TestIsColorTerminal_FileWriter(t *testing.T) {
 	t.Cleanup(func() { _ = f.Close() })
 
 	require.False(t, IsColorTerminal(f))
+
+	// A typed-nil *os.File must not panic: the nil-interface guard does not
+	// catch it, but (*os.File).Fd() is nil-safe and resolves to a non-terminal.
+	var nilFile *os.File
+	require.NotPanics(t, func() { require.False(t, IsColorTerminal(nilFile)) })
 }
 
 // TestIsColorTerminal_EnvOverrides verifies that IsColorTerminal honors the
