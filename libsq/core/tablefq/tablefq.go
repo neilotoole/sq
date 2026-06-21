@@ -37,8 +37,10 @@ func (t T) String() string {
 	return t.Render(stringz.DoubleQuote)
 }
 
-// Render renders t using quoteFn, e.g. stringz.DoubleQuote. Empty components
-// are omitted: a T with only Table set renders as just the quoted table name.
+// Render renders t using quoteFn, e.g. stringz.DoubleQuote. An empty Catalog
+// or Schema is omitted, so a T with only Table set renders as just the quoted
+// table name. The Table component is always rendered, even when empty: a
+// zero-value T renders as the quoted empty string.
 //
 // Render assumes the hierarchy invariant (a Catalog implies a Schema). A
 // malformed T with Catalog set but Schema empty renders as CATALOG.NAME,
