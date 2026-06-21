@@ -390,10 +390,12 @@ linters:
         text: ComputeEdits is deprecated
       # Example DSNs in command help/Example text trip gosec G101 (hardcoded
       # credentials) under gosec v2.26. They are documentation, not real
-      # secrets; a real credential is never a literal in a command definition.
+      # secrets. Scoped to the specific commands whose help embeds a sample
+      # connection string, so a genuine hardcoded credential elsewhere still
+      # gets flagged; add a command here if it legitimately needs the same.
       - linters:
           - gosec
-        path: cli/cmd_.*\.go
+        path: cli/cmd_(add|db_exec|config_keyring_create|config_keyring_update)\.go
         text: "G101"
     paths:
       # ANTLR-generated lexer/parser packages. Their canonical "Code generated

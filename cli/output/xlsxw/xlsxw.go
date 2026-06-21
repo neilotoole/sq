@@ -210,9 +210,11 @@ func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 
 // setColWidth takes the zero-indexed col, and sets its width.
 func (w *recordWriter) setColWidth(col, width int) error {
-	colName := string(rune('A' + col)) //nolint:gosec // G115: col is a bounded column index
-	err := w.xfile.SetColWidth(SheetName, colName, colName, float64(width))
-	return errw(err)
+	colName, err := excelize.ColumnNumberToName(col + 1)
+	if err != nil {
+		return errw(err)
+	}
+	return errw(w.xfile.SetColWidth(SheetName, colName, colName, float64(width)))
 }
 
 // Flush implements output.RecordWriter.
