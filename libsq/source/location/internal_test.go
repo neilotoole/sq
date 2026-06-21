@@ -79,6 +79,23 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			// sqlite3 with a "?param" suffix: the params are snipped off
+			// the name/ext but retained in the DSN.
+			loc: "sqlite3:///path/to/sakila.db?_auth_pass=hunter2",
+			want: Fields{
+				DriverType: drivertype.SQLite, Scheme: "sqlite3", Name: "sakila", Ext: ".db",
+				DSN: "/path/to/sakila.db?_auth_pass=hunter2",
+			},
+		},
+		{
+			// duckdb with a "?param" suffix.
+			loc: "duckdb:///path/to/sakila.duckdb?access_mode=READ_ONLY",
+			want: Fields{
+				DriverType: drivertype.DuckDB, Scheme: "duckdb", Name: "sakila", Ext: ".duckdb",
+				DSN: "/path/to/sakila.duckdb?access_mode=READ_ONLY",
+			},
+		},
+		{
 			loc: "sqlite3://path/to/sakila.db",
 			want: Fields{
 				DriverType: drivertype.SQLite, Scheme: "sqlite3", Name: "sakila", Ext: ".db", DSN: "path/to/sakila.db",
@@ -187,6 +204,71 @@ func TestParse(t *testing.T) {
 				Name: "sakila", DSN: "sakila:p_ssW0rd@tcp(server:3306)/sakila",
 			},
 		},
+		{
+			loc: "oracle://sakila:p_ssW0rd@server:1521/sakila",
+			want: Fields{
+				DriverType: drivertype.Oracle, Scheme: "oracle", User: dbuser, Pass: dbpass, Hostname: "server", Port: 1521,
+				Name: "sakila", DSN: "oracle://sakila:p_ssW0rd@server:1521/sakila",
+			},
+		},
+		{
+			// ClickHouse database via the path component.
+			loc: "clickhouse://sakila:p_ssW0rd@localhost/sakila",
+			want: Fields{
+				DriverType: drivertype.ClickHouse, Scheme: "clickhouse", User: dbuser, Pass: dbpass, Hostname: "localhost",
+				Name: "sakila", DSN: "clickhouse://sakila:p_ssW0rd@localhost:9000/sakila",
+			},
+		},
+		{
+			// ClickHouse database via the ?database= query param (empty path).
+			loc: "clickhouse://sakila:p_ssW0rd@localhost:9000?database=mydb",
+			want: Fields{
+				DriverType: drivertype.ClickHouse, Scheme: "clickhouse", User: dbuser, Pass: dbpass, Hostname: "localhost",
+				Port: 9000, Name: "mydb", DSN: "clickhouse://sakila:p_ssW0rd@localhost:9000/?database=mydb",
+			},
+		},
+		{
+			// rqlite: full userinfo, port, and path.
+			loc: "rqlite://sakila:p_ssW0rd@server:4001/sakila",
+			want: Fields{
+				DriverType: drivertype.Rqlite, Scheme: "rqlite", User: dbuser, Pass: dbpass, Hostname: "server",
+				Port: 4001, Name: "sakila", DSN: "rqlite://sakila:p_ssW0rd@server:4001/sakila",
+			},
+		},
+		{
+			// rqlite without userinfo.
+			loc: "rqlite://server:4001",
+			want: Fields{
+				DriverType: drivertype.Rqlite, Scheme: "rqlite", Hostname: "server", Port: 4001,
+				DSN: "rqlite://server:4001",
+			},
+		},
+		{
+			// rqlite with a bad (non-numeric) port: error.
+			loc:     "rqlite://server:notaport",
+			wantErr: true,
+		},
+		{
+			// rqlite malformed (unterminated IPv6 bracket): error.
+			loc:     "rqlite://server:4001/db?x=y\x7f",
+			wantErr: true,
+		},
+		{
+			// sqlserver with a bad port: error.
+			loc:     "sqlserver://sakila:p_ssW0rd@server:notaport?database=sakila",
+			wantErr: true,
+		},
+		{
+			// HTTP URL with a non-numeric port: Atoi fails, error.
+			loc:     "http://server:notaport/data.csv",
+			wantErr: true,
+		},
+		{
+			// A scheme dburl accepts but sq does not support hits the
+			// switch default and errors (without echoing the password).
+			loc:     "cockroachdb://sakila:p_ssW0rd@server/sakila",
+			wantErr: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -205,6 +287,92 @@ func TestParse(t *testing.T) {
 
 			require.NoError(t, gotErr)
 			require.Equal(t, tc.want, *got)
+		})
+	}
+}
+
+// TestRedactRaw_EdgeCases exercises redactRaw branches not reached via
+// the well-formed inputs in the external Redact tests: the empty-string
+// fast path and the http parse-error fallback to best-effort redaction.
+func TestRedactRaw_EdgeCases(t *testing.T) {
+	require.Equal(t, "", redactRaw("", nil))
+
+	// A malformed http URL that url.ParseRequestURI rejects (control
+	// char) must fall back to best-effort redaction, not leak the
+	// inline password.
+	got := redactRaw("http://alice:hunter2@host/db\x7f", nil)
+	require.NotContains(t, got, "hunter2")
+	require.Contains(t, got, "xxxxx")
+
+	// Same for a malformed rqlite URL.
+	got = redactRaw("rqlite://alice:hunter2@[::1", nil)
+	require.NotContains(t, got, "hunter2")
+	require.Contains(t, got, "xxxxx")
+
+	// A DSN that dburl cannot parse falls back to best-effort too.
+	got = redactRaw("postgres://alice:hunter2@host:badport/db", nil)
+	require.NotContains(t, got, "hunter2")
+	require.Contains(t, got, "xxxxx")
+}
+
+// TestReplaceSecretQueryValues_UnescapeFallback covers the branch where
+// a query key cannot be URL-unescaped (a stray '%' not followed by two
+// hex digits): the raw key is used for the secret check instead, and a
+// secret-bearing key is still masked.
+func TestReplaceSecretQueryValues_UnescapeFallback(t *testing.T) {
+	// "%zz" is not a valid percent-escape, so QueryUnescape fails and
+	// the raw key is used for the secret check. The raw key still ends
+	// in "password", so the value is masked.
+	got := replaceSecretQueryValues("my%zzpassword=hunter2", "xxxxx", nil)
+	require.NotContains(t, got, "hunter2")
+	require.Contains(t, got, "xxxxx")
+
+	// A non-secret key with an invalid escape: unescape fails, raw key
+	// used, no match, value left intact.
+	got = replaceSecretQueryValues("my%zzkey=plainval", "xxxxx", nil)
+	require.Equal(t, "my%zzkey=plainval", got)
+}
+
+// TestRedact_EmptyAndPlaceholderEdgeCases covers Redact branches around
+// placeholder handling that the table-driven external test doesn't hit.
+func TestRedact_NoRefsWithDollar(t *testing.T) {
+	// loc contains "${" but ExtractRefs finds no well-formed ref (the
+	// brace is unterminated), so Redact takes the redactRaw(loc, nil)
+	// path. The inline password must still be masked.
+	got := Redact("postgres://alice:hunter2@host/db?x=${")
+	require.NotContains(t, got, "hunter2")
+}
+
+// TestIsFpath exercises the heuristics in isFpath that decide whether a
+// location is a plain filesystem path (vs a URL, a driver-scheme DSN, or
+// a placeholder template).
+func TestIsFpath(t *testing.T) {
+	testCases := []struct {
+		loc    string
+		wantOK bool
+	}{
+		{loc: "/abs/path/data.csv", wantOK: true},
+		{loc: "relative/data.csv", wantOK: true},
+		{loc: "data.csv", wantOK: true},
+		// '$$' escapes to a literal '$': ref-free, still a path.
+		{loc: "q$$exports/data.csv", wantOK: true},
+		// URL-ish: contains ":/", excluded.
+		{loc: "http://acme.com/data.csv", wantOK: false},
+		{loc: "https://acme.com/data.csv", wantOK: false},
+		// Driver schemes are not bare file paths.
+		{loc: "sqlite3:sakila.db", wantOK: false},
+		{loc: "sqlite:sakila.db", wantOK: false},
+		{loc: `sqlite3:C:\db`, wantOK: false},
+		{loc: "duckdb:foo.duckdb", wantOK: false},
+		// Well-formed placeholder: resolves at use time, not a path.
+		{loc: "${env:DB_PATH}", wantOK: false},
+		// Malformed placeholder syntax: also excluded.
+		{loc: "sakila${env:.db", wantOK: false},
+	}
+	for _, tc := range testCases {
+		t.Run(tu.Name(tc.loc), func(t *testing.T) {
+			_, ok := isFpath(tc.loc)
+			require.Equal(t, tc.wantOK, ok)
 		})
 	}
 }
