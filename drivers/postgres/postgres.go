@@ -254,6 +254,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	if err != nil {
 		return affected, errw(err)
 	}
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
 	affectedQuery := "SELECT COUNT(*) FROM " + idSanitize(tbl)
 	err = db.QueryRowContext(ctx, affectedQuery).Scan(&affected)
@@ -439,7 +440,10 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
  WHERE schema_name = $1 AND catalog_name = current_database()`
 
 	var count int
-	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
+	if err := db.QueryRowContext(ctx, q, schma).Scan(&count); err != nil {
+		return false, errw(err)
+	}
+	return count > 0, nil
 }
 
 // CatalogExists implements driver.SQLDriver.
@@ -452,7 +456,10 @@ func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string)
 WHERE datistemplate = FALSE AND datallowconn = TRUE AND datname = $1`
 
 	var count int
-	return count > 0, errw(db.QueryRowContext(ctx, q, catalog).Scan(&count))
+	if err := db.QueryRowContext(ctx, q, catalog).Scan(&count); err != nil {
+		return false, errw(err)
+	}
+	return count > 0, nil
 }
 
 // AlterTableRename implements driver.SQLDriver.
@@ -475,7 +482,7 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column {%s} to table {%s}", col, tbl)
+		return errz.Wrapf(errw(err), "alter table: failed to add column {%s} to table {%s}", col, tbl)
 	}
 
 	return nil
@@ -764,7 +771,7 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 		colNames = append(colNames, colName)
 	}
 
-	if rows.Err() != nil {
+	if err = rows.Err(); err != nil {
 		sqlz.CloseRows(log, rows)
 		return nil, errw(err)
 	}

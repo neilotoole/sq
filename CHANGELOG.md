@@ -28,6 +28,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [`sq tbl truncate`](https://sq.io/docs/cmd/tbl-truncate) on a Postgres source no longer
+  leaks a database connection pool on each invocation.
 - [`sq diff --data`](https://sq.io/docs/cmd/diff) output no longer contains NUL
   padding bytes. The data diff emitted thousands of trailing zero bytes after each
   hunk header, corrupting output redirected to a file or piped to another program.
