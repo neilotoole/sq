@@ -2,7 +2,6 @@
 package colorz
 
 import (
-	"bufio"
 	"bytes"
 	"io"
 
@@ -51,33 +50,47 @@ var _ Printer = (*monoPrinter)(nil)
 type monoPrinter struct{}
 
 func (p monoPrinter) Block(w io.Writer, b []byte) (n int, err error) {
-	return w.Write(b)
+	return writeAll(w, 0, b)
 }
 
 var newline = []byte{'\n'}
 
+// writeAll writes each non-empty chunk to w in order, accumulating the byte
+// count into n (seeded by the caller with any bytes already written). It stops
+// at the first write error, returning the running count and the error wrapped
+// via errz.Err. Empty chunks are skipped, so passing one is a no-op.
+func writeAll(w io.Writer, n int, chunks ...[]byte) (int, error) {
+	for _, c := range chunks {
+		if len(c) == 0 {
+			continue
+		}
+		n2, err := w.Write(c)
+		n += n2
+		if err != nil {
+			return n, errz.Err(err)
+		}
+	}
+	return n, nil
+}
+
 func (p monoPrinter) Line(w io.Writer, b []byte) (n int, err error) {
 	if len(b) == 0 {
-		n, err = w.Write(newline)
-		return n, errz.Err(err)
+		return writeAll(w, 0, newline)
 	}
 
-	n, err = w.Write(b)
-	if err != nil {
-		return n, errz.Err(err)
+	if n, err = writeAll(w, 0, b); err != nil {
+		return n, err
 	}
 
 	if b[len(b)-1] == '\n' {
 		return n, nil
 	}
 
-	n2, err := w.Write(newline)
-	return n + n2, errz.Err(err)
+	return writeAll(w, n, newline)
 }
 
 func (p monoPrinter) Fragment(w io.Writer, b []byte) (n int, err error) {
-	n, err = w.Write(b)
-	return n, errz.Err(err)
+	return writeAll(w, 0, b)
 }
 
 var _ Printer = (*colorPrinter)(nil)
@@ -90,57 +103,23 @@ func (p colorPrinter) Fragment(w io.Writer, b []byte) (n int, err error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
-	n, err = w.Write(p.prefix)
-	if err != nil {
-		return n, errz.Err(err)
-	}
-
-	var n2 int
-	n2, err = w.Write(b)
-	n += n2
-	if err != nil {
-		return n, errz.Err(err)
-	}
-
-	n2, err = w.Write(p.suffix)
-	n += n2
-	if err != nil {
-		return n, errz.Err(err)
-	}
-
-	return n, nil
+	return writeAll(w, 0, p.prefix, b, p.suffix)
 }
 
 func (p colorPrinter) Line(w io.Writer, b []byte) (n int, err error) {
 	if len(b) == 0 {
-		n, err = w.Write(newline)
-		return n, errz.Err(err)
+		return writeAll(w, 0, newline)
 	}
 
-	n, err = w.Write(p.prefix)
-	if err != nil {
-		return n, errz.Err(err)
-	}
-
-	var n2 int
-	n2, err = w.Write(b)
-	n += n2
-	if err != nil {
-		return n, errz.Err(err)
-	}
-
-	n2, err = w.Write(p.suffix)
-	n += n2
-	if err != nil {
-		return n, errz.Err(err)
+	if n, err = writeAll(w, 0, p.prefix, b, p.suffix); err != nil {
+		return n, err
 	}
 
 	if b[len(b)-1] == '\n' {
 		return n, nil
 	}
 
-	n2, err = w.Write(newline)
-	return n + n2, errz.Err(err)
+	return writeAll(w, n, newline)
 }
 
 func (p colorPrinter) Block(w io.Writer, b []byte) (n int, err error) {
@@ -148,45 +127,30 @@ func (p colorPrinter) Block(w io.Writer, b []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	sc := bufio.NewScanner(bytes.NewReader(b))
-	var n2 int
-	for i := 0; sc.Scan(); i++ {
-		if i > 0 {
-			n2, err = w.Write(newline)
-			n += n2
-			if err != nil {
-				return n, errz.Err(err)
+	// Split on '\n' manually rather than via bufio.Scanner. Scanner caps a
+	// single line at bufio.MaxScanTokenSize (64KB) and strips a '\r' preceding
+	// the '\n'; doing it by hand removes the size limit and preserves the exact
+	// bytes (including any '\r') of each line.
+	for len(b) > 0 {
+		line, rest, hasNewline := bytes.Cut(b, newline)
+		b = rest
+
+		// Only wrap non-empty line content in color sequences; a blank line
+		// emits just its newline, with no empty colorized span.
+		if len(line) > 0 {
+			if n, err = writeAll(w, n, p.prefix, line, p.suffix); err != nil {
+				return n, err
 			}
 		}
-		n2, err = w.Write(p.prefix)
-		n += n2
-		if err != nil {
-			return n, errz.Err(err)
-		}
 
-		n2, err = w.Write(sc.Bytes())
-		n += n2
-		if err != nil {
-			return n, errz.Err(err)
-		}
-
-		n2, err = w.Write(p.suffix)
-		n += n2
-		if err != nil {
-			return n, errz.Err(err)
+		if hasNewline {
+			if n, err = writeAll(w, n, newline); err != nil {
+				return n, err
+			}
 		}
 	}
 
-	if sc.Err() != nil {
-		return n, errz.Err(sc.Err())
-	}
-
-	if b[len(b)-1] != '\n' {
-		return n, nil
-	}
-
-	n2, err = w.Write(newline)
-	return n + n2, errz.Err(err)
+	return n, nil
 }
 
 // HasEffect returns true if c has an effect, i.e. if c is non-nil and produces
@@ -210,29 +174,16 @@ type Seqs struct {
 	Suffix []byte
 }
 
-// Write writes p to w, prefixed and suffixed by c.Prefix and c.Suffix. If c
-// is the zero value, or w is nil, or p is empty, Write is no-op. Write does
-// not check for internal line breaks in p, which could break colorization.
+// Write writes p to w, prefixed and suffixed by s.Prefix and s.Suffix. If p is
+// empty, Write is a no-op. If s.Prefix is empty, p is written uncolored (i.e.
+// without the prefix/suffix). Write does not check for internal line breaks in
+// p, which could break colorization.
 // Note also that Write does not return the typical (n, err) for a Write method;
 // it is intended for use with types such as [bytes.Buffer] where errors are not
 // a significant concern.
 func (s Seqs) Write(w io.Writer, p []byte) {
-	if len(p) == 0 || len(s.Prefix) == 0 {
-		return
-	}
-
-	_, _ = w.Write(s.Prefix)
-	_, _ = w.Write(p)
-	_, _ = w.Write(s.Suffix)
-}
-
-// Writeln is like Write, but it always writes a terminating newline. If p is
-// empty, only a newline is written. If p is already newline-terminated, an
-// additional newline is NOT written.
-func (s Seqs) Writeln(w io.Writer, p []byte) {
 	switch {
 	case len(p) == 0:
-		_, _ = w.Write(newline)
 		return
 	case len(s.Prefix) == 0:
 		// No colorization.
@@ -242,66 +193,50 @@ func (s Seqs) Writeln(w io.Writer, p []byte) {
 		_, _ = w.Write(p)
 		_, _ = w.Write(s.Suffix)
 	}
+}
 
+// Writeln is like Write, but it always writes a terminating newline. If p is
+// empty, only a newline is written. If p is already newline-terminated, an
+// additional newline is NOT written.
+func (s Seqs) Writeln(w io.Writer, p []byte) {
+	if len(p) == 0 {
+		_, _ = w.Write(newline)
+		return
+	}
+
+	s.Write(w, p)
 	if p[len(p)-1] != '\n' {
 		_, _ = w.Write(newline)
 	}
 }
 
-// Append appends colorized p to dest, returning the result. If p is empty,
-// or if s.Prefix is empty, dest is returned unmodified.
+// Append appends colorized p to dest, returning the result. If p is empty, dest
+// is returned unmodified. If s.Prefix is empty, p is appended uncolored (i.e.
+// without the prefix/suffix).
 func (s Seqs) Append(dest, p []byte) []byte {
-	if len(p) == 0 || len(s.Prefix) == 0 {
+	switch {
+	case len(p) == 0:
+		return dest
+	case len(s.Prefix) == 0:
+		// No colorization.
+		return append(dest, p...)
+	default:
+		dest = append(dest, s.Prefix...)
+		dest = append(dest, p...)
+		dest = append(dest, s.Suffix...)
 		return dest
 	}
-
-	dest = append(dest, s.Prefix...)
-	dest = append(dest, p...)
-	dest = append(dest, s.Suffix...)
-	return dest
 }
 
 // Appendln appends colorized p to dest and then a newline, returning the
-// result.
+// result. If p is already newline-terminated, an additional newline is NOT
+// appended, matching [Seqs.Writeln].
 func (s Seqs) Appendln(dest, p []byte) []byte {
-	return append(s.Append(dest, p), '\n')
-}
-
-var _ ByteWriter = (*bytes.Buffer)(nil)
-
-// ByteWriter is implemented by bytes.Buffer. It's used by [Seqs.WriteByte] and
-// [Seqs.WritelnByte] to avoid unnecessary allocations.
-type ByteWriter interface {
-	io.Writer
-	WriteByte(byte) error
-}
-
-// WriteByte writes a colorized byte to w. This method is basically an
-// optimization for when w is [bytes.Buffer].
-func (s Seqs) WriteByte(w ByteWriter, b byte) {
-	if len(s.Prefix) == 0 {
-		_ = w.WriteByte(b)
-		return
+	dest = s.Append(dest, p)
+	if len(p) == 0 || p[len(p)-1] != '\n' {
+		dest = append(dest, '\n')
 	}
-
-	_, _ = w.Write(s.Prefix)
-	_ = w.WriteByte(b)
-	_, _ = w.Write(s.Suffix)
-}
-
-// WritelnByte writes a colorized byte and a newline to w. This method is
-// basically an optimization for when w is [bytes.Buffer].
-func (s Seqs) WritelnByte(w ByteWriter, b byte) {
-	if len(s.Prefix) == 0 {
-		_ = w.WriteByte(b)
-		_, _ = w.Write(newline)
-		return
-	}
-
-	_, _ = w.Write(s.Prefix)
-	_ = w.WriteByte(b)
-	_, _ = w.Write(s.Suffix)
-	_, _ = w.Write(newline)
+	return dest
 }
 
 // ExtractSeqs extracts the prefix and suffix bytes for the terminal color
@@ -329,15 +264,9 @@ func ExtractSeqs(c *color.Color) Seqs {
 		// Shouldn't be possible.
 		return seqs
 	}
-	prefix := b[:i]
-	suffix := b[i+1:]
-
-	if len(prefix) == 0 {
-		return seqs
-	}
-
-	seqs.Prefix = prefix
-	seqs.Suffix = suffix
+	// i > 0 here, so prefix is guaranteed non-empty.
+	seqs.Prefix = b[:i]
+	seqs.Suffix = b[i+1:]
 	return seqs
 }
 
