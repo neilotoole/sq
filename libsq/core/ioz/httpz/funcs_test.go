@@ -40,6 +40,28 @@ func (panicRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
 	panic("inner round tripper panic")
 }
 
+// roundTripperFunc adapts a function to http.RoundTripper.
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+// ctxBoundBody is a response body that reads through ctx, returning ctx.Err()
+// once ctx is canceled. It mimics a real transport's body, which reads through
+// the request context, so a canceled context aborts the body read.
+type ctxBoundBody struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (b *ctxBoundBody) Read(p []byte) (int, error) {
+	if err := b.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return b.r.Read(p)
+}
+
+func (b *ctxBoundBody) Close() error { return nil }
+
 // recordHandler is a slog.Handler that records emitted records for assertions.
 type recordHandler struct{ records *[]slog.Record }
 
@@ -253,6 +275,129 @@ func TestOptRequestTimeout_directStub(t *testing.T) {
 			_, _ = tf(panicRoundTripper{}, req)
 		})
 	})
+}
+
+// TestOptRequestTimeout_bodyOutlivesHeaderTimeout is the regression test for
+// #905: once the response headers have been received (RoundTrip returned
+// successfully), the header timer must never cancel the context that the
+// response body reads through, even if the timeout elapses while the body is
+// still being read. It also asserts that no spurious "not received within
+// timeout" warning is logged on the success path.
+func TestOptRequestTimeout_bodyOutlivesHeaderTimeout(t *testing.T) {
+	t.Parallel()
+
+	const (
+		timeout  = 40 * time.Millisecond
+		respBody = "the body takes longer than the header timeout to read"
+	)
+
+	var records []slog.Record
+	ctx := lg.NewContext(context.Background(), slog.New(recordHandler{&records}))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com", nil)
+	require.NoError(t, err)
+
+	// The round-tripper returns immediately (headers received well within the
+	// timeout) with a body bound to the request context, exactly as a real
+	// transport's body behaves.
+	rt := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       &ctxBoundBody{ctx: r.Context(), r: strings.NewReader(respBody)},
+		}, nil
+	})
+
+	tf := httpz.OptRequestTimeout(timeout)
+	resp, err := tf(rt, req)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	// Wait well past the header timeout, simulating a slow body read. With the
+	// pre-fix code the header timer could cancel the shared context here, making
+	// the body read below fail with context.Canceled.
+	time.Sleep(timeout * 4)
+
+	got, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "body read must succeed: the header timer must not cancel after headers are received")
+	require.Equal(t, respBody, string(got))
+	require.NoError(t, resp.Body.Close())
+
+	for _, r := range records {
+		require.NotContains(t, r.Message, "not received within timeout",
+			"no header-timeout warning must be logged when headers were received in time")
+	}
+}
+
+// TestOptRequestTimeout_lateSuccessReportedAsTimeout verifies that when the
+// header timer fires before RoundTrip returns, the result is reported
+// consistently as a timeout error, even if RoundTrip then returns a response.
+// Without this, the caller could receive a non-nil response whose body is dead
+// because it reads through the already-canceled context.
+func TestOptRequestTimeout_lateSuccessReportedAsTimeout(t *testing.T) {
+	t.Parallel()
+
+	const timeout = 40 * time.Millisecond
+
+	req, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
+	require.NoError(t, err)
+
+	// The round-tripper returns a "successful" response, but only after the
+	// header timeout has elapsed (so the timer fires first and cancels the
+	// context). A real transport would return a context error here; this stub
+	// returns success anyway to exercise the timer-won path deterministically.
+	rt := roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
+		time.Sleep(timeout * 3)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("too late")),
+		}, nil
+	})
+
+	tf := httpz.OptRequestTimeout(timeout)
+	resp, err := tf(rt, req)
+	require.Error(t, err)
+	require.Nil(t, resp, "a response must not be returned once the header timeout has fired")
+	require.Contains(t, err.Error(), "http response header not received within")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+// TestOptRequestTimeout_parentCancelNotReportedAsTimeout verifies that when the
+// parent context is canceled around the same time the header timer fires, the
+// failure is surfaced with the parent's cause (not a fabricated header timeout)
+// and no misleading header-timeout warning is logged. This is the invariant the
+// old code's `case <-ctx.Done()` select arm enforced.
+func TestOptRequestTimeout_parentCancelNotReportedAsTimeout(t *testing.T) {
+	t.Parallel()
+
+	const timeout = 40 * time.Millisecond
+	sentinel := errors.New("parent canceled")
+
+	parent, cancel := context.WithCancelCause(context.Background())
+	var records []slog.Record
+	ctx := lg.NewContext(parent, slog.New(recordHandler{&records}))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com", nil)
+	require.NoError(t, err)
+
+	// Cancel the parent up front; the stub ignores the context and returns a
+	// "success" only after the header timeout has elapsed, so the timer fires
+	// while the parent is already canceled.
+	cancel(sentinel)
+	rt := roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
+		time.Sleep(timeout * 3)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("x")),
+		}, nil
+	})
+
+	tf := httpz.OptRequestTimeout(timeout)
+	resp, err := tf(rt, req)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.ErrorIs(t, err, sentinel, "the parent's cause must be surfaced, not a fabricated timeout")
+	for _, r := range records {
+		require.NotContains(t, r.Message, "not received within timeout",
+			"a parent cancellation must not be logged as a header timeout")
+	}
 }
 
 func TestOptResponseTimeout_logsOnCloseAfterTimeout(t *testing.T) {
