@@ -1654,6 +1654,22 @@ func TestCollection_RenameGroup_errPaths(t *testing.T) {
 		require.Equal(t, "/", coll.ActiveGroup())
 	})
 
+	t.Run("rename_to_root_preserves_nested_subgroups", func(t *testing.T) {
+		// Renaming "prod" to root must drop only the "prod" segment, not
+		// flatten nested subgroups: @prod/sub/db2 -> @sub/db2, not @db2.
+		coll := &source.Collection{}
+		addSrc(t, coll, "@prod/db")
+		addSrc(t, coll, "@prod/sub/db2")
+
+		srcs, err := coll.RenameGroup("prod", "/")
+		require.NoError(t, err)
+		got := make([]string, len(srcs))
+		for i, s := range srcs {
+			got[i] = s.Handle
+		}
+		require.ElementsMatch(t, []string{"@db", "@sub/db2"}, got)
+	})
+
 	t.Run("active_group_follows_rename", func(t *testing.T) {
 		// Active group "prod" holds no direct source members, only a
 		// subgroup. The inner renameSource never reassigns the active

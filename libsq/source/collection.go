@@ -348,15 +348,15 @@ func (c *Collection) RenameGroup(oldGroup, newGroup string) ([]*Source, error) {
 	var affectedSrcs []*Source
 
 	for _, oldHandle := range oldHandles {
+		// oldGroup is always the handle's leading segment after "@"
+		// (oldHandle came from handlesInGroup(oldGroup)), so rewriting
+		// the "@oldGroup" prefix rewrites only the renamed group segment
+		// and preserves any nested subgroup segments.
 		var newHandle string
 		if newGroup == "" {
-			if i := strings.LastIndex(oldHandle, "/"); i != -1 {
-				newHandle = "@" + oldHandle[i+1:]
-			}
+			// Renaming to root: drop the "@oldGroup/" prefix entirely.
+			newHandle = "@" + strings.TrimPrefix(oldHandle, "@"+oldGroup+"/")
 		} else {
-			// Non-root new group. oldGroup is always the handle's prefix
-			// after "@" (oldHandle came from handlesInGroup(oldGroup)),
-			// so replacing the first occurrence rewrites the group segment.
 			newHandle = strings.Replace(oldHandle, oldGroup, newGroup, 1)
 		}
 
