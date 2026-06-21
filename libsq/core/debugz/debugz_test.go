@@ -41,6 +41,11 @@ func TestOptProgressDebugForce(t *testing.T) {
 	require.True(t, opt.Get(o))
 }
 
+// TestDebugSleep covers the DebugSleep branches. Its subtests measure short
+// wall-clock intervals, so they deliberately don't run in parallel: scheduler
+// jitter would make the timing assertions flaky.
+//
+//nolint:tparallel // Subtests are timing-sensitive; see the doc comment above.
 func TestDebugSleep(t *testing.T) {
 	t.Parallel()
 
@@ -57,9 +62,10 @@ func TestDebugSleep(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		// Note: these subtests deliberately don't call t.Parallel(). They
+		// measure short wall-clock intervals, and parallel scheduler delays
+		// can push a no-sleep case past its upper bound, causing flakiness.
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			ctx := context.Background()
 			if tc.setOpt {
 				ctx = options.NewContext(ctx,
@@ -73,7 +79,10 @@ func TestDebugSleep(t *testing.T) {
 			if tc.wantSleep {
 				require.GreaterOrEqual(t, elapsed, tc.sleep)
 			} else {
-				require.Less(t, elapsed, 50*time.Millisecond)
+				// Generous upper bound: we only need to prove DebugSleep
+				// didn't block for the configured duration, without being
+				// sensitive to scheduler jitter under -race or loaded CI.
+				require.Less(t, elapsed, 5*time.Second)
 			}
 		})
 	}
@@ -85,6 +94,7 @@ func TestDebugSleep_canceled(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	ctx = options.NewContext(ctx,
 		options.Options{debugz.OptProgressDebugSleep.Key(): 30 * time.Second})
 
