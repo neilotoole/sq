@@ -599,9 +599,8 @@ func (c *Collection) remove(handle string) error {
 	c.data.Sources = pre
 	c.data.Sources = append(c.data.Sources, post...)
 
-	if c.data.ActiveSrc == handle {
-		c.data.ActiveSrc = ""
-	}
+	// Note: c.data.ActiveSrc was already cleared above if it matched
+	// handle, so there's no need to re-check it here.
 
 	if !c.isExistingGroup(activeG) {
 		return c.setActiveGroup(RootGroup)
