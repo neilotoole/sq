@@ -537,6 +537,18 @@ func (fs *Files) doCacheClearAll(ctx context.Context) error {
 	if err := ioz.RequireDir(parent); err != nil {
 		return errz.Wrap(err, "cache clear")
 	}
+
+	// Best-effort: remove leftover relocated cache dirs from previous clears
+	// whose deletion failed (e.g. a file was still open). They are siblings of
+	// the cache dir, so doCacheSweep doesn't reach them; cleaning them here
+	// makes repeated clears self-healing rather than accumulating cruft.
+	strays, _ := filepath.Glob(filepath.Join(parent, "dead_cache_*"))
+	for _, stray := range strays {
+		if err := os.RemoveAll(stray); err != nil {
+			log.Warn("Could not remove stray relocated cache dir", lga.Path, stray, lga.Err, err)
+		}
+	}
+
 	relocateDir := filepath.Join(parent, "dead_cache_"+stringz.Uniq8())
 	if err := os.Rename(fs.cacheDir, relocateDir); err != nil {
 		return errz.Wrap(err, "cache clear: relocate")

@@ -183,6 +183,28 @@ func TestFiles_CacheClearAll_TempDirUnusable(t *testing.T) {
 	require.Empty(t, entries, "cache dir emptied")
 }
 
+// TestFiles_CacheClearAll_RemovesStrayDeadCache verifies that CacheClearAll
+// cleans up leftover relocated cache dirs (dead_cache_*) from a previous clear
+// whose deletion failed. They are siblings of the cache dir, so the cache
+// sweep doesn't reach them; the next clear must remove them (self-healing).
+func TestFiles_CacheClearAll_RemovesStrayDeadCache(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	require.NoError(t, ioz.RequireDir(fs.CacheDir()))
+
+	// Simulate a leftover from a prior failed clear: a non-empty dead_cache_*
+	// dir sitting next to the cache dir.
+	parent := filepath.Dir(fs.CacheDir())
+	stray := filepath.Join(parent, "dead_cache_stale")
+	require.NoError(t, os.MkdirAll(filepath.Join(stray, "sub"), 0o700))
+	require.True(t, ioz.DirExists(stray))
+
+	require.NoError(t, fs.CacheClearAll(ctx))
+	require.False(t, ioz.DirExists(stray),
+		"stray dead_cache dir should be cleaned up by the next clear")
+}
+
 // TestFiles_CacheClearSource verifies both clearDownloads modes.
 func TestFiles_CacheClearSource(t *testing.T) {
 	for _, clearDownloads := range []bool{true, false} {
