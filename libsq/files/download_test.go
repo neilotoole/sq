@@ -60,8 +60,11 @@ func TestFiles_NewReader_HTTP(t *testing.T) {
 	require.Equal(t, body, string(got2))
 }
 
-// TestFiles_NewReader_HTTP_Final exercises the finalRdr seal path for a
-// download stream.
+// TestFiles_NewReader_HTTP_Final exercises the finalRdr seal path when
+// newReader starts a fresh download: maybeStartDownload returns a new stream,
+// which is then sealed because finalRdr is true. (The distinct branch where an
+// already in-progress stream is reused and sealed is covered by
+// TestFiles_NewReader_HTTP_StreamReuseSeal in files_extra2_test.go.)
 func TestFiles_NewReader_HTTP_Final(t *testing.T) {
 	const body = "x,y\n1,2\n"
 	srvr := newCSVServer(t, body)
@@ -71,10 +74,6 @@ func TestFiles_NewReader_HTTP_Final(t *testing.T) {
 
 	src := &source.Source{Handle: "@remote", Type: drivertype.CSV, Location: srvr.URL}
 
-	// NewReader only seals stdin streams directly; the download stream seal
-	// path is internal to newReader. Use detection (which calls newReader
-	// with finalRdr behavior) plus a direct ingest read to hit the
-	// in-progress stream-reuse branch.
 	r, err := fs.NewReader(ctx, src, true)
 	require.NoError(t, err)
 	got, err := readAllAndClose(t, r)
@@ -101,50 +100,11 @@ func TestFiles_NewReader_ErrorTypes(t *testing.T) {
 	})
 }
 
-// TestFiles_Filesize_HTTP covers the HTTP branches of Filesize.
-func TestFiles_Filesize_HTTP(t *testing.T) {
-	const body = "a,b,c\n1,2,3\n"
-	srvr := newCSVServer(t, body)
-
-	t.Run("already_downloaded", func(t *testing.T) {
-		ctx, fs := newTestFiles(t)
-		t.Cleanup(func() { assert.NoError(t, fs.Close()) })
-		src := &source.Source{Handle: "@remote", Type: drivertype.CSV, Location: srvr.URL}
-
-		// Download first.
-		r, err := fs.NewReader(ctx, src, false)
-		require.NoError(t, err)
-		_, err = readAllAndClose(t, r)
-		require.NoError(t, err)
-
-		size, err := fs.Filesize(ctx, src)
-		require.NoError(t, err)
-		require.Equal(t, int64(len(body)), size)
-	})
-
-	t.Run("active_stream", func(t *testing.T) {
-		ctx, fs := newTestFiles(t)
-		t.Cleanup(func() { assert.NoError(t, fs.Close()) })
-		src := &source.Source{Handle: "@remote2", Type: drivertype.CSV, Location: srvr.URL}
-
-		// Open a reader to trigger the download stream. Filesize blocks on
-		// stream.Total until the stream is fully consumed, so the reader
-		// must be drained concurrently.
-		r, err := fs.NewReader(ctx, src, false)
-		require.NoError(t, err)
-		go func() { _, _ = readAllAndClose(t, r) }()
-
-		size, err := fs.Filesize(ctx, src)
-		require.NoError(t, err)
-		require.Equal(t, int64(len(body)), size)
-	})
-
-	// Note: Filesize's final downloader.CacheFile branch (no downloadedFiles
-	// or streams map entry, file present on disk) is not exercised here: it
-	// requires the downloader's freshness re-check to find the cached body
-	// across Files instances, which the downloader's CacheFile reports as
-	// absent in this synthetic setup.
-}
+// Note: the HTTP branches of Filesize (already-downloaded fast path and
+// blocking on an in-progress download stream's Total) are covered by
+// TestFiles_Filesize_HTTP_AlreadyDownloaded and
+// TestFiles_Filesize_HTTP_ActiveStream in files_extra2_test.go, which
+// synchronize the draining goroutine via a WaitGroup.
 
 // TestFiles_Filesize_ErrorTypes covers the SQL error branch of Filesize and
 // the missing local-file error path.

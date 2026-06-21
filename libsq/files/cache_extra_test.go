@@ -56,7 +56,7 @@ func TestDefaultCacheDirAndTempDir(t *testing.T) {
 }
 
 func TestFiles_CacheDirFor(t *testing.T) {
-	ctx, fs := newTestFiles(t)
+	_, fs := newTestFiles(t)
 
 	// Valid handle.
 	src := &source.Source{Handle: "@h1", Type: drivertype.CSV, Location: "/tmp/a.csv"}
@@ -76,7 +76,6 @@ func TestFiles_CacheDirFor(t *testing.T) {
 	badSrc := &source.Source{Handle: "not-a-handle", Type: drivertype.CSV, Location: "/tmp/a.csv"}
 	_, err = fs.CacheDirFor(badSrc)
 	require.Error(t, err)
-	_ = ctx
 }
 
 func TestFiles_CachePaths_InvalidHandle(t *testing.T) {
