@@ -2,6 +2,7 @@ package source
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -322,7 +323,7 @@ func suggestNameForScheme(scheme, body string) (string, bool) {
 
 	case "file":
 		base := filepath.Base(body)
-		if base == "." || base == "/" || base == "" {
+		if base == "." || base == string(os.PathSeparator) || base == "" {
 			return "", false
 		}
 		if ext := filepath.Ext(base); ext != "" {

@@ -1,6 +1,7 @@
 package source
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -54,6 +55,7 @@ func TestSuggestNameForScheme_edges(t *testing.T) {
 		{scheme: "env", body: "", want: "", ok: false},
 		{scheme: "file", body: ".", want: "", ok: false},
 		{scheme: "file", body: "/", want: "", ok: false},
+		{scheme: "file", body: string(os.PathSeparator), want: "", ok: false},
 		{scheme: "file", body: "", want: "", ok: false},
 		{scheme: "file", body: "/path/.dsn", want: "", ok: false},
 		{scheme: "op", body: "//vault", want: "", ok: false},

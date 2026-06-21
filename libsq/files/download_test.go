@@ -418,10 +418,11 @@ func TestFiles_NewReader_HTTP_BadURL(t *testing.T) {
 // TestFiles_AddStdin_Twice covers the duplicate-stdin guard in AddStdin.
 func TestFiles_AddStdin_Twice(t *testing.T) {
 	ctx, fs := newTestFiles(t)
+	stdinDir := t.TempDir()
 	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
 
 	mkStdin := func() *os.File {
-		f, err := os.CreateTemp(t.TempDir(), "stdin-*.csv")
+		f, err := os.CreateTemp(stdinDir, "stdin-*.csv")
 		require.NoError(t, err)
 		_, err = f.WriteString("a,b\n1,2\n")
 		require.NoError(t, err)

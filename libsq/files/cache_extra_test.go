@@ -163,19 +163,21 @@ func TestFiles_CacheClearAll_TempDirUnusable(t *testing.T) {
 	// Populate the cache dir so the relocate-then-delete path runs.
 	require.NoError(t, os.WriteFile(filepath.Join(cacheDir, "stale"), []byte("x"), 0o600))
 
-	// Point TMPDIR at a regular file so DefaultTempDir() (os.TempDir()/sq)
-	// cannot be created. A no-op config lock keeps the cache sweep on Close
-	// from depending on TMPDIR too.
+	// Point the platform temp env vars at a regular file so DefaultTempDir()
+	// (os.TempDir()/sq) cannot be created. A no-op config lock keeps the cache
+	// sweep on Close from depending on the global temp dir too.
 	bogusTmp := filepath.Join(work, "tmpfile")
 	require.NoError(t, os.WriteFile(bogusTmp, nil, 0o600))
 	t.Setenv("TMPDIR", bogusTmp)
+	t.Setenv("TMP", bogusTmp)
+	t.Setenv("TEMP", bogusTmp)
 
-	// Precondition: the TMPDIR override must actually take effect (os.TempDir
-	// reads TMPDIR on each call, it doesn't cache), otherwise this test would
-	// be meaningless and could pass even against the old, temp-dir-dependent
-	// implementation.
+	// Precondition: the env override must actually take effect (os.TempDir
+	// consults the platform temp env vars on each call), otherwise this test
+	// would be meaningless and could pass even against the old,
+	// temp-dir-dependent implementation.
 	require.True(t, strings.HasPrefix(files.DefaultTempDir(), bogusTmp),
-		"TMPDIR override must make DefaultTempDir unusable")
+		"temp env override must make DefaultTempDir unusable")
 
 	noopLock := func(context.Context) (func(), error) { return func() {}, nil }
 	fs, err := files.New(ctx, nil, noopLock, tmpDir, cacheDir)
