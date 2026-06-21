@@ -364,8 +364,8 @@ func TestFiles_WriteIngestChecksum_File(t *testing.T) {
 	require.Equal(t, drivertype.SQLite, got.Type)
 	require.True(t, strings.HasPrefix(got.Location, "sqlite3://"))
 
-	// Mutate the source file: checksum no longer matches.
-	require.NoError(t, os.WriteFile(src.Location, []byte("a,b,c\n9,9,9\n"), 0o600))
+	// Mutate the source file size: checksum no longer matches.
+	require.NoError(t, os.WriteFile(src.Location, []byte("a,b,c\n9,9,9\nextra\n"), 0o600))
 	_, ok, err = fs.CachedBackingSourceFor(ctx, src)
 	require.NoError(t, err)
 	require.False(t, ok, "checksum mismatch -> not cached")
