@@ -321,8 +321,8 @@ func suggestNameForScheme(scheme, body string) (string, bool) {
 		return strings.ToLower(body), true
 
 	case "file":
-		base := filepath.Base(body)
-		if base == "." || base == "/" || base == "" {
+		base := filePlaceholderBase(body)
+		if base == "" {
 			return "", false
 		}
 		if ext := filepath.Ext(base); ext != "" {
@@ -366,6 +366,27 @@ func suggestNameForScheme(scheme, body string) (string, bool) {
 		return "", false
 	}
 	return "", false
+}
+
+func filePlaceholderBase(body string) string {
+	body = strings.TrimRight(body, `/\`)
+	if body == "" || body == "." || isWindowsDriveRoot(body) {
+		return ""
+	}
+	if i := strings.LastIndexAny(body, `/\`); i >= 0 {
+		body = body[i+1:]
+	}
+	if body == "." {
+		return ""
+	}
+	return body
+}
+
+func isWindowsDriveRoot(s string) bool {
+	if len(s) != 2 || s[1] != ':' {
+		return false
+	}
+	return ('A' <= s[0] && s[0] <= 'Z') || ('a' <= s[0] && s[0] <= 'z')
 }
 
 // Table represents a table (or view) in a source, e.g. "@sakila.actor".
