@@ -53,19 +53,26 @@ Contrast with http.request.timeout.`,
 	OptDownloadCache           = downloader.OptCache
 )
 
-// maybeStartDownload starts a download for src if one is not already in progress
-// or completed. If there's a download in progress, dlStream returns non-nil.
-// If the file is already downloaded to disk (and is valid/fresh), dlFile
-// returns non-empty and contains the absolute path to the downloaded file.
-// Otherwise, a new download is started (on a spawned goroutine), and the
-// stream returned from the downloader is added to Files.streams. On successful
-// download and cache update completion, the stream is removed from Files.streams
-// and the path to the cached file is added to Files.downloadedFiles.
+// maybeStartDownload returns the remote file for src, either as the path to an
+// already-cached file (dlFile) or as a stream of an in-progress download
+// (dlStream). Exactly one of the three results is set: dlFile is non-empty, or
+// dlStream is non-nil, or err is non-nil.
 //
-// If arg checkFresh is false, and there's already a cached download on disk,
-// then the cached file is returned immediately, and no download is started.
+// Resolution order:
+//   - If src's download path is already recorded in Files.downloadedFiles, it
+//     is returned.
+//   - If a download stream for src is already registered in Files.streams, it
+//     is returned. Note that a stream stays registered for the lifetime of this
+//     Files instance: it is not removed when the download completes. So a
+//     completed download is re-served from its stream here, and (because the
+//     stream lingers) cachedBackingSourceForFile conservatively treats src as
+//     still downloading.
+//   - Otherwise a downloader is consulted. If checkFresh is false and the file
+//     is already cached on disk, that path is returned (but is not added to
+//     downloadedFiles). Otherwise the downloader either returns an
+//     already-cached file path (which is added to downloadedFiles) or starts a
+//     new download, whose stream is added to Files.streams and returned.
 //
-// It is guaranteed that one (and only one) of the returned values will be non-nil.
 // REVISIT: look into use of checkFresh?
 func (fs *Files) maybeStartDownload(ctx context.Context, src *source.Source, checkFresh bool) (dlFile string,
 	dlStream *streamcache.Stream, err error,

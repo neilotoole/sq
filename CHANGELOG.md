@@ -30,52 +30,17 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   aliasing only changed files (the `-set-alias` whole-module pass cost ~145s; it is now ~1s).
   Formatting, including Go import order, is enforced in CI. This is a contributor-facing
   change with no effect on the `sq` binary.
-- The column-rename templates ([`ingest.column.rename`](https://sq.io/docs/config#ingestcolumnrename)
-  and [`result.column.rename`](https://sq.io/docs/config#resultcolumnrename)) no longer expose
-  the non-deterministic and environment-reading template functions (`env`, `expandenv`, `now`,
-  `randAlphaNum`, `uuidv4`, and similar). Column names now depend only on the source data, so the
-  same input always produces the same schema, and templates can't read the process environment.
 
 ### Fixed
 
-- MySQL: the `maxAllowedPacket` connection parameter is now offered for shell completion
-  under its correct name. It was previously misspelled `maxAllowedPackage`, a name the
-  underlying driver silently ignores.
-- MySQL: table and column names containing a backtick are now escaped correctly in
-  generated statements (add/rename column, rename/truncate table, and table-metadata
-  queries), instead of producing malformed SQL.
-- [`sq diff --data`](https://sq.io/docs/cmd/diff) output no longer contains NUL
-  padding bytes. The data diff emitted thousands of trailing zero bytes after each
-  hunk header, corrupting output redirected to a file or piped to another program.
-  Terminals silently dropped the NUL bytes, so the corruption was invisible on screen.
-- [#863]: Fixed `FORCE_COLOR` handling to follow the [force-color.org](https://force-color.org/)
-  convention: `FORCE_COLOR=0` (and `false`) disables color output instead of forcing it
-  on. [NO_COLOR](https://no-color.org/) continues to take precedence over `FORCE_COLOR`.
-- [#863]: Forcing color to a non-terminal stdout (e.g. when `FORCE_COLOR` is set and
-  output is a pipe or buffer) no longer panics; `sq` writes raw ANSI to non-`*os.File`
-  writers instead of performing an unchecked type assertion.
-- [#866]: Ingesting JSON and JSONL is now much faster, especially on Windows, where a large
-  JSONL file could previously take minutes. Each ingest now runs as a single transaction, so a
-  failed ingest no longer leaves a partially-populated cache.
-- [#868]: Ingesting any document source (CSV, Excel, JSON, etc.) is now faster, especially on
-  Windows and other slow filesystems. The disposable ingest cache DB is opened with relaxed
-  durability, so writes no longer pay a per-row disk sync. The cache is rebuilt from the source
-  if it is ever missing or corrupt, so there is no loss of correctness.
-- Shell completion for flag values now works even when the command already has a
-  positional argument. Previously, tab-completing values for flags such as
-  [`add --store`](https://sq.io/docs/cmd/add) (`inline | keyring`), `config get --src`,
-  `config set --src`, `--log.level`, and `--log.format` produced nothing once a
-  positional arg was present (which is the usual case). The `--error.format` flag also
-  now offers completion, and `--arg` no longer offers irrelevant suggestions (filenames
-  for its variable name, or table names for its value), since both are free-form.
-- Downloading a remote source whose body streams in slowly no longer intermittently fails
-  with a spurious `http response header not received within timeout` error. The
-  header-receipt timeout limits only how long `sq` waits for the response headers, but in a
-  narrow timing window it could fire just after the headers had arrived and cancel the
-  in-progress body download.
-- [`sq inspect --overview`](https://sq.io/docs/inspect) on SQL Server now reports the
-  `IsExternalGovernanceEnabled` server property. A malformed property name meant the value
-  was always queried as NULL and silently omitted.
+- [#866], [#868]: Ingesting document sources (CSV, JSON, Excel, etc.) is now much
+  faster, especially on Windows and other slow filesystems.
+- [#865]: Fixed several broken shell-completion things.
+- [#863]: `FORCE_COLOR` handling now follows the [force-color.org](https://force-color.org/)
+  conventions.
+- [#926]: On Windows, a bare `${file:/}` source placeholder no longer suggests an invalid
+  backslash handle name; the name is now derived using URI path semantics on all platforms.
+- Various other bug fixes: [#902], [#911], [#915], [#916], [#918], [#920], [#923].
 
 ## [v0.54.0] - 2026-06-19
 
@@ -146,6 +111,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#844]: On [Oracle](https://sq.io/docs/drivers/oracle), a query whose result is a computed
   `NUMBER` with a fractional value no longer fails with a scan error; such numbers are now
   typed as `decimal`.
+- [`sq inspect`](https://sq.io/docs/inspect) on an Oracle source now handles
+  materialized views correctly. A materialized view was previously omitted from
+  the inspection (its metadata query referenced a `NUM_ROWS` column that Oracle
+  exposes only on the backing table, not in `USER_MVIEWS`), and that backing
+  container table was reported as a duplicate base table. Materialized views now
+  appear exactly once, typed as a materialized view.
 - [#594]: On [SQL Server](https://sq.io/docs/drivers/sqlserver), `avg()` over an integer
   column no longer performs integer division and truncates the result.
 - [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now supports
@@ -1768,9 +1739,18 @@ make working with lots of sources much easier.
 [#851]: https://github.com/neilotoole/sq/issues/851
 [#853]: https://github.com/neilotoole/sq/issues/853
 [#863]: https://github.com/neilotoole/sq/pull/863
+[#865]: https://github.com/neilotoole/sq/pull/865
 [#866]: https://github.com/neilotoole/sq/issues/866
 [#868]: https://github.com/neilotoole/sq/issues/868
 [#900]: https://github.com/neilotoole/sq/pull/900
+[#902]: https://github.com/neilotoole/sq/pull/902
+[#911]: https://github.com/neilotoole/sq/pull/911
+[#915]: https://github.com/neilotoole/sq/pull/915
+[#916]: https://github.com/neilotoole/sq/pull/916
+[#918]: https://github.com/neilotoole/sq/pull/918
+[#920]: https://github.com/neilotoole/sq/pull/920
+[#923]: https://github.com/neilotoole/sq/pull/923
+[#926]: https://github.com/neilotoole/sq/pull/926
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

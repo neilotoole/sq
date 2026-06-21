@@ -167,8 +167,20 @@ FROM DUAL`
 func loadUserSchemaObjectsMetadata(
 	ctx context.Context, log *slog.Logger, handle string, db *sql.DB,
 ) ([]*metadata.Table, error) {
+	// Oracle backs every materialized view with a container table of the
+	// same name, so that name appears in USER_TABLES as well as USER_MVIEWS.
+	// Exclude MV container tables here so the MV is reported once (via
+	// getMaterializedViewMetadata below) rather than twice. NOT EXISTS (not
+	// NOT IN) avoids the SQL footgun where a NULL in the subquery would
+	// filter out every row, and matches the ListTableNames approach.
 	baseNames, err := queryOracleObjectNames(ctx, db,
-		`SELECT table_name FROM user_tables WHERE temporary = 'N' ORDER BY table_name`)
+		`SELECT t.table_name FROM user_tables t
+WHERE t.temporary = 'N'
+  AND NOT EXISTS (
+    SELECT 1 FROM user_mviews m
+    WHERE m.mview_name = t.table_name
+  )
+ORDER BY t.table_name`)
 	if err != nil {
 		return nil, err
 	}
@@ -739,9 +751,15 @@ WHERE v.view_name = :1`
 
 // getMaterializedViewMetadata returns metadata for a materialized view.
 func getMaterializedViewMetadata(ctx context.Context, db *sql.DB, mvName string) (*metadata.Table, error) {
-	const q = `SELECT m.mview_name, tc.comments, m.num_rows,
+	// USER_MVIEWS has no NUM_ROWS column; the CBO row-count statistic for a
+	// materialized view lives on its container table in USER_TABLES (joined
+	// here by name). It's NULL until stats are gathered, in which case the
+	// liveRowCount fallback below applies, mirroring getTableMetadata.
+	const q = `SELECT m.mview_name, tc.comments, t.num_rows,
     NVL(s.bytes, 0) AS bytes
 FROM user_mviews m
+LEFT JOIN user_tables t
+    ON m.mview_name = t.table_name
 LEFT JOIN user_tab_comments tc
     ON m.mview_name = tc.table_name
     AND tc.table_type = 'MATERIALIZED VIEW'
@@ -761,10 +779,11 @@ WHERE m.mview_name = :1`
 		return nil, errw(err)
 	}
 
-	// USER_MVIEWS.NUM_ROWS, like USER_TABLES.NUM_ROWS, is CBO-stats-derived
-	// and is NULL until DBMS_STATS / ANALYZE has run on the materialized
-	// view. See getTableMetadata for the full rationale; the same fallback
-	// applies here.
+	// NUM_ROWS here comes from the MV's container table in USER_TABLES (see
+	// the query above); like any USER_TABLES.NUM_ROWS it is CBO-stats-derived
+	// and NULL until DBMS_STATS / ANALYZE has run on the materialized view.
+	// See getTableMetadata for the full rationale; the same fallback applies
+	// here.
 	rowCount := numRows.Int64
 	if !numRows.Valid {
 		var err error
