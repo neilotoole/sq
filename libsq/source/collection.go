@@ -132,6 +132,9 @@ func (c *Collection) Visit(fn func(src *Source) error) error {
 	defer c.mu.Unlock()
 
 	for i := range c.data.Sources {
+		if c.data.Sources[i] == nil {
+			continue
+		}
 		if err := fn(c.data.Sources[i]); err != nil {
 			return err
 		}
@@ -517,7 +520,7 @@ func (c *Collection) setActive(handle string, force bool) (*Source, error) {
 	}
 
 	for _, src := range c.data.Sources {
-		if src.Handle == handle {
+		if src != nil && src.Handle == handle {
 			c.data.ActiveSrc = handle
 			return src, nil
 		}
@@ -538,7 +541,7 @@ func (c *Collection) SetScratch(handle string) (*Source, error) {
 		return nil, nil //nolint:nilnil
 	}
 	for _, src := range c.data.Sources {
-		if src.Handle == handle {
+		if src != nil && src.Handle == handle {
 			c.data.ScratchSrc = handle
 			return src, nil
 		}
@@ -691,11 +694,13 @@ func (c *Collection) Clone() *Collection {
 		ActiveGroup: c.data.ActiveGroup,
 		ActiveSrc:   c.data.ActiveSrc,
 		ScratchSrc:  c.data.ScratchSrc,
-		Sources:     make([]*Source, len(c.data.Sources)),
+		Sources:     make([]*Source, 0, len(c.data.Sources)),
 	}
 
-	for i, src := range c.data.Sources {
-		data.Sources[i] = src.Clone()
+	for _, src := range c.data.Sources {
+		if src != nil {
+			data.Sources = append(data.Sources, src.Clone())
+		}
 	}
 
 	return &Collection{
@@ -867,9 +872,13 @@ func (c *Collection) sourcesInGroup(group string, directMembersOnly bool) ([]*So
 
 	srcs := make([]*Source, 0)
 	for i := range c.data.Sources {
-		srcGroup := c.data.Sources[i].Group()
+		src := c.data.Sources[i]
+		if src == nil {
+			continue
+		}
+		srcGroup := src.Group()
 		if srcGroup == group || strings.HasPrefix(srcGroup, group+"/") {
-			srcs = append(srcs, c.data.Sources[i])
+			srcs = append(srcs, src)
 		}
 	}
 

@@ -2125,6 +2125,21 @@ func TestCollection_nilSourceEntry(t *testing.T) {
 	require.NotPanics(t, func() { _ = coll.Active() })
 	require.True(t, coll.IsExistingSource("@prod/real"))
 	require.False(t, coll.IsExistingSource("@ghost"))
+
+	// Every reader that ranges over Sources must skip the nil entry
+	// rather than panic.
+	require.NotPanics(t, func() { _, _ = coll.SetActive("@prod/real", false) })
+	require.NotPanics(t, func() { _, _ = coll.SetScratch("@prod/real") })
+	require.NotPanics(t, func() { _, _ = coll.HandlesInGroup("prod") })
+	require.NotPanics(t, func() { _, _ = coll.SourcesInGroup("prod") })
+	require.NotPanics(t, func() { _, _ = coll.Tree("/") })
+	require.NotPanics(t, func() {
+		_ = coll.Visit(func(*source.Source) error { return nil })
+	})
+
+	// Clone must drop the nil entry, leaving only the real source.
+	clone := coll.Clone()
+	require.Equal(t, []string{"@prod/real"}, clone.Handles())
 }
 
 // TestSource_String_Group_nil verifies the nil-receiver guards on
