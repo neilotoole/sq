@@ -175,7 +175,7 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 		})
 
 		// If next.RoundTrip panics, the normal cleanup below is skipped, which
-		// would leave the context uncancelled. Disarm the timer and release the
+		// would leave the context uncanceled. Disarm the timer and release the
 		// context before the panic propagates. On the normal path recover() is
 		// nil, and disarm/Stop are idempotent with the cleanup below.
 		defer func() {
@@ -195,9 +195,9 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 			// header timeout, or a parent cancellation that beat the timer. Cancel
 			// here too, so the cause is guaranteed set even if the timer's own
 			// cancelFn hasn't run yet (avoiding a (nil, nil) return); this call is a
-			// no-op if the context is already cancelled, so a parent cause is
+			// no-op if the context is already canceled, so a parent cause is
 			// preserved. Any returned response is unusable: its body reads through
-			// the now-cancelled context, so discard it and surface the cause.
+			// the now-canceled context, so discard it and surface the cause.
 			cancelFn(mkTimeoutErr())
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()

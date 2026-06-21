@@ -46,8 +46,8 @@ type roundTripperFunc func(*http.Request) (*http.Response, error)
 func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
 
 // ctxBoundBody is a response body that reads through ctx, returning ctx.Err()
-// once ctx is cancelled. It mimics a real transport's body, which reads through
-// the request context, so a cancelled context aborts the body read.
+// once ctx is canceled. It mimics a real transport's body, which reads through
+// the request context, so a canceled context aborts the body read.
 type ctxBoundBody struct {
 	ctx context.Context
 	r   io.Reader
@@ -331,7 +331,7 @@ func TestOptRequestTimeout_bodyOutlivesHeaderTimeout(t *testing.T) {
 // header timer fires before RoundTrip returns, the result is reported
 // consistently as a timeout error, even if RoundTrip then returns a response.
 // Without this, the caller could receive a non-nil response whose body is dead
-// because it reads through the already-cancelled context.
+// because it reads through the already-canceled context.
 func TestOptRequestTimeout_lateSuccessReportedAsTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -361,7 +361,7 @@ func TestOptRequestTimeout_lateSuccessReportedAsTimeout(t *testing.T) {
 }
 
 // TestOptRequestTimeout_parentCancelNotReportedAsTimeout verifies that when the
-// parent context is cancelled around the same time the header timer fires, the
+// parent context is canceled around the same time the header timer fires, the
 // failure is surfaced with the parent's cause (not a fabricated header timeout)
 // and no misleading header-timeout warning is logged. This is the invariant the
 // old code's `case <-ctx.Done()` select arm enforced.
@@ -369,7 +369,7 @@ func TestOptRequestTimeout_parentCancelNotReportedAsTimeout(t *testing.T) {
 	t.Parallel()
 
 	const timeout = 40 * time.Millisecond
-	sentinel := errors.New("parent cancelled")
+	sentinel := errors.New("parent canceled")
 
 	parent, cancel := context.WithCancelCause(context.Background())
 	var records []slog.Record
@@ -379,7 +379,7 @@ func TestOptRequestTimeout_parentCancelNotReportedAsTimeout(t *testing.T) {
 
 	// Cancel the parent up front; the stub ignores the context and returns a
 	// "success" only after the header timeout has elapsed, so the timer fires
-	// while the parent is already cancelled.
+	// while the parent is already canceled.
 	cancel(sentinel)
 	rt := roundTripperFunc(func(_ *http.Request) (*http.Response, error) {
 		time.Sleep(timeout * 3)
