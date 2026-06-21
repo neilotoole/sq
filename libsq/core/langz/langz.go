@@ -226,7 +226,7 @@ func Remove[T any](a []*T, v *T) []*T {
 }
 
 // RemoveUnordered returns a slice without v, but order is not
-// guaranteed to preserved. If order is important, use Remove instead.
+// guaranteed to be preserved. If order is important, use Remove instead.
 //
 // The input slice a is modified in place: the removed element is overwritten
 // with the tail element, leaving a stale element at the old tail. Callers must
