@@ -4,7 +4,7 @@
   "retryErrors": true,
   "retryErrorsCount": 3,
   "retryErrorsJitter": true,
-  "skip": "https://dev.mysql.com, https://www.mysql.com, https://github.com, https://www.microsoft.com, https://stackoverflow.com, https://spin.atomicobject.com",
+  "skip": "https://asciinema.org, https://dev.mysql.com, https://no-color.org, https://www.mysql.com, https://github.com, https://www.microsoft.com, https://stackoverflow.com, https://spin.atomicobject.com",
   "timeout": 25000,
   "verbosity": "warning"
 }
