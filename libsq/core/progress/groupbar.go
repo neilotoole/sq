@@ -40,14 +40,7 @@ func newGroupBar(p *Progress) *groupBar {
 	}
 
 	fn := func(statistics decor.Statistics) string {
-		switch statistics.Current {
-		case 0:
-			return ""
-		case 1:
-			return "1 item"
-		default:
-			return humanize.Comma(statistics.Current) + " items"
-		}
+		return groupBarCounterText(statistics.Current)
 	}
 	cfg.counterWidget = colorize(decor.Any(fn, p.align.counter), p.colors.Size)
 
@@ -76,6 +69,19 @@ func newGroupBar(p *Progress) *groupBar {
 	// make it visible when appropriate.
 	gb.vb.markHidden()
 	return gb
+}
+
+// groupBarCounterText returns the counter text for the groupBar, given the
+// current aggregate item count.
+func groupBarCounterText(current int64) string {
+	switch current {
+	case 0:
+		return ""
+	case 1:
+		return "1 item"
+	default:
+		return humanize.Comma(current) + " items"
+	}
 }
 
 // refresh refreshes the groupBar.
