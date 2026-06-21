@@ -355,6 +355,12 @@ func (rd *recordDiffer) exec(ctx context.Context, recPairsCh <-chan record.Pair,
 		// numLines of pairs before and after differing pair.
 		hunkPairs []record.Pair
 
+		// pendingHunk holds a hunk that has been created (via doc.NewHunk) but not
+		// yet populated (and thus not yet sealed). It is cleared once populateHunk
+		// seals it, and sealed explicitly at the end of the function if some exit
+		// path (e.g. context cancellation) left it unpopulated.
+		pendingHunk *diffdoc.Hunk
+
 		rp      record.Pair
 		ok      bool
 		err     error
@@ -399,6 +405,7 @@ LOOP:
 		if hunk, err = doc.NewHunk(row - (len(hunkPairs) - 1)); err != nil {
 			break
 		}
+		pendingHunk = hunk
 
 		// Now we need to get the after-the-difference record pairs. We look for a
 		// sequence of non-differing (matching) record pairs, appending each
@@ -482,7 +489,10 @@ LOOP:
 		}
 
 		// OK, now we've got enough record pairs to populate the hunk.
+		// populateHunk seals the hunk (via RecordHunkWriter.WriteHunk), so it is
+		// no longer pending.
 		rd.populateHunk(ctx, hunkPairs, hunk)
+		pendingHunk = nil
 
 		if len(hunkPairs) >= rd.cfg.HunkMaxSize {
 			// If we've hit the hunk max size, we need to clear the tailbuf, because
@@ -502,6 +512,20 @@ LOOP:
 	if err == nil {
 		// Even if err is nil, it's still possible that the context was canceled.
 		err = errz.Err(context.Cause(ctx))
+	}
+
+	// If we exited with a hunk created but not yet populated (e.g. the context
+	// was canceled in the look-ahead loop), it was never sealed. Seal it now so
+	// the doc's reader never blocks on an unsealed hunk. See issue #906.
+	//
+	// This is deliberately a plain statement, not a defer: populateHunk seals the
+	// hunk via RecordHunkWriter.WriteHunk's own defer, even when WriteHunk panics.
+	// A defer here would therefore double-seal (and panic) on the populateHunk
+	// panic path. A plain statement runs only on a normal return, by which point
+	// populateHunk has either sealed the hunk and cleared pendingHunk, or been
+	// skipped entirely.
+	if pendingHunk != nil {
+		pendingHunk.Seal(nil, err)
 	}
 
 	return err

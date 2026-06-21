@@ -1,0 +1,71 @@
+name: Coverage
+
+# Dedicated coverage workflow, decoupled from the main pipeline (see #871).
+#
+# Coverage is purely informational (codecov.yml marks the project and patch
+# checks "informational", so they never block a merge). Instrumenting the main
+# pipeline's `test-nix` job with whole-tree coverage only slowed it down, and
+# because `test-nix` gates `publish` and `docker-publish`, that cost sat on the
+# release critical path. This workflow runs the full suite once with coverage
+# on ubuntu and uploads to Codecov, on its own nightly schedule, independent of
+# the main pipeline's timing and of releases.
+on:
+  schedule:
+    - cron: '37 9 * * *' # Nightly; offset from the main pipeline's 09:17 run.
+
+  # Allows this workflow to be manually triggered from the Actions tab.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TPARSE_VERSION: v0.18.0
+  BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
+
+jobs:
+  coverage:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
+
+      - name: 'Go tests (with coverage)'
+        shell: bash
+        run: |
+          # pipefail so a `go test` failure isn't masked by the `| tee` below.
+          set -eo pipefail
+
+          # Full suite (no -short) with whole-tree coverage. "-coverpkg=./..."
+          # attributes coverage across all packages (e.g. integration tests
+          # exercising other packages).
+          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json \
+            -cover -coverpkg=./... -coverprofile=coverage.out ./... | tee gotest.out.json
+
+      - name: 'Test output'
+        if: always()
+        shell: bash
+        run: |
+          set -e
+          go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
+          tparse -all -sort=elapsed -file gotest.out.json
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: ./coverage.out
+          flags: nightly
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

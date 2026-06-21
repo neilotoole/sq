@@ -39,6 +39,12 @@ type Grips struct {
 
 	files *files.Files
 
+	// secretReg resolves ${scheme:path} placeholders in source Locations
+	// at open time (see ResolveSourceSecrets). It may be nil, in which
+	// case the first (uncached) open of a source whose Location contains
+	// placeholders fails; cache hits are served before resolution runs.
+	secretReg *secret.Registry
+
 	// grips caches open Grip instances, keyed by gripCacheKey: the source
 	// handle plus the access mode (read-write, implicit read-only, or
 	// explicit read-only) passed to Open. Keying on the mode means a
@@ -65,13 +71,18 @@ func gripCacheKey(mode AccessMode, handle string) string {
 	return handle + "\x00" + mode.suffix()
 }
 
-// NewGrips returns a Grips instances.
-func NewGrips(drvrs Provider, fs *files.Files, scratchSrcFn ScratchSrcFunc) *Grips {
+// NewGrips returns a Grips instance. secretReg resolves secret
+// placeholders in source Locations at open time; it may be nil if no
+// source uses placeholders.
+func NewGrips(drvrs Provider, fs *files.Files, secretReg *secret.Registry,
+	scratchSrcFn ScratchSrcFunc,
+) *Grips {
 	return &Grips{
 		drvrs:        drvrs,
 		mu:           sync.Mutex{},
 		scratchSrcFn: scratchSrcFn,
 		files:        fs,
+		secretReg:    secretReg,
 		grips:        map[string]Grip{},
 		clnup:        cleanup.New(),
 	}
@@ -134,17 +145,16 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 }
 
 // ResolveSourceSecrets returns a clone of src with any ${scheme:path}
-// placeholders in src.Location resolved via the secret.Registry on ctx,
-// and any $$ escapes reduced to a literal $. If src.Location contains
-// no well-formed placeholders, the $$ escape is still honored (a clone
-// is returned when the location changes; no Registry is needed, since
-// nothing resolves). This is what lets a literal location be stored
-// escaped, e.g. by the v0.54.0 config upgrade, and reach the driver
-// byte-identically. If placeholders are present but no Registry is
-// bound to ctx, an error is returned: a placeholder on a source that
-// has reached this point is always meant to be resolved, and a silent
-// passthrough would surface later as a confusing "connection refused"
-// or DSN-parse error from the driver.
+// placeholders in src.Location resolved via reg, and any $$ escapes
+// reduced to a literal $. If src.Location contains no well-formed
+// placeholders, the $$ escape is still honored (a clone is returned
+// when the location changes; reg may be nil, since nothing resolves).
+// This is what lets a literal location be stored escaped, e.g. by the
+// v0.54.0 config upgrade, and reach the driver byte-identically. If
+// placeholders are present but reg is nil, an error is returned: a
+// placeholder on a source that has reached this point is always meant
+// to be resolved, and a silent passthrough would surface later as a
+// confusing "connection refused" or DSN-parse error from the driver.
 //
 // Detection uses secret.ExtractRefs rather than a `${`-substring scan
 // so that literal "${" sequences (e.g. an escaped "$${env:X}" or a
@@ -167,7 +177,9 @@ func (gs *Grips) IsSQLSource(src *source.Source) bool {
 // Exposed (rather than unexported) so callers and tests can drive the
 // resolution directly. Grips.doOpen calls it once at entry; drivers do
 // not need to call it themselves.
-func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Source, error) {
+func ResolveSourceSecrets(ctx context.Context, reg *secret.Registry,
+	src *source.Source,
+) (*source.Source, error) {
 	if src == nil || src.SecretsResolved {
 		// Already-resolved Locations hold literal bytes, not template
 		// bytes; running them through resolution again would corrupt
@@ -185,9 +197,8 @@ func ResolveSourceSecrets(ctx context.Context, src *source.Source) (*source.Sour
 			return src, nil
 		}
 	} else {
-		reg := secret.FromContext(ctx)
 		if reg == nil {
-			return nil, errz.Errorf("resolve placeholders for %s: no secret registry bound to context", src.Handle)
+			return nil, errz.Errorf("resolve placeholders for %s: no secret registry provided", src.Handle)
 		}
 		if resolved, err = reg.Expand(ctx, src.Location); err != nil {
 			return nil, errz.Wrapf(err, "resolve secrets for %s", src.Handle)
@@ -232,7 +243,7 @@ func (gs *Grips) doOpen(ctx context.Context, src *source.Source, mode AccessMode
 	}
 
 	var err error
-	if src, err = ResolveSourceSecrets(ctx, src); err != nil {
+	if src, err = ResolveSourceSecrets(ctx, gs.secretReg, src); err != nil {
 		return nil, err
 	}
 

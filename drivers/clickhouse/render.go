@@ -34,8 +34,7 @@ import (
 //	tblfmt(tablefq.T{Table: "actors"})            -> "`actors`"
 //	tblfmt(tablefq.T{Schema: "db", Table: "t"})   -> "`db`.`t`"
 func tblfmt[T string | tablefq.T](tbl T) string {
-	tfq := tablefq.From(tbl)
-	return tfq.Render(stringz.BacktickQuote)
+	return tablefq.Format(tbl, stringz.BacktickQuote)
 }
 
 // dbTypeNameFromKind maps sq kind.Kind values to ClickHouse type names for use

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
@@ -28,6 +29,13 @@ var _ Opt = (*OptInsecureSkipVerify)(nil)
 type OptInsecureSkipVerify bool
 
 func (b OptInsecureSkipVerify) apply(tr *http.Transport) {
+	// Guard against a nil config: NewClient applies the min-TLS opt first (which
+	// creates the config), but don't assume that ordering here. The literal
+	// MinVersion is a safe default floor (also satisfies gosec G402); it's
+	// raised/clamped by the min-TLS opt.
+	if tr.TLSClientConfig == nil {
+		tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	}
 	tr.TLSClientConfig.InsecureSkipVerify = bool(b)
 }
 
@@ -37,19 +45,22 @@ type minTLSVersion uint16
 
 func (v minTLSVersion) apply(tr *http.Transport) {
 	if tr.TLSClientConfig == nil {
-		// We allow tls.VersionTLS10, even though it's not considered
-		// secure these days. Ultimately this could become a config
-		// option.
-		tr.TLSClientConfig = &tls.Config{MinVersion: uint16(v)} //nolint:gosec
+		// The literal MinVersion (a constant >= TLS 1.2) satisfies gosec G402;
+		// the requested version is applied via the field assignment below, which
+		// gosec does not flag.
+		tr.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 	} else {
+		// Preserve any settings already on the config (RootCAs, ServerName,
+		// etc.) by cloning rather than replacing it.
 		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
-		tr.TLSClientConfig.MinVersion = uint16(v)
 	}
+	tr.TLSClientConfig.MinVersion = uint16(v)
 }
 
-// DefaultTLSVersion is the default minimum TLS version,
-// as used by NewDefaultClient.
-var DefaultTLSVersion = minTLSVersion(tls.VersionTLS10)
+// DefaultTLSVersion is the default minimum TLS version, as used by
+// NewDefaultClient. It matches the Go standard library client default
+// (TLS 1.2); TLS 1.0 and 1.1 are deprecated by RFC 8996.
+var DefaultTLSVersion = minTLSVersion(tls.VersionTLS12)
 
 // OptUserAgent is passed to NewClient to set the User-Agent header.
 func OptUserAgent(ua string) TripFunc {
@@ -80,7 +91,7 @@ func OptResponseTimeout(timeout time.Duration) TripFunc {
 
 		resp, err := next.RoundTrip(req.WithContext(ctx))
 		if err == nil {
-			if resp.Body == nil {
+			if resp == nil || resp.Body == nil {
 				// Shouldn't happen, but just in case.
 				cancelFn()
 			} else {
@@ -124,29 +135,78 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 		return NopTripFunc
 	}
 	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
-		timerCancelCh := make(chan struct{})
-
 		ctx, cancelFn := context.WithCancelCause(req.Context())
-		t := time.NewTimer(timeout)
-		go func() {
-			defer t.Stop()
-			select {
-			case <-ctx.Done():
-			case <-t.C:
-				cancelErr := errz.Wrapf(context.DeadlineExceeded,
-					"http response header not received within %s timeout", timeout)
 
+		// armed gates the header-timeout cancellation. The timer cancels the
+		// context only if it fires while still armed, i.e. before RoundTrip has
+		// returned. Once RoundTrip returns (success or error) we disarm, after
+		// which the timer can never cancel the context. This matters because the
+		// returned response body reads through this same context and may
+		// legitimately take longer than the header timeout: a healthy body read
+		// must not be aborted just because the header timer fires in the narrow
+		// window around RoundTrip returning.
+		var armed atomic.Bool
+		armed.Store(true)
+
+		// mkTimeoutErr builds the header-timeout error. It's only invoked on an
+		// actual timeout, so the common success path allocates nothing.
+		mkTimeoutErr := func() error {
+			return errz.Wrapf(context.DeadlineExceeded,
+				"http response header not received within %s timeout", timeout)
+		}
+
+		t := time.AfterFunc(timeout, func() {
+			// CompareAndSwap is the single source of truth for "did the timeout
+			// win the race". It succeeds only if the timer fired while still armed,
+			// i.e. before RoundTrip returned and disarmed it. If it fails, RoundTrip
+			// already returned; the timer must not cancel the context the body
+			// reads through.
+			if armed.CompareAndSwap(true, false) {
+				if ctx.Err() != nil {
+					// The context is already done, so its cancellation came from the
+					// parent, not this header timer. Don't log a misleading timeout
+					// warning; the parent's cause stands.
+					return
+				}
 				lg.FromContext(ctx).Warn("HTTP header response not received within timeout",
 					lga.Timeout, timeout, lga.URL, req.URL.String())
+				cancelFn(mkTimeoutErr())
+			}
+		})
 
-				cancelFn(cancelErr)
-			case <-timerCancelCh:
-				// Stop the timer goroutine.
+		// If next.RoundTrip panics, the normal cleanup below is skipped, which
+		// would leave the context uncanceled. Disarm the timer and release the
+		// context before the panic propagates. On the normal path recover() is
+		// nil, and disarm/Stop are idempotent with the cleanup below.
+		defer func() {
+			if r := recover(); r != nil {
+				armed.Store(false)
+				t.Stop()
+				cancelFn(context.Canceled)
+				panic(r)
 			}
 		}()
 
 		resp, err := errz.Return(next.RoundTrip(req.WithContext(ctx)))
+		t.Stop()
 
+		if !armed.CompareAndSwap(true, false) {
+			// The timer won the race: it fired before we could disarm it. This is a
+			// header timeout, or a parent cancellation that beat the timer. Cancel
+			// here too, so the cause is guaranteed set even if the timer's own
+			// cancelFn hasn't run yet (avoiding a (nil, nil) return); this call is a
+			// no-op if the context is already canceled, so a parent cause is
+			// preserved. Any returned response is unusable: its body reads through
+			// the now-canceled context, so discard it and surface the cause.
+			cancelFn(mkTimeoutErr())
+			if resp != nil && resp.Body != nil {
+				_ = resp.Body.Close()
+			}
+			return nil, context.Cause(ctx)
+		}
+
+		// The timer is disarmed and can no longer cancel the context. Any
+		// cancellation observed now comes from the parent context.
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			if langz.Take(ctx.Done()) {
 				// The lower-down RoundTripper probably returned ctx.Err(),
@@ -157,23 +217,20 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 			}
 		}
 
-		// Signal completion of the timer goroutine (it may have already completed).
-		close(timerCancelCh)
-
-		// Don't leak resources; ensure that cancelFn is eventually called.
+		// Don't leak resources; ensure that cancelFn is eventually called. Use a
+		// neutral cause: stamping DeadlineExceeded here would fabricate a
+		// misleading cause on non-timeout errors.
 		switch {
 		case err != nil:
-			// An error has occurred. It's probable that cancelFn has already been
-			// called by the timer goroutine, but we call it again just in case.
-			cancelFn(context.DeadlineExceeded)
+			cancelFn(context.Canceled)
 		case resp != nil && resp.Body != nil:
 			// Wrap resp.Body with a ReadCloserNotifier, so that cancelFn
 			// is called when the body is closed.
 			resp.Body = ioz.ReadCloserNotifier(resp.Body,
-				func(error) { cancelFn(context.DeadlineExceeded) })
+				func(error) { cancelFn(context.Canceled) })
 		default:
-			// Not sure if this can actually be reached, but just in case.
-			cancelFn(context.DeadlineExceeded)
+			// No body to wait on (e.g. a HEAD response): release immediately.
+			cancelFn(context.Canceled)
 		}
 
 		return resp, err

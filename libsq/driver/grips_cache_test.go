@@ -108,9 +108,9 @@ func (g *fakeGrip) isClosed() bool {
 	return g.closed
 }
 
-func newFakeGrips() (*driver.Grips, *fakeDriver) {
+func newFakeGrips(reg *secret.Registry) (*driver.Grips, *fakeDriver) {
 	drvr := &fakeDriver{}
-	return driver.NewGrips(&fakeProvider{drvr: drvr}, nil, nil), drvr
+	return driver.NewGrips(&fakeProvider{drvr: drvr}, nil, reg, nil), drvr
 }
 
 // TestGrips_Open_ReadOnlyModeKeysCache verifies that the Grips cache
@@ -130,7 +130,7 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 	}
 
 	t.Run("ro then rw", func(t *testing.T) {
-		gs, drvr := newFakeGrips()
+		gs, drvr := newFakeGrips(nil)
 		ctx := context.Background()
 
 		gripRO, err := gs.Open(ctx, newSrc(), driver.ModeReadOnly)
@@ -162,7 +162,7 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 	})
 
 	t.Run("rw then ro", func(t *testing.T) {
-		gs, drvr := newFakeGrips()
+		gs, drvr := newFakeGrips(nil)
 		ctx := context.Background()
 
 		gripRW, err := gs.Open(ctx, newSrc(), driver.ModeReadWrite)
@@ -188,7 +188,7 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 		// the implicit hint (it overrides access_mode=AUTOMATIC on the
 		// location, see gh #803), so the two hints can produce different
 		// connections and must not share a cache entry.
-		gs, drvr := newFakeGrips()
+		gs, drvr := newFakeGrips(nil)
 		ctx := context.Background()
 
 		gripImplicit, err := gs.Open(ctx, newSrc(), driver.ModeReadOnly)
@@ -209,40 +209,35 @@ func TestGrips_Open_ReadOnlyModeKeysCache(t *testing.T) {
 // cache hit returns before secret resolution runs (gh #779). Previously
 // doOpen resolved secrets before consulting the cache, so every Open of
 // an already-open source (e.g. one call per table during inspect) paid
-// for resolution again. The second Open below carries a fresh
-// secret.Registry whose resolver must never be invoked: a cache hit
-// needs only the handle and the read-only hint, not the resolved
-// location.
+// for resolution again. The second Open below must not invoke the
+// resolver again: a cache hit needs only the handle and the read-only
+// hint, not the resolved location.
 func TestGrips_Open_CacheHitSkipsSecretResolution(t *testing.T) {
-	gs, drvr := newFakeGrips()
+	resolver := &captureResolver{value: "hunter2"}
+	reg := secret.NewRegistry()
+	reg.Register("keyring", resolver)
+
+	gs, drvr := newFakeGrips(reg)
 	src := &source.Source{
 		Handle:   "@fake",
 		Type:     drivertype.Pg,
 		Location: "postgres://alice:${keyring:pw}@db/sakila",
 	}
 
-	resolverA := &captureResolver{value: "hunter2"}
-	regA := secret.NewRegistry()
-	regA.Register("keyring", resolverA)
-	ctxA := secret.NewContext(context.Background(), regA)
+	ctx := context.Background()
 
-	grip1, err := gs.Open(ctxA, src, driver.ModeReadWrite)
+	grip1, err := gs.Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err)
-	require.Equal(t, []string{"pw"}, resolverA.calls)
+	require.Equal(t, []string{"pw"}, resolver.calls)
 	require.Equal(t, 1, drvr.openCount())
 	require.Equal(t, "postgres://alice:hunter2@db/sakila", drvr.opens[0].loc,
 		"driver must receive the resolved location")
 
-	resolverB := &captureResolver{value: "hunter2"}
-	regB := secret.NewRegistry()
-	regB.Register("keyring", resolverB)
-	ctxB := secret.NewContext(context.Background(), regB)
-
-	grip2, err := gs.Open(ctxB, src, driver.ModeReadWrite)
+	grip2, err := gs.Open(ctx, src, driver.ModeReadWrite)
 	require.NoError(t, err)
 	require.Same(t, grip1, grip2)
-	require.Empty(t, resolverB.calls,
-		"cache hit must not invoke secret resolution")
+	require.Equal(t, []string{"pw"}, resolver.calls,
+		"cache hit must not invoke secret resolution again")
 	require.Equal(t, 1, drvr.openCount())
 
 	require.NoError(t, gs.Close())
@@ -253,7 +248,7 @@ func TestGrips_Open_CacheHitSkipsSecretResolution(t *testing.T) {
 // than replaying the earlier error. (The secret layer tests the analogous
 // "failures not cached" property; this pins it for the grip cache.)
 func TestGrips_Open_ErrorNotCached(t *testing.T) {
-	gs, drvr := newFakeGrips()
+	gs, drvr := newFakeGrips(nil)
 	drvr.failOpens = 1 // fail the first Open, succeed thereafter.
 	ctx := context.Background()
 	newSrc := func() *source.Source {

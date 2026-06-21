@@ -180,7 +180,10 @@ func (h *Helper) init() {
 			assert.NoError(h.T, err)
 		})
 
-		h.grips = driver.NewGrips(h.registry, h.files, sqlite3.NewScratchSource)
+		// nil secret registry: test sources don't use ${scheme:path}
+		// placeholders. Tests that exercise secret resolution call
+		// driver.ResolveSourceSecrets directly with their own registry.
+		h.grips = driver.NewGrips(h.registry, h.files, nil, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.grips)
 
 		h.registry.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: h.Log()})

@@ -26,27 +26,42 @@ func RenameDir(oldDir, newpath string) error {
 		return errz.Errorf("rename dir: not a dir: %s", oldDir)
 	}
 
+	if filepath.Clean(oldDir) == filepath.Clean(newpath) {
+		// Renaming to the same path is a no-op, matching os.Rename.
+		return nil
+	}
+
 	if newFi, _ := os.Stat(newpath); newFi != nil && newFi.IsDir() {
-		// os.Rename will fail when newpath is a directory.
-		// So, we first move (rename) newpath to a temp staging path,
-		// and then we move oldpath to newpath, and finally we remove
-		// the staging dir. We do this because if there's open files
-		// in newpath, os.RemoveAll may fail, so this technique is
-		// more likely to succeed? Not completely sure about that.
-		staging := filepath.Join(os.TempDir(), stringz.Uniq8()+"_"+filepath.Base(newpath))
+		// os.Rename fails when newpath already exists and is a directory. So we
+		// first move newpath aside to a staging path, then move oldDir to
+		// newpath, then remove the staging dir. We move newpath aside (rather
+		// than deleting it first) so that if any open files prevent removal, the
+		// original is still recoverable.
+		//
+		// The staging path is created as a sibling of newpath (same directory,
+		// hence same filesystem) so that os.Rename can't fail with EXDEV.
+		// Staging via os.TempDir would break whenever TMPDIR is on a different
+		// device than newpath.
+		staging := filepath.Join(filepath.Dir(newpath), stringz.Uniq8()+"_"+filepath.Base(newpath))
 
 		if err = os.Rename(newpath, staging); err != nil {
 			return errz.Err(err)
 		}
 
 		if err = os.Rename(oldDir, newpath); err != nil {
+			// Restore the original newpath from staging, so a failed rename
+			// doesn't leave newpath missing. If the rollback also fails, surface
+			// both errors plus the staging location, since that's now the only
+			// copy of newpath's original contents.
+			if rbErr := os.Rename(staging, newpath); rbErr != nil {
+				return errz.Append(errz.Err(err),
+					errz.Wrapf(rbErr, "rollback failed: original contents of %s remain at %s", newpath, staging))
+			}
 			return errz.Err(err)
 		}
 
-		// If the staging deletion (i.e. the old dir) fails,
-		// do we even care? It'll be left hanging around in
-		// the tmp dir, which I guess could be a security
-		// issue in some circumstances?
+		// The staging dir (the previous newpath contents) is no longer needed.
+		// If removal fails it's left in the same directory; not worth surfacing.
 		_ = os.RemoveAll(staging)
 		return nil
 	}
@@ -97,13 +112,13 @@ func ReadDir(dir string, includeDirPath, markDirs, includeDot bool) (paths []str
 					continue
 				}
 
-				fi, err2 = os.Stat(linked)
+				linkedFi, err2 := os.Stat(linked)
 				if err2 != nil {
 					err = errz.Append(err, errz.Err(err2))
 					continue
 				}
 
-				if fi.IsDir() {
+				if linkedFi.IsDir() {
 					name += "/"
 				}
 			}
@@ -123,7 +138,9 @@ func ReadDir(dir string, includeDirPath, markDirs, includeDot bool) (paths []str
 		}
 	}
 
-	return paths, nil
+	// Note: err may be a non-nil multierr accumulated while resolving symlinks
+	// above. Per the doc contract, paths is still returned alongside it.
+	return paths, err
 }
 
 func countNonDirs(entries []os.DirEntry) (count int) {
@@ -152,8 +169,14 @@ func RequireDir(dir string) error {
 
 // PrintTree prints the file tree structure at loc to w.
 // This function uses the github.com/a8m/tree library, which is
-// a Go implementation of the venerable "tree" command.
+// a Go implementation of the venerable "tree" command. Per-entry errors
+// encountered while walking are rendered inline in the tree output by the
+// library; an error is returned only if loc itself can't be accessed.
 func PrintTree(w io.Writer, loc string, showSize, colorize bool) error {
+	if _, err := os.Stat(loc); err != nil {
+		return errz.Err(err)
+	}
+
 	opts := &tree.Options{
 		Fs:       new(ostree.FS),
 		OutFile:  w,
@@ -188,57 +211,72 @@ func DirSize(path string) (int64, error) {
 // contains at least one non-dir entry, that dir is spared. Arg dir
 // must be an absolute path.
 func PruneEmptyDirTree(ctx context.Context, dir string) (count int, err error) {
-	return doPruneEmptyDirTree(ctx, dir, true)
+	count, _, err = doPruneEmptyDirTree(ctx, dir, true)
+	return count, err
 }
 
-func doPruneEmptyDirTree(ctx context.Context, dir string, isRoot bool) (count int, err error) {
+// doPruneEmptyDirTree implements [PruneEmptyDirTree] via a single post-order
+// pass. It returns the number of dirs removed in the subtree rooted at dir, and
+// removedSelf reports whether dir itself was removed (always false for the root,
+// which is never pruned). The parent uses removedSelf to decide whether it has
+// in turn become empty, so chains of dirs containing only empty dirs collapse in
+// one pass without re-reading any dir.
+func doPruneEmptyDirTree(ctx context.Context, dir string, isRoot bool) (count int, removedSelf bool, err error) {
 	if !filepath.IsAbs(dir) {
-		return 0, errz.Errorf("dir must be absolute: %s", dir)
+		return 0, false, errz.Errorf("dir must be absolute: %s", dir)
 	}
 
 	select {
 	case <-ctx.Done():
-		return 0, errz.Err(ctx.Err())
+		return 0, false, errz.Err(ctx.Err())
 	default:
 	}
 
 	var entries []os.DirEntry
 	if entries, err = os.ReadDir(dir); err != nil {
-		return 0, errz.Err(err)
+		return 0, false, errz.Err(err)
 	}
 
-	if len(entries) == 0 {
-		if isRoot {
-			return 0, nil
-		}
-		err = os.RemoveAll(dir)
-		if err != nil {
-			return 0, errz.Err(err)
-		}
-		return 1, nil
-	}
-
-	// We've got some entries... let's check what they are.
+	// If any entry is a non-dir, this dir holds real content and is spared (as
+	// are its descendants). Note that countNonDirs treats a symlink, including a
+	// symlink to a dir, as a non-dir, so a dir containing one is never pruned.
 	if countNonDirs(entries) != 0 {
-		// There are some non-dir entries, so this dir doesn't get deleted.
-		return 0, nil
+		return 0, false, nil
 	}
 
-	// Each of the entries is a dir. Recursively prune.
-	var n int
+	// Every entry (if any) is a dir. Recursively prune each, tracking whether
+	// they all removed themselves. With no entries, the dir is already empty and
+	// allChildrenRemoved stays true.
+	allChildrenRemoved := true
 	for _, entry := range entries {
 		select {
 		case <-ctx.Done():
-			return count, errz.Err(ctx.Err())
+			return count, false, errz.Err(ctx.Err())
 		default:
 		}
 
-		n, err = doPruneEmptyDirTree(ctx, filepath.Join(dir, entry.Name()), false)
+		var (
+			n            int
+			childRemoved bool
+		)
+		n, childRemoved, err = doPruneEmptyDirTree(ctx, filepath.Join(dir, entry.Name()), false)
 		count += n
 		if err != nil {
-			return count, err
+			return count, false, err
+		}
+		if !childRemoved {
+			allChildrenRemoved = false
 		}
 	}
 
-	return count, nil
+	// dir is now empty iff every child removed itself (or it had no children).
+	// Prune it too, unless it's the root, which is never removed.
+	if !isRoot && allChildrenRemoved {
+		if err = os.RemoveAll(dir); err != nil {
+			return count, false, errz.Err(err)
+		}
+		return count + 1, true, nil
+	}
+
+	return count, false, nil
 }

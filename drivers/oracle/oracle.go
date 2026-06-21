@@ -469,7 +469,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 
 	// reset maps to DROP STORAGE vs REUSE STORAGE. Oracle does not reset
 	// sequences via TRUNCATE; callers should not assume identity reseed.
-	truncateQuery := "TRUNCATE TABLE " + tblName
+	truncateQuery := "TRUNCATE TABLE " + tblName //nolint:gosec // G202: tblName is double-quoted
 	if reset {
 		truncateQuery += " DROP STORAGE"
 	} else {
