@@ -150,7 +150,7 @@ func (s *Source) Clone() *Source {
 	return s2
 }
 
-// TableNames is a convenience method that returns md's table names.
+// TableNames is a convenience method that returns the source's table names.
 // If s is nil, a nil slice is returned.
 func (s *Source) TableNames() []string {
 	if s == nil {
@@ -297,7 +297,7 @@ func (t *Table) Column(colName string) *Column {
 	}
 
 	for _, col := range t.Columns {
-		if col.Name == colName {
+		if col != nil && col.Name == colName {
 			return col
 		}
 	}
@@ -314,7 +314,7 @@ func (t *Table) PKCols() []*Column {
 
 	var pkCols []*Column
 	for _, col := range t.Columns {
-		if col.PrimaryKey {
+		if col != nil && col.PrimaryKey {
 			pkCols = append(pkCols, col)
 		}
 	}
@@ -767,7 +767,8 @@ func warnOrphans[T any](log *slog.Logger, label string, orphans map[string][]T) 
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		log.Warn("metadata: dropped rows for unknown owning table",
+		log.Warn(
+			"metadata: dropped rows for unknown owning table",
 			slog.String("kind", label),
 			slog.String("table", name),
 			slog.Int("dropped", len(orphans[name])),
@@ -864,7 +865,8 @@ func LinkForeignKeys(log *slog.Logger, s *Source) {
 				// or (oracle) a parent table whose per-table fetch was
 				// warn-suppressed. Also surfaces real driver bugs
 				// (case-folding mismatches, typos in bulk FK SQL).
-				log.Warn("metadata: outgoing FK references unknown table",
+				log.Warn(
+					"metadata: outgoing FK references unknown table",
 					slog.String("constraint", fk.Name),
 					slog.String("table", fk.Table),
 					slog.String("ref_table", fk.RefTable),

@@ -268,6 +268,17 @@ func TestTable_Column(t *testing.T) {
 			colName: "actor_id",
 			want:    nil,
 		},
+		{
+			name: "nil_column_entry_skipped",
+			tbl: &metadata.Table{
+				Columns: []*metadata.Column{
+					nil,
+					{Name: "actor_id"},
+				},
+			},
+			colName: "actor_id",
+			want:    &metadata.Column{Name: "actor_id"},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -329,6 +340,16 @@ func TestTable_PKCols(t *testing.T) {
 			name: "empty_columns",
 			tbl:  &metadata.Table{},
 			want: nil,
+		},
+		{
+			name: "nil_column_entry_skipped",
+			tbl: &metadata.Table{
+				Columns: []*metadata.Column{
+					nil,
+					{Name: "actor_id", PrimaryKey: true},
+				},
+			},
+			want: []string{"actor_id"},
 		},
 	}
 

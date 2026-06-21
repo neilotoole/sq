@@ -572,6 +572,13 @@ func TestRedact_BestEffortFallbackOnMalformed(t *testing.T) {
 			loc:       "alice:hunter2@host/db?token=${env:UNCLOSED",
 			notLeaked: "hunter2",
 		},
+		{
+			// Password-only userinfo on a scheme dburl can't parse:
+			// the best-effort regex must mask it even with no username.
+			name:      "password-only userinfo, unknown scheme",
+			loc:       "mysqlx://:hunter2@host:33060",
+			notLeaked: "hunter2",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

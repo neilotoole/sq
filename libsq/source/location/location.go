@@ -79,7 +79,8 @@ func WithPassword(loc, passw string) (string, error) {
 	if passw != "" && (u.User == nil || u.User.Username() == "") {
 		return "", errz.Errorf(
 			"cannot set password: location has no username (got %q)",
-			Redact(loc))
+			Redact(loc),
+		)
 	}
 
 	if passw == "" {
@@ -723,9 +724,11 @@ func maskSecretQueryParams(loc string, sentinels []string) string {
 // query separator, or appearing at the very start of the input.
 // Captures the leading anchor (start-of-string or one of : / @) and
 // the username separately so the replacement preserves them both.
-// The password character class explicitly excludes "/" so a greedy
-// match can't swallow a "://" scheme prefix when anchored at "^".
-var redactRawUserinfo = regexp.MustCompile(`(^|[:/@])([^:/?@\s]+):[^:/?@\s]+@`)
+// The username group is optional ("*"), so a password-only userinfo
+// ("scheme://:pw@host") is masked too. The password character class
+// explicitly excludes "/" so a greedy match can't swallow a "://"
+// scheme prefix when anchored at "^".
+var redactRawUserinfo = regexp.MustCompile(`(^|[:/@])([^:/?@\s]*):[^:/?@\s]+@`)
 
 // redactRawDSNPw masks "PWD=value" / "password=value" style key/value
 // pairs used in ODBC, ADO.NET, and other ;-delimited connection
