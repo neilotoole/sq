@@ -48,7 +48,7 @@ type Provider struct {
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	if typ != drivertype.MSSQL {
-		return nil, errz.Errorf("unsupported driver type {%s}}", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &driveri{log: p.Log}, nil
@@ -464,7 +464,10 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 WHERE SCHEMA_NAME = @p1 AND CATALOG_NAME = DB_NAME()`
 
 	var count int
-	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
+	if err := db.QueryRowContext(ctx, q, schma).Scan(&count); err != nil {
+		return false, errw(err)
+	}
+	return count > 0, nil
 }
 
 // ListSchemaMetadata implements driver.SQLDriver.
@@ -524,7 +527,10 @@ func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string)
 	const q = `SELECT COUNT(name) FROM sys.databases WHERE name = @p1`
 
 	var count int
-	return count > 0, errw(db.QueryRowContext(ctx, q, catalog).Scan(&count))
+	if err := db.QueryRowContext(ctx, q, catalog).Scan(&count); err != nil {
+		return false, errw(err)
+	}
+	return count > 0, nil
 }
 
 // ListCatalogs implements driver.SQLDriver.
@@ -784,6 +790,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 	}
 
 	if rows.Err() != nil {
+		sqlz.CloseRows(d.log, rows)
 		return nil, errw(rows.Err())
 	}
 

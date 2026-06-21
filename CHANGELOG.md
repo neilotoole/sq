@@ -28,6 +28,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- Querying a remote (HTTP) source while offline no longer panics. When a cached
+  download had gone stale and the refresh request failed at the transport layer
+  (e.g. no network), `sq` crashed instead of falling back to the cached file.
+  It now serves the stale download, as the "airplane mode" behavior intends.
+- MySQL: the `maxAllowedPacket` connection parameter is now offered for shell completion
+  under its correct name. It was previously misspelled `maxAllowedPackage`, a name the
+  underlying driver silently ignores.
+- MySQL: table and column names containing a backtick are now escaped correctly in
+  generated statements (add/rename column, rename/truncate table, and table-metadata
+  queries), instead of producing malformed SQL.
 - [`sq diff --data`](https://sq.io/docs/cmd/diff) output no longer contains NUL
   padding bytes. The data diff emitted thousands of trailing zero bytes after each
   hunk header, corrupting output redirected to a file or piped to another program.
@@ -57,6 +67,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   header-receipt timeout limits only how long `sq` waits for the response headers, but in a
   narrow timing window it could fire just after the headers had arrived and cancel the
   in-progress body download.
+- [`sq inspect --overview`](https://sq.io/docs/inspect) on SQL Server now reports the
+  `IsExternalGovernanceEnabled` server property. A malformed property name meant the value
+  was always queried as NULL and silently omitted.
 
 ## [v0.54.0] - 2026-06-19
 
