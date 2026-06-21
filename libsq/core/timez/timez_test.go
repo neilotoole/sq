@@ -15,7 +15,6 @@ var (
 	mar1UTC, _  = timez.ParseDateUTC("2023-03-01")
 	denver      *time.Location
 	nov12denver time.Time
-	mar1denver  time.Time
 )
 
 func init() { //nolint:gochecknoinits
@@ -24,7 +23,6 @@ func init() { //nolint:gochecknoinits
 		panic(err)
 	}
 	nov12denver = time.Date(2020, 11, 12, 13, 14, 15, 12345678, denver)
-	mar1denver = mar1UTC.In(denver)
 }
 
 func TestTimestampUTC(t *testing.T) {
@@ -221,13 +219,16 @@ func TestNamedLayouts(t *testing.T) {
 func TestTimestampLayouts(t *testing.T) {
 	require.NotEmpty(t, timez.TimestampLayouts)
 
-	// Every registered layout must format and round-trip a known instant.
+	// Every registered layout must be a real time layout, i.e. formatting
+	// a known instant must substitute reference-time tokens. A corrupted
+	// layout with no recognizable tokens (e.g. "garbage") formats to
+	// itself verbatim, which this catches.
 	tm := time.Date(2021, 1, 16, 18, 26, 39, 0, time.UTC)
 	for name, layout := range timez.TimestampLayouts {
 		require.NotEmpty(t, layout, "layout %q must be non-empty", name)
-		require.NotPanics(t, func() {
-			_ = tm.Format(layout)
-		}, "layout %q must format without panic", name)
+		got := tm.Format(layout)
+		require.NotEqual(t, layout, got,
+			"layout %q produced no substitution, likely not a valid layout", name)
 	}
 }
 
@@ -291,5 +292,4 @@ func TestFormatFunc(t *testing.T) {
 func TestExcelLongDate(t *testing.T) {
 	s := mar1UTC.Format(timez.ExcelLongDate)
 	require.Equal(t, "Wednesday, March 1, 2023", s)
-	require.NotEmpty(t, mar1denver)
 }
