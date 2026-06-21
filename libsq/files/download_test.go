@@ -379,3 +379,82 @@ func TestFiles_NewReader_HTTP_StreamReuseSeal(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, body, string(got2))
 }
+
+// TestFiles_Filesize_StdinNotCached covers the Filesize stdin branch when
+// AddStdin was never invoked: that's a programming error and returns an error.
+func TestFiles_Filesize_StdinNotCached(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	src := &source.Source{Handle: source.StdinHandle, Location: source.StdinHandle}
+	_, err := fs.Filesize(ctx, src)
+	require.Error(t, err, "stdin not added -> error")
+}
+
+// TestFiles_Filesize_HTTP_NotDownloaded covers the Filesize HTTP path that falls
+// through to the downloader when the file is neither in downloadedFiles nor an
+// active stream. With no prior download the downloader has no cache, so Filesize
+// returns an error rather than a size (no network is touched).
+func TestFiles_Filesize_HTTP_NotDownloaded(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	src := &source.Source{Handle: "@remote", Type: drivertype.CSV, Location: "http://example.com/data.csv"}
+	_, err := fs.Filesize(ctx, src)
+	require.Error(t, err, "no download yet -> no cache file -> error")
+}
+
+// TestFiles_NewReader_HTTP_BadURL covers downloaderFor's error path: a malformed
+// download URL is rejected by downloader.New.
+func TestFiles_NewReader_HTTP_BadURL(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	src := &source.Source{Handle: "@remote", Type: drivertype.CSV, Location: "http://%zz"}
+	_, err := fs.NewReader(ctx, src, false)
+	require.Error(t, err)
+}
+
+// TestFiles_AddStdin_Twice covers the duplicate-stdin guard in AddStdin.
+func TestFiles_AddStdin_Twice(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	mkStdin := func() *os.File {
+		f, err := os.CreateTemp(t.TempDir(), "stdin-*.csv")
+		require.NoError(t, err)
+		_, err = f.WriteString("a,b\n1,2\n")
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+		fh, err := os.Open(f.Name())
+		require.NoError(t, err)
+		return fh
+	}
+
+	require.NoError(t, fs.AddStdin(ctx, mkStdin()))
+	require.Error(t, fs.AddStdin(ctx, mkStdin()), "second AddStdin must error")
+}
+
+// TestFiles_Ping_HTTP_TransportError covers the Ping HTTP branch where the HTTP
+// client's Do fails (here, connection refused on a loopback port nothing
+// listens on).
+func TestFiles_Ping_HTTP_TransportError(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	src := &source.Source{Handle: "@remote", Type: drivertype.CSV, Location: "http://127.0.0.1:1/x.csv"}
+	require.Error(t, fs.Ping(ctx, src))
+}
+
+// TestFiles_Ping_HTTP_BadRequestURL covers the Ping HTTP branch where
+// http.NewRequestWithContext rejects the URL (here, an invalid control
+// character), before any request is sent.
+func TestFiles_Ping_HTTP_BadRequestURL(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	// Classified as an HTTP location, but http.NewRequestWithContext can't
+	// parse it.
+	src := &source.Source{Handle: "@remote", Type: drivertype.CSV, Location: "http://\x7f/x.csv"}
+	require.Error(t, fs.Ping(ctx, src))
+}

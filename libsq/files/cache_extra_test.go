@@ -511,3 +511,16 @@ func TestFiles_CacheClearSource_InvalidHandle(t *testing.T) {
 	err := fs.CacheClearSource(ctx, bad, true)
 	require.Error(t, err)
 }
+
+// TestFiles_CachedBackingSourceFor_RemoteBadURL covers the error path of
+// cachedBackingSourceForRemoteFile: starting the download fails because the
+// URL is malformed (rejected by downloader.New).
+func TestFiles_CachedBackingSourceFor_RemoteBadURL(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	src := &source.Source{Handle: "@remote", Type: drivertype.CSV, Location: "http://%zz"}
+	_, ok, err := fs.CachedBackingSourceFor(ctx, src)
+	require.Error(t, err)
+	require.False(t, ok)
+}
