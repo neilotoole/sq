@@ -779,10 +779,11 @@ WHERE m.mview_name = :1`
 		return nil, errw(err)
 	}
 
-	// USER_MVIEWS.NUM_ROWS, like USER_TABLES.NUM_ROWS, is CBO-stats-derived
-	// and is NULL until DBMS_STATS / ANALYZE has run on the materialized
-	// view. See getTableMetadata for the full rationale; the same fallback
-	// applies here.
+	// NUM_ROWS here comes from the MV's container table in USER_TABLES (see
+	// the query above); like any USER_TABLES.NUM_ROWS it is CBO-stats-derived
+	// and NULL until DBMS_STATS / ANALYZE has run on the materialized view.
+	// See getTableMetadata for the full rationale; the same fallback applies
+	// here.
 	rowCount := numRows.Int64
 	if !numRows.Valid {
 		var err error
