@@ -28,6 +28,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- Querying a remote (HTTP) source while offline no longer panics. When a cached
+  download had gone stale and the refresh request failed at the transport layer
+  (e.g. no network), `sq` crashed instead of falling back to the cached file.
+  It now serves the stale download, as the "airplane mode" behavior intends.
 - MySQL: the `maxAllowedPacket` connection parameter is now offered for shell completion
   under its correct name. It was previously misspelled `maxAllowedPackage`, a name the
   underlying driver silently ignores.
