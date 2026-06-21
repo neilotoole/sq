@@ -18,13 +18,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## Unreleased
 
-### Changed
-
-- [#909]: The column-rename templates ([`ingest.column.rename`](https://sq.io/docs/config#ingestcolumnrename)
-  and [`result.column.rename`](https://sq.io/docs/config#resultcolumnrename)) no longer expose
-  the non-deterministic and environment-reading template functions (`env`, `expandenv`, `now`,
-  `randAlphaNum`, `uuidv4`, and similar).
-
 ### Fixed
 
 - [#866], [#868]: Ingesting document sources (CSV, JSON, Excel, etc.) is now much
@@ -1736,7 +1729,6 @@ make working with lots of sources much easier.
 [#868]: https://github.com/neilotoole/sq/issues/868
 [#900]: https://github.com/neilotoole/sq/pull/900
 [#902]: https://github.com/neilotoole/sq/pull/902
-[#909]: https://github.com/neilotoole/sq/pull/909
 [#911]: https://github.com/neilotoole/sq/pull/911
 [#915]: https://github.com/neilotoole/sq/pull/915
 [#916]: https://github.com/neilotoole/sq/pull/916
