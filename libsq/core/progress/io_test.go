@@ -49,6 +49,16 @@ type plainWriter struct {
 
 func (w plainWriter) Write(p []byte) (int, error) { return w.buf.Write(p) }
 
+// errReaderFrom implements both io.Writer and io.ReaderFrom, returning wantErr
+// from ReadFrom, to exercise the destination-error path of the ReaderFrom
+// branch of progCopier.ReadFrom.
+type errReaderFrom struct {
+	wantErr error
+}
+
+func (e errReaderFrom) Write(p []byte) (int, error)       { return len(p), nil }
+func (e errReaderFrom) ReadFrom(io.Reader) (int64, error) { return 0, e.wantErr }
+
 func TestWriter_Write(t *testing.T) {
 	t.Parallel()
 
@@ -243,6 +253,23 @@ func TestCopier_ReadFrom_readerFrom(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(7), n)
 	require.Equal(t, "payload", dst.String())
+}
+
+// TestCopier_ReadFrom_readerFrom_destErr exercises the ReaderFrom branch of
+// progCopier.ReadFrom when the destination writer errors, verifying the error
+// propagates (and, as the fix ensures, the bar is stopped).
+func TestCopier_ReadFrom_readerFrom_destErr(t *testing.T) {
+	t.Parallel()
+
+	wantErr := io.ErrShortWrite
+	ctx := newTestProgress(t, context.Background())
+	w := progress.NewWriter(ctx, "copy", -1, errReaderFrom{wantErr: wantErr})
+
+	rf, ok := w.(io.ReaderFrom)
+	require.True(t, ok)
+	n, err := rf.ReadFrom(strings.NewReader("payload"))
+	require.ErrorIs(t, err, wantErr)
+	require.Zero(t, n)
 }
 
 // TestCopier_ReadFrom_notReaderFrom exercises the non-ReaderFrom branch of
