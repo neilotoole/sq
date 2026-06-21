@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/neilotoole/sq/cli/buildinfo"
@@ -134,42 +135,68 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 		return NopTripFunc
 	}
 	return func(next http.RoundTripper, req *http.Request) (*http.Response, error) {
-		timerCancelCh := make(chan struct{})
-
 		ctx, cancelFn := context.WithCancelCause(req.Context())
-		t := time.NewTimer(timeout)
-		go func() {
-			defer t.Stop()
-			select {
-			case <-ctx.Done():
-			case <-t.C:
-				cancelErr := errz.Wrapf(context.DeadlineExceeded,
-					"http response header not received within %s timeout", timeout)
 
+		// armed gates the header-timeout cancellation. The timer cancels the
+		// context only if it fires while still armed, i.e. before RoundTrip has
+		// returned. Once RoundTrip returns (success or error) we disarm, after
+		// which the timer can never cancel the context. This matters because the
+		// returned response body reads through this same context and may
+		// legitimately take longer than the header timeout: a healthy body read
+		// must not be aborted just because the header timer fires in the narrow
+		// window around RoundTrip returning.
+		var armed atomic.Bool
+		armed.Store(true)
+
+		t := time.AfterFunc(timeout, func() {
+			// CompareAndSwap is the single source of truth for "did the timeout
+			// win the race". It succeeds only if the timer fired while still armed,
+			// i.e. before RoundTrip returned and disarmed it: a genuine header
+			// timeout, so warn and cancel. If it fails, RoundTrip already returned;
+			// the timer must not cancel the context the body reads through.
+			if armed.CompareAndSwap(true, false) {
 				lg.FromContext(ctx).Warn("HTTP header response not received within timeout",
 					lga.Timeout, timeout, lga.URL, req.URL.String())
-
-				cancelFn(cancelErr)
-			case <-timerCancelCh:
-				// Stop the timer goroutine.
+				cancelFn(errz.Wrapf(context.DeadlineExceeded,
+					"http response header not received within %s timeout", timeout))
 			}
-		}()
+		})
 
 		// If next.RoundTrip panics, the normal cleanup below is skipped, which
-		// would leak the timer goroutine and the cancel context. Signal the
-		// goroutine and release the context before the panic propagates. On the
-		// normal path recover() is nil and timerCancelCh is closed below, so this
-		// does not double-close.
+		// would leave the context uncancelled. Disarm the timer and release the
+		// context before the panic propagates. On the normal path recover() is
+		// nil, and disarm/Stop are idempotent with the cleanup below.
 		defer func() {
 			if r := recover(); r != nil {
-				close(timerCancelCh)
+				armed.Store(false)
+				t.Stop()
 				cancelFn(context.Canceled)
 				panic(r)
 			}
 		}()
 
 		resp, err := errz.Return(next.RoundTrip(req.WithContext(ctx)))
+		t.Stop()
 
+		if !armed.CompareAndSwap(true, false) {
+			// The timer won the race: it fired and cancelled the context before we
+			// could disarm it, so this is a genuine header timeout. Even if
+			// RoundTrip happened to return a response, the context is cancelled and
+			// the body reads through it, so the response is unusable. Surface the
+			// timeout consistently (never a response with a dead body) and release
+			// the response. context.Cause holds the descriptive error set by the
+			// timer.
+			if resp != nil && resp.Body != nil {
+				_ = resp.Body.Close()
+			}
+			if cause := context.Cause(ctx); cause != nil {
+				err = cause
+			}
+			return nil, err
+		}
+
+		// The timer is disarmed and can no longer cancel the context. Any
+		// cancellation observed now comes from the parent context.
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			if langz.Take(ctx.Done()) {
 				// The lower-down RoundTripper probably returned ctx.Err(),
@@ -180,23 +207,20 @@ func OptRequestTimeout(timeout time.Duration) TripFunc {
 			}
 		}
 
-		// Signal completion of the timer goroutine (it may have already completed).
-		close(timerCancelCh)
-
-		// Don't leak resources; ensure that cancelFn is eventually called.
+		// Don't leak resources; ensure that cancelFn is eventually called. Use a
+		// neutral cause: stamping DeadlineExceeded here would fabricate a
+		// misleading cause on non-timeout errors.
 		switch {
 		case err != nil:
-			// An error has occurred. It's probable that cancelFn has already been
-			// called by the timer goroutine, but we call it again just in case.
-			cancelFn(context.DeadlineExceeded)
+			cancelFn(context.Canceled)
 		case resp != nil && resp.Body != nil:
 			// Wrap resp.Body with a ReadCloserNotifier, so that cancelFn
 			// is called when the body is closed.
 			resp.Body = ioz.ReadCloserNotifier(resp.Body,
-				func(error) { cancelFn(context.DeadlineExceeded) })
+				func(error) { cancelFn(context.Canceled) })
 		default:
-			// Not sure if this can actually be reached, but just in case.
-			cancelFn(context.DeadlineExceeded)
+			// No body to wait on (e.g. a HEAD response): release immediately.
+			cancelFn(context.Canceled)
 		}
 
 		return resp, err

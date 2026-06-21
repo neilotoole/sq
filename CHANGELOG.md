@@ -52,6 +52,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   positional arg was present (which is the usual case). The `--error.format` flag also
   now offers completion, and `--arg` no longer offers irrelevant suggestions (filenames
   for its variable name, or table names for its value), since both are free-form.
+- Downloading a remote source whose body streams in slowly no longer intermittently fails
+  with a spurious `http response header not received within timeout` error. The
+  header-receipt timeout limits only how long `sq` waits for the response headers, but in a
+  narrow timing window it could fire just after the headers had arrived and cancel the
+  in-progress body download.
 
 ## [v0.54.0] - 2026-06-19
 
