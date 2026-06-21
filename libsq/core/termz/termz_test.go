@@ -2,10 +2,45 @@ package termz
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+// TestIsTerminal verifies IsTerminal for the non-terminal cases. A non-*os.File
+// writer hits the default branch, and a regular file is an *os.File that is not
+// a terminal. A real terminal cannot be synthesized here, so the true path is
+// only exercised by interactive use.
+func TestIsTerminal(t *testing.T) {
+	// Non-*os.File writer hits the default branch.
+	require.False(t, IsTerminal(&bytes.Buffer{}))
+
+	// A regular file is an *os.File, but not a terminal.
+	f, err := os.CreateTemp(t.TempDir(), "termz")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = f.Close() })
+	require.False(t, IsTerminal(f))
+
+	// A nil writer must not panic, and is not a terminal.
+	require.False(t, IsTerminal(nil))
+}
+
+// TestIsColorTerminal_FileWriter verifies that, absent any env override, a
+// regular *os.File (not a terminal) is not reported as a color terminal. This
+// exercises the terminal-detection fall-through that the buffer-based cases in
+// TestIsColorTerminal_EnvOverrides never reach.
+func TestIsColorTerminal_FileWriter(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("FORCE_COLOR", "")
+	t.Setenv("TERM", "")
+
+	f, err := os.CreateTemp(t.TempDir(), "termz")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = f.Close() })
+
+	require.False(t, IsColorTerminal(f))
+}
 
 // TestIsColorTerminal_EnvOverrides verifies that IsColorTerminal honors the
 // NO_COLOR, FORCE_COLOR, and TERM environment variables. A bytes.Buffer (not an
