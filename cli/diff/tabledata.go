@@ -357,8 +357,8 @@ func (rd *recordDiffer) exec(ctx context.Context, recPairsCh <-chan record.Pair,
 
 		// pendingHunk holds a hunk that has been created (via doc.NewHunk) but not
 		// yet populated (and thus not yet sealed). It is cleared once populateHunk
-		// seals it; the deferred seal below covers any exit path that leaves a
-		// hunk created but unpopulated.
+		// seals it, and sealed explicitly at the end of the function if some exit
+		// path (e.g. context cancellation) left it unpopulated.
 		pendingHunk *diffdoc.Hunk
 
 		rp      record.Pair
@@ -366,16 +366,6 @@ func (rd *recordDiffer) exec(ctx context.Context, recPairsCh <-chan record.Pair,
 		err     error
 		ctxDone = ctx.Done()
 	)
-
-	// If we exit with a hunk created but not yet populated (e.g. the context was
-	// canceled in the look-ahead loop), it was never sealed. Seal it so the doc's
-	// reader never blocks on an unsealed hunk. A defer makes this hold on every
-	// exit path, including a panic in populateHunk. See issue #906.
-	defer func() {
-		if pendingHunk != nil {
-			pendingHunk.Seal(nil, err)
-		}
-	}()
 
 LOOP:
 	for row := 0; ctx.Err() == nil; row++ {
@@ -522,6 +512,20 @@ LOOP:
 	if err == nil {
 		// Even if err is nil, it's still possible that the context was canceled.
 		err = errz.Err(context.Cause(ctx))
+	}
+
+	// If we exited with a hunk created but not yet populated (e.g. the context
+	// was canceled in the look-ahead loop), it was never sealed. Seal it now so
+	// the doc's reader never blocks on an unsealed hunk. See issue #906.
+	//
+	// This is deliberately a plain statement, not a defer: populateHunk seals the
+	// hunk via RecordHunkWriter.WriteHunk's own defer, even when WriteHunk panics.
+	// A defer here would therefore double-seal (and panic) on the populateHunk
+	// panic path. A plain statement runs only on a normal return, by which point
+	// populateHunk has either sealed the hunk and cleared pendingHunk, or been
+	// skipped entirely.
+	if pendingHunk != nil {
+		pendingHunk.Seal(nil, err)
 	}
 
 	return err

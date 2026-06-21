@@ -191,6 +191,57 @@ func TestRecordDifferExec_CancelMidLookahead(t *testing.T) {
 	}
 }
 
+// panicHunkWriter mimics recordHunkWriterAdapter.WriteHunk's contract: it always
+// seals the hunk via a defer (even when it panics), then panics. It is used to
+// prove that exec does not double-seal the hunk on a populateHunk panic, which
+// would replace the original panic with a confusing "already sealed" panic.
+type panicHunkWriter struct{}
+
+var _ RecordHunkWriter = panicHunkWriter{}
+
+func (panicHunkWriter) WriteHunk(_ context.Context, hunk *diffdoc.Hunk,
+	_, _ record.Meta, _ []record.Pair,
+) {
+	defer hunk.Seal(nil, nil)
+	panic("boom in WriteHunk")
+}
+
+// TestRecordDifferExec_WriteHunkPanicNoDoubleSeal guards the #906 fix against
+// regressing to a deferred seal. populateHunk (via WriteHunk) seals the hunk in
+// its own defer even on panic, so exec must not also seal it on the panic path,
+// or it double-seals and the original panic is masked.
+func TestRecordDifferExec_WriteHunkPanicNoDoubleSeal(t *testing.T) {
+	rd := &recordDiffer{
+		cfg: &Config{
+			// numLines=0 makes a single matching pair after the difference enough
+			// to close the look-ahead and reach populateHunk.
+			Lines:            0,
+			HunkMaxSize:      100,
+			RecordHunkWriter: panicHunkWriter{},
+		},
+		recMetaFn: func() (rm1, rm2 record.Meta) { return nil, nil },
+	}
+
+	doc := diffdoc.NewHunkDoc(
+		diffdoc.Titlef(nil, "test diff"),
+		diffdoc.Headerf(nil, "left", "right"),
+	)
+
+	ch := make(chan record.Pair, 2)
+	ch <- record.NewPair(0, record.Record{"a0"}, record.Record{"b0"}) // differs: creates a hunk
+	ch <- record.NewPair(1, record.Record{"r1"}, record.Record{"r1"}) // matches: closes look-ahead
+	close(ch)
+
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "exec should propagate the original WriteHunk panic")
+		require.Equal(t, "boom in WriteHunk", r,
+			"exec must not convert the WriteHunk panic into a double-seal panic")
+	}()
+
+	_ = rd.exec(context.Background(), ch, doc)
+}
+
 func TestRecordDifferExec(t *testing.T) {
 	testCases := []struct {
 		name        string
