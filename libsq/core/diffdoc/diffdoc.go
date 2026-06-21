@@ -373,8 +373,9 @@ func (d *HunkDoc) Read(p []byte) (n int, err error) {
 			d.rdr = ioz.ErrReader{Err: err}
 			return
 		case n == 0 && err == nil:
-			// Should be impossible because the hunks are buffers, and this
-			// can't happen in our scenario?
+			// Unreachable in practice: a zero-length p is handled by the guard
+			// at the top of Read, and the hunk buffers never return (0, nil) for
+			// a non-empty buffer. Guard against it defensively rather than spin.
 			d.rdr = ioz.ErrReader{Err: errz.New("diff: hunks doc: unexpected zero read with nil error")}
 			return
 		case err != nil:

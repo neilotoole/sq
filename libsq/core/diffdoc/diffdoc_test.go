@@ -186,11 +186,16 @@ func TestColorize_MalformedSection(t *testing.T) {
 	clrs := diffdoc.NewColors()
 	clrs.EnableColor(true)
 
+	var got []byte
 	r := diffdoc.NewColorizer(context.Background(), clrs, strings.NewReader("@@ x\n"))
 	require.NotPanics(t, func() {
-		_, err := io.ReadAll(r)
+		var err error
+		got, err = io.ReadAll(r)
 		require.NoError(t, err)
 	})
+	// The malformed line must still be emitted (colorized as a section), not
+	// silently dropped.
+	require.Contains(t, string(got), "@@ x", "malformed section content must be preserved")
 }
 
 // TestExecute_NilDiffer ensures Execute (and its deferred cleanup) tolerates
