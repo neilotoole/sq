@@ -518,16 +518,19 @@ func (fs *Files) doCacheClearAll(ctx context.Context) error {
 		return nil
 	}
 
-	// Instead of directly deleting the existing cache dir, we first
-	// move it to /tmp, and then try to delete it. This should probably
-	// help with the situation where another sq instance has an open pid
-	// lock in the cache dir.
-
-	tmpDir := DefaultTempDir()
-	if err := ioz.RequireDir(tmpDir); err != nil {
+	// Instead of directly deleting the existing cache dir, we first move it
+	// aside, then delete it. This should help with the situation where
+	// another sq instance has an open pid lock in the cache dir.
+	//
+	// The relocation target is a sibling of the cache dir (same parent, hence
+	// same filesystem) rather than the global temp dir: os.Rename can't move
+	// across filesystems (EXDEV), and the cache dir and os.TempDir are
+	// routinely on different mounts (e.g. ~/.cache vs a tmpfs /tmp).
+	parent := filepath.Dir(fs.cacheDir)
+	if err := ioz.RequireDir(parent); err != nil {
 		return errz.Wrap(err, "cache clear")
 	}
-	relocateDir := filepath.Join(tmpDir, "dead_cache_"+stringz.Uniq8())
+	relocateDir := filepath.Join(parent, "dead_cache_"+stringz.Uniq8())
 	if err := os.Rename(fs.cacheDir, relocateDir); err != nil {
 		return errz.Wrap(err, "cache clear: relocate")
 	}

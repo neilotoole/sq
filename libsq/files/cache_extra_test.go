@@ -142,6 +142,47 @@ func TestFiles_CacheClearAll(t *testing.T) {
 	require.True(t, ioz.DirExists(fs.CacheDir()), "cache dir should be recreated")
 }
 
+// TestFiles_CacheClearAll_TempDirUnusable verifies that CacheClearAll does not
+// depend on the global temp dir (DefaultTempDir) being usable. The clear
+// relocates the cache dir before deleting it; that relocation must happen
+// within the cache dir's own filesystem, not via os.TempDir, otherwise it
+// fails with EXDEV when the cache and temp dirs are on different filesystems.
+//
+// The cross-filesystem condition is simulated by pointing TMPDIR at a regular
+// file, which makes DefaultTempDir() impossible to create: the old
+// implementation relocated there and failed.
+func TestFiles_CacheClearAll_TempDirUnusable(t *testing.T) {
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
+	// Real, writable workspace, created before TMPDIR is clobbered.
+	work := t.TempDir()
+	cacheDir := filepath.Join(work, "cache")
+	tmpDir := filepath.Join(work, "ftmp")
+	require.NoError(t, os.MkdirAll(cacheDir, 0o700))
+	require.NoError(t, os.MkdirAll(tmpDir, 0o700))
+	// Populate the cache dir so the relocate-then-delete path runs.
+	require.NoError(t, os.WriteFile(filepath.Join(cacheDir, "stale"), []byte("x"), 0o600))
+
+	// Point TMPDIR at a regular file so DefaultTempDir() (os.TempDir()/sq)
+	// cannot be created. A no-op config lock keeps the cache sweep on Close
+	// from depending on TMPDIR too.
+	bogusTmp := filepath.Join(work, "tmpfile")
+	require.NoError(t, os.WriteFile(bogusTmp, nil, 0o600))
+	t.Setenv("TMPDIR", bogusTmp)
+
+	noopLock := func(context.Context) (func(), error) { return func() {}, nil }
+	fs, err := files.New(ctx, nil, noopLock, tmpDir, cacheDir)
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	require.NoError(t, fs.CacheClearAll(ctx),
+		"CacheClearAll must not depend on the global temp dir")
+	require.True(t, ioz.DirExists(cacheDir), "cache dir recreated")
+	entries, err := os.ReadDir(cacheDir)
+	require.NoError(t, err)
+	require.Empty(t, entries, "cache dir emptied")
+}
+
 // TestFiles_CacheClearSource verifies both clearDownloads modes.
 func TestFiles_CacheClearSource(t *testing.T) {
 	for _, clearDownloads := range []bool{true, false} {
