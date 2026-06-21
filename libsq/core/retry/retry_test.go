@@ -145,6 +145,17 @@ func TestDoConstant_FirstTrySuccess(t *testing.T) {
 	require.Equal(t, 1, calls)
 }
 
+func TestDoConstant_NonPositiveIntervalPanics(t *testing.T) {
+	// The underlying goretry.NewConstant panics on a non-positive interval.
+	for _, interval := range []time.Duration{0, -time.Millisecond} {
+		require.Panics(t, func() {
+			_ = retry.DoConstant(context.Background(), interval, time.Second, func() error {
+				return nil
+			})
+		})
+	}
+}
+
 func TestDoConstant_EventualSuccess(t *testing.T) {
 	var calls int
 	err := retry.DoConstant(context.Background(), time.Millisecond, time.Second, func() error {

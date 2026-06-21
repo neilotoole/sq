@@ -34,8 +34,7 @@ func Do(ctx context.Context, maxDuration time.Duration, fn func() error, matches
 }
 
 // DoConstant is similar to Do, but uses a constant backoff instead of fibonacci.
-// A non-positive interval causes retries to fire with no delay until maxDuration
-// (or ctx) is reached, so callers should pass a positive interval.
+// The interval must be positive; a non-positive interval panics.
 func DoConstant(ctx context.Context, interval, maxDuration time.Duration, fn func() error, matches ...MatchFunc) error {
 	b := goretry.NewConstant(interval)
 	b = goretry.WithJitterPercent(10, b)
