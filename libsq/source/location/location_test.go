@@ -37,6 +37,72 @@ func TestIsSQL(t *testing.T) {
 	}
 }
 
+func TestFilename(t *testing.T) {
+	testCases := []struct {
+		loc     string
+		want    string
+		wantErr bool
+	}{
+		{loc: "/path/to/data.xlsx", want: "data.xlsx"},
+		{loc: "relative/path/data.csv", want: "data.csv"},
+		{loc: "https://acme.com/path/data.json", want: "data.json"},
+		{loc: "noext", want: "noext"},
+		// SQL locations are not files.
+		{loc: "postgres://sakila:p_ssW0rd@localhost/sakila", wantErr: true},
+		{loc: "sqlite3:///path/to/sakila.db", wantErr: true},
+		// Malformed scheme that fails Parse.
+		{loc: "sqlite3:/path/to/sakila.db", wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tu.Name(tc.loc), func(t *testing.T) {
+			got, err := location.Filename(tc.loc)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestTypeOf(t *testing.T) {
+	testCases := []struct {
+		loc  string
+		want location.Type
+	}{
+		{loc: "@stdin", want: location.TypeStdin},
+		{loc: "postgres://sakila:p_ssW0rd@localhost/sakila", want: location.TypeSQL},
+		{loc: "sqlite3:///path/to/sakila.db", want: location.TypeSQL},
+		{loc: "http://acme.com/data.csv", want: location.TypeHTTP},
+		{loc: "https://acme.com/data.csv", want: location.TypeHTTP},
+		{loc: "/path/to/data.xlsx", want: location.TypeFile},
+		{loc: "relative/data.csv", want: location.TypeFile},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tu.Name(tc.loc), func(t *testing.T) {
+			require.Equal(t, tc.want, location.TypeOf(tc.loc))
+		})
+	}
+}
+
+func TestType_IsURL(t *testing.T) {
+	require.True(t, location.Type(location.TypeHTTP).IsURL())
+	require.True(t, location.Type(location.TypeSQL).IsURL())
+	require.False(t, location.Type(location.TypeFile).IsURL())
+	require.False(t, location.Type(location.TypeStdin).IsURL())
+	require.False(t, location.Type(location.TypeUnknown).IsURL())
+}
+
+func TestWithPassword_InvalidLoc(t *testing.T) {
+	// A non-file loc that url.ParseRequestURI rejects (relative-ish URI
+	// with a space) must surface an error, not panic.
+	_, err := location.WithPassword("postgres://alice@ho st/db", "pw")
+	require.Error(t, err)
+}
+
 func TestWithPassword(t *testing.T) {
 	t.Parallel()
 
@@ -135,13 +201,27 @@ func TestShort(t *testing.T) {
 		want string
 	}{
 		{loc: "/path/to/data.xlsx", want: "data.xlsx"},
+		{loc: "data.xlsx", want: "data.xlsx"},
 		{loc: "sqlite3:///path/to/sqlite.db", want: "sqlite.db"},
+		{loc: "duckdb:///path/to/sakila.duckdb", want: "sakila.duckdb"},
 		{loc: "postgres://sakila:p_ssW0rd@localhost:5432/sakila", want: "sakila@localhost:5432/sakila"},
 		{loc: "mysql://sakila:p_ssW0rd@localhost:3306/sakila", want: "sakila@localhost:3306/sakila"},
+		{loc: "oracle://sakila:p_ssW0rd@localhost:1521/sakila", want: "sakila@localhost:1521/sakila"},
 		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001", want: "sakila@localhost:4001"},
 		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001?tls=true", want: "sakila@localhost:4001"},
 		{loc: "rqlite://localhost:4001", want: "localhost:4001"},
 		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001?level=strong", want: "sakila@localhost:4001"},
+		// rqlite that fails url.ParseRequestURI: best-effort redaction, no leak.
+		{loc: "rqlite://alice:secret@[::1", want: "rqlite://alice:xxxxx@[::1"},
+		// HTTP URL with no usable path component: fall back to hostname.
+		{loc: "https://acme.com", want: "acme.com"},
+		{loc: "https://acme.com/", want: "acme.com"},
+		// SQL DSN with the database in query params (clickhouse), not the path.
+		{loc: "clickhouse://sakila:p_ssW0rd@localhost:9000?database=mydb", want: "sakila@localhost:9000/mydb"},
+		// MSSQL without a "?database=" part: just user@host.
+		{loc: "sqlserver://sq:p_ssW0rd@localhost", want: "sq@localhost"},
+		// Placeholder-prefixed location is returned verbatim.
+		{loc: "${file:/abs/path/pg.dsn}", want: "${file:/abs/path/pg.dsn}"},
 		// Unknown schemes must not leak inline credentials. rqlites:// was once
 		// special-cased; now it flows through the generic redaction paths.
 		{loc: "rqlites://alice:secret@host:4001", want: "rqlites://alice:xxxxx@host:4001"},

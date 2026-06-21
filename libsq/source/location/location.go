@@ -182,14 +182,17 @@ func Short(loc string) string {
 		return sb.String()
 	}
 
-	// Else path is empty, db name was prob part of params
+	// Else path is empty, db name was prob part of params.
+	// On any parse failure, fall back to the user@host form already in
+	// sb rather than returning loc verbatim: loc may carry inline
+	// credentials that must not leak from a display string.
 	u2, err := url.ParseRequestURI(loc)
 	if err != nil {
-		return loc
+		return sb.String()
 	}
 	vals, err := url.ParseQuery(u2.RawQuery)
 	if err != nil {
-		return loc
+		return sb.String()
 	}
 
 	db := vals.Get("database")
