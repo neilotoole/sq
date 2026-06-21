@@ -1,0 +1,430 @@
+package sqlserver_test
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
+)
+
+// These tests exercise the SQL Server driver against a live database. They are
+// skipped under -short. They complement the cross-driver conformance suite in
+// libsq/driver, locking down SQL Server-specific behavior in this package.
+
+func TestDriver_Ping_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, _ := testh.NewWith(t, sakila.MS)
+	require.NoError(t, drvr.Ping(th.Context, src, driver.ModeReadWrite))
+}
+
+func TestDriver_DBProperties_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.MS)
+	props, err := drvr.DBProperties(th.Context, db)
+	require.NoError(t, err)
+	require.NotEmpty(t, props)
+	// SERVERPROPERTY values and sys.configurations are merged; spot-check a
+	// well-known server property and a well-known configuration option.
+	require.Contains(t, props, "ProductVersion")
+	require.Contains(t, props, "max server memory (MB)")
+}
+
+func TestDriver_TableExists_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	exists, err := drvr.TableExists(th.Context, db, sakila.TblActor)
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	exists, err = drvr.TableExists(th.Context, db, stringz.UniqTableName("no_exist"))
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
+func TestDriver_CurrentSchemaAndCatalog_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	schma, err := drvr.CurrentSchema(th.Context, db)
+	require.NoError(t, err)
+	require.Equal(t, "dbo", schma)
+
+	catalog, err := drvr.CurrentCatalog(th.Context, db)
+	require.NoError(t, err)
+	require.Equal(t, "sakila", catalog)
+}
+
+func TestDriver_CatalogExists_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	exists, err := drvr.CatalogExists(th.Context, db, "sakila")
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	exists, err = drvr.CatalogExists(th.Context, db, "no_such_catalog_"+stringz.Uniq8())
+	require.NoError(t, err)
+	require.False(t, exists)
+
+	// The empty catalog short-circuits to false without a query.
+	exists, err = drvr.CatalogExists(th.Context, db, "")
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
+func TestDriver_ListCatalogs_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	catalogs, err := drvr.ListCatalogs(th.Context, db)
+	require.NoError(t, err)
+	require.NotEmpty(t, catalogs)
+	// The current catalog is always first.
+	require.Equal(t, "sakila", catalogs[0])
+	require.Contains(t, catalogs, "master")
+}
+
+func TestDriver_ListSchemaMetadata_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	schemas, err := drvr.ListSchemaMetadata(th.Context, db)
+	require.NoError(t, err)
+	require.NotEmpty(t, schemas)
+
+	var found bool
+	for _, s := range schemas {
+		require.Equal(t, "sakila", s.Catalog)
+		if s.Name == "dbo" {
+			found = true
+		}
+	}
+	require.True(t, found, "expected to find the dbo schema")
+}
+
+func TestDriver_ListTableNames_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.MS)
+	ctx := th.Context
+
+	tables, err := drvr.ListTableNames(ctx, db, "", true, false)
+	require.NoError(t, err)
+	require.Contains(t, tables, sakila.TblActor)
+
+	views, err := drvr.ListTableNames(ctx, db, "", false, true)
+	require.NoError(t, err)
+	require.NotContains(t, views, sakila.TblActor)
+
+	both, err := drvr.ListTableNames(ctx, db, "", true, true)
+	require.NoError(t, err)
+	require.Contains(t, both, sakila.TblActor)
+	require.GreaterOrEqual(t, len(both), len(tables))
+
+	// Explicit schema arg exercises the @p1 branch.
+	scoped, err := drvr.ListTableNames(ctx, db, "dbo", true, false)
+	require.NoError(t, err)
+	require.Contains(t, scoped, sakila.TblActor)
+
+	// Neither tables nor views returns an empty slice without a query.
+	none, err := drvr.ListTableNames(ctx, db, "", false, false)
+	require.NoError(t, err)
+	require.Empty(t, none)
+}
+
+func TestDriver_TableColumnTypes_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.MS)
+	ctx := th.Context
+
+	// All columns.
+	colTypes, err := drvr.TableColumnTypes(ctx, db, sakila.TblActor, nil)
+	require.NoError(t, err)
+	require.Equal(t, len(sakila.TblActorCols()), len(colTypes))
+
+	// Explicit subset of columns.
+	want := []string{"actor_id", "first_name"}
+	colTypes, err = drvr.TableColumnTypes(ctx, db, sakila.TblActor, want)
+	require.NoError(t, err)
+	require.Equal(t, len(want), len(colTypes))
+	require.Equal(t, "actor_id", colTypes[0].Name())
+}
+
+func TestDriver_AlterTableAddColumn_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, false)
+
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tbl, "col_extra", kind.Decimal))
+
+	colTypes, err := drvr.TableColumnTypes(th.Context, db, tbl, []string{"col_extra"})
+	require.NoError(t, err)
+	require.Len(t, colTypes, 1)
+}
+
+func TestDriver_AlterTableRename_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, false)
+
+	newName := stringz.UniqTableName("actor_renamed")
+	require.NoError(t, drvr.AlterTableRename(th.Context, db, tbl, newName))
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(newName)) })
+
+	exists, err := drvr.TableExists(th.Context, db, newName)
+	require.NoError(t, err)
+	require.True(t, exists)
+}
+
+func TestDriver_AlterTableRenameColumn_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, false)
+
+	require.NoError(t, drvr.AlterTableRenameColumn(th.Context, db, tbl, "first_name", "given_name"))
+
+	colTypes, err := drvr.TableColumnTypes(th.Context, db, tbl, []string{"given_name"})
+	require.NoError(t, err)
+	require.Len(t, colTypes, 1)
+}
+
+func TestDriver_Truncate_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, _ := testh.NewWith(t, sakila.MS)
+
+	// Truncate without reseed.
+	tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
+	affected, err := drvr.Truncate(th.Context, src, tbl, false)
+	require.NoError(t, err)
+	require.Equal(t, int64(sakila.TblActorCount), affected)
+
+	// Truncate with reseed on a table that has an identity column.
+	tbl2 := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
+	affected, err = drvr.Truncate(th.Context, src, tbl2, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(sakila.TblActorCount), affected)
+}
+
+// TestDriver_Truncate_NoIdentity_MSSQL exercises the branch where reseed is
+// requested but the table has no identity column: the driver logs a warning
+// and returns successfully rather than erroring.
+func TestDriver_Truncate_NoIdentity_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	tblName := stringz.UniqTableName("trunc_noident")
+	tblDef := schema.NewTable(
+		tblName,
+		[]string{"name", "val"},
+		[]kind.Kind{kind.Text, kind.Int},
+	)
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+
+	th.Insert(src, tblName, []string{"name", "val"}, []any{"a", int64(1)}, []any{"b", int64(2)})
+
+	affected, err := drvr.Truncate(th.Context, src, tblName, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), affected)
+}
+
+func TestDriver_PrepareUpdateStmt_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
+
+	destCols := []string{"first_name", "last_name"}
+	wantVals := []any{"Kubla", "Khan"}
+
+	execer, err := drvr.PrepareUpdateStmt(th.Context, db, tbl, destCols, "actor_id = ?")
+	require.NoError(t, err)
+	require.Equal(t, destCols, execer.DestMeta().Names())
+	require.NoError(t, execer.Munge(wantVals))
+
+	affected, err := execer.Exec(th.Context, append(wantVals, int64(1))...)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), affected)
+}
+
+// TestDriver_PrepareInsertStmt_IdentityInsert_MSSQL exercises the
+// identity-insert recovery path: inserting an explicit value into an identity
+// column first fails with errCodeIdentityInsert, after which the driver sets
+// IDENTITY_INSERT ON and retries successfully.
+func TestDriver_PrepareInsertStmt_IdentityInsert_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	// SELECT * INTO preserves the identity property of actor_id.
+	tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
+
+	destCols := []string{"actor_id", "first_name", "last_name", "last_update"}
+	const explicitID int64 = 99999
+	vals := []any{explicitID, "Ada", "Lovelace", time.Now()}
+
+	// IDENTITY_INSERT is connection-scoped, so the SET statement issued by the
+	// driver's recovery path and the prepared insert must share one connection.
+	// Use a transaction (a single connection) as the driver does for real
+	// batch inserts; passing the *sql.DB pool would run them on different
+	// connections and the retry would still see IDENTITY_INSERT OFF.
+	tx, err := db.BeginTx(th.Context, nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = tx.Rollback() })
+
+	execer, err := drvr.PrepareInsertStmt(th.Context, tx, tbl, destCols, 1)
+	require.NoError(t, err)
+	require.NoError(t, execer.Munge(vals))
+
+	affected, err := execer.Exec(th.Context, vals...)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), affected)
+	require.NoError(t, tx.Commit())
+
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tbl+" WHERE actor_id = 99999")
+	require.NoError(t, err)
+	require.Equal(t, 1, len(sink.Recs))
+}
+
+// TestDriver_ErrorPaths_ClosedDB_MSSQL drives the DB-error branches of the
+// driver's db-backed methods by issuing them against a closed connection. Every
+// query/exec fails with "database is closed", exercising the errw wrapping that
+// the happy-path tests don't reach.
+func TestDriver_ErrorPaths_ClosedDB_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, _ := testh.NewWith(t, sakila.MS)
+	ctx := th.Context
+
+	// Open a dedicated grip so closing it doesn't disturb the shared helper db.
+	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
+	require.NoError(t, err)
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+	require.NoError(t, grip.Close())
+
+	const bogusTbl = "no_such_table_xyz"
+	fqTbl := tablefq.From(bogusTbl)
+
+	_, err = drvr.DBProperties(ctx, db)
+	assert.Error(t, err)
+	_, err = drvr.TableExists(ctx, db, bogusTbl)
+	assert.Error(t, err)
+	_, err = drvr.CurrentSchema(ctx, db)
+	assert.Error(t, err)
+	_, err = drvr.CurrentCatalog(ctx, db)
+	assert.Error(t, err)
+	// Non-empty names get past the short-circuit and reach the query.
+	_, err = drvr.SchemaExists(ctx, db, "dbo")
+	assert.Error(t, err)
+	_, err = drvr.CatalogExists(ctx, db, "sakila")
+	assert.Error(t, err)
+	_, err = drvr.ListSchemas(ctx, db)
+	assert.Error(t, err)
+	_, err = drvr.ListSchemaMetadata(ctx, db)
+	assert.Error(t, err)
+	_, err = drvr.ListCatalogs(ctx, db)
+	assert.Error(t, err)
+	_, err = drvr.ListTableNames(ctx, db, "", true, true)
+	assert.Error(t, err)
+	_, err = drvr.TableColumnTypes(ctx, db, bogusTbl, nil)
+	assert.Error(t, err)
+	assert.Error(t, drvr.CreateSchema(ctx, db, "sch_"+stringz.Uniq8()))
+	assert.Error(t, drvr.DropSchema(ctx, db, "sch_"+stringz.Uniq8()))
+	assert.Error(t, drvr.AlterTableAddColumn(ctx, db, bogusTbl, "c", kind.Int))
+	assert.Error(t, drvr.AlterTableRename(ctx, db, bogusTbl, "c"))
+	assert.Error(t, drvr.AlterTableRenameColumn(ctx, db, bogusTbl, "c", "d"))
+	_, err = drvr.CopyTable(ctx, db, fqTbl, tablefq.From("dst"), true)
+	assert.Error(t, err)
+	assert.Error(t, drvr.DropTable(ctx, db, fqTbl, false))
+	_, err = drvr.PrepareInsertStmt(ctx, db, bogusTbl, []string{"c"}, 1)
+	assert.Error(t, err)
+	_, err = drvr.PrepareUpdateStmt(ctx, db, bogusTbl, []string{"c"}, "c = ?")
+	assert.Error(t, err)
+
+	tblDef := schema.NewTable("t_"+stringz.Uniq8(), []string{"c"}, []kind.Kind{kind.Int})
+	assert.Error(t, drvr.CreateTable(ctx, db, tblDef))
+
+	// Truncate opens its own connection, so target a non-existent table to
+	// drive its delete-failure branch instead.
+	_, err = drvr.Truncate(ctx, src, bogusTbl, false)
+	assert.Error(t, err)
+}
+
+// TestDriver_Open_BadLocation_MSSQL exercises the error path of Open when the
+// source location can't be connected to.
+func TestDriver_Open_BadLocation_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, _ := testh.NewWith(t, sakila.MS)
+
+	bad := src.Clone()
+	bad.Location = "sqlserver://sq:wrongpw@localhost:1433?database=sakila"
+	_, err := drvr.Open(th.Context, bad, driver.ModeReadWrite)
+	assert.Error(t, err)
+}
+
+// TestDriver_Open_WithCatalog_MSSQL covers the doOpen branch that rewrites the
+// connection string when the source specifies a catalog.
+func TestDriver_Open_WithCatalog_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, _ := testh.NewWith(t, sakila.MS)
+
+	withCat := src.Clone()
+	withCat.Catalog = "sakila"
+	grip, err := drvr.Open(th.Context, withCat, driver.ModeReadWrite)
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, grip.Close()) })
+
+	catalog, err := drvr.CurrentCatalog(th.Context, th.OpenDB(withCat))
+	require.NoError(t, err)
+	require.Equal(t, "sakila", catalog)
+}
