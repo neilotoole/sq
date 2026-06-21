@@ -101,7 +101,7 @@ func (op Opt) Process(o options.Options) (options.Options, error) {
 		o[key] = f
 		return o, nil
 	default:
-		return nil, errz.Errorf("option {%s} should be a string, int, or {%T} but got {%T}: %v",
+		return nil, errz.Errorf("option {%s} should be a string, an integer, or {%T} but got {%T}: %v",
 			key, ByteSize(0), v, v)
 	}
 }
