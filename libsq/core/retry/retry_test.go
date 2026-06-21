@@ -116,19 +116,23 @@ func TestDo_ContextCanceled(t *testing.T) {
 }
 
 func TestDo_MaxDurationZero_StopsOnContext(t *testing.T) {
-	// maxDuration == 0 means "no max duration"; ctx timeout is the only bound.
-	// Do uses a fibonacci backoff with a 100ms base, so the window must be
-	// wide enough to admit at least one retry.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*350)
+	// maxDuration == 0 means "no max duration"; ctx is the only bound. Cancel
+	// from within fn after a fixed number of attempts so the call count is
+	// deterministic rather than dependent on backoff vs. deadline timing.
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var calls int
 	err := retry.Do(ctx, 0, func() error {
 		calls++
+		if calls == 3 {
+			cancel()
+		}
 		return errors.New("persistent")
 	})
 	require.Error(t, err)
-	require.Greater(t, calls, 1, "should retry until ctx deadline")
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, 3, calls, "loop must stop once ctx is canceled, with no further attempt")
 }
 
 func TestDoConstant_FirstTrySuccess(t *testing.T) {
@@ -155,26 +159,36 @@ func TestDoConstant_EventualSuccess(t *testing.T) {
 }
 
 func TestDoConstant_MaxDurationReached(t *testing.T) {
+	// This is the one deliberately timing-based test: it verifies that
+	// maxDuration terminates the loop. A 1ms interval against a 200ms cap
+	// leaves a wide enough margin that "retried, then stopped, bounded" holds
+	// even under a loaded scheduler.
 	start := time.Now()
 	var calls int
-	err := retry.DoConstant(context.Background(), time.Millisecond*5, time.Millisecond*40, func() error {
+	err := retry.DoConstant(context.Background(), time.Millisecond, time.Millisecond*200, func() error {
 		calls++
 		return errors.New("persistent")
 	})
 	require.Error(t, err)
 	require.Greater(t, calls, 1)
-	require.Less(t, time.Since(start), time.Second, "must stop near maxDuration, not run forever")
+	require.Less(t, time.Since(start), time.Second*5, "must stop near maxDuration, not run forever")
 }
 
 func TestDoConstant_MaxDurationZero_StopsOnContext(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+	// maxDuration == 0 means "no max duration"; ctx is the only bound. Cancel
+	// from within fn after a fixed number of attempts for a deterministic count.
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var calls int
 	err := retry.DoConstant(ctx, time.Millisecond, 0, func() error {
 		calls++
+		if calls == 3 {
+			cancel()
+		}
 		return errors.New("persistent")
 	})
 	require.Error(t, err)
-	require.Greater(t, calls, 1)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, 3, calls, "loop must stop once ctx is canceled, with no further attempt")
 }
