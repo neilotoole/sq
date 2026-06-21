@@ -219,6 +219,35 @@ func TestFiles_CacheClearAll_RemovesStrayDeadCache(t *testing.T) {
 		"a foreign dir in the shared cache root must be left untouched")
 }
 
+// TestFiles_CacheClearAll_StrayCleanupGlobMetacharParent verifies that the
+// stray cleanup works even when the cache dir's parent path contains glob
+// metacharacters: the cleanup must match by name prefix, not via filepath.Glob
+// (which would misinterpret a metacharacter like '[' and silently skip).
+func TestFiles_CacheClearAll_StrayCleanupGlobMetacharParent(t *testing.T) {
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
+	base := t.TempDir()
+	// Parent dir name contains a glob metacharacter.
+	parent := filepath.Join(base, "weird[name]")
+	cacheDir := filepath.Join(parent, "cache")
+	tmpDir := filepath.Join(base, "tmp")
+	require.NoError(t, os.MkdirAll(cacheDir, 0o700))
+	require.NoError(t, os.MkdirAll(tmpDir, 0o700))
+
+	// An sq stray sitting next to the cache dir.
+	stray := filepath.Join(parent, "sq_dead_cache_stale")
+	require.NoError(t, os.MkdirAll(filepath.Join(stray, "sub"), 0o700))
+
+	noopLock := func(context.Context) (func(), error) { return func() {}, nil }
+	fs, err := files.New(ctx, nil, noopLock, tmpDir, cacheDir)
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	require.NoError(t, fs.CacheClearAll(ctx))
+	require.False(t, ioz.DirExists(stray),
+		"stray must be cleaned even when the parent path contains glob metacharacters")
+}
+
 // TestFiles_CacheClearSource verifies both clearDownloads modes.
 func TestFiles_CacheClearSource(t *testing.T) {
 	for _, clearDownloads := range []bool{true, false} {

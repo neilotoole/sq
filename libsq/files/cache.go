@@ -547,13 +547,22 @@ func (fs *Files) doCacheClearAll(ctx context.Context) error {
 	// Best-effort: remove leftover relocated cache dirs from previous clears
 	// whose deletion failed (e.g. a file was still open). They are siblings of
 	// the cache dir, so doCacheSweep doesn't reach them; cleaning them here
-	// makes repeated clears self-healing rather than accumulating cruft. The
-	// name is sq-specific (relocateDirPrefix) because parent is the shared
-	// user-cache root: we must only remove dirs that sq itself created.
-	strays, _ := filepath.Glob(filepath.Join(parent, relocateDirPrefix+"*"))
-	for _, stray := range strays {
-		if err := os.RemoveAll(stray); err != nil {
-			log.Warn("Could not remove stray relocated cache dir", lga.Path, stray, lga.Err, err)
+	// makes repeated clears self-healing rather than accumulating cruft.
+	//
+	// We match by name prefix via os.ReadDir rather than filepath.Glob:
+	// filepath.Glob would misinterpret glob metacharacters in the parent path
+	// (e.g. '[' in a home dir name) and could match non-directories. The prefix
+	// is sq-specific (relocateDirPrefix) because parent is the shared user-cache
+	// root: we must only remove dirs that sq itself created.
+	if entries, rdErr := os.ReadDir(parent); rdErr == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() || !strings.HasPrefix(entry.Name(), relocateDirPrefix) {
+				continue
+			}
+			stray := filepath.Join(parent, entry.Name())
+			if err := os.RemoveAll(stray); err != nil {
+				log.Warn("Could not remove stray relocated cache dir", lga.Path, stray, lga.Err, err)
+			}
 		}
 	}
 
