@@ -241,7 +241,7 @@ func (dl *Downloader) Get(ctx context.Context) (dlFile string, dlStream *streamc
 }
 
 // get contains the main logic for getting the download.
-func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,cyclop,gocyclo
+func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,cyclop
 	dlStream *streamcache.Stream, err error,
 ) {
 	ctx := req.Context()
@@ -330,15 +330,12 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,c
 			}
 
 			if err != nil {
-				// resp is nil on a transport error (dl.do returns a nil
-				// response in that case), so guard before touching resp.Body.
-				// This is the common "airplane mode" path: a stale cache is
-				// being refreshed, the network is unavailable, and
-				// cacheFileOnError serves the stale download if
-				// OptContinueOnError is set.
-				if resp != nil {
-					lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
-				}
+				// dl.do returns a nil response on a transport error, so there's
+				// no body to close here. (The earlier code closed resp.Body
+				// unconditionally, panicking on the nil response.) This is the
+				// common "airplane mode" path: a stale cache is being
+				// refreshed, the network is unavailable, and cacheFileOnError
+				// serves the stale download if OptContinueOnError is set.
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
 					return fp, nil, nil
 				}

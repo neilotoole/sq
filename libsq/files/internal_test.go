@@ -57,3 +57,15 @@ func TestFiles_sourceHash_Nil(t *testing.T) {
 	fs := newInternalFiles(t)
 	require.Empty(t, fs.sourceHash(nil))
 }
+
+// TestFiles_WriteIngestChecksum_FilepathError covers the early error return of
+// WriteIngestChecksum when fs.filepath fails (a SQL source has no filepath).
+func TestFiles_WriteIngestChecksum_FilepathError(t *testing.T) {
+	fs := newInternalFiles(t)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
+	sqlSrc := &source.Source{Handle: "@pg", Type: drivertype.Pg, Location: "postgres://u:p@localhost/db"}
+	backingSrc := &source.Source{Handle: "@pg_cached", Type: drivertype.SQLite}
+	err := fs.WriteIngestChecksum(ctx, sqlSrc, backingSrc)
+	require.Error(t, err, "SQL source has no filepath -> error")
+}
