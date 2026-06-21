@@ -37,6 +37,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   download had gone stale and the refresh request failed at the transport layer
   (e.g. no network), `sq` crashed instead of falling back to the cached file.
   It now serves the stale download, as the "airplane mode" behavior intends.
+- [`sq cache clear`](https://sq.io/docs/cmd/cache-clear) no longer fails when the
+  cache dir and the system temp dir are on different filesystems. The clear moved
+  the cache dir into the temp dir before deleting it, which failed with a
+  cross-device error on common setups (e.g. a `~/.cache` on disk and a tmpfs
+  `/tmp`). The cache dir is now relocated within its own filesystem.
+- The ingest cache for a document source (CSV, JSON, Excel, etc.) is now written
+  reliably on first use. The checksum that validates the cache could fail to write
+  when the source's cache dir did not yet exist, silently disabling caching so the
+  source was re-ingested on every command. The cache dir is now created before the
+  checksum is written.
 - MySQL: the `maxAllowedPacket` connection parameter is now offered for shell completion
   under its correct name. It was previously misspelled `maxAllowedPackage`, a name the
   underlying driver silently ignores.

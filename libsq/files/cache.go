@@ -124,9 +124,16 @@ func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *sourc
 		return err
 	}
 
-	var checksumsPath string
-	if _, _, checksumsPath, err = fs.CachePaths(src); err != nil {
+	var srcCacheDir, checksumsPath string
+	if srcCacheDir, _, checksumsPath, err = fs.CachePaths(src); err != nil {
 		return err
+	}
+
+	// checksum.WriteFile doesn't create parent dirs, so ensure the cache leaf
+	// dir exists; otherwise the write fails when this is the first thing to
+	// touch the leaf.
+	if err = ioz.RequireDir(srcCacheDir); err != nil {
+		return errz.Wrap(err, "write ingest checksum")
 	}
 
 	if err = checksum.WriteFile(checksumsPath, sum, ingestFilePath); err != nil {
@@ -510,6 +517,12 @@ func clearCacheDirContents(cacheDir string, clearDownloads bool, handle string) 
 	return nil
 }
 
+// relocateDirPrefix is the name prefix for the temporary dir that
+// doCacheClearAll moves the cache dir to before deleting it. It is
+// sq-specific because the dir is created in the shared user-cache root, and
+// the self-healing cleanup must only remove dirs that sq itself created.
+const relocateDirPrefix = "sq_dead_cache_"
+
 func (fs *Files) doCacheClearAll(ctx context.Context) error {
 	log := lg.FromContext(ctx).With(lga.Dir, fs.cacheDir)
 	log.Debug("Clearing cache dir")
@@ -518,16 +531,42 @@ func (fs *Files) doCacheClearAll(ctx context.Context) error {
 		return nil
 	}
 
-	// Instead of directly deleting the existing cache dir, we first
-	// move it to /tmp, and then try to delete it. This should probably
-	// help with the situation where another sq instance has an open pid
-	// lock in the cache dir.
-
-	tmpDir := DefaultTempDir()
-	if err := ioz.RequireDir(tmpDir); err != nil {
+	// Instead of directly deleting the existing cache dir, we first move it
+	// aside, then delete it. This should help with the situation where
+	// another sq instance has an open pid lock in the cache dir.
+	//
+	// The relocation target is a sibling of the cache dir (same parent, hence
+	// same filesystem) rather than the global temp dir: os.Rename can't move
+	// across filesystems (EXDEV), and the cache dir and os.TempDir are
+	// routinely on different mounts (e.g. ~/.cache vs a tmpfs /tmp).
+	parent := filepath.Dir(fs.cacheDir)
+	if err := ioz.RequireDir(parent); err != nil {
 		return errz.Wrap(err, "cache clear")
 	}
-	relocateDir := filepath.Join(tmpDir, "dead_cache_"+stringz.Uniq8())
+
+	// Best-effort: remove leftover relocated cache dirs from previous clears
+	// whose deletion failed (e.g. a file was still open). They are siblings of
+	// the cache dir, so doCacheSweep doesn't reach them; cleaning them here
+	// makes repeated clears self-healing rather than accumulating cruft.
+	//
+	// We match by name prefix via os.ReadDir rather than filepath.Glob:
+	// filepath.Glob would misinterpret glob metacharacters in the parent path
+	// (e.g. '[' in a home dir name) and could match non-directories. The prefix
+	// is sq-specific (relocateDirPrefix) because parent is the shared user-cache
+	// root: we must only remove dirs that sq itself created.
+	if entries, rdErr := os.ReadDir(parent); rdErr == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() || !strings.HasPrefix(entry.Name(), relocateDirPrefix) {
+				continue
+			}
+			stray := filepath.Join(parent, entry.Name())
+			if err := os.RemoveAll(stray); err != nil {
+				log.Warn("Could not remove stray relocated cache dir", lga.Path, stray, lga.Err, err)
+			}
+		}
+	}
+
+	relocateDir := filepath.Join(parent, relocateDirPrefix+stringz.Uniq8())
 	if err := os.Rename(fs.cacheDir, relocateDir); err != nil {
 		return errz.Wrap(err, "cache clear: relocate")
 	}

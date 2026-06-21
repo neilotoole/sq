@@ -142,6 +142,112 @@ func TestFiles_CacheClearAll(t *testing.T) {
 	require.True(t, ioz.DirExists(fs.CacheDir()), "cache dir should be recreated")
 }
 
+// TestFiles_CacheClearAll_TempDirUnusable verifies that CacheClearAll does not
+// depend on the global temp dir (DefaultTempDir) being usable. The clear
+// relocates the cache dir before deleting it; that relocation must happen
+// within the cache dir's own filesystem, not via os.TempDir, otherwise it
+// fails with EXDEV when the cache and temp dirs are on different filesystems.
+//
+// The cross-filesystem condition is simulated by pointing TMPDIR at a regular
+// file, which makes DefaultTempDir() impossible to create: the old
+// implementation relocated there and failed.
+func TestFiles_CacheClearAll_TempDirUnusable(t *testing.T) {
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
+	// Real, writable workspace, created before TMPDIR is clobbered.
+	work := t.TempDir()
+	cacheDir := filepath.Join(work, "cache")
+	tmpDir := filepath.Join(work, "ftmp")
+	require.NoError(t, os.MkdirAll(cacheDir, 0o700))
+	require.NoError(t, os.MkdirAll(tmpDir, 0o700))
+	// Populate the cache dir so the relocate-then-delete path runs.
+	require.NoError(t, os.WriteFile(filepath.Join(cacheDir, "stale"), []byte("x"), 0o600))
+
+	// Point TMPDIR at a regular file so DefaultTempDir() (os.TempDir()/sq)
+	// cannot be created. A no-op config lock keeps the cache sweep on Close
+	// from depending on TMPDIR too.
+	bogusTmp := filepath.Join(work, "tmpfile")
+	require.NoError(t, os.WriteFile(bogusTmp, nil, 0o600))
+	t.Setenv("TMPDIR", bogusTmp)
+
+	// Precondition: the TMPDIR override must actually take effect (os.TempDir
+	// reads TMPDIR on each call, it doesn't cache), otherwise this test would
+	// be meaningless and could pass even against the old, temp-dir-dependent
+	// implementation.
+	require.True(t, strings.HasPrefix(files.DefaultTempDir(), bogusTmp),
+		"TMPDIR override must make DefaultTempDir unusable")
+
+	noopLock := func(context.Context) (func(), error) { return func() {}, nil }
+	fs, err := files.New(ctx, nil, noopLock, tmpDir, cacheDir)
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	require.NoError(t, fs.CacheClearAll(ctx),
+		"CacheClearAll must not depend on the global temp dir")
+	require.True(t, ioz.DirExists(cacheDir), "cache dir recreated")
+	entries, err := os.ReadDir(cacheDir)
+	require.NoError(t, err)
+	require.Empty(t, entries, "cache dir emptied")
+}
+
+// TestFiles_CacheClearAll_RemovesStrayDeadCache verifies that CacheClearAll
+// cleans up sq's leftover relocated cache dirs from a previous clear whose
+// deletion failed. They are siblings of the cache dir, so the cache sweep
+// doesn't reach them; the next clear must remove them (self-healing). It must
+// also leave foreign dirs in the shared cache root untouched, since that root
+// is not owned by sq.
+func TestFiles_CacheClearAll_RemovesStrayDeadCache(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	require.NoError(t, ioz.RequireDir(fs.CacheDir()))
+	parent := filepath.Dir(fs.CacheDir())
+
+	// An sq-owned leftover from a prior failed clear: must be removed.
+	stray := filepath.Join(parent, "sq_dead_cache_stale")
+	require.NoError(t, os.MkdirAll(filepath.Join(stray, "sub"), 0o700))
+
+	// A foreign dir in the shared cache root that merely resembles the old
+	// naming: must NOT be removed.
+	foreign := filepath.Join(parent, "dead_cache_not_ours")
+	require.NoError(t, os.MkdirAll(foreign, 0o700))
+
+	require.NoError(t, fs.CacheClearAll(ctx))
+	require.False(t, ioz.DirExists(stray),
+		"sq's stray relocated cache dir should be cleaned up by the next clear")
+	require.True(t, ioz.DirExists(foreign),
+		"a foreign dir in the shared cache root must be left untouched")
+}
+
+// TestFiles_CacheClearAll_StrayCleanupGlobMetacharParent verifies that the
+// stray cleanup works even when the cache dir's parent path contains glob
+// metacharacters: the cleanup must match by name prefix, not via filepath.Glob
+// (which would misinterpret a metacharacter like '[' and silently skip).
+func TestFiles_CacheClearAll_StrayCleanupGlobMetacharParent(t *testing.T) {
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+
+	base := t.TempDir()
+	// Parent dir name contains a glob metacharacter.
+	parent := filepath.Join(base, "weird[name]")
+	cacheDir := filepath.Join(parent, "cache")
+	tmpDir := filepath.Join(base, "tmp")
+	require.NoError(t, os.MkdirAll(cacheDir, 0o700))
+	require.NoError(t, os.MkdirAll(tmpDir, 0o700))
+
+	// An sq stray sitting next to the cache dir.
+	stray := filepath.Join(parent, "sq_dead_cache_stale")
+	require.NoError(t, os.MkdirAll(filepath.Join(stray, "sub"), 0o700))
+
+	noopLock := func(context.Context) (func(), error) { return func() {}, nil }
+	fs, err := files.New(ctx, nil, noopLock, tmpDir, cacheDir)
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	require.NoError(t, fs.CacheClearAll(ctx))
+	require.False(t, ioz.DirExists(stray),
+		"stray must be cleaned even when the parent path contains glob metacharacters")
+}
+
 // TestFiles_CacheClearSource verifies both clearDownloads modes.
 func TestFiles_CacheClearSource(t *testing.T) {
 	for _, clearDownloads := range []bool{true, false} {
@@ -197,6 +303,28 @@ func TestFiles_CacheLockAcquire(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestFiles_WriteIngestChecksum_CreatesLeafDir verifies that
+// WriteIngestChecksum creates the cache leaf dir when it doesn't already
+// exist, rather than failing because checksum.WriteFile can't open a file in
+// a missing directory.
+func TestFiles_WriteIngestChecksum_CreatesLeafDir(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	dir := tu.TempDir(t, "src")
+	src := mustCSVSrc(t, dir, "a,b,c\n1,2,3\n")
+	backingSrc := &source.Source{Handle: src.Handle + "_cached", Type: drivertype.SQLite}
+
+	// Deliberately do NOT create the cache leaf dir first.
+	leafDir, _, checksumsPath, err := fs.CachePaths(src)
+	require.NoError(t, err)
+	require.False(t, ioz.DirExists(leafDir), "precondition: leaf dir absent")
+
+	require.NoError(t, fs.WriteIngestChecksum(ctx, src, backingSrc),
+		"WriteIngestChecksum must create the cache leaf dir if absent")
+	require.True(t, ioz.FileAccessible(checksumsPath), "checksums file written")
+}
+
 // TestFiles_WriteIngestChecksum_File covers WriteIngestChecksum and
 // CachedBackingSourceFor for a local file source.
 func TestFiles_WriteIngestChecksum_File(t *testing.T) {
@@ -211,12 +339,6 @@ func TestFiles_WriteIngestChecksum_File(t *testing.T) {
 	_, ok, err := fs.CachedBackingSourceFor(ctx, src)
 	require.NoError(t, err)
 	require.False(t, ok)
-
-	// The real ingest flow creates the cache leaf dir (via the cache lock)
-	// before writing the checksum; replicate that here.
-	leafDir, _, _, err := fs.CachePaths(src)
-	require.NoError(t, err)
-	require.NoError(t, os.MkdirAll(leafDir, 0o700))
 
 	require.NoError(t, fs.WriteIngestChecksum(ctx, src, backingSrc))
 
@@ -453,4 +575,17 @@ func TestFiles_CacheClearSource_InvalidHandle(t *testing.T) {
 	bad := &source.Source{Handle: "bad handle", Type: drivertype.CSV, Location: "/tmp/a.csv"}
 	err := fs.CacheClearSource(ctx, bad, true)
 	require.Error(t, err)
+}
+
+// TestFiles_CachedBackingSourceFor_RemoteBadURL covers the error path of
+// cachedBackingSourceForRemoteFile: starting the download fails because the
+// URL is malformed (rejected by downloader.New).
+func TestFiles_CachedBackingSourceFor_RemoteBadURL(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	src := &source.Source{Handle: "@remote", Type: drivertype.CSV, Location: "http://%zz"}
+	_, ok, err := fs.CachedBackingSourceFor(ctx, src)
+	require.Error(t, err)
+	require.False(t, ok)
 }
