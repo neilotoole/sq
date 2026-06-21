@@ -1,0 +1,64 @@
+{
+  "$schema": "https://dprint.dev/schemas/v0.json",
+  "lineWidth": 100,
+  "indentWidth": 2,
+  "useTabs": false,
+  "markdown": {
+    "lineWidth": 100,
+    "textWrap": "maintain"
+  },
+  "json": {
+    "indentWidth": 2
+  },
+  "toml": {},
+  "yaml": {
+    "indentWidth": 2
+  },
+  "malva": {},
+  "biome": {
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "quoteStyle": "double"
+  },
+  "gofumpt": {
+    "modulePath": "github.com/neilotoole/sq",
+    "extraRules": true
+  },
+  "includes": [
+    "**/*.{md,json,jsonc,toml,yml,yaml,scss,css,js,go}"
+  ],
+  "excludes": [
+    "**/node_modules",
+    "**/testdata/**",
+    "scratch/**",
+    "**/scratch/**",
+    ".claude/**",
+    "site/public/**",
+    "site/resources/**",
+    "site/layouts/**",
+    "site/static/**",
+    "**/*-lock.json",
+    "site/assets/js/vendor/**",
+    "site/assets/js/index.js",
+    "site/assets/js/katex.js",
+    "site/assets/scss/components/_syntax.scss",
+    "site/assets/scss/components/_syntax-dark.scss",
+    "libsq/ast/internal/slq/**",
+    "drivers/sqlite3/sqlparser/sqlite/**",
+    "cli/output/jsonw/internal/jcolorenc/**",
+    "libsq/core/diffdoc/internal/go-udiff/**",
+    "cli/output/tablew/internal/**",
+    "libsq/core/lg/devlog/tint/**",
+    "libsq/core/upgrademu/**",
+    "**/third_party/**"
+  ],
+  "plugins": [
+    "https://plugins.dprint.dev/markdown-0.22.1.wasm",
+    "https://plugins.dprint.dev/json-0.22.0.wasm",
+    "https://plugins.dprint.dev/toml-0.7.0.wasm",
+    "https://plugins.dprint.dev/g-plane/pretty_yaml-v0.6.0.wasm",
+    "https://plugins.dprint.dev/g-plane/malva-v0.16.0.wasm",
+    "https://plugins.dprint.dev/biome-0.13.0.wasm",
+    "https://github.com/jakebailey/dprint-plugin-gofumpt/releases/download/v0.0.9/plugin.wasm"
+  ]
+}
