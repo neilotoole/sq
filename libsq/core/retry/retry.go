@@ -34,6 +34,7 @@ func Do(ctx context.Context, maxDuration time.Duration, fn func() error, matches
 }
 
 // DoConstant is similar to Do, but uses a constant backoff instead of fibonacci.
+// The interval must be positive; a non-positive interval panics.
 func DoConstant(ctx context.Context, interval, maxDuration time.Duration, fn func() error, matches ...MatchFunc) error {
 	b := goretry.NewConstant(interval)
 	b = goretry.WithJitterPercent(10, b)
@@ -83,27 +84,31 @@ func Match(s string) MatchFunc {
 
 const maxFibBackoff = time.Second * 5
 
-type fibonnacci struct {
+type fibonacci struct {
 	fib goretry.Backoff
 }
 
-func (f fibonnacci) Next() (time.Duration, bool) {
-	d, b := f.fib.Next()
-	if d > maxFibBackoff {
-		d = maxFibBackoff
+// Next returns the next backoff interval, clamped to maxFibBackoff. The
+// second return value is a stop flag (false means keep retrying); a bare
+// fibonacci backoff never signals stop on its own.
+func (f fibonacci) Next() (next time.Duration, stop bool) {
+	next, stop = f.fib.Next()
+	if next > maxFibBackoff {
+		next = maxFibBackoff
 	}
-	return d, b
+	return next, stop
 }
 
-// newFibonacci returns a backoff that limits the
-// max duration of the backoff to 5seconds.
+// newFibonacci returns a backoff that clamps each interval to 5 seconds.
+// The cap applies per-interval: the underlying fibonacci sequence keeps
+// advancing internally, but no returned interval exceeds maxFibBackoff.
 func newFibonacci(d time.Duration) goretry.Backoff {
-	return fibonnacci{fib: goretry.NewFibonacci(d)}
+	return fibonacci{fib: goretry.NewFibonacci(d)}
 }
 
 // Jitter returns some amount of jitter between 5ms and 25ms.
 func Jitter() time.Duration {
-	r := rand.Intn(20) //nolint:gosec
+	r := rand.Intn(21) //nolint:gosec
 	j := time.Millisecond*5 + time.Millisecond*time.Duration(r)
 	return j
 }
