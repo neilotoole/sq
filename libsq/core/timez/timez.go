@@ -53,8 +53,9 @@ func DateUTC(t time.Time) string {
 	return t.UTC().Format(time.DateOnly)
 }
 
-// TimestampToRFC3339 takes a ISO8601, ISO8601_X or RFC3339
-// timestamp, and returns RFC3339. That is, the milliseconds are dropped.
+// TimestampToRFC3339 takes a timestamp in any format accepted by
+// ParseTimestampUTC (ISO8601, RFC3339, or the RFC3339 "-0700" variant),
+// and returns RFC3339. That is, the milliseconds are dropped.
 // On error, the empty string is returned.
 func TimestampToRFC3339(s string) string {
 	t, err := ParseTimestampUTC(s)
@@ -64,8 +65,9 @@ func TimestampToRFC3339(s string) string {
 	return t.UTC().Format(RFC3339Z)
 }
 
-// TimestampToDate takes a ISO8601, ISO8601_X or RFC3339
-// timestamp, and returns just the date component.
+// TimestampToDate takes a timestamp in any format accepted by
+// ParseTimestampUTC (ISO8601, RFC3339, or the RFC3339 "-0700" variant),
+// and returns just the date component.
 // On error, the empty string is returned.
 func TimestampToDate(s string) string {
 	t, err := ParseTimestampUTC(s)
@@ -99,37 +101,27 @@ func ParseTimestampUTC(s string) (time.Time, error) {
 }
 
 // ParseLocalDate accepts a date string s, returning the local midnight
-// time of that date. Arg s must in format "2006-01-02".
+// time of that date. Arg s must be in format "2006-01-02".
 func ParseLocalDate(s string) (time.Time, error) {
-	if !strings.ContainsRune(s, 'T') {
-		// It's a date
-		t, err := time.ParseInLocation("2006-01-02", s, time.Local)
-		if err != nil {
-			return t, err
-		}
-
-		return t, nil
+	if strings.ContainsRune(s, 'T') {
+		// There's a 'T' in s, which means it's probably a timestamp.
+		return time.Time{}, errz.Errorf("invalid date format: %s", s)
 	}
 
-	// There's a 'T' in s, which means it's probably a timestamp.
-	return time.Time{}, errz.Errorf("invalid date format: %s", s)
+	t, err := time.ParseInLocation(time.DateOnly, s, time.Local)
+	return t, errz.Err(err)
 }
 
 // ParseDateUTC accepts a date string s, returning the UTC midnight
-// time of that date. Arg s must in format "2006-01-02".
+// time of that date. Arg s must be in format "2006-01-02".
 func ParseDateUTC(s string) (time.Time, error) {
-	if !strings.ContainsRune(s, 'T') {
-		// It's a date
-		t, err := time.ParseInLocation("2006-01-02", s, time.UTC)
-		if err != nil {
-			return t, err
-		}
-
-		return t, nil
+	if strings.ContainsRune(s, 'T') {
+		// There's a 'T' in s, which means it's probably a timestamp.
+		return time.Time{}, errz.Errorf("invalid date format: %s", s)
 	}
 
-	// There's a 'T' in s, which means it's probably a timestamp.
-	return time.Time{}, errz.Errorf("invalid date format: %s", s)
+	t, err := time.ParseInLocation(time.DateOnly, s, time.UTC)
+	return t, errz.Err(err)
 }
 
 // ParseDateOrTimestampUTC attempts to parse s as either
@@ -164,8 +156,8 @@ var TimestampLayouts = map[string]string{
 	"ANSIC":                     time.ANSIC,
 	"UnixDate":                  time.UnixDate,
 	"RubyDate":                  time.RubyDate,
-	"RFC8222":                   time.RFC822,
-	"RFC8222Z":                  time.RFC822Z,
+	"RFC822":                    time.RFC822,
+	"RFC822Z":                   time.RFC822Z,
 	"RFC850":                    time.RFC850,
 	"RFC1123":                   time.RFC1123,
 	"RFC1123Z":                  time.RFC1123Z,
