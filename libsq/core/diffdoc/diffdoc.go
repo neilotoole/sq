@@ -73,31 +73,35 @@ func NewUnifiedDoc(cmdTitle Title, opts ...Opt) *UnifiedDoc {
 	return doc
 }
 
-var (
-	_ Doc       = (*UnifiedDoc)(nil)
-	_ io.Writer = (*UnifiedDoc)(nil)
-)
-
 // UnifiedDoc is a diff [Doc] that consists of a single unified diff body
 // (although that body may contain multiple hunks). It exists as a bridge to
 // legacy code that generates unified diff output as a single block of text.
 //
 // See also: [HunkDoc].
 type UnifiedDoc struct {
-	err     error
-	rdr     io.Reader
-	sealed  chan struct{}
-	bodyBuf ioz.Buffer
-	title   Title
-	rdrOnce sync.Once
-	mu      sync.Mutex
+	err       error
+	closeErr  error
+	rdr       io.Reader
+	sealed    chan struct{}
+	bodyBuf   ioz.Buffer
+	title     Title
+	rdrOnce   sync.Once
+	closeOnce sync.Once
+	mu        sync.Mutex
 }
 
-// Close implements io.Closer.
+// Close implements io.Closer. It is safe to call Close more than once;
+// subsequent calls return the same error as the first.
 func (d *UnifiedDoc) Close() error {
-	err := d.bodyBuf.Close()
-	d.bodyBuf = nil
-	return err
+	d.closeOnce.Do(func() {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		if d.bodyBuf != nil {
+			d.closeErr = d.bodyBuf.Close()
+			d.bodyBuf = nil
+		}
+	})
+	return d.closeErr
 }
 
 // String returns the doc's title as a string, with any colorization removed.
@@ -140,8 +144,8 @@ func (d *UnifiedDoc) Seal(err error) {
 }
 
 // Read provides access to the doc's bytes. It blocks until the doc is sealed,
-// or returns the non-nil error provided to [HunkDoc.Seal]. If the doc does not
-// contain any diff hunks, Read returns [io.EOF].
+// or returns the non-nil error provided to [UnifiedDoc.Seal]. If the doc does
+// not contain any diff hunks, Read returns [io.EOF].
 func (d *UnifiedDoc) Read(p []byte) (n int, err error) {
 	d.rdrOnce.Do(func() {
 		<-d.sealed
@@ -359,9 +363,11 @@ func (d *HunkDoc) Read(p []byte) (n int, err error) {
 			// Should be impossible because the hunks are buffers, and this
 			// can't happen in our scenario?
 			d.rdr = ioz.ErrReader{Err: errz.New("diff: hunks doc: unexpected zero read with nil error")}
+			return
 		case err != nil:
-			// n > 0, but we've hit an error.
-			d.rdr = ioz.NewErrorAfterBytesReader(p2, err)
+			// n > 0, but we've hit an error. Only the first n bytes of p2 are
+			// valid; the remainder is zero-padding from make.
+			d.rdr = ioz.NewErrorAfterBytesReader(p2[:n], err)
 			return
 		default:
 			// Happy path: we've got some content in the hunks.
@@ -374,7 +380,9 @@ func (d *HunkDoc) Read(p []byte) (n int, err error) {
 		if len(d.header) > 0 {
 			rdrs2 = append(rdrs2, bytes.NewReader(d.header))
 		}
-		rdrs2 = append(rdrs2, bytes.NewReader(p2))
+		// Only the first n bytes of p2 are valid; the remainder is zero-padding
+		// from make, which must not be emitted into the diff output.
+		rdrs2 = append(rdrs2, bytes.NewReader(p2[:n]))
 		rdrs2 = append(rdrs2, hunksMultiRdr)
 
 		d.rdr = io.MultiReader(rdrs2...)
@@ -460,6 +468,11 @@ func (h *Hunk) Offset() int {
 
 // Close implements io.Closer.
 func (h *Hunk) Close() error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.bodyBuf == nil {
+		return nil
+	}
 	err := h.bodyBuf.Close()
 	h.bodyBuf = nil
 	h.header = nil
@@ -492,11 +505,16 @@ func (h *Hunk) Err() error {
 
 // Seal seals the hunk, indicating that it is complete. The header arg is the
 // hunk header ("@@ ... @@"). Until the hunk is sealed, a call to [Hunk.Read]
-// blocks. On the happy path, arg err is nil. It is a runtime error to invoke
-// Seal more than once.
+// blocks. On the happy path, arg err is nil. Seal panics if called more than
+// once.
 func (h *Hunk) Seal(header []byte, err error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	select {
+	case <-h.sealed:
+		panic("diff hunk is already sealed")
+	default:
+	}
 
 	h.header = header
 	h.err = err
