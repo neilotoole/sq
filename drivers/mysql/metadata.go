@@ -957,8 +957,8 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) (map[
 			if i > 0 {
 				qb.WriteString("\nUNION\n")
 			}
-			qb.WriteString(fmt.Sprintf("SELECT %s AS tn, COUNT(*) AS rc FROM %s",
-				stringz.SingleQuote(tblNames[i]), stringz.BacktickQuote(tblNames[i])))
+			fmt.Fprintf(&qb, "SELECT %s AS tn, COUNT(*) AS rc FROM %s",
+				stringz.SingleQuote(tblNames[i]), stringz.BacktickQuote(tblNames[i]))
 		}
 
 		query := qb.String()

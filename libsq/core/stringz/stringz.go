@@ -61,7 +61,7 @@ func GenerateAlphaColName(n int, lower bool) string {
 func genAlphaCol(n int, start rune, lenAlpha int) string {
 	buf := &bytes.Buffer{}
 	for ; n >= 0; n = (n / lenAlpha) - 1 {
-		buf.WriteRune(rune(n%lenAlpha) + start)
+		buf.WriteRune(rune(n%lenAlpha) + start) //nolint:gosec // G115: n%lenAlpha is bounded to [0,lenAlpha)
 	}
 
 	return Reverse(buf.String())
