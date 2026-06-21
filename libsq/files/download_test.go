@@ -417,11 +417,16 @@ func TestFiles_NewReader_HTTP_BadURL(t *testing.T) {
 
 // TestFiles_AddStdin_Twice covers the duplicate-stdin guard in AddStdin.
 func TestFiles_AddStdin_Twice(t *testing.T) {
+	// stdinDir must be created before fs.Close is registered for cleanup:
+	// t.Cleanup runs LIFO, and fs (via streamcache) holds the first stdin
+	// file open until fs.Close. On Windows an open file can't be removed, so
+	// stdinDir's teardown must run after fs.Close, i.e. be registered first.
+	stdinDir := t.TempDir()
 	ctx, fs := newTestFiles(t)
 	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
 
 	mkStdin := func() *os.File {
-		f, err := os.CreateTemp(t.TempDir(), "stdin-*.csv")
+		f, err := os.CreateTemp(stdinDir, "stdin-*.csv")
 		require.NoError(t, err)
 		_, err = f.WriteString("a,b\n1,2\n")
 		require.NoError(t, err)

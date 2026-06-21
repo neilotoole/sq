@@ -25,6 +25,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#865]: Fixed several broken shell-completion things.
 - [#863]: `FORCE_COLOR` handling now follows the [force-color.org](https://force-color.org/)
   conventions.
+- [#926]: On Windows, a bare `${file:/}` source placeholder no longer suggests an invalid
+  backslash handle name; the name is now derived using URI path semantics on all platforms.
 - Various other bug fixes: [#902], [#911], [#915], [#916], [#918], [#920], [#923].
 
 ## [v0.54.0] - 2026-06-19
@@ -1735,6 +1737,7 @@ make working with lots of sources much easier.
 [#918]: https://github.com/neilotoole/sq/pull/918
 [#920]: https://github.com/neilotoole/sq/pull/920
 [#923]: https://github.com/neilotoole/sq/pull/923
+[#926]: https://github.com/neilotoole/sq/pull/926
 
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
