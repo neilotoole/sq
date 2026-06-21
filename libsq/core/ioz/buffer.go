@@ -196,12 +196,19 @@ func (m *mem2DiskBuffer) Close() error {
 	}
 	m.closed = true
 
-	if m.fileBuf.buf == nil {
-		return nil
+	var err error
+	if m.fileBuf.buf != nil {
+		err = errz.Err(m.fileBuf.pool.Put(m.fileBuf.buf))
+		m.fileBuf.buf = nil
 	}
-	err := m.fileBuf.pool.Put(m.fileBuf.buf)
-	m.fileBuf.buf = nil
-	return errz.Err(err)
+
+	// Drop references so the in-memory head (and any file buffer) can be GC'd
+	// even if the caller retains the closed buffer, matching bytesBuffer.Close.
+	// Safe because every other method short-circuits on m.closed before
+	// touching m.chain or m.fileBuf.
+	m.chain = nil
+	m.fileBuf = nil
+	return err
 }
 
 var _ buffer.Buffer = (*lazyFileBuffer)(nil)

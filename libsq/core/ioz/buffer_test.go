@@ -156,10 +156,10 @@ func TestBuffers_NewMem2Disk_spillErrorSurfaced(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "bufs")
 	bufs, err := ioz.NewBuffers(dir, 16)
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = bufs.Close() })
+	t.Cleanup(func() { require.NoError(t, bufs.Close()) })
 
 	buf := bufs.NewMem2Disk()
-	t.Cleanup(func() { _ = buf.Close() })
+	t.Cleanup(func() { require.NoError(t, buf.Close()) })
 
 	// Remove the buffer dir so the file pool can't create a spill file.
 	require.NoError(t, os.RemoveAll(dir))
@@ -180,7 +180,7 @@ func TestBuffer_postCloseSafe(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "bufs")
 	bufs, err := ioz.NewBuffers(dir, 16)
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = bufs.Close() })
+	t.Cleanup(func() { require.NoError(t, bufs.Close()) })
 
 	factories := map[string]func() ioz.Buffer{
 		"default":  ioz.NewDefaultBuffer,
