@@ -53,8 +53,9 @@ func DateUTC(t time.Time) string {
 	return t.UTC().Format(time.DateOnly)
 }
 
-// TimestampToRFC3339 takes an ISO8601, ISO8601Z or RFC3339
-// timestamp, and returns RFC3339. That is, the milliseconds are dropped.
+// TimestampToRFC3339 takes a timestamp in any format accepted by
+// ParseTimestampUTC (ISO8601, RFC3339, or the RFC3339 "-0700" variant),
+// and returns RFC3339. That is, the milliseconds are dropped.
 // On error, the empty string is returned.
 func TimestampToRFC3339(s string) string {
 	t, err := ParseTimestampUTC(s)
@@ -64,8 +65,9 @@ func TimestampToRFC3339(s string) string {
 	return t.UTC().Format(RFC3339Z)
 }
 
-// TimestampToDate takes an ISO8601, ISO8601Z or RFC3339
-// timestamp, and returns just the date component.
+// TimestampToDate takes a timestamp in any format accepted by
+// ParseTimestampUTC (ISO8601, RFC3339, or the RFC3339 "-0700" variant),
+// and returns just the date component.
 // On error, the empty string is returned.
 func TimestampToDate(s string) string {
 	t, err := ParseTimestampUTC(s)
