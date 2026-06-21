@@ -20,6 +20,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [`sq diff --data`](https://sq.io/docs/cmd/diff) output no longer contains NUL
+  padding bytes. The data diff emitted thousands of trailing zero bytes after each
+  hunk header, corrupting output redirected to a file or piped to another program.
+  Terminals silently dropped the NUL bytes, so the corruption was invisible on screen.
 - [#863]: Fixed `FORCE_COLOR` handling to follow the [force-color.org](https://force-color.org/)
   convention: `FORCE_COLOR=0` (and `false`) disables color output instead of forcing it
   on. [NO_COLOR](https://no-color.org/) continues to take precedence over `FORCE_COLOR`.

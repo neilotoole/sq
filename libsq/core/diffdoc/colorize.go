@@ -54,24 +54,6 @@ func (c *colorizer) Read(p []byte) (n int, err error) {
 		}
 
 		b0 = line[0]
-		if length == 1 {
-			// Single-character line: just the diff marker, with no content.
-			// This mirrors the general switch below, using the single-byte
-			// PutlnByte optimization.
-			switch b0 {
-			case '-':
-				c.clrs.deletion.PutlnByte(c.buf, '-')
-			case '+':
-				c.clrs.insertion.PutlnByte(c.buf, '+')
-			case ' ':
-				c.clrs.context.PutlnByte(c.buf, ' ')
-			default:
-				// This would be slightly weird, but it must be a single-char
-				// command title.
-				c.clrs.command.PutlnByte(c.buf, b0)
-			}
-			continue
-		}
 
 		if length >= 4 {
 			// Header lines are prefixed with "--- " or "+++ ".
@@ -99,8 +81,10 @@ func (c *colorizer) Read(p []byte) (n int, err error) {
 						break
 					}
 				}
-				if i == length-1 {
-					// No commentary after the second @@
+				if i >= length-1 {
+					// Either there's no commentary after the second @@, or the
+					// line is malformed and has no closing @@ at all. Either
+					// way, colorize the whole line as a section.
 					c.clrs.section.Writeln(c.buf, line)
 					continue
 				}
