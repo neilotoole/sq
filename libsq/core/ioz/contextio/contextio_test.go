@@ -296,23 +296,22 @@ func TestCopier_ReadFrom(t *testing.T) {
 	})
 
 	t.Run("underlying_returns_ctx_error_resolves_to_cause", func(t *testing.T) {
-		// The reader cancels the context, then yields a byte. The subsequent
-		// context-aware Write returns the context error, which ReadFrom must
-		// resolve via context.Cause (the err == ctx.Err() branch of cause).
-		ctx, cancel := context.WithCancel(context.Background())
-		first := true
-		r := readerFunc(func(p []byte) (int, error) {
-			if first {
-				first = false
-				cancel()
-				p[0] = 'x'
-				return 1, nil
-			}
-			return 0, io.EOF
+		// Exercises the err == ctx.Err() branch of cause(): when the underlying
+		// op returns the bare context error, ReadFrom must resolve it to the
+		// context's cause. Using WithCancelCause with a distinct sentinel makes
+		// the assertion meaningful: it would fail if cause() returned the raw
+		// context.Canceled instead of the cause.
+		ctx, cancel := context.WithCancelCause(context.Background())
+		sentinel := errors.New("my cause")
+		// ctx is live at ReadFrom entry; the reader then cancels it and returns
+		// the bare context.Canceled (== ctx.Err()), forcing the cause() branch.
+		r := readerFunc(func([]byte) (int, error) {
+			cancel(sentinel)
+			return 0, context.Canceled
 		})
 		rf := contextio.NewWriter(ctx, plainWriter{&bytes.Buffer{}}).(io.ReaderFrom)
 		_, err := rf.ReadFrom(r)
-		require.ErrorIs(t, err, context.Canceled)
+		require.ErrorIs(t, err, sentinel, "bare ctx error must resolve to the cause")
 	})
 }
 
