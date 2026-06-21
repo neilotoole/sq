@@ -663,7 +663,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 
 	affected, err = sqlz.ExecAffected(ctx, tx, "TRUNCATE TABLE "+stringz.BacktickQuote(tbl))
 	if err != nil {
-		return affected, errz.Append(err, errw(tx.Rollback()))
+		return affected, errz.Append(errw(err), errw(tx.Rollback()))
 	}
 
 	if affected != 0 {

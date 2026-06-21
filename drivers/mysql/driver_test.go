@@ -238,7 +238,7 @@ func TestDriver_PrepareInsertAndUpdateStmt(t *testing.T) {
 
 		rec := []any{"bob"}
 		require.NoError(t, execer.Munge(rec))
-		affected, err := execer.Exec(ctx, "bob")
+		affected, err := execer.Exec(ctx, rec...)
 		require.NoError(t, err)
 		require.Equal(t, int64(1), affected)
 		return nil
