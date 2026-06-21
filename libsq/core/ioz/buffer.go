@@ -20,10 +20,10 @@ var errBufferClosed = errors.New("buffer is closed")
 // adds a [Buffer.Close] method that the caller MUST invoke when done.
 //
 // A Buffer is not safe for concurrent use: a single goroutine should write to,
-// read from, and close it. After Close is called the Buffer must not be used.
-// For safety, post-close calls do not panic (Read returns [io.EOF], Write
-// returns an error, Len and Cap return 0, Reset is a no-op), but callers must
-// not rely on any particular post-close behavior.
+// read from, and close it. After Close, the Buffer must not be used for further
+// buffering; for safety, post-close calls are well-defined and never panic: Read
+// returns [io.EOF], Write returns an error, Len and Cap return 0, and Reset is a
+// no-op.
 type Buffer interface {
 	io.Reader
 	io.Writer
@@ -49,7 +49,7 @@ var NewDefaultBuffer = func() Buffer {
 var _ Buffer = (*bytesBuffer)(nil)
 
 // bytesBuffer adapts [bytes.Buffer] to the [Buffer] interface used by
-// pkg djherbis/buffer, as see in the [Buffers] type. After Close, buf is nil
+// pkg djherbis/buffer, as seen in the [Buffers] type. After Close, buf is nil
 // and all methods are no-ops returning zero values (or an error from Write).
 type bytesBuffer struct {
 	buf *bytes.Buffer
@@ -107,10 +107,14 @@ func NewBuffers(dir string, memBufSize int) (*Buffers, error) {
 		return nil, err
 	}
 
+	// fileCap is the per-file capacity of the file-backed pool buffers.
+	const fileCap = int64(math.MaxInt64)
+
 	bf := &Buffers{
 		dir:            dir,
 		spillThreshold: int64(memBufSize),
-		fileBufPool:    buffer.NewFilePool(math.MaxInt, dir),
+		fileCap:        fileCap,
+		fileBufPool:    buffer.NewFilePool(fileCap, dir),
 	}
 
 	return bf, nil
@@ -122,6 +126,7 @@ type Buffers struct {
 	fileBufPool    buffer.Pool
 	dir            string
 	spillThreshold int64
+	fileCap        int64
 }
 
 // Close removes the directory used for file-backed buffers.
@@ -134,7 +139,7 @@ func (bs *Buffers) Close() error {
 // exceeds the in-memory threshold. The caller MUST invoke [Buffer.Close] when
 // done, or resources may be leaked.
 func (bs *Buffers) NewMem2Disk() Buffer {
-	lz := &lazyFileBuffer{pool: bs.fileBufPool}
+	lz := &lazyFileBuffer{pool: bs.fileBufPool, cap: bs.fileCap}
 	chain := buffer.NewMulti(buffer.New(bs.spillThreshold), lz)
 	return &mem2DiskBuffer{fileBuf: lz, chain: chain}
 }
@@ -209,6 +214,7 @@ type lazyFileBuffer struct {
 	pool    buffer.Pool
 	buf     buffer.Buffer
 	initErr error
+	cap     int64
 }
 
 // ensure acquires the file buffer from the pool on first call. After a failed
@@ -232,9 +238,10 @@ func (lz *lazyFileBuffer) Len() int64 {
 
 func (lz *lazyFileBuffer) Cap() int64 {
 	if lz.buf == nil {
-		// Not yet spilled: report the capacity it would have (the file pool is
-		// sized at math.MaxInt) without forcing the file to be created.
-		return math.MaxInt64
+		// Not yet spilled: report the capacity it would have once acquired (the
+		// pool's configured per-file capacity), without forcing the file to be
+		// created. This matches lz.buf.Cap() after a spill.
+		return lz.cap
 	}
 	return lz.buf.Cap()
 }

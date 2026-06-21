@@ -173,6 +173,7 @@ func TestBuffers_NewMem2Disk_spillErrorSurfaced(t *testing.T) {
 	// A subsequent spill write returns the same cached error (no retry/panic).
 	_, err2 := buf.Write([]byte(strings.Repeat("y", 64)))
 	require.Error(t, err2)
+	require.Equal(t, err.Error(), err2.Error(), "the cached init error should be returned, not a fresh one")
 }
 
 func TestBuffer_postCloseSafe(t *testing.T) {
