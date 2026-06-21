@@ -124,9 +124,16 @@ func (fs *Files) WriteIngestChecksum(ctx context.Context, src, backingSrc *sourc
 		return err
 	}
 
-	var checksumsPath string
-	if _, _, checksumsPath, err = fs.CachePaths(src); err != nil {
+	var srcCacheDir, checksumsPath string
+	if srcCacheDir, _, checksumsPath, err = fs.CachePaths(src); err != nil {
 		return err
+	}
+
+	// checksum.WriteFile doesn't create parent dirs, so ensure the cache leaf
+	// dir exists; otherwise the write fails when this is the first thing to
+	// touch the leaf.
+	if err = ioz.RequireDir(srcCacheDir); err != nil {
+		return errz.Wrap(err, "write ingest checksum")
 	}
 
 	if err = checksum.WriteFile(checksumsPath, sum, ingestFilePath); err != nil {

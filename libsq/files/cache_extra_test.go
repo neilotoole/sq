@@ -238,6 +238,28 @@ func TestFiles_CacheLockAcquire(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestFiles_WriteIngestChecksum_CreatesLeafDir verifies that
+// WriteIngestChecksum creates the cache leaf dir when it doesn't already
+// exist, rather than failing because checksum.WriteFile can't open a file in
+// a missing directory.
+func TestFiles_WriteIngestChecksum_CreatesLeafDir(t *testing.T) {
+	ctx, fs := newTestFiles(t)
+	t.Cleanup(func() { assert.NoError(t, fs.Close()) })
+
+	dir := tu.TempDir(t, "src")
+	src := mustCSVSrc(t, dir, "a,b,c\n1,2,3\n")
+	backingSrc := &source.Source{Handle: src.Handle + "_cached", Type: drivertype.SQLite}
+
+	// Deliberately do NOT create the cache leaf dir first.
+	leafDir, _, checksumsPath, err := fs.CachePaths(src)
+	require.NoError(t, err)
+	require.False(t, ioz.DirExists(leafDir), "precondition: leaf dir absent")
+
+	require.NoError(t, fs.WriteIngestChecksum(ctx, src, backingSrc),
+		"WriteIngestChecksum must create the cache leaf dir if absent")
+	require.True(t, ioz.FileAccessible(checksumsPath), "checksums file written")
+}
+
 // TestFiles_WriteIngestChecksum_File covers WriteIngestChecksum and
 // CachedBackingSourceFor for a local file source.
 func TestFiles_WriteIngestChecksum_File(t *testing.T) {
@@ -252,12 +274,6 @@ func TestFiles_WriteIngestChecksum_File(t *testing.T) {
 	_, ok, err := fs.CachedBackingSourceFor(ctx, src)
 	require.NoError(t, err)
 	require.False(t, ok)
-
-	// The real ingest flow creates the cache leaf dir (via the cache lock)
-	// before writing the checksum; replicate that here.
-	leafDir, _, _, err := fs.CachePaths(src)
-	require.NoError(t, err)
-	require.NoError(t, os.MkdirAll(leafDir, 0o700))
 
 	require.NoError(t, fs.WriteIngestChecksum(ctx, src, backingSrc))
 
