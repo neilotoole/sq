@@ -3,6 +3,7 @@ package httpz_test
 import (
 	"bufio"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -172,6 +173,60 @@ func TestOptResponseTimeout_nilResponseAndBody(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, resp)
 	})
+}
+
+func TestOptRequestTimeout_directStub(t *testing.T) {
+	req, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
+	require.NoError(t, err)
+
+	t.Run("zero_is_noop", func(t *testing.T) {
+		// timeout <= 0 returns NopTripFunc, which just passes through.
+		tf := httpz.OptRequestTimeout(0)
+		stub := &stubRoundTripper{resp: &http.Response{StatusCode: http.StatusOK}}
+		resp, err := tf(stub, req)
+		require.NoError(t, err)
+		require.True(t, stub.called)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("nil_body_hits_default_branch", func(t *testing.T) {
+		// A success result with a nil body exercises the final switch's default
+		// branch (cancelFn is still called).
+		tf := httpz.OptRequestTimeout(time.Second)
+		resp, err := tf(&stubRoundTripper{resp: &http.Response{Body: nil}}, req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+	})
+
+	t.Run("cancelled_parent_ctx", func(t *testing.T) {
+		// A pre-cancelled parent context makes the timer goroutine observe
+		// ctx.Done immediately, and drives the error / cause-swap path.
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		cReq, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com", nil)
+		require.NoError(t, err)
+
+		tf := httpz.OptRequestTimeout(time.Hour)
+		_, err = tf(&stubRoundTripper{err: context.Canceled}, cReq)
+		require.Error(t, err)
+	})
+}
+
+func TestOptResponseTimeout_logsOnCloseAfterTimeout(t *testing.T) {
+	// When the body is closed after the response timeout has already elapsed,
+	// the ReadCloserNotifier callback logs (the errors.Is(cause, timeoutErr)
+	// branch). Drive it with a direct stub and a short timeout.
+	req, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
+	require.NoError(t, err)
+
+	tf := httpz.OptResponseTimeout(40 * time.Millisecond)
+	stub := &stubRoundTripper{resp: &http.Response{Body: io.NopCloser(strings.NewReader("x"))}}
+	resp, err := tf(stub, req)
+	require.NoError(t, err)
+
+	// Let the timeout elapse so the context cause becomes the timeout error.
+	time.Sleep(120 * time.Millisecond)
+	require.NoError(t, resp.Body.Close())
 }
 
 func TestReadResponseHeader(t *testing.T) {

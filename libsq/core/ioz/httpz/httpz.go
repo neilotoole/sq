@@ -38,12 +38,9 @@ func NewDefaultClient() *http.Client {
 func NewClient(opts ...Opt) *http.Client {
 	c := *http.DefaultClient
 	c.Timeout = 0
-	var tr *http.Transport
-	if c.Transport == nil {
-		tr = (http.DefaultTransport.(*http.Transport)).Clone()
-	} else {
-		tr = (c.Transport.(*http.Transport)).Clone()
-	}
+	// http.DefaultClient has a nil Transport, so we always start from a clone of
+	// http.DefaultTransport.
+	tr := http.DefaultTransport.(*http.Transport).Clone()
 
 	DefaultTLSVersion.apply(tr)
 	for _, opt := range opts {

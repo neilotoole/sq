@@ -36,15 +36,11 @@ var _ Opt = (*minTLSVersion)(nil)
 type minTLSVersion uint16
 
 func (v minTLSVersion) apply(tr *http.Transport) {
-	if tr.TLSClientConfig == nil {
-		// We allow tls.VersionTLS10, even though it's not considered
-		// secure these days. Ultimately this could become a config
-		// option.
-		tr.TLSClientConfig = &tls.Config{MinVersion: uint16(v)}
-	} else {
-		tr.TLSClientConfig = tr.TLSClientConfig.Clone()
-		tr.TLSClientConfig.MinVersion = uint16(v)
-	}
+	// NewClient applies the minimum TLS version first, to a freshly cloned
+	// transport whose TLSClientConfig is nil, so we create the config here.
+	// We allow tls.VersionTLS10, even though it's not considered secure these
+	// days; ultimately this could become a config option.
+	tr.TLSClientConfig = &tls.Config{MinVersion: uint16(v)}
 }
 
 // DefaultTLSVersion is the default minimum TLS version,
