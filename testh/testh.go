@@ -510,7 +510,7 @@ func (h *Helper) CreateTable(dropAfter bool, src *source.Source, tblDef *schema.
 	h.T.Logf("Created table %s.%s", src.Handle, tblDef.Name)
 
 	if dropAfter {
-		h.Cleanup.Add(func() { h.DropTable(src, tablefq.From(tblDef.Name)) })
+		h.Cleanup.Add(func() { h.DropTable(src, tablefq.New(tblDef.Name)) })
 	}
 
 	if len(data) == 0 {
