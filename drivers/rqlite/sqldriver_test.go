@@ -171,6 +171,45 @@ func Test_sqStmt_CheckNamedValue(t *testing.T) {
 	}
 }
 
+// Test_sqRows_Next_IntegerWire verifies that integer cells, which
+// gorqlite delivers as raw JSON float64, are converted to int64 at the
+// wire layer. Without this, database/sql's scan into *sql.NullInt64
+// fails for any value whose float64 shortest-form is exponential (every
+// integer >= 1e6, and all values > 2^53), aborting the whole result set.
+func Test_sqRows_Next_IntegerWire(t *testing.T) {
+	rows := newTestRows(t,
+		[]string{"n"}, []string{"integer"},
+		[][]any{
+			{float64(42)},
+			{float64(1000000)},          // 1e6: float64 shortest-form is "1e+06"
+			{float64(1234567)},          // formats as "1.234567e+06"
+			{float64(9007199254740992)}, // 2^53, still exact in float64
+			{nil},
+		})
+
+	require.Equal(t, []driver.Value{int64(42)}, nextRow(t, rows, 1))
+	require.Equal(t, []driver.Value{int64(1000000)}, nextRow(t, rows, 1))
+	require.Equal(t, []driver.Value{int64(1234567)}, nextRow(t, rows, 1))
+	require.Equal(t, []driver.Value{int64(9007199254740992)}, nextRow(t, rows, 1))
+	require.Equal(t, []driver.Value{nil}, nextRow(t, rows, 1))
+	require.ErrorIs(t, rows.Next(make([]driver.Value, 1)), io.EOF)
+}
+
+// Test_wireConvsForTypes verifies the per-column conversion mapping,
+// including the integer types (declared and the "integer" rqlite reports
+// for COUNT/SUM/literals) that route to convInt.
+func Test_wireConvsForTypes(t *testing.T) {
+	got := wireConvsForTypes([]string{
+		"integer", "INT", "bigint", "int8", "numeric", "real",
+		"text", "boolean", "blob", "blob(16)", "datetime", "",
+	})
+	want := []wireConv{
+		convInt, convInt, convInt, convInt, convNone, convNone,
+		convNone, convBool, convBlob, convBlob, convNone, convNone,
+	}
+	require.Equal(t, want, got)
+}
+
 // Test_sqStmt_CheckNamedValue_ConvertError covers the branch where
 // driver.DefaultParameterConverter rejects an unconvertible argument.
 func Test_sqStmt_CheckNamedValue_ConvertError(t *testing.T) {
@@ -194,12 +233,13 @@ func Test_sqRows_ColumnTypeDatabaseTypeName(t *testing.T) {
 	require.Equal(t, "", sr.ColumnTypeDatabaseTypeName(99))
 }
 
-// Test_sqRows_Next_PassThrough verifies that columns outside the three
-// affected type classes are delivered unchanged, including columns with
-// parameterized type names and expression columns with no type at all.
+// Test_sqRows_Next_PassThrough verifies that columns outside the
+// converted type classes are delivered unchanged, including a real
+// (float) column, a parameterized text type, and an expression column
+// with no type at all.
 func Test_sqRows_Next_PassThrough(t *testing.T) {
 	rows := newTestRows(t,
-		[]string{"i", "txt", "expr"}, []string{"integer", "varchar(255)", ""},
+		[]string{"r", "txt", "expr"}, []string{"real", "varchar(255)", ""},
 		[][]any{
 			{float64(7), "hello", "x"},
 			{nil, nil, nil},

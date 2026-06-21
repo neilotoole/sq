@@ -150,6 +150,39 @@ func TestRenderFuncs_Integration(t *testing.T) {
 	}
 }
 
+// TestIntegerColumn_LargeValues is the regression guard for the
+// float64-decode scan failure: gorqlite returns JSON numbers as float64,
+// and database/sql's scan of a float64 into *sql.NullInt64 fails for any
+// value whose shortest float form is exponential (every integer >= 1e6).
+// Before the convInt wire conversion, a row holding 1000000 aborted the
+// whole query. The driver now delivers integer cells as int64.
+func TestIntegerColumn_LargeValues(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Rq)
+	th.ExecSQL(src, "DROP TABLE IF EXISTS test_big_int")
+	t.Cleanup(func() { th.ExecSQL(src, "DROP TABLE IF EXISTS test_big_int") })
+	th.ExecSQL(src, "CREATE TABLE test_big_int (id INTEGER, n INTEGER)")
+	th.ExecSQL(src, "INSERT INTO test_big_int (id, n) VALUES "+
+		"(1, 999999), (2, 1000000), (3, 1234567), (4, 9007199254740992)")
+
+	sink, err := th.QuerySQL(src, nil, "SELECT n FROM test_big_int ORDER BY id")
+	require.NoError(t, err)
+	require.Equal(t, int64(999999), sink.Recs[0][0])
+	require.Equal(t, int64(1000000), sink.Recs[1][0])
+	require.Equal(t, int64(1234567), sink.Recs[2][0])
+	require.Equal(t, int64(9007199254740992), sink.Recs[3][0])
+
+	// Aggregate/expression integer columns (rqlite reports type "integer")
+	// must convert too.
+	sink, err = th.QuerySQL(src, nil, "SELECT 5000000 AS lit, count(*) AS cnt FROM test_big_int")
+	require.NoError(t, err)
+	require.Equal(t, int64(5000000), sink.Recs[0][0])
+	require.Equal(t, int64(4), sink.Recs[0][1])
+}
+
 // TestGetTblRowCounts_MissingTableFallback deterministically exercises
 // the concurrent-DROP fallback in getTblRowCounts: when the batched
 // UNION ALL COUNT(*) fails with "no such table", it falls back to
