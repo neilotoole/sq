@@ -15,6 +15,11 @@ import (
 // errBufferClosed is returned by [Buffer.Write] after the buffer is closed.
 var errBufferClosed = errors.New("buffer is closed")
 
+// fileBufCap is the per-file capacity of the file-backed pool buffers. It is
+// also the capacity an unspilled [lazyFileBuffer] reports, so that Cap is
+// consistent before and after a spill.
+const fileBufCap = int64(math.MaxInt64)
+
 // Buffer extracts the methods of [bytes.Buffer] to allow for alternative
 // buffering strategies, such as file-backed buffers for large files. It also
 // adds a [Buffer.Close] method that the caller MUST invoke when done.
@@ -28,7 +33,7 @@ type Buffer interface {
 	io.Reader
 	io.Writer
 
-	// Len returns the number of bytes of the unread portion of the buffer;
+	// Len returns the number of bytes of the unread portion of the buffer.
 	Len() int64
 
 	// Cap returns the capacity of the buffer.
@@ -107,14 +112,10 @@ func NewBuffers(dir string, memBufSize int) (*Buffers, error) {
 		return nil, err
 	}
 
-	// fileCap is the per-file capacity of the file-backed pool buffers.
-	const fileCap = int64(math.MaxInt64)
-
 	bf := &Buffers{
 		dir:            dir,
 		spillThreshold: int64(memBufSize),
-		fileCap:        fileCap,
-		fileBufPool:    buffer.NewFilePool(fileCap, dir),
+		fileBufPool:    buffer.NewFilePool(fileBufCap, dir),
 	}
 
 	return bf, nil
@@ -126,7 +127,6 @@ type Buffers struct {
 	fileBufPool    buffer.Pool
 	dir            string
 	spillThreshold int64
-	fileCap        int64
 }
 
 // Close removes the directory used for file-backed buffers.
@@ -139,7 +139,7 @@ func (bs *Buffers) Close() error {
 // exceeds the in-memory threshold. The caller MUST invoke [Buffer.Close] when
 // done, or resources may be leaked.
 func (bs *Buffers) NewMem2Disk() Buffer {
-	lz := &lazyFileBuffer{pool: bs.fileBufPool, cap: bs.fileCap}
+	lz := &lazyFileBuffer{pool: bs.fileBufPool}
 	chain := buffer.NewMulti(buffer.New(bs.spillThreshold), lz)
 	return &mem2DiskBuffer{fileBuf: lz, chain: chain}
 }
@@ -214,7 +214,6 @@ type lazyFileBuffer struct {
 	pool    buffer.Pool
 	buf     buffer.Buffer
 	initErr error
-	cap     int64
 }
 
 // ensure acquires the file buffer from the pool on first call. After a failed
@@ -238,10 +237,10 @@ func (lz *lazyFileBuffer) Len() int64 {
 
 func (lz *lazyFileBuffer) Cap() int64 {
 	if lz.buf == nil {
-		// Not yet spilled: report the capacity it would have once acquired (the
-		// pool's configured per-file capacity), without forcing the file to be
-		// created. This matches lz.buf.Cap() after a spill.
-		return lz.cap
+		// Not yet spilled: report the capacity it would have once acquired
+		// (fileBufCap, the pool's configured per-file capacity), without forcing
+		// the file to be created. This matches lz.buf.Cap() after a spill.
+		return fileBufCap
 	}
 	return lz.buf.Cap()
 }
