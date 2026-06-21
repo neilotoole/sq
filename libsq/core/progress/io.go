@@ -230,7 +230,14 @@ func (w *progCopier) ReadFrom(r io.Reader) (n int64, err error) {
 			b:   w.b,
 		}
 
-		return io.Copy(w.w, rdr)
+		n, err = io.Copy(w.w, rdr)
+		if err != nil {
+			// Stop the bar on error. The progReader stops it on a read-side
+			// error, but a write-side error from w.w would otherwise leave the
+			// bar running, unlike the non-ReaderFrom branch below.
+			w.b.Stop()
+		}
+		return n, err
 	}
 	select {
 	case <-w.ctx.Done():
