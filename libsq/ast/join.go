@@ -103,7 +103,7 @@ func (v *parseTreeVisitor) VisitJoinTable(ctx *slq.JoinTableContext) any {
 			name0: tblName,
 		},
 		handle: handle,
-		tbl:    tablefq.New(tblName),
+		tbl:    tablefq.From(tblName),
 	}
 
 	var aliasCtx *slq.AliasContext

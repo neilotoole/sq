@@ -1,8 +1,8 @@
 // Package tablefq holds the [T] type, a fully-qualified SQL table name of
 // the form CATALOG.SCHEMA.NAME. It lives in its own package so the type can
 // carry a terse name ([tablefq.T]) at the many call sites that reference it:
-// the driver interface ([driver.Driver.CopyTable] and friends), the AST, and
-// the query pipeline all traffic in [T].
+// the driver interface (CopyTable, DropTable, and friends), the AST, and the
+// query pipeline all use [T].
 package tablefq
 
 import (
@@ -66,8 +66,9 @@ func New(tbl string) T {
 }
 
 // From converts t, which is either a string (just the table name) or an
-// existing [T], into a [T]. It exists to unify the [Any] constraint for
-// generic callers such as [Format]; for a plain string, prefer [New].
+// existing [T], into a [T]. It is the common way to obtain a [T] and also
+// unifies the [Any] constraint for generic callers such as [Format]. For an
+// explicit table-only constructor, see [New].
 func From[X Any](t X) T {
 	if tfq, ok := any(t).(T); ok {
 		return tfq

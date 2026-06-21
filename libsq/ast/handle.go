@@ -50,7 +50,7 @@ func (v *parseTreeVisitor) VisitHandleTable(ctx *slq.HandleTableContext) any {
 	if err != nil {
 		return err
 	}
-	node.tbl = tablefq.New(selTbl)
+	node.tbl = tablefq.From(selTbl)
 
 	if err = v.cur.AddChild(node); err != nil {
 		return err

@@ -131,7 +131,7 @@ type TblSelectorNode struct {
 func newTblSelector(selNode *SelectorNode) (*TblSelectorNode, error) { //nolint:unparam
 	n := &TblSelectorNode{
 		SelectorNode: *selNode,
-		tbl:          tablefq.New(selNode.name0),
+		tbl:          tablefq.From(selNode.name0),
 	}
 
 	return n, nil
@@ -151,7 +151,7 @@ func (n *TblSelectorNode) Table() tablefq.T {
 // if the alias is non-empty, and then sets the alias to empty.
 func (n *TblSelectorNode) SyncTblNameAlias() {
 	if n.alias != "" {
-		n.tbl = tablefq.New(n.alias)
+		n.tbl = tablefq.From(n.alias)
 		n.alias = ""
 	}
 }
