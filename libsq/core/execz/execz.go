@@ -42,8 +42,8 @@ type Cmd struct {
 	// ErrPrefix is the prefix to use for error messages.
 	ErrPrefix string
 
-	// UsesOutputFile indicates that the command its output to this filepath
-	// instead of stdout. If empty, stdout is being used.
+	// UsesOutputFile indicates that the command writes its output to this
+	// filepath instead of stdout. If empty, stdout is being used.
 	UsesOutputFile string
 
 	// Args is the set of args to the command.
@@ -97,14 +97,10 @@ func (c *Cmd) String() string {
 }
 
 // redactedCmd returns a redacted rendering of c, suitable for logging (but
-// not execution). If escape is true, the string is also shell-escaped.
-func (c *Cmd) redactedCmd(escape bool) string {
-	if c == nil {
-		return ""
-	}
-
-	env := c.redactedEnv(escape)
-	args := c.redactedArgs(escape)
+// not execution). The sole caller, [Cmd.LogValue], guarantees a non-nil c.
+func (c *Cmd) redactedCmd() string {
+	env := c.redactedEnv()
+	args := c.redactedArgs()
 
 	switch {
 	case len(env) == 0 && len(args) == 0:
@@ -119,8 +115,7 @@ func (c *Cmd) redactedCmd(escape bool) string {
 }
 
 // redactedEnv returns c's env with sensitive values redacted.
-// If escape is true, the values are also shell-escaped.
-func (c *Cmd) redactedEnv(escape bool) []string {
+func (c *Cmd) redactedEnv() []string {
 	if c == nil || len(c.Env) == 0 {
 		return []string{}
 	}
@@ -130,11 +125,7 @@ func (c *Cmd) redactedEnv(escape bool) []string {
 		parts := strings.SplitN(c.Env[i], "=", 2)
 		if len(parts) < 2 {
 			// Shouldn't happen, but just in case.
-			if escape {
-				envars[i] = stringz.ShellEscape(c.Env[i])
-			} else {
-				envars[i] = c.Env[i]
-			}
+			envars[i] = c.Env[i]
 			continue
 		}
 
@@ -146,19 +137,13 @@ func (c *Cmd) redactedEnv(escape bool) []string {
 		// the query string (e.g. "?sslpassword=..."). Unlike args, env
 		// values don't need to stay informative in logs.
 		parts[1] = stringz.Redacted
-
-		if escape {
-			envars[i] = parts[0] + "=" + stringz.ShellEscape(parts[1])
-		} else {
-			envars[i] = parts[0] + "=" + parts[1]
-		}
+		envars[i] = parts[0] + "=" + parts[1]
 	}
 	return envars
 }
 
 // redactedArgs returns c's args with sensitive values redacted.
-// If escape is true, the values are also shell-escaped.
-func (c *Cmd) redactedArgs(escape bool) []string {
+func (c *Cmd) redactedArgs() []string {
 	if c == nil || len(c.Args) == 0 {
 		return []string{}
 	}
@@ -167,17 +152,10 @@ func (c *Cmd) redactedArgs(escape bool) []string {
 	for i := range c.Args {
 		if location.TypeOf(c.Args[i]).IsURL() {
 			args[i] = location.Redact(c.Args[i])
-			if escape {
-				args[i] = stringz.ShellEscape(args[i])
-			}
 			continue
 		}
 
-		if escape {
-			args[i] = stringz.ShellEscape(c.Args[i])
-		} else {
-			args[i] = c.Args[i]
-		}
+		args[i] = c.Args[i]
 	}
 	return args
 }
@@ -193,15 +171,17 @@ func (c *Cmd) LogValue() slog.Value {
 
 	attrs := []slog.Attr{
 		slog.String("name", c.Name),
-		slog.String("exec", c.redactedCmd(false)),
+		slog.String("exec", c.redactedCmd()),
 	}
 
 	return slog.GroupValue(attrs...)
 }
 
-// Exec executes cmd.
+// Exec executes cmd. It returns an error if cmd is nil.
 func Exec(ctx context.Context, cmd *Cmd) (err error) {
-	log := lg.FromContext(ctx)
+	if cmd == nil {
+		return errz.New("execz: nil cmd")
+	}
 
 	defer func() {
 		if err != nil && cmd.UsesOutputFile != "" {
@@ -233,10 +213,8 @@ func Exec(ctx context.Context, cmd *Cmd) (err error) {
 
 	switch {
 	case cmd.ProgressFromStderr:
-		log.Warn("It's cmd.ProgressFromStderr")
 		// TODO: We really want to print stderr.
 	case cmd.UsesOutputFile != "":
-		log.Warn("It's cmd.UsesOutputFile")
 		// Truncate the file, ignoring any error (e.g. if it doesn't exist).
 		_ = os.Truncate(cmd.UsesOutputFile, 0)
 
@@ -251,14 +229,10 @@ func Exec(ctx context.Context, cmd *Cmd) (err error) {
 		}
 
 	default:
-		log.Warn("It's default")
-
 		// We're reduced to reading the size of stdout, but not if we're on a
 		// terminal. If we are on a terminal, then the user will get to see the
 		// command output in real-time and we don't need a progress bar.
 		if !termz.IsTerminal(os.Stdout) {
-			log.Warn("It's not a terminal")
-
 			if _, ok := cmd.Stdout.(*os.File); ok && !cmd.NoProgress {
 				bar := progress.FromContext(ctx).NewFilesizeCounter(
 					langz.NonEmptyOf(cmd.Label, cmd.Name),
