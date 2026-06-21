@@ -162,8 +162,8 @@ func TestCleanup_Append(t *testing.T) {
 	require.Equal(t, 4, cu.Len())
 
 	require.NoError(t, cu.Run())
-	// cu's own funcs (added 0,1) run reversed first, then c's appended
-	// funcs (added 2,3) run reversed: 3,2,1,0.
+	// After Append, cu.fns is [0,1,2,3] and Run executes in reverse, so
+	// c's appended funcs (2,3) run first, then cu's own funcs (0,1): 3,2,1,0.
 	require.Equal(t, []int{3, 2, 1, 0}, got)
 }
 
@@ -182,22 +182,25 @@ func TestCleanup_Append_Nil(t *testing.T) {
 }
 
 // TestCleanup_Append_Concurrent verifies that reciprocal concurrent
-// Append calls don't deadlock (regression test for lock ordering).
+// Append calls don't deadlock (regression test for lock ordering). Each
+// iteration uses a fresh pair so the slices don't compound across the
+// loop; the point is to race a.Append(b) against b.Append(a), not to
+// grow either Cleanup.
 func TestCleanup_Append_Concurrent(t *testing.T) {
-	a := cleanup.New()
-	a.AddE(func() error { return nil })
-	b := cleanup.New()
-	b.AddE(func() error { return nil })
-
-	var wg sync.WaitGroup
 	for range 100 {
+		a := cleanup.New()
+		a.AddE(func() error { return nil })
+		b := cleanup.New()
+		b.AddE(func() error { return nil })
+
+		var wg sync.WaitGroup
 		wg.Go(func() { a.Append(b) })
 		wg.Go(func() { b.Append(a) })
-	}
-	wg.Wait()
+		wg.Wait()
 
-	require.NoError(t, a.Run())
-	require.NoError(t, b.Run())
+		require.NoError(t, a.Run())
+		require.NoError(t, b.Run())
+	}
 }
 
 // TestCleanup_Concurrent exercises concurrent Add/AddE/Len calls under
