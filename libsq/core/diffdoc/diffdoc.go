@@ -147,6 +147,11 @@ func (d *UnifiedDoc) Seal(err error) {
 // or returns the non-nil error provided to [UnifiedDoc.Seal]. If the doc does
 // not contain any diff hunks, Read returns [io.EOF].
 func (d *UnifiedDoc) Read(p []byte) (n int, err error) {
+	// A zero-length read returns immediately and does not block on seal.
+	if len(p) == 0 {
+		return 0, nil
+	}
+
 	d.rdrOnce.Do(func() {
 		<-d.sealed
 
@@ -336,6 +341,14 @@ func (d *HunkDoc) String() string {
 // or returns the non-nil error provided to [HunkDoc.Seal]. If the doc does not
 // contain any diff hunks, Read returns [io.EOF].
 func (d *HunkDoc) Read(p []byte) (n int, err error) {
+	// A zero-length read must return immediately without running the rdrOnce
+	// peek below. The peek reads up to len(p) bytes from the hunks; with an
+	// empty buffer it would observe a zero-byte read and wrongly poison the doc
+	// with an "unexpected zero read" error.
+	if len(p) == 0 {
+		return 0, nil
+	}
+
 	d.rdrOnce.Do(func() {
 		<-d.sealed
 
@@ -525,6 +538,11 @@ func (h *Hunk) Seal(header []byte, err error) {
 // non-nil error provided to [Hunk.Seal]. It is a programming error to invoke
 // Read after [Hunk.Close] has been invoked.
 func (h *Hunk) Read(p []byte) (n int, err error) {
+	// A zero-length read returns immediately and does not block on seal.
+	if len(p) == 0 {
+		return 0, nil
+	}
+
 	h.rdrOnce.Do(func() {
 		<-h.sealed
 

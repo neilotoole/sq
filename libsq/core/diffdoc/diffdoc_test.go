@@ -19,6 +19,7 @@ func readAllByChunks(t *testing.T, r io.Reader, chunk int) []byte {
 	t.Helper()
 	var got []byte
 	buf := make([]byte, chunk)
+	zeroReads := 0
 	for {
 		n, err := r.Read(buf)
 		got = append(got, buf[:n]...)
@@ -26,6 +27,14 @@ func readAllByChunks(t *testing.T, r io.Reader, chunk int) []byte {
 			return got
 		}
 		require.NoError(t, err)
+		// Fail fast rather than spin forever if a (buggy) reader keeps
+		// returning (0, nil) for a non-empty buffer.
+		if n == 0 {
+			zeroReads++
+			require.Less(t, zeroReads, 100, "reader returned (0, nil) repeatedly")
+		} else {
+			zeroReads = 0
+		}
 	}
 }
 
@@ -69,6 +78,29 @@ func TestHunkDoc_ReadRoundTrip(t *testing.T) {
 	got = readAllByChunks(t, newDoc(), 3)
 	require.Equal(t, want, string(got))
 	require.NotContains(t, string(got), "\x00")
+}
+
+// TestHunkDoc_ZeroLengthRead guards against a regression where a zero-length
+// first read ran the internal peek, observed a zero-byte read, and permanently
+// poisoned the doc with an "unexpected zero read" error.
+func TestHunkDoc_ZeroLengthRead(t *testing.T) {
+	doc := diffdoc.NewHunkDoc(diffdoc.Title("T\n"), []byte("H\n"))
+	h, err := doc.NewHunk(1)
+	require.NoError(t, err)
+	_, err = h.Write([]byte("body\n"))
+	require.NoError(t, err)
+	h.Seal([]byte("@@ -1 +1 @@\n"), nil)
+	doc.Seal(nil)
+
+	// A zero-length read must be a no-op, not poison the doc.
+	n, err := doc.Read([]byte{})
+	require.NoError(t, err)
+	require.Zero(t, n)
+
+	// A subsequent real read must still return the full content.
+	got, err := io.ReadAll(doc)
+	require.NoError(t, err)
+	require.Equal(t, "T\nH\n@@ -1 +1 @@\nbody\n", string(got))
 }
 
 func TestHunkDoc_Empty(t *testing.T) {
