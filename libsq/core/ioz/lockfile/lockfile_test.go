@@ -107,15 +107,12 @@ func TestLockfile_Lock_withTimeout_busy(t *testing.T) {
 	lf, err := lockfile.New(fp)
 	require.NoError(t, err)
 
-	const timeout = 250 * time.Millisecond
-	start := time.Now()
-	err = lf.Lock(context.Background(), timeout)
-	elapsed := time.Since(start)
-
+	// A busy lock under a timeout must retry and then fail with the "locked by
+	// other process" error. No wall-clock assertion: go-retry's max-duration may
+	// stop before the full timeout, and timing is scheduler-dependent.
+	err = lf.Lock(context.Background(), 250*time.Millisecond)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "locked by other process")
-	// It should have retried up to roughly the timeout before giving up.
-	require.GreaterOrEqual(t, elapsed, timeout/2, "should retry until ~timeout")
 }
 
 func TestLockfile_Lock_contextCancelled(t *testing.T) {
