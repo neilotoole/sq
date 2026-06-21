@@ -54,19 +54,21 @@ func (c *colorizer) Read(p []byte) (n int, err error) {
 		}
 
 		b0 = line[0]
-		if length == 0 {
+		if length == 1 {
+			// Single-character line: just the diff marker, with no content.
+			// This mirrors the general switch below, using the single-byte
+			// PutlnByte optimization.
 			switch b0 {
 			case '-':
-				c.clrs.deletion.WritelnByte(c.buf, '-')
+				c.clrs.deletion.PutlnByte(c.buf, '-')
 			case '+':
-				c.clrs.deletion.WritelnByte(c.buf, '+')
+				c.clrs.insertion.PutlnByte(c.buf, '+')
 			case ' ':
-				_ = c.buf.WriteByte(' ')
-				_ = c.buf.WriteByte(newline)
+				c.clrs.context.PutlnByte(c.buf, ' ')
 			default:
 				// This would be slightly weird, but it must be a single-char
 				// command title.
-				c.clrs.command.WritelnByte(c.buf, b0)
+				c.clrs.command.PutlnByte(c.buf, b0)
 			}
 			continue
 		}
