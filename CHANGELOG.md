@@ -28,6 +28,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [`sq tbl truncate`](https://sq.io/docs/cmd/tbl-truncate) on a Postgres source no longer
+  leaks a database connection pool on each invocation.
+- Postgres: table and column names containing a double-quote are now escaped correctly in
+  generated DDL (create table, add/rename column, rename table) and update statements,
+  instead of producing malformed SQL.
 - Querying a remote (HTTP) source while offline no longer panics. When a cached
   download had gone stale and the refresh request failed at the transport layer
   (e.g. no network), `sq` crashed instead of falling back to the cached file.
@@ -150,6 +155,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#844]: On [Oracle](https://sq.io/docs/drivers/oracle), a query whose result is a computed
   `NUMBER` with a fractional value no longer fails with a scan error; such numbers are now
   typed as `decimal`.
+- [`sq inspect`](https://sq.io/docs/inspect) on an Oracle source now handles
+  materialized views correctly. A materialized view was previously omitted from
+  the inspection (its metadata query referenced a `NUM_ROWS` column that Oracle
+  exposes only on the backing table, not in `USER_MVIEWS`), and that backing
+  container table was reported as a duplicate base table. Materialized views now
+  appear exactly once, typed as a materialized view.
 - [#594]: On [SQL Server](https://sq.io/docs/drivers/sqlserver), `avg()` over an integer
   column no longer performs integer division and truncates the result.
 - [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now supports
