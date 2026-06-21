@@ -37,9 +37,6 @@ type minTLSVersion uint16
 
 func (v minTLSVersion) apply(tr *http.Transport) {
 	if tr.TLSClientConfig == nil {
-		// We allow tls.VersionTLS10, even though it's not considered
-		// secure these days. Ultimately this could become a config
-		// option.
 		tr.TLSClientConfig = &tls.Config{MinVersion: uint16(v)}
 	} else {
 		// Preserve any settings already on the config (RootCAs, ServerName,
@@ -49,9 +46,10 @@ func (v minTLSVersion) apply(tr *http.Transport) {
 	}
 }
 
-// DefaultTLSVersion is the default minimum TLS version,
-// as used by NewDefaultClient.
-var DefaultTLSVersion = minTLSVersion(tls.VersionTLS10)
+// DefaultTLSVersion is the default minimum TLS version, as used by
+// NewDefaultClient. It matches the Go standard library client default
+// (TLS 1.2); TLS 1.0 and 1.1 are deprecated by RFC 8996.
+var DefaultTLSVersion = minTLSVersion(tls.VersionTLS12)
 
 // OptUserAgent is passed to NewClient to set the User-Agent header.
 func OptUserAgent(ua string) TripFunc {
