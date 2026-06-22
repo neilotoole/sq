@@ -10,6 +10,7 @@ menu:
 toc: true
 url: /docs/cmd/sq
 ---
+
 Use the root `sq` cmd to execute queries against data sources.
 
 ## Pipe Data
@@ -43,7 +44,7 @@ actor_id  first_name  last_name  last_update
 `sq` can output results in many formats.
 
 | Flag      | Shorthand | Format                                       |
-|-----------|-----------|----------------------------------------------|
+| --------- | --------- | -------------------------------------------- |
 | `--table` | `-t`      | Text table                                   |
 | `--json`  | `-j`      | JSON                                         |
 | `--jsona` | `-A`      | LF-delimited JSON arrays                     |
@@ -95,7 +96,7 @@ dialect: sqlite3
 sources:
   target: "@sakila"
   inputs:
-  - "@sakila"
+    - "@sakila"
 ```
 
 For cross-source queries, the rendered SQL targets the synthetic join
@@ -112,8 +113,8 @@ dialect: sqlite3
 sources:
   target: "@join_xukcx3ye"
   inputs:
-  - "@sakila/pg"
-  - "@sakila/my"
+    - "@sakila/pg"
+    - "@sakila/my"
 ```
 
 `sources.target` is the synthesized SQLite join DB into which both

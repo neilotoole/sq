@@ -1,13 +1,14 @@
 ---
 title: Inspect
 description: Inspect source or table metadata
-lead: ''
+lead: ""
 draft: false
 images:
 weight: 1037
 toc: true
 url: /docs/inspect
 ---
+
 [`sq inspect`](/docs/cmd/inspect) inspects metadata (schema/structure, tables, columns) for a source,
 or for an individual table. When used with `--json`, the output of `sq inspect` can
 be fed into other tools such as [jq](https://jqlang.github.io/jq/) to enable complex data pipelines.
@@ -116,7 +117,7 @@ $ sq inspect @sakila_pg --markdown -o sakila.md
 $ sq inspect @sakila_pg.actor --markdown -o actor.md
 ```
 
-![sq_inspect_markdown ](sq_inspect_md.png)
+![sq_inspect_markdown](sq_inspect_md.png)
 
 <a id="--html"></a>
 
@@ -314,7 +315,7 @@ To list the schemas in a specific catalog, supply `CATALOG.` to the
 ```shell
 # List the schemas in the "inventory" catalog.
 $ sq inspect @sakila/pg12 --schemata --src.schema inventory.
-````
+```
 
 ## Inspect table
 
@@ -359,7 +360,7 @@ the referenced table's `fk.incoming`:
 Composite foreign keys are supported by every driver. Cross-schema
 and cross-catalog references are reported by Postgres, MySQL, and
 SQL Server. Oracle reports cross-schema references via `ref_schema`
-for *outgoing* FKs only — `fk.incoming` is scoped to the current
+for _outgoing_ FKs only — `fk.incoming` is scoped to the current
 user's schema, so FKs from tables in other schemas are not surfaced.
 DuckDB's `duckdb_constraints()` view does not expose the referenced
 table's schema, so a DuckDB FK that crosses schemas is reported as

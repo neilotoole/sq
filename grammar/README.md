@@ -22,7 +22,7 @@ The grammar is **not yet stable**: it may change in any new `sq` release.
 
 ## SLQ at a glance
 
-SLQ is a pipeline language. A query is a chain of *segments* separated by `|`,
+SLQ is a pipeline language. A query is a chain of _segments_ separated by `|`,
 each transforming the previous one — the same mental model as Unix pipelines
 or `jq`. The renderer maps each segment to (part of) a SQL clause.
 
@@ -39,7 +39,7 @@ or `jq`. The renderer maps each segment to (part of) a SQL clause.
 Three things to internalize before reading the grammar:
 
 1. **Segments are pipes.** `|` separates segments; `,` separates elements
-   *inside* a segment.
+   _inside_ a segment.
 2. **Selectors are dotted.** `.actor`, `.first_name`, `.actor.first_name` —
    the leading dot is part of the token.
 3. **Handles are sources.** `@sakila` (or `@work/acme/sakila`) names a
@@ -66,16 +66,16 @@ flowchart LR
     Q --> L --> P --> V --> N --> A --> R --> S
 ```
 
-| Stage | Input | Output | Where it lives |
-| --- | --- | --- | --- |
-| Lex | text | token stream | `slq.SLQLexer` (generated) |
-| Parse | tokens | parse tree | `slq.SLQParser` (generated) |
-| Build | parse tree | initial AST | `parseTreeVisitor` (`libsq/ast`) |
-| Narrow | initial AST | typed AST | `narrow*` passes (see `process.go`) |
-| Verify | typed AST | typed AST | `verify` |
-| Render | typed AST | SQL string | `libsq/ast/render` (per-dialect) |
+| Stage  | Input       | Output       | Where it lives                      |
+| ------ | ----------- | ------------ | ----------------------------------- |
+| Lex    | text        | token stream | `slq.SLQLexer` (generated)          |
+| Parse  | tokens      | parse tree   | `slq.SLQParser` (generated)         |
+| Build  | parse tree  | initial AST  | `parseTreeVisitor` (`libsq/ast`)    |
+| Narrow | initial AST | typed AST    | `narrow*` passes (see `process.go`) |
+| Verify | typed AST   | typed AST    | `verify`                            |
+| Render | typed AST   | SQL string   | `libsq/ast/render` (per-dialect)    |
 
-The grammar is the *contract* between lex/parse and everything downstream.
+The grammar is the _contract_ between lex/parse and everything downstream.
 Changing it is a downstream-ripple operation: the parser must be regenerated
 **and** the AST builder usually needs adjusting to match.
 
@@ -209,7 +209,7 @@ column with an optional alias.
 
 A `selector` in the grammar is just `.name` or `.name1.name2`. Whether it
 refers to a table, a column, or a `table.column` pair is decided after
-parsing by the *narrowing* passes:
+parsing by the _narrowing_ passes:
 
 ```mermaid
 flowchart TD
@@ -229,13 +229,13 @@ that some "obvious" errors are caught at AST-build time, not parse time.
 
 `jq`-style slice forms map to SQL `LIMIT`/`OFFSET` as follows:
 
-| SLQ | Meaning | SQL |
-| --- | --- | --- |
-| `.[]` | all rows | *(no LIMIT/OFFSET)* |
-| `.[10]` | row index 10 | `LIMIT 1 OFFSET 10` |
-| `.[10:15]` | rows 10–15 | `LIMIT 5 OFFSET 10` |
-| `.[0:15]` / `.[:15]` | first 15 rows | `LIMIT 15 OFFSET 0` |
-| `.[10:]` | from row 10 onwards | `OFFSET 10` |
+| SLQ                  | Meaning             | SQL                 |
+| -------------------- | ------------------- | ------------------- |
+| `.[]`                | all rows            | _(no LIMIT/OFFSET)_ |
+| `.[10]`              | row index 10        | `LIMIT 1 OFFSET 10` |
+| `.[10:15]`           | rows 10–15          | `LIMIT 5 OFFSET 10` |
+| `.[0:15]` / `.[:15]` | first 15 rows       | `LIMIT 15 OFFSET 0` |
+| `.[10:]`             | from row 10 onwards | `OFFSET 10`         |
 
 The grammar admits all five forms in a single rule; the conversion to
 `{offset, limit}` happens in [`VisitRowRange`](../libsq/ast/range.go).
@@ -296,7 +296,7 @@ If you reorder these lexer rules, expect numeric-literal regressions.
 
 ### The `ALIAS_RESERVED` hack
 
-`alias` allows `:` + identifier/string. But what if the alias *text* is a
+`alias` allows `:` + identifier/string. But what if the alias _text_ is a
 SLQ keyword? For example:
 
 ```text
@@ -325,17 +325,17 @@ a redesigned `alias` rule.
 order — earlier alternatives bind tighter. The full ladder, tight → loose:
 
 ```text
-        (expr)                     -- parens (tightest)
-        selector / literal / arg
-        unary  -x  +x  ~x  !x
-        ||                          -- SQL string concat (NOT logical-or)
-        *  /  %
-        +  -
-        <<  >>  &                   -- bitwise
-        <  <=  >  >=
-        ==  !=
-        &&                          -- logical-and (loosest)
-        func(...)                   -- function call
+(expr)                     -- parens (tightest)
+selector / literal / arg
+unary  -x  +x  ~x  !x
+||                          -- SQL string concat (NOT logical-or)
+*  /  %
++  -
+<<  >>  &                   -- bitwise
+<  <=  >  >=
+==  !=
+&&                          -- logical-and (loosest)
+func(...)                   -- function call
 ```
 
 **Watch out:** in SLQ, `||` means SQL string concatenation (as in SQLite

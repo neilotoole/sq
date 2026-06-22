@@ -7,6 +7,7 @@ weight: 4010
 toc: false
 url: /docs/drivers/mysql
 ---
+
 The `sq` MySQL driver implements connectivity for
 the [MySQL](https://www.mysql.com) and [MariaDB](https://mariadb.org) databases.
 The driver implements all optional driver features.
@@ -27,18 +28,18 @@ sq add 'mysql://sakila:p_ssW0rd@localhost/sakila'
 
 ### Source-level fields
 
-| Field | Source |
-| --- | --- |
-| `name`, `schema` | `DATABASE()` (MySQL conflates database and schema) |
-| `catalog` | `INFORMATION_SCHEMA.SCHEMATA.CATALOG_NAME` (always `def` per the SQL standard for MySQL) |
-| `user` | `CURRENT_USER()` |
-| `db_product` | composed: `"@@GLOBAL.version_comment @@GLOBAL.version / @@GLOBAL.version_compile_os (@@GLOBAL.version_compile_machine)"` |
-| `db_version` | `@@GLOBAL.version` |
-| `size` | `SELECT SUM(data_length + index_length) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()` |
+| Field            | Source                                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `name`, `schema` | `DATABASE()` (MySQL conflates database and schema)                                                                       |
+| `catalog`        | `INFORMATION_SCHEMA.SCHEMATA.CATALOG_NAME` (always `def` per the SQL standard for MySQL)                                 |
+| `user`           | `CURRENT_USER()`                                                                                                         |
+| `db_product`     | composed: `"@@GLOBAL.version_comment @@GLOBAL.version / @@GLOBAL.version_compile_os (@@GLOBAL.version_compile_machine)"` |
+| `db_version`     | `@@GLOBAL.version`                                                                                                       |
+| `size`           | `SELECT SUM(data_length + index_length) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()`                  |
 
 ### Per-table fields
 
-| Field | Source |
-| --- | --- |
-| `row_count` | live ``SELECT COUNT(*) FROM `tbl` `` |
-| `size` | `(DATA_LENGTH + INDEX_LENGTH)` from `information_schema.TABLES` |
+| Field       | Source                                                          |
+| ----------- | --------------------------------------------------------------- |
+| `row_count` | live `` SELECT COUNT(*) FROM `tbl` ``                           |
+| `size`      | `(DATA_LENGTH + INDEX_LENGTH)` from `information_schema.TABLES` |

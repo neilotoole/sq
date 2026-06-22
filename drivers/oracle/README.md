@@ -139,23 +139,23 @@ kind-roundtrip fidelity, is skipped for Oracle for this reason.
 
 ## Implementation files
 
-| File | Purpose |
-| ---- | ------- |
-| `oracle.go` | `SQLDriver`, connection, DDL/DML |
-| `metadata.go` | Data dictionary queries |
-| `render.go` | Type mapping and rendering |
-| `grip.go` | Grip |
-| `errors.go` | Delegates to `orshared` |
-| `orshared/wrap.go` | Shared Oracle error-code wrapping |
-| `internal_test.go` | Short/unit tests |
-| `testutils/docker-compose.yml` | Local Oracle + Postgres |
+| File                           | Purpose                           |
+| ------------------------------ | --------------------------------- |
+| `oracle.go`                    | `SQLDriver`, connection, DDL/DML  |
+| `metadata.go`                  | Data dictionary queries           |
+| `render.go`                    | Type mapping and rendering        |
+| `grip.go`                      | Grip                              |
+| `errors.go`                    | Delegates to `orshared`           |
+| `orshared/wrap.go`             | Shared Oracle error-code wrapping |
+| `internal_test.go`             | Short/unit tests                  |
+| `testutils/docker-compose.yml` | Local Oracle + Postgres           |
 
 ## Common Oracle error codes
 
-| Code | Description | SQ handling |
-| ---- | ------------- | ----------- |
+| Code      | Description          | SQ handling     |
+| --------- | -------------------- | --------------- |
 | ORA-00942 | Table/view not found | `NotExistError` |
-| ORA-00904 | Invalid identifier | `NotExistError` |
+| ORA-00904 | Invalid identifier   | `NotExistError` |
 
 Other errors pass through with standard wrapping.
 

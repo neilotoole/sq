@@ -2,6 +2,7 @@
      pasted command/test output in code blocks (MD010), and many issue-reference
      link definitions (MD053) are intentional and intrinsic to the format. -->
 <!-- markdownlint-configure-file { "MD013": false, "MD010": false, "MD053": false } -->
+
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
@@ -17,6 +18,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > those gaps.
 
 ## Unreleased
+
+### Changed
+
+- Repo-wide code formatting is now handled by [dprint](https://dprint.dev) under a single
+  root `dprint.json` (markdown, JSON, YAML, TOML, SCSS/CSS, Go via the gofumpt plugin, and
+  site JS), and site JS is linted by [Biome](https://biomejs.dev). This retires
+  markdownlint-cli2, eslint, and stylelint, drops the standalone gofumpt pass, and removes
+  the `formatters` block from `.golangci.yml`. Run `make fmt` to format and `make fmt-check`
+  to verify; `goimports-reviser` still orders Go imports, now grouping the whole module but
+  aliasing only changed files (the `-set-alias` whole-module pass cost ~145s; it is now ~1s).
+  Formatting, including Go import order, is enforced in CI. This is a contributor-facing
+  change with no effect on the `sq` binary.
 
 ### Fixed
 
@@ -163,7 +176,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   to `false` if you prefer the previous (less-verbose) `text` error format.
   ![sq text error reporting: verbose vs. summary](site/static/images/repo/sq_error_reporting_options.png)
 - [#617], [#618]: `sq inspect` now omits an index whose key positions are
-  *all* expressions (previously MySQL and SQLite reported such an index
+  _all_ expressions (previously MySQL and SQLite reported such an index
   with an empty `columns` list).
 
 ### Fixed
@@ -227,7 +240,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [inspect docs](https://sq.io/docs/cmd/inspect).
 - [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a [`--render-sql`](https://sq.io/docs/cmd/sq/#render-sql)
   flag, which prints the SQL (derived from `SLQ` input) that would be
-  executed against the target database, *instead* of running it. Honors `--format` with:
+  executed against the target database, _instead_ of running it. Honors `--format` with:
   - `text` or `raw`: the rendered SQL is printed.
   - `json` or `yaml`: a structured payload is printed containing the
     original SLQ, the rendered SQL, any [`--arg`](https://sq.io/docs/cmd/sq/#predefined-variables),
@@ -241,8 +254,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     sources:
       target: "@join_xukcx3ye"
       inputs:
-      - "@sakila/pg"
-      - "@sakila/my"
+        - "@sakila/pg"
+        - "@sakila/my"
     ```
 
 ### Changed
@@ -613,7 +626,7 @@ you encounter any weirdness.
 - [#307]: Ingested [document sources](https://sq.io/docs/source#document-source) (such as
   [CSV](https://sq.io/docs/drivers/csv) or [Excel](https://sq.io/docs/drivers/xlsx))
   now make use of an [ingest](https://sq.io/docs/source#ingest) cache DB. Previously, ingestion
-  of document source data occurred  on each `sq` command. It is now a one-time cost; subsequent
+  of document source data occurred on each `sq` command. It is now a one-time cost; subsequent
   use of the document source utilizes
   the cache DB. Until, that is, the source document changes: then the ingest cache DB is invalidated and
   ingested again. This is a significantly improved experience for large document sources.
@@ -782,10 +795,10 @@ you encounter any weirdness.
 
 ### Changed
 
-- The  `--exec` and `--query` flags for [`sq sql`](https://sq.io/docs/cmd/sql) were removed in
+- The `--exec` and `--query` flags for [`sq sql`](https://sq.io/docs/cmd/sql) were removed in
   the preceding release ([v0.43.1]).
-  That was probably a bit hasty, especially because it's possible those flags *could* be reintroduced
-  when the *query vs exec* situation is figured out. So, those two flags are now restored, in
+  That was probably a bit hasty, especially because it's possible those flags _could_ be reintroduced
+  when the _query vs exec_ situation is figured out. So, those two flags are now restored, in
   that their use won't cause an error, but they've been hidden from command help, and remain no-op.
 
 ## [v0.43.1] - 2023-11-19
@@ -959,15 +972,15 @@ mechanism.
 ### Changed
 
 - ☢️ [#12]: The table [join](https://sq.io/docs/query#joins) mechanism has been
-   completely overhauled. Now there's support for multiple joins. See [docs](https://sq.io/docs/query#joins).
+  completely overhauled. Now there's support for multiple joins. See [docs](https://sq.io/docs/query#joins).
 
-   ```shell
-   # Previously, only a single join was possible
-   $ sq '.actor, .film_actor | join(.actor_id)'
+  ```shell
+  # Previously, only a single join was possible
+  $ sq '.actor, .film_actor | join(.actor_id)'
 
-   # Now, an arbitrary number of joins
-   $ sq '.actor | join(.film_actor, .actor_id) | join(.film, .film_id)'
-   ```
+  # Now, an arbitrary number of joins
+  $ sq '.actor | join(.film_actor, .actor_id) | join(.film, .film_id)'
+  ```
 
 - ☢️ The alias for `--jsonl` (JSON Lines) has been changed to `-J`.
 
@@ -1212,7 +1225,7 @@ Alas, this release has several minor breaking changes ☢️.
   $ sq config set log.file /var/log/sq.log
   ```
 
-  There are also equivalent flags  (`--log`, `--log.file` and `--log.level`) and
+  There are also equivalent flags (`--log`, `--log.file` and `--log.level`) and
   envars (`SQ_LOG`, `SQ_LOG_FILE` and `SQ_LOG_LEVEL`).
 - Several more commands support YAML output:
   - [`sq group`](https://sq.io/docs/cmd/group)
@@ -1254,19 +1267,19 @@ Alas, this release has several minor breaking changes ☢️.
 
   # now
   $ sq add ./actor.csv --ingest.header=false
-   ```
+  ```
 
 - ☢️ The short form of the `sq add --handle` flag has been changed from `-h` to
   `-n`. While this is not ideal, the `-h` shorthand is already in use everywhere
   else as the short form of `--header`.
 
-    ```shell
+  ```shell
   # previously
   $ sq add ./actor.csv -h @actor
 
   # now
   $ sq add ./actor.csv -n @actor
-   ```
+  ```
 
 - ☢️ The `--pretty` flag has been removed. Its only previous use was with the
   `json` format, where if `--pretty=false` would output the JSON in compact form.
@@ -1319,7 +1332,7 @@ make working with lots of sources much easier.
 
   ```shell
   $ sq add ./actor.csv --opts=header=true
-  ````
+  ```
 
   This change makes working with CSV files significantly lower friction.
   A command like the below now almost always works as expected:
@@ -1738,7 +1751,6 @@ make working with lots of sources much easier.
 [#920]: https://github.com/neilotoole/sq/pull/920
 [#923]: https://github.com/neilotoole/sq/pull/923
 [#926]: https://github.com/neilotoole/sq/pull/926
-
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

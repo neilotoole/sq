@@ -55,12 +55,12 @@ Pass `--skip-verify` to skip both steps and add the source without contacting th
 A failed add (or a failed connection to an already-added source) produces a one-line
 error naming the problem. Each failure mode has a section on this page:
 
-| Error                                           | Cause                                                  | See                                                       |
-|-------------------------------------------------|--------------------------------------------------------|-----------------------------------------------------------|
-| `rqlite: auth failed: ...`                      | node requires credentials, or rejected them            | [Authentication](#authentication)                         |
-| `rqlite: TLS required` / `rqlite: TLS mismatch` | the source's `tls` setting doesn't match the endpoint  | [TLS and certificates](#tls-and-certificates)             |
-| `rqlite: TLS cert verification failed`          | self-signed or private-CA certificate                  | [Self-signed certificates](#self-signed-certificates)     |
-| `rqlite: cluster discovery failed: ...`         | node advertised a peer address this host can't use     | [Cluster discovery](#cluster-discovery)                   |
+| Error                                           | Cause                                                 | See                                                   |
+| ----------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------- |
+| `rqlite: auth failed: ...`                      | node requires credentials, or rejected them           | [Authentication](#authentication)                     |
+| `rqlite: TLS required` / `rqlite: TLS mismatch` | the source's `tls` setting doesn't match the endpoint | [TLS and certificates](#tls-and-certificates)         |
+| `rqlite: TLS cert verification failed`          | self-signed or private-CA certificate                 | [Self-signed certificates](#self-signed-certificates) |
+| `rqlite: cluster discovery failed: ...`         | node advertised a peer address this host can't use    | [Cluster discovery](#cluster-discovery)               |
 
 ## Authentication
 
@@ -175,7 +175,7 @@ rqlite read consistency level. Defaults to `weak`.
 See [rqlite consistency docs](https://rqlite.io/docs/api/read-consistency/).
 
 | Value          | Behavior                                                             |
-|----------------|----------------------------------------------------------------------|
+| -------------- | -------------------------------------------------------------------- |
 | `none`         | Reads from any node. Fastest. May be stale.                          |
 | `weak`         | Checks the receiving node is the leader.                             |
 | `linearizable` | Confirms leader via Raft round-trip.                                 |
@@ -275,15 +275,15 @@ endpoints, SQLite pragmas, and `sqlite_master`.
 
 ### Source-level fields
 
-| Field         | Source                                                                          |
-| ------------- | ------------------------------------------------------------------------------- |
-| `name`        | first row of `pragma_database_list` (typically `main`)                          |
-| `schema`      | same as `name`                                                                  |
-| `catalog`     | hardcoded `default` (SQLite has no catalog concept)                             |
-| `user`        | not populated by this driver                                                    |
-| `db_product`  | `"rqlite (SQLite " + db_version + ")"`                                          |
-| `db_version`  | `sqlite_version()` reported by the rqlite leader                                |
-| `size`        | not reported. rqlite does not expose a single-file size over its HTTP API.      |
+| Field        | Source                                                                     |
+| ------------ | -------------------------------------------------------------------------- |
+| `name`       | first row of `pragma_database_list` (typically `main`)                     |
+| `schema`     | same as `name`                                                             |
+| `catalog`    | hardcoded `default` (SQLite has no catalog concept)                        |
+| `user`       | not populated by this driver                                               |
+| `db_product` | `"rqlite (SQLite " + db_version + ")"`                                     |
+| `db_version` | `sqlite_version()` reported by the rqlite leader                           |
+| `size`       | not reported. rqlite does not expose a single-file size over its HTTP API. |
 
 ### Per-table fields
 

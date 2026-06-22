@@ -1,7 +1,7 @@
 ---
 title: Config
 description: Config
-lead: ''
+lead: ""
 draft: false
 images:
   - sq_config_ls.png
@@ -9,6 +9,7 @@ weight: 1038
 toc: true
 url: /docs/config
 ---
+
 `sq` aims to work out of the box with sane defaults, but allows you to configure most
 everything. `sq`'s total configuration state consists of a collection of
 data [sources](/docs/source) and [groups](/docs/source/#groups), and a plethora
@@ -285,6 +286,7 @@ an individual source, overriding the base config.
 ### `shell-completion.group-filter`
 
 <!-- markdownlint-disable-next-line MD013 -->
+
 {{< readfile file="../cmd/options/shell-completion.group-filter.help.txt" code="true" lang="text" >}}
 
 ### `shell-completion.log`
@@ -336,6 +338,7 @@ an individual source, overriding the base config.
 {{< readfile file="../cmd/options/format.excel.datetime.help.txt" code="true" lang="text" >}}
 
 <!-- markdownlint-disable-next-line MD013 -->
+
 See also: [Excel date/time format reference](https://support.microsoft.com/en-gb/office/format-numbers-as-dates-or-times-418bd3fe-0577-47c8-8caa-b4d30c528309#bm2)
 
 ### `format.excel.date`
@@ -343,6 +346,7 @@ See also: [Excel date/time format reference](https://support.microsoft.com/en-gb
 {{< readfile file="../cmd/options/format.excel.date.help.txt" code="true" lang="text" >}}
 
 <!-- markdownlint-disable-next-line MD013 -->
+
 See also: [Excel date/time format reference](https://support.microsoft.com/en-gb/office/format-numbers-as-dates-or-times-418bd3fe-0577-47c8-8caa-b4d30c528309#bm2)
 
 ### `format.excel.time`
@@ -350,6 +354,7 @@ See also: [Excel date/time format reference](https://support.microsoft.com/en-gb
 {{< readfile file="../cmd/options/format.excel.time.help.txt" code="true" lang="text" >}}
 
 <!-- markdownlint-disable-next-line MD013 -->
+
 See also: [Excel date/time format reference](https://support.microsoft.com/en-gb/office/format-numbers-as-dates-or-times-418bd3fe-0577-47c8-8caa-b4d30c528309#bm2)
 
 ### `format.html.embed-assets`
@@ -547,6 +552,7 @@ Note that `diff.stop` only applies to table row data diffs, not to metadata diff
 ### `tuning.output-flush-threshold`
 
 <!-- markdownlint-disable-next-line MD013 -->
+
 {{< readfile file="../cmd/options/tuning.output-flush-threshold.help.txt" code="true" lang="text" >}}
 
 ### `tuning.record-buffer`

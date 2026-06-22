@@ -134,7 +134,7 @@ but still run in the nightly/release suites.
 
 ## CHANGELOG.md
 
-The [CHANGELOG.md](./CHANGELOG.md) file is sacrosanct, in that it *must* be updated every
+The [CHANGELOG.md](./CHANGELOG.md) file is sacrosanct, in that it _must_ be updated every
 time there is a new release. Note that this is a task for the project
 maintainers; you do not need to worry about this if creating a PR.
 
@@ -161,6 +161,7 @@ at the top for accumulating changes during development.
 ### Added
 
 ## [v0.48.5] - 2025-01-19
+
 ...
 ```
 
@@ -239,7 +240,7 @@ Example entry with code block:
 **Formatting tips:**
 
 - Link config options to docs:
-  `` [`config.option`](https://sq.io/docs/config#configoption) ``
+  ``[`config.option`](https://sq.io/docs/config#configoption)``
 - Use backticks for commands: `` `sq add` ``
 - Use backticks for flags: `` `--verbose` ``
 
@@ -337,8 +338,8 @@ documentation as incomplete work — this is what keeps [sq.io](https://sq.io),
      (document).
    - Update the driver table and `sq driver ls` examples in
      [`skills/sq/SKILL.md`](skills/sq/SKILL.md).
-   - Run `make lint-markdown` (or `bun run lint:markdown-fix` to autofix);
-     `skills/**` is covered by the repo-root markdownlint config.
+   - Run `make fmt` to format the markdown (or `make fmt-check` to verify);
+     `skills/**` is formatted by the repo-root [`dprint.json`](dprint.json).
 6. **CHANGELOG** — add an `## Unreleased` / `Added` entry when the driver is
    user-visible (maintainers may edit wording at release time).
 

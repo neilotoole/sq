@@ -1,15 +1,17 @@
 {
-  "name": "sq-markdownlint",
+  "name": "sq-devtools",
   "private": true,
-  "description": "Markdown linting for the sq repository (non-site markdown).",
+  "description": "Root dev tooling for the sq repository: dprint (repo-wide formatting) and Biome (site JS lint).",
   "engines": {
     "bun": ">=1.2"
   },
   "devDependencies": {
-    "markdownlint-cli2": "^0.22.1"
+    "@biomejs/biome": "^2.5.0",
+    "dprint": "^0.54.0"
   },
   "scripts": {
-    "lint:markdown": "markdownlint-cli2",
-    "lint:markdown-fix": "markdownlint-cli2 --fix"
+    "fmt": "dprint fmt",
+    "fmt:check": "dprint check",
+    "lint:js": "biome lint"
   }
 }

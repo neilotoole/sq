@@ -162,7 +162,6 @@ Initially there are no [sources](https://sq.io/docs/source).
 
 ```shell
 $ sq ls
-
 ```
 
 Let's [add](https://sq.io/docs/cmd/add) a source. First we'll add a

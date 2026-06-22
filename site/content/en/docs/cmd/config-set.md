@@ -10,6 +10,7 @@ menu:
 toc: false
 url: /docs/cmd/config-set
 ---
+
 See the [config](/docs/config) section for an overview of `sq` configuration.
 
 ## Reference
