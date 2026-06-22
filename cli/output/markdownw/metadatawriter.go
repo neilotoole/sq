@@ -136,7 +136,8 @@ func (w *metadataWriter) DriverMetadata(drvrs []driver.Metadata) error {
 	buf := &bytes.Buffer{}
 	buf.WriteString("| Driver | Description | User-defined |\n| --- | --- | :---: |\n")
 	for _, md := range drvrs {
-		writeTableRow(buf,
+		writeTableRow(
+			buf,
 			escapeMarkdown(string(md.Type)),
 			escapeMarkdown(md.Description),
 			yesNo(md.UserDefined),
@@ -339,7 +340,8 @@ func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
 	writeTableRow(buf, "Index", "Columns", "Unique", "Primary", "Type")
 	writeTableRow(buf, "---", "---", ":---:", ":---:", "---")
 	for _, r := range rows {
-		writeTableRow(buf,
+		writeTableRow(
+			buf,
 			mdCodeCell(r.Name),
 			mdCodeCell(r.Columns),
 			checkMark(r.Unique),

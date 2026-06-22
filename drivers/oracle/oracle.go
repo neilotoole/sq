@@ -188,7 +188,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	// the int64 scan crash. The value is exact up to AggDecimalScale fractional
 	// digits; a sum of values with more decimal places is rounded to that scale.
 	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult(
-		fmt.Sprintf("NUMBER(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale))
+		fmt.Sprintf("NUMBER(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale),
+	)
 	// count(), count_unique(), and rownum() are integer-valued, but Oracle reports
 	// their result column as the same floating-scale NUMBER as division and other
 	// arithmetic, which refineBareNumberKind now classifies as kind.Decimal to

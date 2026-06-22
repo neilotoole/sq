@@ -80,7 +80,8 @@ func (bi Info) LogValue() slog.Value {
 	gv := slog.GroupValue(
 		slog.String(lga.Version, bi.Version),
 		slog.String(lga.Commit, bi.Commit),
-		slog.Time(lga.Timestamp, bi.Timestamp))
+		slog.Time(lga.Timestamp, bi.Timestamp),
+	)
 
 	return gv
 }

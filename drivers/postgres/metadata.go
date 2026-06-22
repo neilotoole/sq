@@ -121,7 +121,8 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 		switch dbTypeName {
 		default:
 			nullableScanType = sqlz.RTypeNullString
-			log.Warn("Unknown Postgres scan type",
+			log.Warn(
+				"Unknown Postgres scan type",
 				lga.Col, colName,
 				lga.ScanType, pgScanType,
 				lga.DBType, dbTypeName,
@@ -254,7 +255,8 @@ current_setting('server_version'), version(), "current_user"()`
 				case isErrRelationNotExist(mdErr):
 					// For example, if the table is dropped while we're collecting
 					// metadata, we log a warning and suppress the error.
-					log.Warn("metadata collection: table not found (continuing regardless)",
+					log.Warn(
+						"metadata collection: table not found (continuing regardless)",
 						lga.Table, tblNames[i],
 						lga.Err, mdErr,
 					)
@@ -773,7 +775,8 @@ func setTblMetaConstraints(log *slog.Logger, tblMeta *metadata.Table, pgConstrai
 			colMeta := tblMeta.Column(pgc.columnName)
 			if colMeta == nil {
 				// Shouldn't happen
-				log.Warn("No column found matching constraint",
+				log.Warn(
+					"No column found matching constraint",
 					lga.Target, tblMeta.Name+"."+pgc.columnName,
 					"constraint", pgc.constraintName,
 				)

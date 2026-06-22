@@ -95,7 +95,8 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) (err error) {
 	log := lg.FromContext(ctx)
 	log.Info("EXECUTE", "args", strings.Join(args, " "))
 	log.Info("Build info", "build", buildinfo.Get())
-	log.Info("Config", "config_version", ru.Config.Version,
+	log.Info(
+		"Config", "config_version", ru.Config.Version,
 		lga.Path, ru.ConfigStore.Location(),
 	)
 
@@ -108,7 +109,8 @@ func ExecuteWith(ctx context.Context, ru *run.Run, args []string) (err error) {
 		// Debug setting to log peak memory usage on exit.
 		peakSys, peakAllocs, totalAllocs, gcPause := runtimez.StartMemStatsTracker(ctx)
 		defer func() {
-			log.Info("Memory stats",
+			log.Info(
+				"Memory stats",
 				"sys_peak", datasize.ByteSize(peakSys.Load()).HR(),
 				"heap_peak", datasize.ByteSize(peakAllocs.Load()).HR(),
 				"heap_total", datasize.ByteSize(totalAllocs.Load()).HR(),

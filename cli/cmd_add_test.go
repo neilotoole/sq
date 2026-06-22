@@ -1123,7 +1123,8 @@ func TestCmdAdd_Rqlite_ConnParamDetection(t *testing.T) {
 			func(w http.ResponseWriter, r *http.Request) {
 				hits.Add(1)
 				inner.ServeHTTP(w, r)
-			}))
+			},
+		))
 		t.Cleanup(server.Close)
 		host = server.Listener.Addr().String()
 

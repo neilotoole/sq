@@ -259,7 +259,8 @@ func (vb *virtualBar) startConcrete() {
 	// Recover on any interaction with mpb.
 	defer func() { _ = recover() }()
 
-	vb.bimpl = vb.p.life.pc.New(vb.cfg.total,
+	vb.bimpl = vb.p.life.pc.New(
+		vb.cfg.total,
 		vb.cfg.style,
 		mpb.BarWidth(barWidth),
 		mpb.PrependDecorators(vb.cfg.msgWidget),

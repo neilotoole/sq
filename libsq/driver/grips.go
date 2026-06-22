@@ -403,7 +403,8 @@ func (gs *Grips) openIngestGripNoCache(ctx context.Context, src *source.Source,
 	elapsed := time.Since(start)
 
 	if err != nil {
-		log.Error("Ingest failed",
+		log.Error(
+			"Ingest failed",
 			lga.Src, src, lga.Dest, impl.Source(),
 			lga.Elapsed, elapsed, lga.Err, err,
 		)
@@ -437,7 +438,8 @@ func (gs *Grips) openIngestGripCache(ctx context.Context, src *source.Source,
 		return nil, err
 	}
 	if foundCached {
-		log.Info("Ingest cache HIT: found cached ingest DB",
+		log.Info(
+			"Ingest cache HIT: found cached ingest DB",
 			lga.Src, src, "cached", impl.Source(),
 		)
 		return impl, nil

@@ -115,7 +115,8 @@ func parseLikeColArg(rc *Context, fn *ast.FuncNode) (colSQL string, rhsChild ast
 	if len(children) != 2 {
 		return "", nil, errz.Errorf(
 			"%s() requires exactly 2 arguments (column, pattern), got %d",
-			fn.FuncName(), len(children))
+			fn.FuncName(), len(children),
+		)
 	}
 	colNode := unwrapExpr(children[0])
 	colSQL, err = renderSelectorNode(rc.Dialect, colNode)
@@ -145,7 +146,8 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 	if !ok {
 		return "", "", errz.Errorf(
 			"%s() second argument must be a string literal, got %T: %s",
-			fn.FuncName(), rhsNode, rhsNode.Text())
+			fn.FuncName(), rhsNode, rhsNode.Text(),
+		)
 	}
 	val, wasQuoted, err := unquoteLiteral(litNode.Text())
 	if err != nil {
@@ -154,7 +156,8 @@ func ParseLikeArgs(rc *Context, fn *ast.FuncNode) (colSQL, literal string, err e
 	if !wasQuoted {
 		return "", "", errz.Errorf(
 			"%s() second argument must be a quoted string literal",
-			fn.FuncName())
+			fn.FuncName(),
+		)
 	}
 	return colSQL, val, nil
 }
@@ -184,7 +187,8 @@ func ParseLikePatternArgs(rc *Context, fn *ast.FuncNode) (colSQL, rhsSQL string,
 		if !wasQuoted {
 			return "", "", errz.Errorf(
 				"%s() second argument must be a quoted string literal or column selector",
-				fn.FuncName())
+				fn.FuncName(),
+			)
 		}
 		return colSQL, stringz.SingleQuote(val), nil
 	}

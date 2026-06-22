@@ -138,7 +138,8 @@ func (d *driveri) NewBatchInsert(ctx context.Context, msg string, db sqlz.DB,
 					lg.WarnIfFuncError(log, "Abort clickhouse batch", batch.Abort)
 					errCh <- errz.Errorf(
 						"clickhouse batch insert: record should have %d values but found %d",
-						len(destColNames), len(rec))
+						len(destColNames), len(rec),
+					)
 					return
 				}
 

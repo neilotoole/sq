@@ -114,7 +114,8 @@ func TestCreateTable(t *testing.T) {
 		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
 	})
 
-	tblDef := schema.NewTable(tblName,
+	tblDef := schema.NewTable(
+		tblName,
 		[]string{"id", "name", "ts"},
 		[]kind.Kind{kind.Int, kind.Text, kind.Datetime},
 	)
@@ -481,7 +482,8 @@ func TestAlterTableColumnKinds_PreservesAutoincrementSeq(t *testing.T) {
 	})
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`CREATE TABLE %q (id INTEGER PRIMARY KEY AUTOINCREMENT, val INTEGER NOT NULL)`, tblName))
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY AUTOINCREMENT, val INTEGER NOT NULL)`, tblName,
+	))
 	require.NoError(t, err)
 
 	for i := 1; i <= 10; i++ {
@@ -732,7 +734,8 @@ func TestBatchInsert(t *testing.T) {
 
 	// 4 columns -> batchSize = MaxBatchValues(500) / 4 = 125.
 	// 1500 records => 12 batches, exercising the goroutine flush path.
-	tblDef := schema.NewTable(tblName,
+	tblDef := schema.NewTable(
+		tblName,
 		[]string{"a", "b", "c", "d"},
 		[]kind.Kind{kind.Int, kind.Text, kind.Text, kind.Datetime},
 	)
@@ -1283,14 +1286,16 @@ func TestCopyTable_LeavesCrossFKsAlone(t *testing.T) {
 	})
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`CREATE TABLE %q (id INTEGER PRIMARY KEY)`, parentName))
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY)`, parentName,
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (`+
 			`id INTEGER PRIMARY KEY, `+
 			`parent_id INTEGER REFERENCES %q(id), `+
 			`other_id INTEGER REFERENCES %q(id))`,
-		srcName, srcName, parentName))
+		srcName, srcName, parentName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1341,7 +1346,8 @@ func TestCopyTable_MultipleSelfFKs(t *testing.T) {
 			`id INTEGER PRIMARY KEY, `+
 			`parent_id INTEGER REFERENCES %q(id), `+
 			`buddy_id INTEGER REFERENCES %q(id))`,
-		srcName, srcName, srcName))
+		srcName, srcName, srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1385,7 +1391,8 @@ func TestCopyTable_CompositeSelfFK(t *testing.T) {
 			`a INTEGER, b INTEGER, x INTEGER, y INTEGER, `+
 			`PRIMARY KEY (x, y), `+
 			`FOREIGN KEY(a, b) REFERENCES %q(x, y))`,
-		srcName, srcName))
+		srcName, srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1428,7 +1435,8 @@ func TestCopyTable_CaseMismatchSelfFK(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %s (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %s(id))`,
-		srcName, upperFKTarget))
+		srcName, upperFKTarget,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1476,7 +1484,8 @@ func TestCopyTable_SchemaQualifiedDest(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %q(id))`,
-		srcName, srcName))
+		srcName, srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1521,13 +1530,15 @@ func TestAlterTableColumnKinds_PreservesFKs(t *testing.T) {
 	})
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`CREATE TABLE %q (id INTEGER PRIMARY KEY)`, parentName))
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY)`, parentName,
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (`+
 			`id INTEGER PRIMARY KEY, parent_id INTEGER, payload TEXT, `+
 			`FOREIGN KEY (parent_id) REFERENCES %q(id))`,
-		childName, parentName))
+		childName, parentName,
+	))
 	require.NoError(t, err)
 
 	err = drvr.AlterTableColumnKinds(th.Context, db, childName,
@@ -1579,7 +1590,8 @@ func TestColumnTypes_EmptyTable(t *testing.T) {
 			r REAL,
 			b BOOLEAN,
 			blob BLOB
-		)`, tblName))
+		)`, tblName,
+	))
 	require.NoError(t, err)
 
 	// TableColumnTypes runs through a *sql.Conn so the path matches the
@@ -1647,7 +1659,8 @@ func TestCopyTable_PreservesUniqueConstraints(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL)`,
-		srcName))
+		srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1655,11 +1668,13 @@ func TestCopyTable_PreservesUniqueConstraints(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, email) VALUES (1, 'a@a.com')`, dstName))
+		`INSERT INTO %q (id, email) VALUES (1, 'a@a.com')`, dstName,
+	))
 	require.NoError(t, err)
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, email) VALUES (2, 'a@a.com')`, dstName))
+		`INSERT INTO %q (id, email) VALUES (2, 'a@a.com')`, dstName,
+	))
 	require.Error(t, err, "duplicate email should violate UNIQUE on copied table")
 }
 
@@ -1688,7 +1703,8 @@ func TestCopyTable_PreservesDefaultExpression(t *testing.T) {
 	})
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`CREATE TABLE %q (id INTEGER PRIMARY KEY, salary REAL DEFAULT 50000)`, srcName))
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY, salary REAL DEFAULT 50000)`, srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1696,7 +1712,8 @@ func TestCopyTable_PreservesDefaultExpression(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id) VALUES (1)`, dstName))
+		`INSERT INTO %q (id) VALUES (1)`, dstName,
+	))
 	require.NoError(t, err)
 
 	var got float64
@@ -1732,12 +1749,14 @@ func TestCopyTable_PreservesAutoIncrement(t *testing.T) {
 	})
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`CREATE TABLE %q (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)`, srcName))
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)`, srcName,
+	))
 	require.NoError(t, err)
 
 	for _, name := range []string{"a", "b", "c"} {
 		_, err = db.ExecContext(th.Context, fmt.Sprintf(
-			`INSERT INTO %q (name) VALUES (?)`, srcName), name)
+			`INSERT INTO %q (name) VALUES (?)`, srcName,
+		), name)
 		require.NoError(t, err)
 	}
 
@@ -1747,7 +1766,8 @@ func TestCopyTable_PreservesAutoIncrement(t *testing.T) {
 	require.Equal(t, int64(3), affected)
 
 	res, err := db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (name) VALUES ('x')`, dstName))
+		`INSERT INTO %q (name) VALUES ('x')`, dstName,
+	))
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
@@ -1799,11 +1819,13 @@ func TestCopyTable_PreservesCompositePK(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`INSERT INTO %q (actor_id, film_id, last_update) VALUES (1, 1, CURRENT_TIMESTAMP)`,
-		dstName))
+		dstName,
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`INSERT INTO %q (actor_id, film_id, last_update) VALUES (1, 1, CURRENT_TIMESTAMP)`,
-		dstName))
+		dstName,
+	))
 	require.Error(t, err, "duplicate composite PK should be rejected")
 }
 
@@ -1833,7 +1855,8 @@ func TestCopyTable_PreservesCheckConstraints(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (id INTEGER PRIMARY KEY, age INTEGER NOT NULL CHECK (age >= 0))`,
-		srcName))
+		srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1842,12 +1865,14 @@ func TestCopyTable_PreservesCheckConstraints(t *testing.T) {
 
 	// Sanity: a valid insert succeeds.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, age) VALUES (1, 5)`, dstName))
+		`INSERT INTO %q (id, age) VALUES (1, 5)`, dstName,
+	))
 	require.NoError(t, err)
 
 	// CHECK violation: negative age should be rejected on the destination.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, age) VALUES (2, -1)`, dstName))
+		`INSERT INTO %q (id, age) VALUES (2, -1)`, dstName,
+	))
 	require.Error(t, err,
 		"CHECK (age >= 0) should be preserved and reject negative ages")
 }
@@ -1876,7 +1901,8 @@ func TestAlterTableColumnKinds_PreservesUniqueAndDefault(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (id INTEGER PRIMARY KEY, email TEXT UNIQUE, salary REAL DEFAULT 50000)`,
-		tblName))
+		tblName,
+	))
 	require.NoError(t, err)
 
 	err = drvr.AlterTableColumnKinds(th.Context, db, tblName,
@@ -1884,10 +1910,12 @@ func TestAlterTableColumnKinds_PreservesUniqueAndDefault(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, email) VALUES (1, 'a@a.com')`, tblName))
+		`INSERT INTO %q (id, email) VALUES (1, 'a@a.com')`, tblName,
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, email) VALUES (2, 'a@a.com')`, tblName))
+		`INSERT INTO %q (id, email) VALUES (2, 'a@a.com')`, tblName,
+	))
 	require.Error(t, err, "UNIQUE on email should survive the rebuild")
 
 	var salary float64
@@ -1945,10 +1973,12 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 	for _, tblName := range tblNames {
 		quoted := stringz.DoubleQuote(tblName)
 		_, err = db.ExecContext(th.Context, fmt.Sprintf(
-			"CREATE TABLE %s (id INTEGER PRIMARY KEY, val TEXT)", quoted))
+			"CREATE TABLE %s (id INTEGER PRIMARY KEY, val TEXT)", quoted,
+		))
 		require.NoError(t, err)
 		_, err = db.ExecContext(th.Context, fmt.Sprintf(
-			"INSERT INTO %s (val) VALUES ('a'), ('b')", quoted))
+			"INSERT INTO %s (val) VALUES ('a'), ('b')", quoted,
+		))
 		require.NoError(t, err)
 	}
 
@@ -2004,17 +2034,21 @@ func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		"CREATE TABLE %s (id INTEGER PRIMARY KEY, val INTEGER NOT NULL)",
-		stringz.DoubleQuote(parentTbl)))
+		stringz.DoubleQuote(parentTbl),
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		"CREATE TABLE %s (id INTEGER PRIMARY KEY, pid INTEGER NOT NULL REFERENCES %s(id))",
-		stringz.DoubleQuote(childTbl), stringz.DoubleQuote(parentTbl)))
+		stringz.DoubleQuote(childTbl), stringz.DoubleQuote(parentTbl),
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, val) VALUES (1, 42)", stringz.DoubleQuote(parentTbl)))
+		"INSERT INTO %s (id, val) VALUES (1, 42)", stringz.DoubleQuote(parentTbl),
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, pid) VALUES (1, 1)", stringz.DoubleQuote(childTbl)))
+		"INSERT INTO %s (id, pid) VALUES (1, 1)", stringz.DoubleQuote(childTbl),
+	))
 	require.NoError(t, err)
 
 	// Enable FK enforcement on the node's write connection. This must go
@@ -2024,7 +2058,8 @@ func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
 
 	// Sanity check: enforcement is live, so a dangling child insert fails.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, pid) VALUES (99, 999)", stringz.DoubleQuote(childTbl)))
+		"INSERT INTO %s (id, pid) VALUES (99, 999)", stringz.DoubleQuote(childTbl),
+	))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "FOREIGN KEY constraint failed")
 
@@ -2057,21 +2092,25 @@ func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
 	// dangling insert succeeding here proves the restore ran. On a node
 	// actually running -fk, the same restore re-enables enforcement.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, pid) VALUES (100, 999)", stringz.DoubleQuote(childTbl)))
+		"INSERT INTO %s (id, pid) VALUES (100, 999)", stringz.DoubleQuote(childTbl),
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"DELETE FROM %s WHERE id = 100", stringz.DoubleQuote(childTbl)))
+		"DELETE FROM %s WHERE id = 100", stringz.DoubleQuote(childTbl),
+	))
 	require.NoError(t, err)
 
 	// Re-enable enforcement: the child's FK must still be wired to the
 	// rebuilt parent (the DROP/RENAME preserved the relationship).
 	require.NoError(t, rqlite.ExecNonTx(th.Context, db, "PRAGMA foreign_keys=on"))
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, pid) VALUES (101, 999)", stringz.DoubleQuote(childTbl)))
+		"INSERT INTO %s (id, pid) VALUES (101, 999)", stringz.DoubleQuote(childTbl),
+	))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "FOREIGN KEY constraint failed")
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, pid) VALUES (2, 1)", stringz.DoubleQuote(childTbl)))
+		"INSERT INTO %s (id, pid) VALUES (2, 1)", stringz.DoubleQuote(childTbl),
+	))
 	require.NoError(t, err)
 }
 
@@ -2164,7 +2203,8 @@ func TestCopyTable_CopiesIndexesAndTriggers(t *testing.T) {
 
 	// The copied trigger's side effect fires on insert into the destination.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (name, email) VALUES ('dave', 'd@x.com')`, dstName))
+		`INSERT INTO %q (name, email) VALUES ('dave', 'd@x.com')`, dstName,
+	))
 	require.NoError(t, err)
 	require.NoError(t, db.QueryRowContext(th.Context,
 		fmt.Sprintf(`SELECT count(*) FROM %q WHERE msg='dave'`, logName)).Scan(&logCount))
