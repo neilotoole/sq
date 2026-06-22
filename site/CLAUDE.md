@@ -144,10 +144,23 @@ Uses Hugo's built-in Chroma (not highlight.js):
 
 `linkinator.sh`:
 
-1. Builds a fresh site with Hugo
-2. Starts a local server at http://localhost:31317
+1. Builds a fresh site with Hugo into `.serve-lint`
+2. Starts a local server on a free port (or `LINKINATOR_PORT`)
 3. Runs linkinator against the local build
 4. Configuration in `linkinator.config.json` (excludes domains that block crawlers)
+
+Two scopes, selected via `LINKINATOR_SCOPE` (or a `full`/`internal` argument):
+
+- `internal` (`bun run lint:links:internal`): only checks pages and assets served
+  from the local server. Stable, no network dependency; this is what `make ci` and
+  PR gating use. Fails fast on the first broken internal link.
+- `full` (`bun run lint:links`, the default): also follows third-party external
+  links. Used by the nightly [`Site Links`](../.github/workflows/site-links-nightly.yml)
+  workflow. To keep "red" meaningful despite flaky third parties, it downgrades
+  `403`/`429`/`5xx` to warnings (genuine `404`/`410`/network errors stay fatal),
+  caps each attempt with `timeout`, and retries the whole crawl
+  (`LINKINATOR_MAX_ATTEMPTS`, default 3) so only a link broken on every attempt
+  fails the run.
 
 ## CI/CD Workflow
 

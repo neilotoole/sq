@@ -1,6 +1,7 @@
 {
   "concurrency": 10,
   "recurse": true,
+  "retry": true,
   "retryErrors": true,
   "retryErrorsCount": 3,
   "retryErrorsJitter": true,
