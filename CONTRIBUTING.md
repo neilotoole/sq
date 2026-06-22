@@ -7,7 +7,9 @@ For user documentation, see [sq.io](https://sq.io).
 
 For AI coding assistants working in this repo, see [AGENTS.md](./AGENTS.md)
 (cross-agent guidance and contributor [Agent Skills](https://agentskills.io/specification)
-under [`.agents/skills/`](./.agents/skills/)). Install into your agent with
+under [`.agents/skills/`](./.agents/skills/)). [CLAUDE.md](./CLAUDE.md) is the
+Claude Code entry point and links to AGENTS.md for shared rules. Install into
+your agent with
 `npx skills add neilotoole/sq --skill <name>` (see
 [AGENTS.md](./AGENTS.md#installing-and-verifying-skills-npx-skills)). Claude Code
 also uses [`.claude/skills`](./.claude/skills) (symlink to `.agents/skills`
@@ -111,6 +113,7 @@ to search the existing issues first.
 
 Use the usual GitHub process to open a PR. Before you do so, please:
 
+- Name your branch per [AGENTS.md — Git branch naming](./AGENTS.md#git-branch-naming).
 - Merge the latest `master` into your branch: `git merge origin/master`.
 - Run `make all`.
 - If the PR adds a **new driver type**, complete the

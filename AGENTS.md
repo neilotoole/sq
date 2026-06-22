@@ -3,8 +3,8 @@
 Guidance for AI coding assistants (Claude Code, Copilot, Cursor, Codex, etc.) and
 human contributors working in this repo.
 
-For Claude Code, [`CLAUDE.md`](./CLAUDE.md) mirrors the essentials here and links
-to this file for expanded contributor content.
+[`CLAUDE.md`](./CLAUDE.md) is the Claude Code entry point; it points here for
+all shared rules.
 
 ## About `sq`
 
@@ -92,12 +92,82 @@ so they're skipped under `go test -short`. See
 [`CONTRIBUTING.md`](./CONTRIBUTING.md#test-handles) for driver test handle
 conventions.
 
+### Error handling
+
+Use [`libsq/core/errz`](./libsq/core/errz) for every error produced inside
+sq. `errz` wrappers attach a stack trace at the call site, which the CLI's
+debug output and the `errz.Format` `%+v` verb rely on. `errors.Is` / `As`
+continue to work because `errz` exposes `Unwrap`.
+
+| Situation                                         | Use                            |
+| ------------------------------------------------- | ------------------------------ |
+| Brand-new error, plain string                     | `errz.New("...")`              |
+| Brand-new error, formatted                        | `errz.Errorf("... %s", x)`     |
+| Wrap an existing error                            | `errz.Wrap(err, "context")`    |
+| Wrap an existing error, formatted                 | `errz.Wrapf(err, "fmt %s", x)` |
+| Annotate an external error with no extra context  | `errz.Err(err)`                |
+| Package-level sentinel for `errors.Is` comparison | `errors.New("...")`            |
+
+Sentinels (e.g. `secret.ErrNotFound`, `errz.ErrStop`) intentionally stay on
+`errors.New` — wrapping at package-init would attach a stack trace from
+program startup, which is meaningless. Wrap them with `errz` at the point
+they're returned.
+
+Errors crossing into sq from external libraries (stdlib, third-party
+packages) MUST be wrapped at the boundary so the stack trace anchors at the
+sq-side caller, not deep inside the external code.
+
+Avoid `fmt.Errorf` and `errors.New` outside sentinel declarations — they
+produce stackless errors that surface upstream with no useful trace.
+
+Command-authoring conventions for the `cli` package (including the rule that
+every argument-taking command must offer shell completion) live in
+[`cli/CLAUDE.md`](./cli/CLAUDE.md).
+
+### Passing data: prefer explicit signatures over `context.Value`
+
+Don't smuggle values through `context.Context` to avoid a signature or
+interface change. `context.Value` is for request-scoped metadata
+(cancellation, deadlines, trace/logging IDs), not for data a function needs
+to compute its result. If a value materially affects what a function returns
+or does, thread it as an explicit parameter (or field), even when that means
+changing an exported signature or a driver-interface method. sq is pre-v1.0.0,
+so such changes are acceptable and expected; reach for the cleaner API rather
+than working around the old one.
+
+If a `context.Value`-based approach genuinely seems warranted (it rarely is),
+stop and ask before taking that path.
+
+For a worked example of this rule applied, see `SQLDriver.RecordMeta`: its
+result-column kind hints are threaded as an explicit parameter rather than
+smuggled through `context.Value` (resolved in
+[#848](https://github.com/neilotoole/sq/issues/848)).
+
 ### English spelling
 
 Use US English in all prose: code comments, godoc, user-facing strings,
 commit messages, PR descriptions, CHANGELOG entries, and site docs. For
 example, "honors" not "honours", "color" not "colour", "behavior" not
 "behaviour", "optimize" not "optimise".
+
+### Prose style (no AI-isms)
+
+Applies to all written content in this repo: `README.md`, `CHANGELOG.md`,
+other root-level markdown, godoc and code comments, commit messages, PR
+descriptions, and everything under [`site/`](./site/). Does **not** apply to
+code itself (string literals, test fixtures, sample data).
+
+Write like a human contributor, not a generative model. Specifically, avoid:
+
+- **Em dashes** (`—`). Use a period, comma, parentheses, or ": ".
+  No en dashes (`–`) for ranges either; use `-` or "to".
+- **"Not just X, it's Y"** / "not only X but Y" sloganeering and other
+  marketing-style antitheses.
+- **Decorative emoji** in prose. GitHub callout admonitions
+  (`> [!NOTE]` etc.) are fine when they convey real information.
+
+When in doubt: shorter, plainer, more specific. Concrete nouns and verbs
+beat adjectives.
 
 ### Markdown
 
@@ -125,14 +195,26 @@ an `sq` command in a release section links to its `sq.io` documentation.
 
 ### Git branch naming
 
-Use the pattern:
+Choose a prefix by change type:
+
+- `feature/` — new capability or enhancement
+- `fix/` — bug fix
+- `chore/` — maintenance, deps, CI, tooling, docs-only housekeeping
+
+No linked GitHub issue:
 
 ```text
-gh{GITHUB_ISSUE_NUMBER}-{short-description}
+{prefix}{short-kebab-description}
 ```
 
-Examples: `gh531-sq-version-slow`, `gh412-add-db-filter`,
-`gh503-fix-migration`.
+Linked GitHub issue:
+
+```text
+{prefix}gh{ISSUE_NUMBER}-{short-kebab-description}
+```
+
+Examples: `feature/upgrade-gofumpt`, `fix/gh914-nightly-link-check`,
+`chore/gh928-update-gofumpt`.
 
 ### Commits and pull requests
 
