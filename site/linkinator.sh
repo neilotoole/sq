@@ -138,12 +138,16 @@ else
   # broken links: rate limiting, bot-blocking, and transient 5xx blips. Keep
   # genuine dead links (404/410, and 0/network errors after retries) fatal, but
   # downgrade infrastructure noise to warnings so a red run means a real broken
-  # link, not a flaky external host. `retry: true` (in linkinator.config.json)
-  # already retries 429s honoring `Retry-After`; these mappings catch what is
-  # still failing afterwards.
+  # link, not a flaky external host.
   #   403: forbidden / bot-blocking (many sites reject CI user agents)
   #   429: rate limiting (e.g. wikipedia.org throttles the runner IP)
   #   5xx: transient third-party server errors
+  #
+  # NB: deliberately no linkinator `retry` (honor-`Retry-After`) flag. Hosts can
+  # return 429 with an absurd `Retry-After` (wikipedia.org sends 1000s), which
+  # would stall the whole crawl past the per-attempt timeout below. `retryErrors`
+  # (in linkinator.config.json) still gives 429s a bounded exponential-backoff
+  # retry; whatever is still 429 afterwards lands on the `429:warn` mapping here.
   LINKINATOR_ARGS+=(--status-code '403:warn')
   LINKINATOR_ARGS+=(--status-code '429:warn')
   LINKINATOR_ARGS+=(--status-code '5xx:warn')

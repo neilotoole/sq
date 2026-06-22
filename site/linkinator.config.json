@@ -1,11 +1,10 @@
 {
   "concurrency": 10,
   "recurse": true,
-  "retry": true,
   "retryErrors": true,
   "retryErrorsCount": 3,
   "retryErrorsJitter": true,
-  "skip": "https://dev.mysql.com, https://www.mysql.com, https://github.com, https://www.microsoft.com, https://stackoverflow.com, https://spin.atomicobject.com",
+  "skip": "https://dev.mysql.com, https://www.mysql.com, https://github.com, https://www.microsoft.com, https://stackoverflow.com, https://spin.atomicobject.com, https://asciinema.org, https://no-color.org",
   "timeout": 25000,
   "verbosity": "warning"
 }
