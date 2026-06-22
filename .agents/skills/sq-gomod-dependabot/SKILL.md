@@ -25,11 +25,11 @@ but still prefer merging after CI is green.
 
 ## Operating modes
 
-| Mode         | Actions                          | Merge       |
-| ------------ | -------------------------------- | ----------- |
-| **Audit**    | List/classify; direct vs indirect| No          |
-| **Validate** | Diff review; `make test-short`   | No          |
-| **Full**     | Validate + merge with consent    | Per PR      |
+| Mode         | Actions                           | Merge  |
+| ------------ | --------------------------------- | ------ |
+| **Audit**    | List/classify; direct vs indirect | No     |
+| **Validate** | Diff review; `make test-short`    | No     |
+| **Full**     | Validate + merge with consent     | Per PR |
 
 Default to **Audit** unless the user asks to merge.
 
@@ -55,11 +55,11 @@ touches both, split judgment: site hunks → `sq-site-dependabot`.
 
 ## Phase 2 — Risk
 
-| Level    | Examples                         | Action              |
-| -------- | -------------------------------- | ------------------- |
-| Low      | Patch indirect, test-only modules| Merge after CI      |
-| Medium   | Direct minor/patch runtime dep   | Notes + test-short  |
-| High     | Major, `replace`, breaking sec   | Hold; full review   |
+| Level  | Examples                          | Action             |
+| ------ | --------------------------------- | ------------------ |
+| Low    | Patch indirect, test-only modules | Merge after CI     |
+| Medium | Direct minor/patch runtime dep    | Notes + test-short |
+| High   | Major, `replace`, breaking sec    | Hold; full review  |
 
 ## Phase 3 — Validate
 

@@ -1,11 +1,12 @@
 ---
-title : "Drivers"
+title: "Drivers"
 description: "Drivers"
 draft: false
 images: []
 weight: 4000
 url: /docs/drivers
 ---
+
 `sq` supports the following database and document-format drivers:
 [MySQL](/docs/drivers/mysql),
 [PostgreSQL](/docs/drivers/postgres),

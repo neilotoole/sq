@@ -409,8 +409,10 @@ func (d *driveri) Renderer() *render.Renderer {
 func locationWithDefaultPort(loc string) (string, bool, error) {
 	u, err := url.Parse(loc)
 	if err != nil {
-		// Don't include loc in the error: it may carry credentials.
-		return "", false, errz.Wrap(err, "rqlite: parse location")
+		// The *url.Error from url.Parse embeds the raw loc (including any
+		// inline credentials) in its message; stripURLError drops that
+		// wrapper so only the underlying cause is reported.
+		return "", false, errz.Wrap(stripURLError(err), "rqlite: parse location")
 	}
 
 	if u.Hostname() == "" {
@@ -460,15 +462,11 @@ func dsnFromLocation(loc string) (string, dsnOpts, error) {
 
 	u, err := url.Parse(loc)
 	if err != nil {
-		// url.Error embeds the raw input URL in its message, which
-		// would echo inline credentials. Strip that wrapper so the
+		// url.Error embeds the raw input URL in its message, which would
+		// echo inline credentials. stripURLError drops that wrapper so the
 		// underlying cause (e.g. "missing ']' in host") is preserved
 		// without the URL.
-		var uerr *url.Error
-		if errors.As(err, &uerr) {
-			err = uerr.Err
-		}
-		return "", opts, errz.Wrap(err, "rqlite: invalid location")
+		return "", opts, errz.Wrap(stripURLError(err), "rqlite: invalid location")
 	}
 
 	q := u.Query()
@@ -848,9 +846,13 @@ func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metada
 	return schemas, nil
 }
 
-// CatalogExists implements driver.SQLDriver.
+// CatalogExists implements driver.SQLDriver. Like CurrentCatalog and
+// ListCatalogs, it reports the unsupported-catalog condition as an error
+// rather than a silent false, so a source configured with a catalog gets
+// an accurate diagnostic instead of a misleading "catalog doesn't exist".
+// Matches the sqlite3 driver.
 func (d *driveri) CatalogExists(_ context.Context, _ sqlz.DB, _ string) (bool, error) {
-	return false, nil
+	return false, errz.New("rqlite: catalogs are not supported (SQLite has no catalogs)")
 }
 
 // CurrentCatalog implements driver.SQLDriver.
@@ -1127,6 +1129,11 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		return errz.Wrap(err, "rqlite: alter table: failed to extract column definitions")
 	}
 
+	// colDefs is built in lockstep with colNames: exactly one entry is
+	// appended per name (erroring if a name is absent), so on success
+	// len(colDefs) == len(colNames), which the len(colNames) == len(kinds)
+	// guard above makes equal to len(kinds). The kinds[i] index in the edit
+	// loop below is therefore always in range.
 	colDefs := make([]*sqlparser.ColDef, 0, len(colNames))
 	for _, colName := range colNames {
 		var found *sqlparser.ColDef
@@ -1155,9 +1162,10 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	edits := make([]sqlparser.Edit, 0, len(colDefs)+1)
 	for i, colDef := range colDefs {
 		edits = append(edits, sqlparser.Edit{
-			Start:       colDef.RawTypeOffset,
-			End:         colDef.RawTypeOffset + len(colDef.RawType),
-			Replacement: DBTypeForKind(kinds[i]),
+			Start: colDef.RawTypeOffset,
+			End:   colDef.RawTypeOffset + len(colDef.RawType),
+			// len(colDefs) == len(kinds); see the colDefs construction above.
+			Replacement: DBTypeForKind(kinds[i]), //nolint:gosec // G602 false positive: i < len(colDefs) == len(kinds)
 		})
 	}
 	edits = append(edits, sqlparser.Edit{

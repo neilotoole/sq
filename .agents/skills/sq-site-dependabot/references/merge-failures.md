@@ -16,7 +16,7 @@ on outdated Lighthouse/CI.
 
 ## Sequential merges and rebase
 
-After merging PR *N*:
+After merging PR _N_:
 
 ```bash
 gh pr comment <next> --body "@dependabot rebase"

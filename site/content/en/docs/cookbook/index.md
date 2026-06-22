@@ -7,6 +7,7 @@ weight: 1080
 toc: true
 url: /docs/cookbook
 ---
+
 This cookbook demonstrates how to perform various tasks using `sq`.
 
 - If not otherwise specified, assume the `@sakila_sl3` data source is present.

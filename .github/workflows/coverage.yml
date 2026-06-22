@@ -11,7 +11,7 @@ name: Coverage
 # the main pipeline's timing and of releases.
 on:
   schedule:
-    - cron: '37 9 * * *' # Nightly; offset from the main pipeline's 09:17 run.
+    - cron: "37 9 * * *" # Nightly; offset from the main pipeline's 09:17 run.
 
   # Allows this workflow to be manually triggered from the Actions tab.
   workflow_dispatch:
@@ -22,7 +22,7 @@ concurrency:
 
 env:
   TPARSE_VERSION: v0.18.0
-  BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
+  BUILD_TAGS: "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions"
 
 jobs:
   coverage:
@@ -41,7 +41,7 @@ jobs:
       - name: Build
         run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
 
-      - name: 'Go tests (with coverage)'
+      - name: "Go tests (with coverage)"
         shell: bash
         run: |
           # pipefail so a `go test` failure isn't masked by the `| tee` below.
@@ -53,7 +53,7 @@ jobs:
           go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json \
             -cover -coverpkg=./... -coverprofile=coverage.out ./... | tee gotest.out.json
 
-      - name: 'Test output'
+      - name: "Test output"
         if: always()
         shell: bash
         run: |

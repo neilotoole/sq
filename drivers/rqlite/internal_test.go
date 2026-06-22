@@ -29,6 +29,7 @@ import (
 var (
 	KindFromDBTypeName = kindFromDBTypeName
 	RTypeNullTime      = rtypeNullTime
+	GetTblRowCounts    = getTblRowCounts
 )
 
 // ExecNonTx executes query as a single non-transactional request via
@@ -236,6 +237,16 @@ func TestLocationWithDefaultPort(t *testing.T) {
 			require.Equal(t, tc.wantAdded, added)
 		})
 	}
+}
+
+// TestLocationWithDefaultPort_RedactsCreds verifies that a malformed
+// location whose url.Parse fails does not echo inline credentials: the
+// *url.Error from url.Parse embeds the raw location (password included),
+// so the error path must strip it.
+func TestLocationWithDefaultPort_RedactsCreds(t *testing.T) {
+	_, _, err := locationWithDefaultPort("rqlite://user:s3cret@\x7fbad-host:4001")
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "s3cret")
 }
 
 // TestCoerceFloat64 covers the per-kind reshaping that

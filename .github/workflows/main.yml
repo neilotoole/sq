@@ -2,16 +2,16 @@ name: Main Pipeline
 on:
   pull_request:
     paths-ignore:
-      - '**.md'
-      - 'sq.json' # Updated by scoop; no need to run a new build.
-      - 'site/**'
+      - "**.md"
+      - "sq.json" # Updated by scoop; no need to run a new build.
+      - "site/**"
   push:
     # No paths-ignore on push: master merges and release tags must always run
     # (paths filtering on tag pushes is unreliable and could skip a release).
     branches: [master]
-    tags: ['v*']
+    tags: ["v*"]
   schedule:
-    - cron: '17 9 * * *' # Nightly full suite vs master (UTC; tunable).
+    - cron: "17 9 * * *" # Nightly full suite vs master (UTC; tunable).
 
   # Allows this workflow to be manually triggered from the Actions tab.
   workflow_dispatch:
@@ -26,13 +26,13 @@ env:
   GORELEASER_VERSION: 2.13.3
   GOLANGCI_LINT_VERSION: v2.12.2
   TPARSE_VERSION: v0.18.0
-  BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
+  BUILD_TAGS: "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions"
 
 jobs:
   test-nix:
     strategy:
       matrix:
-        os: [ ubuntu-24.04, macos-15]
+        os: [ubuntu-24.04, macos-15]
 
     runs-on: ${{ matrix.os }}
 
@@ -54,11 +54,10 @@ jobs:
         with:
           go-version-file: go.mod
 
-
       - name: Build
         run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
 
-      - name: 'Go tests'
+      - name: "Go tests"
         shell: bash
         run: |
           # pipefail so a `go test` failure isn't masked by the `| tee` below.
@@ -74,14 +73,13 @@ jobs:
           go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json \
             "${test_args[@]}" ./... | tee gotest.out.json
 
-      - name: 'Test output'
+      - name: "Test output"
         if: always()
         shell: bash
         run: |
           set -e
           go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
           tparse -all -sort=elapsed -file gotest.out.json
-
 
   test-windows-smoke:
     # Fast Windows check for the dev loop: compile everything (catches
@@ -116,49 +114,48 @@ jobs:
       || github.event_name == 'workflow_dispatch'
     runs-on: windows-2022
     steps:
-    # Copied from https://github.com/mattn/go-sqlite3/blob/master/.github/workflows/go.yaml#L73
-#    - uses: msys2/setup-msys2@v2
-#      with:
-#        update: true
-#        install: mingw-w64-x86_64-toolchain mingw-w64-x86_64-sqlite3
-#        msystem: MINGW64
-#        path-type: inherit
+      # Copied from https://github.com/mattn/go-sqlite3/blob/master/.github/workflows/go.yaml#L73
+      #    - uses: msys2/setup-msys2@v2
+      #      with:
+      #        update: true
+      #        install: mingw-w64-x86_64-toolchain mingw-w64-x86_64-sqlite3
+      #        msystem: MINGW64
+      #        path-type: inherit
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
 
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-        fetch-depth: 1
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version-file: go.mod
+      - name: Build
+        run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
+      #      shell: msys2 {0}
 
-    - name: Build
-      run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
-#      shell: msys2 {0}
+      #    - name: Run tests
+      #      run: |
+      #        go test -tags '${{ env.BUILD_TAGS }}' -v ./...
+      ##      shell: msys2 {0}
 
-#    - name: Run tests
-#      run: |
-#        go test -tags '${{ env.BUILD_TAGS }}' -v ./...
-##      shell: msys2 {0}
+      - name: "Go tests"
+        shell: bash
+        run: |
+          # set -e
 
-    - name: 'Go tests'
-      shell: bash
-      run: |
-        # set -e
+          # We send the Go test output to a file, so that "tparse" can
+          # render pretty output below.
+          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json ./... > gotest.out.json
 
-        # We send the Go test output to a file, so that "tparse" can
-        # render pretty output below.
-        go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json ./... > gotest.out.json
-
-    - name: 'Test output'
-      if: always()
-      shell: bash
-      run: |
-        set -e
-        go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
-        tparse -all -sort=elapsed -file gotest.out.json
+      - name: "Test output"
+        if: always()
+        shell: bash
+        run: |
+          set -e
+          go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
+          tparse -all -sort=elapsed -file gotest.out.json
 
   lint:
     runs-on: ubuntu-24.04
@@ -166,7 +163,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          # Full history so the import-format check can diff a PR against its
+          # base commit (github.event.pull_request.base.sha).
+          fetch-depth: 0
 
       - name: Lint GH workflow files
         run: |
@@ -176,20 +175,38 @@ jobs:
 
       - name: shellcheck
         run: |
-          shellcheck ./install.sh
+          shellcheck ./install.sh scripts/fmt-go-imports.sh
 
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
+      - name: Check Go import formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Almost no one runs `make fmt` locally, so import grouping/aliasing is
+          # enforced here. PRs check only their changed files (fast, ~1s); other
+          # events re-check the whole module (--all) as a full-tree safety net.
+          # See scripts/fmt-go-imports.sh for why --all is slow.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            bash scripts/fmt-go-imports.sh --base "${{ github.event.pull_request.base.sha }}"
+          else
+            bash scripts/fmt-go-imports.sh --all
+          fi
+          if ! git diff --quiet -- '*.go'; then
+            echo "::error::Go imports are not formatted. Run 'make fmt' locally and commit the result."
+            git --no-pager diff -- '*.go'
+            exit 1
+          fi
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9
         with:
           skip-cache: true
-          install-mode: 'binary'
+          install-mode: "binary"
           version: ${{ env.GOLANGCI_LINT_VERSION }}
-
 
   binaries-darwin:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -289,7 +306,6 @@ jobs:
           name: dist-linux-arm64
           path: dist-linux
 
-
   binaries-windows:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-2022
@@ -314,7 +330,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-
 
       - name: Upload assets (windows)
         uses: actions/upload-artifact@v7
@@ -367,7 +382,6 @@ jobs:
         with:
           name: dist-windows
           path: dist-windows
-
 
       - name: GoReleaser (publish)
         uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
