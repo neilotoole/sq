@@ -147,7 +147,8 @@ func TestRevealFlagConfigPrecedence(t *testing.T) {
 
 			if tc.configReveal != "" {
 				require.NoError(t, tr.Reset().Exec(
-					"config", "set", "secrets.reveal", tc.configReveal))
+					"config", "set", "secrets.reveal", tc.configReveal,
+				))
 			}
 
 			args := append([]string{"ls", "-v"}, tc.args...)

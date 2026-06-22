@@ -106,7 +106,8 @@ func TestAlterTableColumnKinds(t *testing.T) {
 	drvr := grip.SQLDriver()
 
 	// Change name (VARCHAR→kind.Text) to kind.Bytes and age (INTEGER) to kind.Float.
-	err := drvr.AlterTableColumnKinds(th.Context, db, "tbl",
+	err := drvr.AlterTableColumnKinds(
+		th.Context, db, "tbl",
 		[]string{"name", "age"},
 		[]kind.Kind{kind.Bytes, kind.Float},
 	)
@@ -127,7 +128,8 @@ func TestAlterTableColumnKinds_MismatchedLengths(t *testing.T) {
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 
-	err := drvr.AlterTableColumnKinds(th.Context, db, "tbl",
+	err := drvr.AlterTableColumnKinds(
+		th.Context, db, "tbl",
 		[]string{"name"},
 		[]kind.Kind{kind.Text, kind.Int}, // one too many kinds
 	)

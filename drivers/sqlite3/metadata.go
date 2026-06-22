@@ -100,7 +100,8 @@ func setScanType(ctx context.Context, colType *record.ColumnTypeData) {
 	switch knd { //nolint:exhaustive
 	default:
 		// Shouldn't happen?
-		lg.FromContext(ctx).Warn("Unknown kind for col",
+		lg.FromContext(ctx).Warn(
+			"Unknown kind for col",
 			lga.Col, colType.Name,
 			lga.DBType, colType.DatabaseTypeName,
 		)
@@ -224,7 +225,8 @@ func kindFromDBTypeName(ctx context.Context, colName, dbTypeName string, scanTyp
 	switch {
 	default:
 		knd = kind.Unknown
-		log.Warn("Unknown SQLite database column type: using alt",
+		log.Warn(
+			"Unknown SQLite database column type: using alt",
 			lga.DBType, dbTypeName,
 			lga.Col, colName,
 			lga.Kind, knd,

@@ -138,6 +138,7 @@ func TestDriver_AlterTableColumnKinds_NotImplemented(t *testing.T) {
 	// AlterTableColumnKinds is not yet implemented for SQL Server; it must
 	// return an error without touching the (nil) DB.
 	err := newDriver(t).AlterTableColumnKinds(
-		t.Context(), nil, "tbl", []string{"col"}, []kind.Kind{kind.Int})
+		t.Context(), nil, "tbl", []string{"col"}, []kind.Kind{kind.Int},
+	)
 	require.Error(t, err)
 }

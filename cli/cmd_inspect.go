@@ -306,7 +306,8 @@ func errBinaryFormatToTerminal(fm format.Format, fileOutputSet, stdoutIsTerminal
 	}
 	return errz.Errorf(
 		"%s is a binary image format and would corrupt the terminal; "+
-			"write it to a file with -o/--output (e.g. -o schema.png)", format.PNGERD)
+			"write it to a file with -o/--output (e.g. -o schema.png)", format.PNGERD,
+	)
 }
 
 // determineInspectTarget determines the source (and, optionally, table)

@@ -473,7 +473,8 @@ See: https://github.com/neilotoole/sq/issues/437`,
 
 			// Test combination of --src and --src.schema
 			const qInfoSchemaActor = `.tables | .table_catalog, .table_schema, .table_name, .table_type | where(.table_name == "actor")` //nolint:lll
-			require.NoError(t, tr.Reset().Exec("--csv", "-H",
+			require.NoError(t, tr.Reset().Exec(
+				"--csv", "-H",
 				"--src", tc.handle,
 				"--src.schema", "information_schema",
 				qInfoSchemaActor,
@@ -489,7 +490,8 @@ See: https://github.com/neilotoole/sq/issues/437`,
 			require.Equal(t, tc.defaultSchema, tr.OutString())
 
 			// Test just --src.schema (schema part only)
-			require.NoError(t, tr.Reset().Exec("--csv", "-H",
+			require.NoError(t, tr.Reset().Exec(
+				"--csv", "-H",
 				"--src.schema", "information_schema",
 				qInfoSchemaActor,
 			))
@@ -498,7 +500,8 @@ See: https://github.com/neilotoole/sq/issues/437`,
 
 			if th.SQLDriverFor(src).Dialect().Catalog {
 				// Test --src.schema (catalog and schema parts)
-				require.NoError(t, tr.Reset().Exec("--csv", "-H",
+				require.NoError(t, tr.Reset().Exec(
+					"--csv", "-H",
 					"--src.schema", tc.altCatalog+".information_schema",
 					`.schemata | .catalog_name | unique`,
 				))
@@ -785,13 +788,15 @@ func TestCmdSLQ_NumericSchema(t *testing.T) {
 			tblName := "query_test_tbl"
 			_, err = db.ExecContext(ctx, fmt.Sprintf(
 				`CREATE TABLE %q.%q (id serial PRIMARY KEY, name text, value int)`,
-				schemaName, tblName))
+				schemaName, tblName,
+			))
 			require.NoError(t, err)
 
 			// Insert test data.
 			_, err = db.ExecContext(ctx, fmt.Sprintf(
 				`INSERT INTO %q.%q (name, value) VALUES ('alice', 10), ('bob', 20), ('charlie', 30)`,
-				schemaName, tblName))
+				schemaName, tblName,
+			))
 			require.NoError(t, err)
 
 			// Execute SLQ query with --src.schema pointing to numeric schema.

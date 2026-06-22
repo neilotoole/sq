@@ -205,7 +205,8 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, dbName, tblName string) (
 	var totalRows, totalBytes sql.NullInt64
 
 	err := db.QueryRowContext(ctx, queryTable, dbName, tblName).Scan(
-		&tableName, &engine, &totalRows, &totalBytes)
+		&tableName, &engine, &totalRows, &totalBytes,
+	)
 	if err != nil {
 		return nil, errw(err)
 	}

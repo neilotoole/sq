@@ -598,7 +598,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	// - https://github.com/go-sql-driver/mysql#readtimeout
 
 	if src.Schema != "" {
-		lg.FromContext(ctx).Debug("Setting default schema for MysQL connection",
+		lg.FromContext(ctx).Debug(
+			"Setting default schema for MysQL connection",
 			lga.Src, src,
 			lga.Schema, src.Schema,
 		)
