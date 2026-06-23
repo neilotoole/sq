@@ -63,12 +63,12 @@ deploy previews and the [`/version`](https://sq.io/version) static endpoint (red
 #### Production publish
 
 - **Site CI** ([`site-ci.yml`](./.github/workflows/site-ci.yml)) on `master` and PRs validates
-  builds only — merging `site/**` does **not** update https://sq.io.
-- **Manual publish:** [Site Publish (dispatch)](./.github/workflows/site-publish-dispatch.yml)
-  — Actions → Run workflow → type `DEPLOY`. Use when doc or dependency changes on `master`
+  builds only. Merging `site/**` does **not** update https://sq.io.
+- **Manual publish:** [Site Publish (dispatch)](./.github/workflows/site-publish-dispatch.yml):
+  Actions → Run workflow → type `DEPLOY`. Use when doc or dependency changes on `master`
   need to go live before the next sq release.
 - **Release publish:** [Site Publish (release)](./.github/workflows/site-publish-release.yml)
-  — runs automatically when GoReleaser publishes a **stable** `vX.Y.Z` GitHub release
+  runs automatically when GoReleaser publishes a **stable** `vX.Y.Z` GitHub release
   (pre-releases excluded).
 - **Netlify git integration** remains suppressed via `[context.production] ignore = "exit 0"`
   in [`site/netlify.toml`](./site/netlify.toml); all production uploads go through GitHub
@@ -320,20 +320,20 @@ For document drivers, see
 
 When you **add a new driver type** (a new value in `sq driver ls`), ship **code,
 site docs, and the end-user agent skill** in the same PR. Treat missing
-documentation as incomplete work — this is what keeps [sq.io](https://sq.io),
+documentation as incomplete work. This is what keeps [sq.io](https://sq.io),
 `npx skills add`, and coding agents aligned with the binary.
 
-1. **Driver package** — `drivers/{driver}/` (and registration in
+1. **Driver package**: `drivers/{driver}/` (and registration in
    [`cli/run.go`](cli/run.go); see [ARCHITECTURE.md](ARCHITECTURE.md#extension-guide)).
-2. **Driver type** — constant in
+2. **Driver type**: constant in
    [`libsq/source/drivertype/drivertype.go`](libsq/source/drivertype/drivertype.go).
-3. **Tests** — integration tests; for SQL drivers, a `sakiladb/{driver}` image
+3. **Tests**: integration tests; for SQL drivers, a `sakiladb/{driver}` image
    and handle in [`testh/sakila/sakila.go`](testh/sakila/sakila.go) when
    applicable.
-4. **sq.io docs** — new page
+4. **sq.io docs**: new page
    `site/content/en/docs/drivers/{driver}.md` (follow an existing driver page;
    link from [`site/content/en/docs/drivers/_index.md`](site/content/en/docs/drivers/_index.md)).
-5. **End-user agent skill** — required for every new driver:
+5. **End-user agent skill**: required for every new driver:
    - Add `skills/sq/references/{driver}.md` (short CLI-focused summary;
      **canonical detail stays on sq.io**). Copy
      [`skills/sq/references/postgres.md`](skills/sq/references/postgres.md)
@@ -343,7 +343,7 @@ documentation as incomplete work — this is what keeps [sq.io](https://sq.io),
      [`skills/sq/SKILL.md`](skills/sq/SKILL.md).
    - Run `make fmt` to format the markdown (or `make fmt-check` to verify);
      `skills/**` is formatted by the repo-root [`dprint.json`](dprint.json).
-6. **CHANGELOG** — add an `## Unreleased` / `Added` entry when the driver is
+6. **CHANGELOG**: add an `## Unreleased` / `Added` entry when the driver is
    user-visible (maintainers may edit wording at release time).
 
 Optional: `drivers/{driver}/README.md` for maintainers (connection strings,
