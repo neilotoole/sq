@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this
-repository.
+repository. Repo-wide rules in [AGENTS.md](../AGENTS.md) still apply here.
 
 ## Project Overview
 
