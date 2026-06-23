@@ -45,6 +45,7 @@ package secret
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 
 	"golang.org/x/sync/singleflight"
@@ -104,6 +105,22 @@ func (r *Registry) Register(scheme string, resolver Resolver) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.resolvers[scheme] = resolver
+}
+
+// Schemes returns the registered scheme names, sorted ascending. It is
+// read-only and side-effect-free — it does not resolve anything — so it is
+// safe for diagnostics and tests that need to assert which resolvers are
+// present without triggering a backend hit (e.g. keyring IPC or an op exec).
+func (r *Registry) Schemes() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	schemes := make([]string, 0, len(r.resolvers))
+	for scheme := range r.resolvers {
+		schemes = append(schemes, scheme)
+	}
+	slices.Sort(schemes)
+	return schemes
 }
 
 // ResolveScheme dispatches a single scheme/path pair to the appropriate
