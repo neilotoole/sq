@@ -27,14 +27,14 @@ import (
 
 // TestSmoke exercises Open/Ping plus a basic SELECT against the
 // sakiladb/rqlite container. The test is skipped under `go test -short`
-// or when SQ_TEST_SRC__SAKILA_RQ is unset (the standard pattern for
+// or when SQ_TEST_SRC__SAKILA_RQ10 is unset (the standard pattern for
 // network-backed sakila sources).
 func TestSmoke(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	require.Equal(t, drivertype.Rqlite, src.Type)
 
 	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+sakila.TblActor)
@@ -50,7 +50,7 @@ func TestSourceMetadata(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 
 	md, err := grip.SourceMetadata(th.Context, false)
@@ -77,7 +77,7 @@ func TestTableMetadata_Actor(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 
 	tbl, err := grip.TableMetadata(th.Context, sakila.TblActor)
@@ -103,7 +103,7 @@ func TestCreateTable(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -137,7 +137,7 @@ func TestAlterTableRename(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -169,7 +169,7 @@ func TestAlterTableAddColumn(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -200,7 +200,7 @@ func TestAlterTableRenameColumn(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -230,7 +230,7 @@ func TestTruncate_NoReset(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -265,7 +265,7 @@ func TestTruncate_Reset(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -311,7 +311,7 @@ func TestAlterTruncate_EmbeddedQuoteIdentifier(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -365,7 +365,7 @@ func TestCopyTable_StructureOnly(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -386,7 +386,7 @@ func TestCopyTable_StructureOnly(t *testing.T) {
 	require.Equal(t, dstName, md.Name)
 	require.Equal(t, int64(0), md.RowCount)
 
-	src2 := th.Source(sakila.Rq)
+	src2 := th.Source(sakila.RQ)
 	srcMd, err := th.Open(src2).TableMetadata(th.Context, sakila.TblActor)
 	require.NoError(t, err)
 	require.Len(t, md.Columns, len(srcMd.Columns))
@@ -397,7 +397,7 @@ func TestCopyTable_WithData(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -423,7 +423,7 @@ func TestAlterTableColumnKinds(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -470,7 +470,7 @@ func TestAlterTableColumnKinds_PreservesAutoincrementSeq(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -541,7 +541,7 @@ func TestAlterTableColumnKinds_QuotedIdentifier(t *testing.T) {
 			t.Parallel()
 
 			th := testh.New(t)
-			src := th.Source(sakila.Rq)
+			src := th.Source(sakila.RQ)
 			grip := th.Open(src)
 			drvr := grip.SQLDriver()
 			db, err := grip.DB(th.Context)
@@ -605,7 +605,7 @@ func TestAlterTableColumnKinds_ColumnNamePrefixesType(t *testing.T) {
 			t.Parallel()
 
 			th := testh.New(t)
-			src := th.Source(sakila.Rq)
+			src := th.Source(sakila.RQ)
 			grip := th.Open(src)
 			drvr := grip.SQLDriver()
 			db, err := grip.DB(th.Context)
@@ -643,7 +643,7 @@ func TestCopyTable_TableIdentInDefaultLiteral(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -681,7 +681,7 @@ func TestPrepareInsertStmt(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -721,7 +721,7 @@ func TestBatchInsert(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -778,7 +778,7 @@ func TestPrepareUpdateStmt(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -821,7 +821,7 @@ func TestAlterTableColumnKinds_MismatchedLength(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -844,7 +844,7 @@ func TestConsistencyLevels_Smoke(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	base := th.Source(sakila.Rq)
+	base := th.Source(sakila.RQ)
 
 	levels := []string{"none", "weak", "linearizable", "strong"}
 	for _, level := range levels {
@@ -888,7 +888,7 @@ func TestAlterTableColumnKinds_UnknownColumn(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -917,7 +917,7 @@ func TestOpen_DefaultsPort(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	base := th.Source(sakila.Rq)
+	base := th.Source(sakila.RQ)
 
 	u, err := url.Parse(base.Location)
 	require.NoError(t, err)
@@ -958,7 +958,7 @@ func TestWriteAtomic_PerStatementError(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1005,7 +1005,7 @@ func TestCoerce_NumericAffinityWholeNumber(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1045,7 +1045,7 @@ func TestCoerce_NumericAffinityDecimal(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1092,7 +1092,7 @@ func TestCoerce_RealAffinityFloat(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1132,7 +1132,7 @@ func TestCopyTable_PreservesFKs(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1214,7 +1214,7 @@ func TestCopyTable_RewritesSelfFK(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			th := testh.New(t)
-			src := th.Source(sakila.Rq)
+			src := th.Source(sakila.RQ)
 			grip := th.Open(src)
 			drvr := grip.SQLDriver()
 			db, err := grip.DB(th.Context)
@@ -1269,7 +1269,7 @@ func TestCopyTable_LeavesCrossFKsAlone(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1327,7 +1327,7 @@ func TestCopyTable_MultipleSelfFKs(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1372,7 +1372,7 @@ func TestCopyTable_CompositeSelfFK(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1418,7 +1418,7 @@ func TestCopyTable_CaseMismatchSelfFK(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1468,7 +1468,7 @@ func TestCopyTable_SchemaQualifiedDest(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1515,7 +1515,7 @@ func TestAlterTableColumnKinds_PreservesFKs(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1565,7 +1565,7 @@ func TestColumnTypes_EmptyTable(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1643,7 +1643,7 @@ func TestCopyTable_PreservesUniqueConstraints(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1688,7 +1688,7 @@ func TestCopyTable_PreservesDefaultExpression(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1734,7 +1734,7 @@ func TestCopyTable_PreservesAutoIncrement(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1790,7 +1790,7 @@ func TestCopyTable_PreservesCompositePK(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1839,7 +1839,7 @@ func TestCopyTable_PreservesCheckConstraints(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1888,7 +1888,7 @@ func TestAlterTableColumnKinds_PreservesUniqueAndDefault(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1940,7 +1940,7 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 	tu.SkipShort(t, true)
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -2016,7 +2016,7 @@ func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
 	tu.SkipShort(t, true)
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -2128,7 +2128,7 @@ func TestCopyTable_CopiesIndexesAndTriggers(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)

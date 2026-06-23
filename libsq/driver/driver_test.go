@@ -348,7 +348,7 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 			tu.SkipShort(t, handle == sakila.XLSX)
 			t.Parallel()
 
-			if handle == sakila.Rq {
+			if handle == sakila.RQ {
 				// rqlite reports integer columns (e.g. actor_id) as decimal,
 				// so it returns decimal.Decimal where this test expects int64.
 				// Pre-existing rqlite type-mapping quirk; tracked in #938.

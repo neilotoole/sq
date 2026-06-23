@@ -49,9 +49,9 @@ collection:
     - handle: '@sakila_or23'
       driver: oracle
       location: ${env:SQ_TEST_SRC__SAKILA_OR23}
-    - handle: '@sakila_rq'
+    - handle: '@sakila_rq10'
       driver: rqlite
-      location: ${env:SQ_TEST_SRC__SAKILA_RQ}
+      location: ${env:SQ_TEST_SRC__SAKILA_RQ10}
     - handle: '@sakila_xlsx'
       driver: xlsx
       location: '${env:SQ_ROOT}/drivers/xlsx/testdata/sakila.xlsx'

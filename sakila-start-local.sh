@@ -31,11 +31,11 @@ export SQ_TEST_SRC__SAKILA_MS19="sqlserver://sakila:p_ssW0rd@localhost:1433?data
 export SQ_TEST_SRC__SAKILA_MY8="mysql://sakila:p_ssW0rd@localhost:3306/sakila"
 export SQ_TEST_SRC__SAKILA_CH25="clickhouse://sakila:p_ssW0rd@localhost:9000?database=sakila"
 export SQ_TEST_SRC__SAKILA_OR23="oracle://sakila:p_ssW0rd@localhost:1521/SAKILA"
-export SQ_TEST_SRC__SAKILA_RQ="rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true"
+export SQ_TEST_SRC__SAKILA_RQ10="rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true"
 EOF
 export SQ_TEST_SRC__SAKILA_PG12="postgres://sakila:p_ssW0rd@localhost:5432/sakila"
 export SQ_TEST_SRC__SAKILA_MS19="sqlserver://sakila:p_ssW0rd@localhost:1433?database=sakila"
 export SQ_TEST_SRC__SAKILA_MY8="mysql://sakila:p_ssW0rd@localhost:3306/sakila"
 export SQ_TEST_SRC__SAKILA_CH25="clickhouse://sakila:p_ssW0rd@localhost:9000?database=sakila"
 export SQ_TEST_SRC__SAKILA_OR23="oracle://sakila:p_ssW0rd@localhost:1521/SAKILA"
-export SQ_TEST_SRC__SAKILA_RQ="rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true"
+export SQ_TEST_SRC__SAKILA_RQ10="rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true"
