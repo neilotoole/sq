@@ -383,7 +383,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		// SQLite pattern above.
 		//
 		// Skip when there is no on-disk file (e.g. duckdb://:memory: sources
-		// registered in sources.sq.yml): in-memory DBs are inherently per-
+		// registered in test.sq.yml): in-memory DBs are inherently per-
 		// connection so each test already gets its own.
 		srcPath, err := duckdb.PathFromLocation(src)
 		if err == nil {

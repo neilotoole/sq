@@ -452,7 +452,7 @@ func TestSmoke(t *testing.T) {
 Some packages (for example [`libsq/driver`](libsq/driver)) run extra checks when
 an Oracle Sakila source is configured. Set `SQ_TEST_SRC__SAKILA_ORA` to the
 part of the DSN after `oracle://sakila:p_ssW0rd@`, as described in
-[`testh/testdata/sources.sq.yml`](testh/testdata/sources.sq.yml) and
+[`testh/testdata/test.sq.yml`](testh/testdata/test.sq.yml) and
 [`drivers/oracle/README.md`](drivers/oracle/README.md).
 
 For local Oracle with Sakila sample data, run

@@ -77,7 +77,7 @@ go test -v -short
 
 Set `SQ_TEST_SRC__SAKILA_OR23` to the part of the DSN after
 `oracle://sakila:p_ssW0rd@` (for example `localhost:1521/SAKILA`), matching
-[`testh/testdata/sources.sq.yml`](../../testh/testdata/sources.sq.yml) handle
+[`testh/testdata/test.sq.yml`](../../testh/testdata/test.sq.yml) handle
 `@sakila_or23`. Recommended database image:
 [`sakiladb/oracle`](https://github.com/sakiladb/oracle) (`docker run -p
 1521:1521 sakiladb/oracle:latest`).

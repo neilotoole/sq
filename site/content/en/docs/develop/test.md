@@ -40,7 +40,7 @@ database/version. The full set of sources that the test code uses can be found i
 
 <!-- markdownlint-disable-next-line MD013 -->
 
-[testh/testdata/sources.sq.yml](https://github.com/neilotoole/sq/blob/master/testh/testdata/sources.sq.yml).
+[testh/testdata/test.sq.yml](https://github.com/neilotoole/sq/blob/master/testh/testdata/test.sq.yml).
 That file looks something like (truncated version shown):
 
 ```yaml
@@ -73,6 +73,11 @@ that source.
 > variable `${SQ_ROOT}`. You do not set this variable yourself: the `sq` test framework
 > always derives it in-process from the working directory (the sq module root). Any `SQ_ROOT`
 > you export in your shell is ignored.
+
+By default the test harness loads `testh/testdata/test.sq.yml`. Set
+`SQ_TEST_CONFIG_FILE=/path/to/your/test.sq.yml` to point the harness at a
+different config file instead; its `${env:...}` placeholders (and `${SQ_ROOT}`
+via `${env:SQ_ROOT}`) resolve exactly like the default file.
 
 Importantly: **When running `sq` tests, if the envar for a source is not populated, any test
 that uses that source is skipped.**
