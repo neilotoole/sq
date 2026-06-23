@@ -17,30 +17,21 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
-## Unreleased
-
-### Changed
-
-- Repo-wide code formatting is now handled by [dprint](https://dprint.dev) under a single
-  root `dprint.json` (markdown, JSON, YAML, TOML, SCSS/CSS, Go via the gofumpt plugin, and
-  site JS), and site JS is linted by [Biome](https://biomejs.dev). This retires
-  markdownlint-cli2, eslint, and stylelint, drops the standalone gofumpt pass, and removes
-  the `formatters` block from `.golangci.yml`. Run `make fmt` to format and `make fmt-check`
-  to verify; `goimports-reviser` still orders Go imports, now grouping the whole module but
-  aliasing only changed files (the `-set-alias` whole-module pass cost ~145s; it is now ~1s).
-  Formatting, including Go import order, is enforced in CI. This is a contributor-facing
-  change with no effect on the `sq` binary.
-- Go formatting upgraded to [gofumpt](https://github.com/mvdan/gofumpt) v0.10 via the dprint
-  plugin v0.0.11 (~67 files; mechanical trailing-comma and redundant-paren changes only, no
-  behavior change). Deferred from [#927] to keep that PR a tooling-only swap.
+## [v0.54.1] - 2026-06-23
 
 ### Fixed
 
 - [#866], [#868]: Ingesting document sources (CSV, JSON, Excel, etc.) is now much
   faster, especially on Windows and other slow filesystems.
-- [#865]: Fixed several broken shell-completion things.
+- [#865]: Fixed shell-completion regressions.
 - [#863]: `FORCE_COLOR` handling now follows the [force-color.org](https://force-color.org/)
   conventions.
+- [#919]: [`sq inspect`](https://sq.io/docs/inspect) on an Oracle source now handles
+  materialized views correctly. A materialized view was previously omitted from
+  the inspection (its metadata query referenced a `NUM_ROWS` column that Oracle
+  exposes only on the backing table, not in `USER_MVIEWS`), and that backing
+  container table was reported as a duplicate base table. Materialized views now
+  appear exactly once, typed as a materialized view.
 - [#926]: On Windows, a bare `${file:/}` source placeholder no longer suggests an invalid
   backslash handle name; the name is now derived using URI path semantics on all platforms.
 - [#859]: [`sq add`](https://sq.io/docs/cmd/add) of a relative file path whose name contains
@@ -117,12 +108,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#844]: On [Oracle](https://sq.io/docs/drivers/oracle), a query whose result is a computed
   `NUMBER` with a fractional value no longer fails with a scan error; such numbers are now
   typed as `decimal`.
-- [`sq inspect`](https://sq.io/docs/inspect) on an Oracle source now handles
-  materialized views correctly. A materialized view was previously omitted from
-  the inspection (its metadata query referenced a `NUM_ROWS` column that Oracle
-  exposes only on the backing table, not in `USER_MVIEWS`), and that backing
-  container table was reported as a duplicate base table. Materialized views now
-  appear exactly once, typed as a materialized view.
 - [#594]: On [SQL Server](https://sq.io/docs/drivers/sqlserver), `avg()` over an integer
   column no longer performs integer division and truncates the result.
 - [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now supports
@@ -1755,6 +1740,7 @@ make working with lots of sources much easier.
 [#915]: https://github.com/neilotoole/sq/pull/915
 [#916]: https://github.com/neilotoole/sq/pull/916
 [#918]: https://github.com/neilotoole/sq/pull/918
+[#919]: https://github.com/neilotoole/sq/pull/919
 [#920]: https://github.com/neilotoole/sq/pull/920
 [#923]: https://github.com/neilotoole/sq/pull/923
 [#926]: https://github.com/neilotoole/sq/pull/926
@@ -1829,3 +1815,4 @@ make working with lots of sources much easier.
 [v0.52.0]: https://github.com/neilotoole/sq/compare/v0.51.0...v0.52.0
 [v0.53.0]: https://github.com/neilotoole/sq/compare/v0.52.0...v0.53.0
 [v0.54.0]: https://github.com/neilotoole/sq/compare/v0.53.0...v0.54.0
+[v0.54.1]: https://github.com/neilotoole/sq/compare/v0.54.0...v0.54.1
