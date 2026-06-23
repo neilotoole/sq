@@ -27,17 +27,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#863]: `FORCE_COLOR` handling now follows the [force-color.org](https://force-color.org/)
   conventions.
 - [#919]: [`sq inspect`](https://sq.io/docs/inspect) on an Oracle source now handles
-  materialized views correctly. A materialized view was previously omitted from
-  the inspection (its metadata query referenced a `NUM_ROWS` column that Oracle
-  exposes only on the backing table, not in `USER_MVIEWS`), and that backing
-  container table was reported as a duplicate base table. Materialized views now
-  appear exactly once, typed as a materialized view.
-- [#926]: On Windows, a bare `${file:/}` source placeholder no longer suggests an invalid
-  backslash handle name; the name is now derived using URI path semantics on all platforms.
-- [#859]: [`sq add`](https://sq.io/docs/cmd/add) of a relative file path whose name contains
-  a colon (e.g. `./dump.sqlite3:old.csv`) is now stored as an absolute path, like other file
-  sources, rather than being left relative to the current directory.
-- Various other bug fixes: [#902], [#911], [#915], [#916], [#918], [#920], [#923].
+  materialized views correctly.
+- Various other bug fixes: [#859], [#902], [#911], [#915], [#916], [#918], [#920], [#923], [#926].
 
 ## [v0.54.0] - 2026-06-19
 
