@@ -26,16 +26,16 @@ sleep 5
 echo "Export these envars (and source them) to run the tests with these sources enabled"
 
 cat << EOF
-export SQ_TEST_SRC__SAKILA_PG12=localhost
-export SQ_TEST_SRC__SAKILA_MS19=localhost
-export SQ_TEST_SRC__SAKILA_MY8=localhost
-export SQ_TEST_SRC__SAKILA_CH25=localhost
-export SQ_TEST_SRC__SAKILA_OR23=localhost
-export SQ_TEST_SRC__SAKILA_RQ=localhost
+export SQ_TEST_SRC__SAKILA_PG12="postgres://sakila:p_ssW0rd@localhost:5432/sakila"
+export SQ_TEST_SRC__SAKILA_MS19="sqlserver://sakila:p_ssW0rd@localhost:1433?database=sakila"
+export SQ_TEST_SRC__SAKILA_MY8="mysql://sakila:p_ssW0rd@localhost:3306/sakila"
+export SQ_TEST_SRC__SAKILA_CH25="clickhouse://sakila:p_ssW0rd@localhost:9000?database=sakila"
+export SQ_TEST_SRC__SAKILA_OR23="oracle://sakila:p_ssW0rd@localhost:1521/SAKILA"
+export SQ_TEST_SRC__SAKILA_RQ="rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true"
 EOF
-export SQ_TEST_SRC__SAKILA_PG12=localhost
-export SQ_TEST_SRC__SAKILA_MS19=localhost
-export SQ_TEST_SRC__SAKILA_MY8=localhost
-export SQ_TEST_SRC__SAKILA_CH25=localhost
-export SQ_TEST_SRC__SAKILA_OR23=localhost
-export SQ_TEST_SRC__SAKILA_RQ=localhost
+export SQ_TEST_SRC__SAKILA_PG12="postgres://sakila:p_ssW0rd@localhost:5432/sakila"
+export SQ_TEST_SRC__SAKILA_MS19="sqlserver://sakila:p_ssW0rd@localhost:1433?database=sakila"
+export SQ_TEST_SRC__SAKILA_MY8="mysql://sakila:p_ssW0rd@localhost:3306/sakila"
+export SQ_TEST_SRC__SAKILA_CH25="clickhouse://sakila:p_ssW0rd@localhost:9000?database=sakila"
+export SQ_TEST_SRC__SAKILA_OR23="oracle://sakila:p_ssW0rd@localhost:1521/SAKILA"
+export SQ_TEST_SRC__SAKILA_RQ="rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true"
