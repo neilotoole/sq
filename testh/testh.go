@@ -28,6 +28,7 @@ import (
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/oracle"
+	"github.com/neilotoole/sq/drivers/parquet"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/rqlite"
 	"github.com/neilotoole/sq/drivers/sqlite3"
@@ -211,6 +212,12 @@ func (h *Helper) init() {
 
 		h.registry.AddProvider(drivertype.XLSX, &xlsx.Provider{Log: h.Log(), Ingester: h.grips, Files: h.files})
 		h.files.AddDriverDetectors(xlsx.DetectXLSX)
+		h.registry.AddProvider(drivertype.Parquet, &parquet.Provider{
+			Log:      h.Log(),
+			Registry: h.registry,
+			Files:    h.files,
+		})
+		h.files.AddDriverDetectors(parquet.DetectParquet)
 
 		h.addUserDrivers()
 
@@ -921,6 +928,7 @@ func DriverDetectors() []files.TypeDetectFunc {
 		json.DetectJSON(1000),
 		json.DetectJSONA(1000),
 		json.DetectJSONL(1000),
+		parquet.DetectParquet,
 	}
 }
 

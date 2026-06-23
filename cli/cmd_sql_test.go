@@ -670,6 +670,14 @@ func TestCmdSQL_StdinQuery(t *testing.T) {
 			wantCount: sakila.TblActorCount,
 		},
 		{
+			// Parquet can't be read as a stream: the source is materialized
+			// to a temp file (like sqlite/duckdb on stdin), then read by
+			// DuckDB's read_parquet.
+			fpath:     proj.Abs("drivers/parquet/testdata/actor.parquet"),
+			tbl:       source.MonotableName,
+			wantCount: 3,
+		},
+		{
 			fpath:   proj.Abs("README.md"),
 			wantErr: true,
 		},

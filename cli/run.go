@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
 	"github.com/neilotoole/sq/drivers/oracle"
+	"github.com/neilotoole/sq/drivers/parquet"
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/drivers/rqlite"
 	"github.com/neilotoole/sq/drivers/sqlite3"
@@ -347,6 +348,12 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 
 	dr.AddProvider(drivertype.XLSX, &xlsx.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files})
 	ru.Files.AddDriverDetectors(xlsx.DetectXLSX)
+	dr.AddProvider(drivertype.Parquet, &parquet.Provider{
+		Log:      log,
+		Registry: dr,
+		Files:    ru.Files,
+	})
+	ru.Files.AddDriverDetectors(parquet.DetectParquet)
 	// One day we may have more supported user driver genres.
 	userDriverImporters := map[string]userdriver.IngestFunc{
 		xmlud.Genre: xmlud.Ingest,
