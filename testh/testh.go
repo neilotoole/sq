@@ -46,6 +46,11 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/secret"
+	"github.com/neilotoole/sq/libsq/core/secret/env"
+	"github.com/neilotoole/sq/libsq/core/secret/file"
+	"github.com/neilotoole/sq/libsq/core/secret/keyring"
+	"github.com/neilotoole/sq/libsq/core/secret/op"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -179,10 +184,10 @@ func (h *Helper) init() {
 			assert.NoError(h.T, err)
 		})
 
-		// nil secret registry: test sources don't use ${scheme:path}
-		// placeholders. Tests that exercise secret resolution call
-		// driver.ResolveSourceSecrets directly with their own registry.
-		h.grips = driver.NewGrips(h.registry, h.files, nil, sqlite3.NewScratchSource)
+		// Secret registry mirrors the production CLI (see newSecretRegistry /
+		// cli/run.go), so test source Locations can use ${scheme:path}
+		// placeholders resolved at connect time.
+		h.grips = driver.NewGrips(h.registry, h.files, newSecretRegistry(), sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.grips)
 
 		h.registry.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: h.Log()})
@@ -1049,4 +1054,19 @@ func MakeDuckDBSource(handle, path string) *source.Source {
 		Type:     drivertype.DuckDB,
 		Location: "duckdb://" + path,
 	}
+}
+
+// newSecretRegistry builds the secret.Registry used by the test harness's
+// Grips. It registers the same ${scheme:path} resolvers as the production
+// CLI (see cli/run.go) so test source Locations resolve placeholders at
+// connect time exactly as production does. Kept inline (not a shared package)
+// because the test sources realistically only use ${env:...}; if a third
+// consumer ever appears, extract a shared builder then.
+func newSecretRegistry() *secret.Registry {
+	reg := secret.NewRegistry()
+	reg.Register("keyring", keyring.NewStore())
+	reg.Register("env", env.NewResolver())
+	reg.Register("file", file.NewResolver())
+	reg.Register("op", op.NewResolver())
+	return reg
 }
