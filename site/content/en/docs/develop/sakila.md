@@ -132,12 +132,11 @@ $ sq add 'oracle://sakila:p_ssW0rd@localhost:1521/SAKILA' --handle @sakila_ora
 > Wait until Oracle is accepting connections before running `sq ping` or tests.
 
 Repo-wide tests use handle `@sakila_or23` (the `_or23` suffix versions it
-against the `sakiladb/oracle:23` image). `sources.sq.yml` expands
-`SQ_TEST_SRC__SAKILA_OR23` to the host part of the DSN. For the docker command
-above:
+against the `sakiladb/oracle:23` image). `test.sq.yml` uses `SQ_TEST_SRC__SAKILA_OR23`
+as the entire source location. For the docker command above:
 
 ```shell
-export SQ_TEST_SRC__SAKILA_OR23=localhost
+export SQ_TEST_SRC__SAKILA_OR23=oracle://sakila:p_ssW0rd@localhost:1521/SAKILA
 ```
 
 See

@@ -33,7 +33,7 @@ func makeTypeTestTable(t *testing.T, colsClause string) (th *testh.Helper, src *
 ) {
 	t.Helper()
 	th = testh.New(t)
-	src = th.Source(sakila.Rq)
+	src = th.Source(sakila.RQ)
 	grip = th.Open(src)
 	db, err := grip.DB(th.Context)
 	require.NoError(t, err)
