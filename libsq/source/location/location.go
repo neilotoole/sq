@@ -33,6 +33,28 @@ var dbSchemes = []string{
 	"oracle",
 }
 
+// nonFileSchemes is the set of URL/DSN schemes that isFpath must not
+// treat as a local file path. It is derived from dbSchemes so new SQL
+// drivers are covered automatically; "sqlite" is the legacy spelling of
+// "sqlite3", and "http"/"https" are document URLs.
+var nonFileSchemes = func() map[string]bool {
+	m := make(map[string]bool, len(dbSchemes)+3)
+	for _, s := range dbSchemes {
+		m[s] = true
+	}
+	m["sqlite"] = true
+	m["http"] = true
+	m["https"] = true
+	return m
+}()
+
+// isNonFileScheme reports whether scheme (matched case-insensitively, as
+// URL schemes are per RFC 3986) is a known URL/DSN scheme that isFpath
+// must not treat as a file path.
+func isNonFileScheme(scheme string) bool {
+	return nonFileSchemes[strings.ToLower(scheme)]
+}
+
 // Filename returns the final component of the file/URL path.
 func Filename(loc string) (string, error) {
 	if IsSQL(loc) {
@@ -499,22 +521,25 @@ func isFpath(loc string) (fpath string, ok bool) {
 		return "", false
 	}
 
-	if strings.Contains(loc, ":/") {
-		// Excludes "http:/" etc
+	if strings.Contains(loc, "://") {
+		// Any "scheme://" authority form is a URL — a SQL driver DSN,
+		// http/https, or an unknown/unsupported scheme — never a local
+		// file path. Mirrors the "://" convention used by IsSQL, Short,
+		// and Parse. Excluding unknown schemes here too avoids mangling a
+		// mistyped URL into a garbage path before it fails downstream.
 		return "", false
 	}
 
-	if strings.Contains(loc, "sqlite3:") || strings.Contains(loc, "sqlite:") {
-		// Excludes the sqlite3 driver scheme, e.g. "sqlite3:my_file.db" and
-		// the Windows form "sqlite3:C:\db" (which has no ":/" to catch it
-		// above), plus the legacy "sqlite:" spelling. Without the "sqlite3:"
-		// check a driver-scheme location was wrongly treated as a relative
-		// file path and joined under the cwd (gh #797).
-		return "", false
-	}
-
-	if strings.Contains(loc, "duckdb:") {
-		// Excludes "duckdb:my_file.duckdb" (malformed; missing the double-slash)
+	if scheme, _, found := strings.Cut(loc, ":"); found && isNonFileScheme(scheme) {
+		// A leading "scheme:" token naming a known non-file scheme is a
+		// driver DSN, not a path: the bare file-DB forms "sqlite3:f.db",
+		// "duckdb:f.db", the legacy "sqlite:f.db" spelling, and malformed
+		// single-slash forms like "sqlite3:/path". A single-letter Windows
+		// volume ("C:\db") is not a known scheme, so it stays a path,
+		// dissolving the gh #797 trap without a dedicated drive-letter
+		// branch. A colon inside a filename ("./dump.sqlite3:old.db")
+		// likewise has a leading token that isn't a known scheme, so it
+		// too stays a path (gh #859).
 		return "", false
 	}
 
