@@ -599,7 +599,7 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 
 	if src.Schema != "" {
 		lg.FromContext(ctx).Debug(
-			"Setting default schema for MysQL connection",
+			"Setting default schema for MySQL connection",
 			lga.Src, src,
 			lga.Schema, src.Schema,
 		)
