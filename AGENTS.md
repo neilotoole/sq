@@ -19,13 +19,13 @@ docs live at
 Before making non-trivial changes, read the document most relevant to your
 task:
 
-- [`README.md`](./README.md) — project overview and user-facing intro.
-- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — full contributor guide: tooling,
+- [`README.md`](./README.md): project overview and user-facing intro.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md): full contributor guide (tooling,
   `Makefile` usage, driver implementation patterns, test handles,
-  `CHANGELOG.md` format.
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Mermaid ERD of core types
+  `CHANGELOG.md` format).
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md): Mermaid ERD of core types
   (`Source`, `Driver`, `Grip`, `Registry`, `RecordWriter`, etc.).
-- [sq.io](https://sq.io) — end-user documentation for commands and query
+- [sq.io](https://sq.io): end-user documentation for commands and query
   syntax.
 
 ## Common commands
@@ -54,8 +54,8 @@ or `go test -short ./...` to skip them.
 Run `make lint` after any change to `*.go` files. Fix all reported issues
 before committing. Common lint categories:
 
-- `godot` — comments must end with a period.
-- `unused` — unused variables, constants, functions.
+- `godot`: comments must end with a period.
+- `unused`: unused variables, constants, functions.
 
 Go formatting (gofumpt rules + import ordering) is handled by `make fmt`, not
 golangci-lint: `dprint` runs the gofumpt plugin (`modulePath` + `extraRules`)
@@ -68,9 +68,9 @@ Don't wait to be asked; treat `make lint` as part of "done".
 Prefer `github.com/stretchr/testify` for assertions, and prefer `require`
 over `assert`:
 
-- `require.*` — fails fast, stopping the test on first failure. Default
+- `require.*`: fails fast, stopping the test on first failure. Default
   choice.
-- `assert.*` — continues after failure. Use only when you genuinely want to
+- `assert.*`: continues after failure. Use only when you genuinely want to
   report multiple independent failures in one run.
 
 ```go
@@ -96,8 +96,9 @@ conventions.
 
 Use [`libsq/core/errz`](./libsq/core/errz) for every error produced inside
 sq. `errz` wrappers attach a stack trace at the call site, which the CLI's
-debug output and the `errz.Format` `%+v` verb rely on. `errors.Is` / `As`
-continue to work because `errz` exposes `Unwrap`.
+debug output and `%+v` formatting rely on (errz errors implement
+`fmt.Formatter`). `errors.Is` / `errors.As` continue to work because `errz`
+exposes `Unwrap`.
 
 | Situation                                         | Use                            |
 | ------------------------------------------------- | ------------------------------ |
@@ -109,7 +110,7 @@ continue to work because `errz` exposes `Unwrap`.
 | Package-level sentinel for `errors.Is` comparison | `errors.New("...")`            |
 
 Sentinels (e.g. `secret.ErrNotFound`, `errz.ErrStop`) intentionally stay on
-`errors.New` — wrapping at package-init would attach a stack trace from
+`errors.New`. Wrapping at package-init would attach a stack trace from
 program startup, which is meaningless. Wrap them with `errz` at the point
 they're returned.
 
@@ -117,7 +118,7 @@ Errors crossing into sq from external libraries (stdlib, third-party
 packages) MUST be wrapped at the boundary so the stack trace anchors at the
 sq-side caller, not deep inside the external code.
 
-Avoid `fmt.Errorf` and `errors.New` outside sentinel declarations — they
+Avoid `fmt.Errorf` and `errors.New` outside sentinel declarations: they
 produce stackless errors that surface upstream with no useful trace.
 
 Command-authoring conventions for the `cli` package (including the rule that
@@ -231,12 +232,12 @@ Do not add AI / Claude attribution text to commits or PRs.
 driver under [`drivers/`](./drivers/). When adding or modifying a driver,
 read the
 ["New driver implementations"](./CONTRIBUTING.md#new-driver-implementations)
-section of `CONTRIBUTING.md` — it covers package structure, type mapping,
+section of `CONTRIBUTING.md`. It covers package structure, type mapping,
 dialect configuration, test handles, and the SQL-vs-document driver split.
 
 **Adding a new driver type:** you must complete the
 [driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist) in the same
-PR — including [`site/content/en/docs/drivers/`](site/content/en/docs/drivers/)
+PR, including [`site/content/en/docs/drivers/`](site/content/en/docs/drivers/)
 and [`skills/sq/`](skills/sq/SKILL.md) (`SKILL.md` driver table plus
 `references/{driver}.md`). Do not mark driver work done until those files are
 updated; copy an existing `skills/sq/references/*.md` as a template.

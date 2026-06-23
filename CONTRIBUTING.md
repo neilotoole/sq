@@ -113,7 +113,7 @@ to search the existing issues first.
 
 Use the usual GitHub process to open a PR. Before you do so, please:
 
-- Name your branch per [AGENTS.md — Git branch naming](./AGENTS.md#git-branch-naming).
+- Name your branch per [AGENTS.md: Git branch naming](./AGENTS.md#git-branch-naming).
 - Merge the latest `master` into your branch: `git merge origin/master`.
 - Run `make all`.
 - If the PR adds a **new driver type**, complete the
