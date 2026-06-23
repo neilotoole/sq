@@ -296,22 +296,24 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 }
 
 // Source returns a test Source with the given handle. The standard test
-// source collection is loaded from the sq config file at TestSourcesConfigPath,
-// (but additional sources can be added via Helper.Add). Variables
-// such as ${SQ_ROOT} in the config file are expanded. The same
-// instance of *source.Source will be returned for multiple invocations
-// of this method on the same Helper instance.
+// source collection is loaded from testh/testdata/test.sq.yml (but additional
+// sources can be added via Helper.Add). Placeholders such as ${env:SQ_ROOT}
+// in the config file are resolved. The same instance of *source.Source will
+// be returned for multiple invocations of this method on the same Helper instance.
 //
 // For certain file-based driver types, the returned src's Location
 // may point to a copy of the file. This helps avoid tests dirtying
 // a version-controlled data file.
 //
 // Any external database source (that is, any SQL source other than SQLite3)
-// will have its location determined from an envar. Given a source @sakila_pg12,
-// its location is derived from an envar SQ_TEST_SRC__SAKILA_PG12. If that envar
-// is not set, the test calling this method will be skipped. For @sakila_or23,
-// use SQ_TEST_SRC__SAKILA_OR23 (host:port/service_name go-ora URL fragment after
-// the @ in oracle://user:pass@…).
+// has its location supplied by an envar. The envar holds the complete DSN for
+// the source: host, port, credentials, database name, and any parameters.
+// test.sq.yml references it as the entire location via ${env:SQ_TEST_SRC__<HANDLE>}.
+// For example, @sakila_pg12 reads its location from SQ_TEST_SRC__SAKILA_PG12,
+// which should be set to a value like postgres://sakila:p_ssW0rd@localhost:5432/sakila.
+// Similarly, @sakila_or23 reads from SQ_TEST_SRC__SAKILA_OR23, set to a value
+// like oracle://sakila:p_ssW0rd@localhost:1521/SAKILA.
+// If the envar is not set, the test calling this method will be skipped.
 //
 // If envar SQ_TEST_DIFFDB is true, DiffDB is run on every SQL source
 // returned by Source.

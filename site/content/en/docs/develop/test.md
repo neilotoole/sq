@@ -63,10 +63,19 @@ sources:
       location: mysql://sakila:p_ssW0rd@${env:SQ_TEST_SRC__SAKILA_MY57}/sakila
 ```
 
-Note that for each of the external databases, there is a matching envar. For example,
-`@sakila_pg9` has its `location` field populated with envar `SQ_TEST_SRC__SAKILA_PG9`.
-The envar is simply the `host` (meaning `hostname:port`) part of the connection string for
-that source.
+Each external database has a matching envar holding its full DSN. For example:
+
+```sh
+SQ_TEST_SRC__SAKILA_PG12=postgres://sakila:p_ssW0rd@localhost:5432/sakila
+```
+
+`test.sq.yml` references the envar as the entire location:
+
+```yaml
+location: ${env:SQ_TEST_SRC__SAKILA_PG12}
+```
+
+Run `./sakila-start-local.sh` to start the containers and print the exact exports.
 
 > **Note:** In the `yaml` snippet above, for local file-based sources such as `@sakila_sl3`
 > with `location: sqlite3://${env:SQ_ROOT}/drivers/sqlite3/testdata/sakila.db`, you'll notice a
@@ -89,14 +98,14 @@ dev/test, it is typical to export these envars in `.bashrc`/`.zshrc` or similar.
 
 ```sh
 # MySQL
-export SQ_TEST_SRC__SAKILA_MY56=192.168.30.129
-export SQ_TEST_SRC__SAKILA_MY57=192.168.30.131
-export SQ_TEST_SRC__SAKILA_MY8=192.168.30.132
+export SQ_TEST_SRC__SAKILA_MY56=mysql://sakila:p_ssW0rd@192.168.30.129/sakila
+export SQ_TEST_SRC__SAKILA_MY57=mysql://sakila:p_ssW0rd@192.168.30.131/sakila
+export SQ_TEST_SRC__SAKILA_MY8=mysql://sakila:p_ssW0rd@192.168.30.132/sakila
 # Postgres
-export SQ_TEST_SRC__SAKILA_PG9=192.168.30.133
-export SQ_TEST_SRC__SAKILA_PG10=192.168.30.134
-export SQ_TEST_SRC__SAKILA_PG11=192.168.30.135
-export SQ_TEST_SRC__SAKILA_PG12=192.168.30.136
+export SQ_TEST_SRC__SAKILA_PG9=postgres://sakila:p_ssW0rd@192.168.30.133/sakila
+export SQ_TEST_SRC__SAKILA_PG10=postgres://sakila:p_ssW0rd@192.168.30.134/sakila
+export SQ_TEST_SRC__SAKILA_PG11=postgres://sakila:p_ssW0rd@192.168.30.135/sakila
+export SQ_TEST_SRC__SAKILA_PG12=postgres://sakila:p_ssW0rd@192.168.30.136/sakila
 # MSSQL
-export SQ_TEST_SRC__SAKILA_MS17=192.168.30.137
+export SQ_TEST_SRC__SAKILA_MS17=sqlserver://sakila:p_ssW0rd@192.168.30.137?database=sakila
 ```
