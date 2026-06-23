@@ -207,8 +207,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     env:
       # Quiet brew's generic env hints, and skip the pre-install auto-update
-      # step (the formula was just tapped, so there's nothing to refresh — this
-      # also avoids the untrusted-tap noise brew emits while scanning taps).
+      # step. The formula was just tapped, so there's nothing to refresh, and
+      # this also avoids the untrusted-tap noise brew emits while scanning taps.
       # Note: the "Sandbox unavailable" warning on Linux is inherent to building
       # from source in a container without a bottle, and isn't silenced here.
       HOMEBREW_NO_ENV_HINTS: "1"
