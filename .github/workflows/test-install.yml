@@ -35,8 +35,15 @@ jobs:
           echo "OK: Docker image $image reports $got"
 
   macos-brew:
-    runs-on: macos-latest
+    # Pin the macOS version: macos-latest migrates to macOS 26 from 2026-06-15.
+    runs-on: macos-15
     if: startsWith(github.ref, 'refs/tags/v')
+    env:
+      # Silence brew's generic env hints, and skip the auto-update step that
+      # scans the runner's preinstalled third-party taps (aws/tap, azure/bicep)
+      # and emits "not trusted" warnings unrelated to sq.
+      HOMEBREW_NO_ENV_HINTS: "1"
+      HOMEBREW_NO_AUTO_UPDATE: "1"
     steps:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@6eaeff80e7e5c43087c0e5eb5aa82120399e9c91 # master
@@ -56,7 +63,7 @@ jobs:
   # updated by the brew maintainers, so it won't be available at the time this job runs.
 
   #  macos-install-sh:
-  #    runs-on: macos-latest
+  #    runs-on: macos-15
   #    if: startsWith(github.ref, 'refs/tags/v')
   #    steps:
   #      - name: Set up Homebrew
@@ -198,6 +205,14 @@ jobs:
   ubuntu-brew:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    env:
+      # Quiet brew's generic env hints, and skip the pre-install auto-update
+      # step (the formula was just tapped, so there's nothing to refresh — this
+      # also avoids the untrusted-tap noise brew emits while scanning taps).
+      # Note: the "Sandbox unavailable" warning on Linux is inherent to building
+      # from source in a container without a bottle, and isn't silenced here.
+      HOMEBREW_NO_ENV_HINTS: "1"
+      HOMEBREW_NO_AUTO_UPDATE: "1"
     steps:
       - name: Set up Homebrew
         id: set-up-homebrew
