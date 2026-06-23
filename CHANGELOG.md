@@ -1744,11 +1744,11 @@ make working with lots of sources much easier.
 [#846]: https://github.com/neilotoole/sq/issues/846
 [#851]: https://github.com/neilotoole/sq/issues/851
 [#853]: https://github.com/neilotoole/sq/issues/853
+[#859]: https://github.com/neilotoole/sq/issues/859
 [#863]: https://github.com/neilotoole/sq/pull/863
 [#865]: https://github.com/neilotoole/sq/pull/865
 [#866]: https://github.com/neilotoole/sq/issues/866
 [#868]: https://github.com/neilotoole/sq/issues/868
-[#859]: https://github.com/neilotoole/sq/issues/859
 [#900]: https://github.com/neilotoole/sq/pull/900
 [#902]: https://github.com/neilotoole/sq/pull/902
 [#911]: https://github.com/neilotoole/sq/pull/911

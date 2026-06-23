@@ -370,7 +370,13 @@ func TestIsFpath(t *testing.T) {
 		// consistent with the no-slash form already being a path.
 		{loc: "weird:notes.db", wantOK: true},
 		{loc: "weird:/notes/x.db", wantOK: true},
-		// Any "scheme://" authority form is a URL, never a path — whether
+		// A leading token matching a *network* DB scheme but lacking a
+		// "://" authority is a colon-bearing filename, not a DSN (network
+		// DSNs are always "scheme://..."), so it stays a path. Only the
+		// file-DB schemes have a bare "scheme:path" DSN form.
+		{loc: "postgres:notes.csv", wantOK: true},
+		{loc: "mysql:data.csv", wantOK: true},
+		// Any "scheme://" authority form is a URL, never a path, whether
 		// the scheme is known or not (the latter avoids mangling a mistyped
 		// URL into a garbage path before it fails downstream).
 		{loc: "http://acme.com/data.csv", wantOK: false},
