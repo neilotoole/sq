@@ -14,7 +14,9 @@ defaults:
 jobs:
   links:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Headroom for the external crawl's per-attempt timeout x retry budget
+    # (see site/linkinator.sh: LINKINATOR_ATTEMPT_TIMEOUT x LINKINATOR_MAX_ATTEMPTS).
+    timeout-minutes: 40
     permissions:
       contents: read
     steps:

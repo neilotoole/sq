@@ -10,6 +10,7 @@ menu:
 toc: true
 url: /docs/cmd/sql
 ---
+
 When `sq`'s jq-like query language ([SLQ](/docs/concepts#slq)) isn't expressive enough,
 you can use `sq sql` to execute DB-native SQL queries or statements.
 

@@ -10,6 +10,7 @@ menu:
 toc: false
 url: /docs/cmd/config-export
 ---
+
 `sq config export` dumps the active config to YAML for backups. The export
 covers the source collection, config options, and active source/group
 state: the same content `sq` reads from its [config file](/docs/config#location).

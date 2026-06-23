@@ -1,7 +1,7 @@
 ---
 title: Tutorial
 description: sq tutorial
-lead: ''
+lead: ""
 draft: false
 images: []
 weight: 1070
@@ -356,7 +356,6 @@ $ sq add 'postgres://sakila:p_ssW0rd@localhost/sakila' --handle @sakila_pg
 > If you don't want to type the password on the command line, use `-p`
 > to be [prompted](/docs/cmd/add/#password-visibility):
 >
->
 > ```shell
 > $ sq add 'postgres://sakila@localhost/sakila' -p
 > Password: [ENTER]
@@ -415,7 +414,7 @@ count
 $ sq '@sakila_my.film_category | count'
 count
 1000
-````
+```
 
 Make a copy of the table as a backup.
 

@@ -10,6 +10,7 @@ menu:
 toc: false
 url: /docs/cmd/add
 ---
+
 Use `sq add` to add a data source. The source can be a SQL database, or a document
 such as a CSV or Excel file. This action will add an entry to `sq`'s
 [config file](/docs/overview/#config).
@@ -97,7 +98,7 @@ $ sq add --store keyring postgres://alice:hunter2@db.acme.com/sakila
 ID, and stores a bare `${keyring:<id>}` placeholder as the YAML `location`:
 
 ```yaml
-- handle: '@sakila/pg'
+- handle: "@sakila/pg"
   driver: postgres
   location: ${keyring:j2k7m3pxtz}
 ```
@@ -133,6 +134,7 @@ database names, and even values for query params (e.g. `?sslmode=disable`) for
 each supported database. It never suggests passwords.
 
 <!-- markdownlint-disable-next-line MD013 -->
+
 {{< asciicast src="/casts/src-add-location-completion-pg.cast" poster="npt:0:8" idleTimeLimit=0.5 rows=6 speed=1.5 >}}
 
 ## Header row

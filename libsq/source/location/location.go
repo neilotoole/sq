@@ -79,7 +79,8 @@ func WithPassword(loc, passw string) (string, error) {
 	if passw != "" && (u.User == nil || u.User.Username() == "") {
 		return "", errz.Errorf(
 			"cannot set password: location has no username (got %q)",
-			Redact(loc))
+			Redact(loc),
+		)
 	}
 
 	if passw == "" {
@@ -130,7 +131,7 @@ func Short(loc string) string {
 
 		// True filepath.
 		loc = filepath.Clean(loc)
-		return filepath.Base(loc)
+		return shortFileName(filepath.Base(loc))
 	}
 
 	// It's a SQL driver.
@@ -165,8 +166,11 @@ func Short(loc string) string {
 	}
 
 	if u.Scheme == "sqlite3" || u.Scheme == "duckdb" {
-		// special handling for file-based DBs (sqlite3, duckdb)
-		return path.Base(u.DSN)
+		// Special handling for file-based DBs (sqlite3, duckdb). u.DSN
+		// carries the query string, which may hold secret params (e.g.
+		// SQLCipher's _auth_pass); drop it before taking the base name.
+		dsn, _, _ := strings.Cut(u.DSN, "?")
+		return shortFileName(path.Base(dsn))
 	}
 
 	sb := strings.Builder{}
@@ -182,14 +186,17 @@ func Short(loc string) string {
 		return sb.String()
 	}
 
-	// Else path is empty, db name was prob part of params
+	// Else path is empty, db name was prob part of params.
+	// On any parse failure, fall back to the user@host form already in
+	// sb rather than returning loc verbatim: loc may carry inline
+	// credentials that must not leak from a display string.
 	u2, err := url.ParseRequestURI(loc)
 	if err != nil {
-		return loc
+		return sb.String()
 	}
 	vals, err := url.ParseQuery(u2.RawQuery)
 	if err != nil {
-		return loc
+		return sb.String()
 	}
 
 	db := vals.Get("database")
@@ -202,6 +209,18 @@ func Short(loc string) string {
 	sb.WriteRune('/')
 	sb.WriteString(db)
 	return sb.String()
+}
+
+// shortFileName masks credential-shaped text in a file's base name for
+// display. The mask only runs when the name actually contains a
+// credential-shaped byte ('@' or '='), so ordinary filenames skip the
+// regex entirely. This keeps the common Short() path cheap while still
+// masking a pathological name that embeds userinfo, e.g. "user:pw@x.db".
+func shortFileName(name string) string {
+	if strings.ContainsAny(name, "@=") {
+		return redactBestEffort(name)
+	}
+	return name
 }
 
 // Fields is a parsed representation of a source location.
@@ -720,9 +739,11 @@ func maskSecretQueryParams(loc string, sentinels []string) string {
 // query separator, or appearing at the very start of the input.
 // Captures the leading anchor (start-of-string or one of : / @) and
 // the username separately so the replacement preserves them both.
-// The password character class explicitly excludes "/" so a greedy
-// match can't swallow a "://" scheme prefix when anchored at "^".
-var redactRawUserinfo = regexp.MustCompile(`(^|[:/@])([^:/?@\s]+):[^:/?@\s]+@`)
+// The username group is optional ("*"), so a password-only userinfo
+// ("scheme://:pw@host") is masked too. The password character class
+// explicitly excludes "/" so a greedy match can't swallow a "://"
+// scheme prefix when anchored at "^".
+var redactRawUserinfo = regexp.MustCompile(`(^|[:/@])([^:/?@\s]*):[^:/?@\s]+@`)
 
 // redactRawDSNPw masks "PWD=value" / "password=value" style key/value
 // pairs used in ODBC, ADO.NET, and other ;-delimited connection

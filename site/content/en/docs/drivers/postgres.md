@@ -7,13 +7,14 @@ weight: 4020
 toc: false
 url: /docs/drivers/postgres
 ---
+
 The `sq` Postgres driver implements connectivity for
 the [Postgres](https://www.postgresql.org) database.
 The driver implements all optional driver features.
 
 ## Add source
 
-Use [`sq add`](/docs/cmd/add) to add a source.  The location argument should start
+Use [`sq add`](/docs/cmd/add) to add a source. The location argument should start
 with `postgres://`. For example:
 
 ```shell
@@ -40,18 +41,18 @@ Note that the location string should be quoted due to the `?` character.
 
 ### Source-level fields
 
-| Field | Source |
-| --- | --- |
-| `name`, `catalog` | `current_catalog` |
-| `schema` | `current_schema()` |
-| `user` | `current_user` |
-| `db_product` | `version()` (full descriptive string, e.g. `PostgreSQL 12.16 on aarch64-unknown-linux-musl …`) |
-| `db_version` | `current_setting('server_version')` (numeric, e.g. `12.16`) |
-| `size` | `pg_database_size(current_catalog)` — total on-disk size of the current database |
+| Field             | Source                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `name`, `catalog` | `current_catalog`                                                                              |
+| `schema`          | `current_schema()`                                                                             |
+| `user`            | `current_user`                                                                                 |
+| `db_product`      | `version()` (full descriptive string, e.g. `PostgreSQL 12.16 on aarch64-unknown-linux-musl …`) |
+| `db_version`      | `current_setting('server_version')` (numeric, e.g. `12.16`)                                    |
+| `size`            | `pg_database_size(current_catalog)` — total on-disk size of the current database               |
 
 ### Per-table fields
 
-| Field | Source |
-| --- | --- |
-| `row_count` | live `SELECT COUNT(*)` |
-| `size` | `pg_total_relation_size('tbl')` — table data plus its indexes and TOAST segments |
+| Field       | Source                                                                           |
+| ----------- | -------------------------------------------------------------------------------- |
+| `row_count` | live `SELECT COUNT(*)`                                                           |
+| `size`      | `pg_total_relation_size('tbl')` — table data plus its indexes and TOAST segments |

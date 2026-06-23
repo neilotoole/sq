@@ -40,16 +40,18 @@ bun x netlify-cli api getDeploy --data "{\"deploy_id\":\"${DEPLOY_ID}\"}"
 
 Read these fields first:
 
-| Field | Meaning |
-| ----- | ------- |
-| `state` | `ready` / `error` / `building` |
+| Field           | Meaning                         |
+| --------------- | ------------------------------- |
+| `state`         | `ready` / `error` / `building`  |
 | `error_message` | One-line failure (often enough) |
-| `commit_ref` | Should match PR `headRefOid` |
-| `context` | `deploy-preview` for PRs |
-| `review_id` | PR number when Git-integrated |
+| `commit_ref`    | Should match PR `headRefOid`    |
+| `context`       | `deploy-preview` for PRs        |
+| `review_id`     | PR number when Git-integrated   |
 
 Example (**PR #621**): `state: error`, `error_message`:
+
 <!-- markdownlint-disable-next-line MD013 -->
+
 `Failed during stage 'Install dependencies': dependency_installation script returned non-zero exit code: 1`
 
 ## 3. Netlify API — build record
@@ -97,13 +99,13 @@ Layer B can pass when Layer A failed on an older SHA — always compare `commit_
 
 ## 6. Verdict hints for the agent
 
-| `error_message` pattern | Likely cause | Action |
-| ----------------------- | ------------ | ------ |
-| `Install dependencies` / exit code 1 | `bun install` / postinstall | Open deploy log; reproduce `cd site && bun install` on PR branch |
-| `execa` / `Named export` in deploy log | `netlify-cli` postinstall + wrong `execa` in graph | See case study #621; prefer hold over blind `overrides` |
-| `Building site` / Hugo | `bun run build` | Reproduce `make ci`; open full deploy log |
-| Plugin / Lighthouse | `@netlify/plugin-lighthouse` | Open deploy log plugin section; compare `make ci` pass |
-| Unknown / empty | Stale check or transient | Re-run deploy; confirm `headRefOid` |
+| `error_message` pattern                | Likely cause                                       | Action                                                           |
+| -------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------- |
+| `Install dependencies` / exit code 1   | `bun install` / postinstall                        | Open deploy log; reproduce `cd site && bun install` on PR branch |
+| `execa` / `Named export` in deploy log | `netlify-cli` postinstall + wrong `execa` in graph | See case study #621; prefer hold over blind `overrides`          |
+| `Building site` / Hugo                 | `bun run build`                                    | Reproduce `make ci`; open full deploy log                        |
+| Plugin / Lighthouse                    | `@netlify/plugin-lighthouse`                       | Open deploy log plugin section; compare `make ci` pass           |
+| Unknown / empty                        | Stale check or transient                           | Re-run deploy; confirm `headRefOid`                              |
 
 ## Case study: PR #621 (`netlify-cli` 25 → 26)
 

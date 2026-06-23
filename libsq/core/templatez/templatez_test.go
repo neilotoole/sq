@@ -71,26 +71,32 @@ func TestTemplate(t *testing.T) {
 	}
 }
 
-// TestHermeticFuncMap verifies that NewTemplate loads only sprig's
-// hermetic (repeatable) functions. Non-hermetic functions such as
-// "env" and "now" read process environment or global state, and must
-// not be available to user-supplied templates.
-func TestHermeticFuncMap(t *testing.T) {
-	t.Setenv("TEMPLATEZ_TEST_SECRET", "leaked")
+// TestFuncMap verifies that NewTemplate loads the full text/template
+// sprig function set, including the non-hermetic functions such as
+// "env" and "now".
+func TestFuncMap(t *testing.T) {
+	t.Setenv("TEMPLATEZ_TEST_SECRET", "revealed")
 
-	// Hermetic sprig funcs remain available.
+	// Plain sprig funcs are available.
 	got, err := templatez.ExecuteTemplate(t.Name(), `{{"abc" | upper}}`, nil)
 	require.NoError(t, err)
 	require.Equal(t, "ABC", got)
 
-	// Non-hermetic funcs are excluded, so referencing them is a parse error.
+	// The "env" func reads the process environment.
+	got, err = templatez.ExecuteTemplate(t.Name(), `{{env "TEMPLATEZ_TEST_SECRET"}}`, nil)
+	require.NoError(t, err)
+	require.Equal(t, "revealed", got)
+
+	// Other non-hermetic funcs parse and execute without error.
 	for _, tpl := range []string{
-		`{{env "TEMPLATEZ_TEST_SECRET"}}`,
 		`{{now}}`,
 		`{{randAlphaNum 8}}`,
 		`{{uuidv4}}`,
 	} {
-		require.Error(t, templatez.ValidTemplate(t.Name(), tpl),
-			"expected %q to be rejected as a non-hermetic function", tpl)
+		require.NoError(t, templatez.ValidTemplate(t.Name(), tpl),
+			"expected %q to be a valid template", tpl)
+		got, err = templatez.ExecuteTemplate(t.Name(), tpl, nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, got)
 	}
 }

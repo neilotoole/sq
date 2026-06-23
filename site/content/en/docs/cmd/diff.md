@@ -10,6 +10,7 @@ menu:
 toc: false
 url: /docs/cmd/diff
 ---
+
 `sq diff` compares metadata or row data of sources and tables.
 See the [diff guide](/docs/diff) for more.
 

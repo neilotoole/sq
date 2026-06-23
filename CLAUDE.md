@@ -38,8 +38,9 @@ This project uses a `Makefile` as its canonical developer entry point (see
 make all         # gen + fmt + lint + test + build + install
 make test        # run all tests (may require Docker for SQL driver tests)
 make test-short  # skip long-running / container-backed tests
-make lint        # golangci-lint + shellcheck
-make fmt         # goimports-reviser + gofumpt
+make fmt         # goimports-reviser (Go imports) + dprint fmt (everything else)
+make fmt-check   # dprint check (read-only; verify formatting)
+make lint        # golangci-lint + shellcheck + dprint check + biome (site JS)
 make build       # build binary to dist/sq
 ```
 
@@ -55,8 +56,11 @@ Run `make lint` after any change to `*.go` files. Fix all reported issues
 before committing. Common lint categories:
 
 - `godot` — comments must end with a period.
-- `gofumpt` — formatting (extra blank lines, spacing).
 - `unused` — unused variables, constants, functions.
+
+Go formatting (gofumpt rules + import ordering) is handled by `make fmt`, not
+golangci-lint: `dprint` runs the gofumpt plugin (`modulePath` + `extraRules`)
+and `goimports-reviser` orders imports. Run `make fmt` before `make lint`.
 
 Don't wait to be asked; treat `make lint` as part of "done".
 
@@ -169,16 +173,18 @@ beat adjectives.
 ### Markdown
 
 - Wrap lines at 100 characters where feasible.
-- Lint any markdown file you create or modify with the repo's single tool,
-  `markdownlint-cli2`. Fix all issues before committing.
+- Markdown is formatted by `dprint` (the `dprint-plugin-markdown` plugin), the
+  same tool that formats the rest of the repo. Format any file you touch and
+  verify before committing.
 
 ```bash
-make lint-markdown        # root + skills + non-site READMEs
-bun run lint:markdown-fix # autofix the above
+make fmt        # format everything (markdown included) via dprint
+make fmt-check  # verify formatting (read-only)
 ```
 
-`site/` markdown is linted by its own config; from `site/` run
-`bun run lint:markdown` (or `make -C site site-test`).
+This covers all markdown in the repo (root docs, `skills/`, and `site/`) under
+the single root [`dprint.json`](./dprint.json). There is no separate markdown
+linter or per-directory config anymore.
 
 ### `CHANGELOG.md`
 
@@ -204,8 +210,8 @@ Examples: `gh531-sq-version-slow`, `gh412-add-db-filter`,
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md#opening-a-pr) for the PR pre-flight
 checklist (merge `master`, run `make all`).
 
-Write commit messages in the imperative mood, focused on *what* changed and
-*why*. Keep the subject line under ~70 characters; use the body for detail.
+Write commit messages in the imperative mood, focused on _what_ changed and
+_why_. Keep the subject line under ~70 characters; use the body for detail.
 There's no need to add AI / Claude attribution text; this is assumed these days.
 
 ## Drivers
