@@ -255,9 +255,9 @@ This repo ships [Agent Skills](https://agentskills.io/specification) for
 | [`.agents/skills/`](.agents/skills/) | Contributors (Dependabot triage, etc.)                            |
 | [`skills/sq/`](skills/sq/SKILL.md)   | End users of the `sq` CLI (distribution; not repo auto-discovery) |
 
-When you **add a new driver type**, update [`skills/sq/`](skills/sq/SKILL.md)
-per the [driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist): add
-`references/{driver}.md` and a row in `SKILL.md`.
+Adding a new driver type also requires updating
+[`skills/sq/`](skills/sq/SKILL.md); see [Drivers](#drivers) and the
+[driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist).
 
 Claude Code discovers the same tree via [`.claude/skills`](.claude/skills)
 (symlink to `.agents/skills`). Cursor and Codex load `.agents/skills/`
@@ -269,13 +269,10 @@ tree as documented in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 | Skill                                                        | Use when                                                              |
 | ------------------------------------------------------------ | --------------------------------------------------------------------- |
 | [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/)   | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo). |
-| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) | Dependabot PRs for Go modules at repo root (placeholder).             |
+| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) | Dependabot PRs for Go modules (`go.mod`/`go.sum`) at repo root.       |
 
 Invoke explicitly when your agent supports it (e.g. `/sq-site-dependabot` in
 Cursor, `$sq-site-dependabot` in Codex) or ask to “clear site dependabot PRs”.
-
-Full site-dependabot workflow content lands in a follow-up PR; this scaffold
-adds directories and docs only.
 
 ### Installing and verifying skills (`npx skills`)
 
