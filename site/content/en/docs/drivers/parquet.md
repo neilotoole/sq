@@ -7,6 +7,7 @@ weight: 4065
 toc: true
 url: /docs/drivers/parquet
 ---
+
 The `sq` Parquet driver reads [Apache Parquet](https://parquet.apache.org) files.
 Parquet is a columnar binary format widely used in analytics pipelines.
 
