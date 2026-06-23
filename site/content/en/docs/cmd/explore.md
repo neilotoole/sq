@@ -10,6 +10,7 @@ weight: 2065
 toc: false
 url: /docs/cmd/explore
 ---
+
 `sq explore` opens an interactive terminal UI that browses the schema,
 columns, indexes, foreign keys, and a preview of rows for a data source.
 It works against every source type `sq` supports, including SQL databases
@@ -22,18 +23,18 @@ keyboard-driven navigation.
 
 ## Keys
 
-| Key | Action |
-| --- | --- |
-| `j` / `k` / `↓` / `↑` | Move selection |
-| `h` / `l` / `←` / `→` | Move pane focus |
-| `tab` / `shift+tab` | Cycle pane focus |
-| `enter` | Open the selection in the detail pane |
-| `space` | Expand / collapse a tree node |
-| `/` | Filter the focused pane |
-| `r` | (Re)fetch preview rows |
-| `R` | Refetch metadata (bypass cache) |
-| `y` | Copy current handle to clipboard |
-| `q` / `ctrl+c` | Quit |
+| Key                   | Action                                |
+| --------------------- | ------------------------------------- |
+| `j` / `k` / `↓` / `↑` | Move selection                        |
+| `h` / `l` / `←` / `→` | Move pane focus                       |
+| `tab` / `shift+tab`   | Cycle pane focus                      |
+| `enter`               | Open the selection in the detail pane |
+| `space`               | Expand / collapse a tree node         |
+| `/`                   | Filter the focused pane               |
+| `r`                   | (Re)fetch preview rows                |
+| `R`                   | Refetch metadata (bypass cache)       |
+| `y`                   | Copy current handle to clipboard      |
+| `q` / `ctrl+c`        | Quit                                  |
 
 The full key reference is always shown across the top of the TUI.
 
