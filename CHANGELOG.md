@@ -43,6 +43,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   conventions.
 - [#926]: On Windows, a bare `${file:/}` source placeholder no longer suggests an invalid
   backslash handle name; the name is now derived using URI path semantics on all platforms.
+- [#859]: [`sq add`](https://sq.io/docs/cmd/add) of a relative file path whose name contains
+  a colon (e.g. `./dump.sqlite3:old.csv`) is now stored as an absolute path, like other file
+  sources, rather than being left relative to the current directory.
 - Various other bug fixes: [#902], [#911], [#915], [#916], [#918], [#920], [#923].
 
 ## [v0.54.0] - 2026-06-19
@@ -1741,6 +1744,7 @@ make working with lots of sources much easier.
 [#846]: https://github.com/neilotoole/sq/issues/846
 [#851]: https://github.com/neilotoole/sq/issues/851
 [#853]: https://github.com/neilotoole/sq/issues/853
+[#859]: https://github.com/neilotoole/sq/issues/859
 [#863]: https://github.com/neilotoole/sq/pull/863
 [#865]: https://github.com/neilotoole/sq/pull/865
 [#866]: https://github.com/neilotoole/sq/issues/866

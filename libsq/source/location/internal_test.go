@@ -357,14 +357,45 @@ func TestIsFpath(t *testing.T) {
 		{loc: "data.csv", wantOK: true},
 		// '$$' escapes to a literal '$': ref-free, still a path.
 		{loc: "q$$exports/data.csv", wantOK: true},
-		// URL-ish: contains ":/", excluded.
+		// A colon is legal in a filename on Unix: the leading token isn't a
+		// known scheme, so these stay paths rather than being read as a
+		// driver DSN (gh #859).
+		{loc: "./dump.sqlite3:old.db", wantOK: true},
+		{loc: "./my-duckdb:thing.db", wantOK: true},
+		// A bare Windows volume "C:" is not a known scheme, so a drive path
+		// is treated as a path, dissolving the gh #797 trap without a
+		// dedicated drive-letter branch.
+		{loc: `C:\db.sqlite`, wantOK: true},
+		// An unknown scheme with no "://" authority is treated as a path,
+		// consistent with the no-slash form already being a path.
+		{loc: "weird:notes.db", wantOK: true},
+		{loc: "weird:/notes/x.db", wantOK: true},
+		// A leading token matching a *network* DB scheme but lacking a
+		// "://" authority is a colon-bearing filename, not a DSN (network
+		// DSNs are always "scheme://..."), so it stays a path. Only the
+		// file-DB schemes have a bare "scheme:path" DSN form.
+		{loc: "postgres:notes.csv", wantOK: true},
+		{loc: "mysql:data.csv", wantOK: true},
+		// Any "scheme://" authority form is a URL, never a path, whether
+		// the scheme is known or not (the latter avoids mangling a mistyped
+		// URL into a garbage path before it fails downstream).
 		{loc: "http://acme.com/data.csv", wantOK: false},
 		{loc: "https://acme.com/data.csv", wantOK: false},
-		// Driver schemes are not bare file paths.
+		{loc: "postgres://u:p@host/db", wantOK: false},
+		{loc: "weird://host/x.db", wantOK: false},
+		// File-DB driver schemes are not bare file paths.
 		{loc: "sqlite3:sakila.db", wantOK: false},
 		{loc: "sqlite:sakila.db", wantOK: false},
 		{loc: `sqlite3:C:\db`, wantOK: false},
 		{loc: "duckdb:foo.duckdb", wantOK: false},
+		// Scheme matching is case-sensitive, consistent with Parse and
+		// munging: an off-case "SQLITE3:" is not a DSN sq recognizes, so
+		// it stays a path and is absolutized (otherwise isFpath would
+		// disagree with the rest of the pipeline and skip absolutizing a
+		// real file named "SQLITE3:foo.db").
+		{loc: "SQLITE3:sakila.db", wantOK: true},
+		// A known scheme with a malformed single slash is still not a path.
+		{loc: "sqlite3:/path/to/file", wantOK: false},
 		// Well-formed placeholder: resolves at use time, not a path.
 		{loc: "${env:DB_PATH}", wantOK: false},
 		// Malformed placeholder syntax: also excluded.

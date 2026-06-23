@@ -33,6 +33,31 @@ var dbSchemes = []string{
 	"oracle",
 }
 
+// fileDBSchemes is the set of file-based DB driver schemes whose bare
+// "scheme:path" form (no "://") denotes a DSN rather than a file path:
+// "sqlite3:f.db", "duckdb:f.db", and the legacy "sqlite:f.db" spelling.
+// Network driver schemes (postgres, mysql, etc.) and http/https are
+// deliberately absent: they only ever take the "scheme://..." form, which
+// isFpath already excludes via its "://" check. Listing them here would
+// wrongly exclude a real file whose name begins "postgres:" or "http:"
+// (the gh #859 false-exclusion class).
+var fileDBSchemes = map[string]bool{
+	"sqlite3": true,
+	"sqlite":  true,
+	"duckdb":  true,
+}
+
+// isFileDBScheme reports whether scheme is a file-based DB driver scheme
+// whose bare "scheme:path" form isFpath must treat as a DSN, not a file
+// path. Matching is case-sensitive, consistent with the rest of the
+// location pipeline: IsSQL, Parse, and munging all compare scheme
+// prefixes case-sensitively, so an off-case spelling like "SQLITE3:" is
+// not a DSN sq recognizes and must be left as an ordinary filename (which
+// isFpath then absolutizes).
+func isFileDBScheme(scheme string) bool {
+	return fileDBSchemes[scheme]
+}
+
 // Filename returns the final component of the file/URL path.
 func Filename(loc string) (string, error) {
 	if IsSQL(loc) {
@@ -499,23 +524,30 @@ func isFpath(loc string) (fpath string, ok bool) {
 		return "", false
 	}
 
-	if strings.Contains(loc, ":/") {
-		// Excludes "http:/" etc
-		return "", false
-	}
+	// Inspect the leading "scheme:" token (the bytes before the first
+	// colon), anchoring the URL/DSN checks on that token rather than
+	// substring-matching anywhere in loc.
+	if scheme, rest, found := strings.Cut(loc, ":"); found {
+		if strings.HasPrefix(rest, "//") {
+			// A "scheme://" authority form is a URL (a SQL driver DSN,
+			// http/https, or an unknown/unsupported scheme), never a local
+			// file path. Excluding unknown schemes here too avoids mangling
+			// a mistyped URL into a garbage path before it fails downstream.
+			return "", false
+		}
 
-	if strings.Contains(loc, "sqlite3:") || strings.Contains(loc, "sqlite:") {
-		// Excludes the sqlite3 driver scheme, e.g. "sqlite3:my_file.db" and
-		// the Windows form "sqlite3:C:\db" (which has no ":/" to catch it
-		// above), plus the legacy "sqlite:" spelling. Without the "sqlite3:"
-		// check a driver-scheme location was wrongly treated as a relative
-		// file path and joined under the cwd (gh #797).
-		return "", false
-	}
-
-	if strings.Contains(loc, "duckdb:") {
-		// Excludes "duckdb:my_file.duckdb" (malformed; missing the double-slash)
-		return "", false
+		if isFileDBScheme(scheme) {
+			// A leading "scheme:" token naming a file-based DB driver is a
+			// bare DSN, not a path: "sqlite3:f.db", "duckdb:f.db", the
+			// legacy "sqlite:f.db" spelling, and malformed single-slash
+			// forms like "sqlite3:/path". A single-letter Windows volume
+			// ("C:\db") is not such a scheme, so it stays a path,
+			// dissolving the gh #797 trap without a dedicated drive-letter
+			// branch. A colon inside a filename ("./dump.sqlite3:old.db"),
+			// or a leading token that only looks like a network scheme
+			// ("postgres:notes.csv"), likewise stays a path (gh #859).
+			return "", false
+		}
 	}
 
 	fpath, err := absTemplatePath(loc)
