@@ -51,16 +51,16 @@ sources:
       location: sqlite3://${env:SQ_ROOT}/drivers/sqlite3/testdata/sakila.db
     - handle: "@sakila_pg9"
       type: postgres
-      location: postgres://sakila:p_ssW0rd@${env:SQ_TEST_SRC__SAKILA_PG9}/sakila
+      location: ${env:SQ_TEST_SRC__SAKILA_PG9}
     - handle: "@sakila_pg10"
       type: postgres
-      location: postgres://sakila:p_ssW0rd@${env:SQ_TEST_SRC__SAKILA_PG10}/sakila
+      location: ${env:SQ_TEST_SRC__SAKILA_PG10}
     - handle: "@sakila_my56"
       type: mysql
-      location: mysql://sakila:p_ssW0rd@${env:SQ_TEST_SRC__SAKILA_MY56}/sakila
+      location: ${env:SQ_TEST_SRC__SAKILA_MY56}
     - handle: "@sakila_my57"
       type: mysql
-      location: mysql://sakila:p_ssW0rd@${env:SQ_TEST_SRC__SAKILA_MY57}/sakila
+      location: ${env:SQ_TEST_SRC__SAKILA_MY57}
 ```
 
 Each external database has a matching envar holding its full DSN. For example:
