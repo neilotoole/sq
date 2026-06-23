@@ -9,6 +9,7 @@ package proj
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,6 +43,10 @@ func init() { //nolint:gochecknoinits
 		}
 	}
 
+	// Capture any externally-set SQ_ROOT before we overwrite it below, so we
+	// can warn that it is being ignored.
+	externalRoot, _ := os.LookupEnv(EnvRoot)
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -50,6 +55,10 @@ func init() { //nolint:gochecknoinits
 	path, ok := findProjDir(cwd)
 	if !ok {
 		panic("unable to determine sq project dir from cwd: " + cwd)
+	}
+
+	if msg, warn := externalRootWarning(externalRoot, path); warn {
+		fmt.Fprintln(os.Stderr, msg)
 	}
 
 	// SQ_ROOT is synthetic: it is always derived in-process from cwd, never
@@ -82,6 +91,25 @@ func findProjDir(startDir string) (dir string, ok bool) {
 
 		dir = filepath.Dir(dir)
 	}
+}
+
+// externalRootWarning returns a warning message and true when an external
+// SQ_ROOT envar is set. The test harness ignores SQ_ROOT — the project root is
+// always derived in-process from the working directory — so a lingering value
+// (e.g. exported for a sibling worktree) silently does nothing and can confuse
+// a later run. The message advises unsetting it and names derived, the root
+// actually in use, so the developer can see the effective value. It returns
+// ("", false) when external is unset or whitespace-only.
+func externalRootWarning(external, derived string) (msg string, warn bool) {
+	if strings.TrimSpace(external) == "" {
+		return "", false
+	}
+
+	return fmt.Sprintf(
+		"[sq/testh] warning: SQ_ROOT=%s is set but ignored; the test harness "+
+			"derives the project root from the working directory (%s). Unset "+
+			"SQ_ROOT to avoid confusion, especially across git worktrees.",
+		external, derived), true
 }
 
 // isProjDir returns true if dir contains a go.mod file

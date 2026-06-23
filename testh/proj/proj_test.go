@@ -49,3 +49,26 @@ func TestProjDirIgnoresExternalEnv(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, isProjDir(got), "must derive from cwd, not the bogus SQ_ROOT env")
 }
+
+func TestExternalRootWarning(t *testing.T) {
+	// External set and differing from derived: warns, naming both paths and
+	// telling the developer to unset it.
+	msg, warn := externalRootWarning("/some/other/root", "/real/root")
+	require.True(t, warn)
+	require.Contains(t, msg, "/some/other/root")
+	require.Contains(t, msg, "/real/root")
+	require.Contains(t, msg, "Unset")
+
+	// External set but matching derived: still warns (proactive nag).
+	msg, warn = externalRootWarning("/real/root", "/real/root")
+	require.True(t, warn)
+	require.Contains(t, msg, "/real/root")
+
+	// Unset: no warning.
+	_, warn = externalRootWarning("", "/real/root")
+	require.False(t, warn)
+
+	// Whitespace-only: treated as unset, no warning.
+	_, warn = externalRootWarning("   ", "/real/root")
+	require.False(t, warn)
+}
