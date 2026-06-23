@@ -38,6 +38,7 @@
     "site/layouts/**",
     "site/static/**",
     "**/*-lock.json",
+    "sq.json",
     "site/assets/js/vendor/**",
     "site/assets/js/index.js",
     "site/assets/js/katex.js",
