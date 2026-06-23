@@ -134,7 +134,8 @@ func (d *detailPane) viewTable() string {
 			if !c.Nullable {
 				flag += " NOT NULL"
 			}
-			fmt.Fprintf(&b, "%s %-20s %s%s\n",
+			fmt.Fprintf(
+				&b, "%s %-20s %s%s\n",
 				d.theme.Faint.Render(fmt.Sprintf("%2d", i+1)),
 				c.Name,
 				d.theme.Faint.Render(c.BaseType),
