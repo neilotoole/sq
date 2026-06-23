@@ -485,3 +485,41 @@ func TestParseTableHandle(t *testing.T) {
 		})
 	}
 }
+
+// TestParseTableHandle_extra covers the remaining ParseTableHandle
+// branches (multi-period input).
+func TestParseTableHandle_extra(t *testing.T) {
+	// More than one period -> invalid.
+	_, _, err := source.ParseTableHandle("@h.a.b")
+	require.Error(t, err)
+}
+
+// TestSuggestHandle_extra covers SuggestHandle branches not hit by the
+// existing tests: location parse error, empty-name fallback to "h", and
+// the active-group prefix.
+func TestSuggestHandle_extra(t *testing.T) {
+	t.Run("parse_error", func(t *testing.T) {
+		coll := &source.Collection{}
+		// A bare scheme with no driver and an unparseable location.
+		_, err := source.SuggestHandle(coll, drivertype.None, "://://bad")
+		require.Error(t, err)
+	})
+
+	t.Run("active_group_prefix", func(t *testing.T) {
+		coll := &source.Collection{}
+		addSrc(t, coll, "@prod/seed")
+		require.NoError(t, coll.SetActiveGroup("prod"))
+		got, err := source.SuggestHandle(coll, drivertype.SQLite, "/path/to/actor.csv")
+		require.NoError(t, err)
+		require.Equal(t, "@prod/actor", got)
+	})
+
+	t.Run("empty_name_becomes_h", func(t *testing.T) {
+		coll := &source.Collection{}
+		// A SQL Server DSN with no database yields an empty parsed
+		// Name, so finalizeSuggestedHandle falls back to "h".
+		got, err := source.SuggestHandle(coll, drivertype.MSSQL, "sqlserver://user:pass@localhost")
+		require.NoError(t, err)
+		require.Equal(t, "@h", got)
+	})
+}

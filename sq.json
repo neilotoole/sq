@@ -1,15 +1,15 @@
 {
-    "version": "0.54.0",
-    "architecture": {
-        "64bit": {
-            "url": "https://github.com/neilotoole/sq/releases/download/v0.54.0/sq-0.54.0-windows-amd64.zip",
-            "bin": [
-                "sq.exe"
-            ],
-            "hash": "4ab6301c5f7ef5ef8d3d230934aa6aa76e806cb233033360d98206fa95f05028"
-        }
-    },
-    "homepage": "https://sq.io",
-    "license": "MIT",
-    "description": "sq data wrangler"
+  "version": "0.54.0",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/neilotoole/sq/releases/download/v0.54.0/sq-0.54.0-windows-amd64.zip",
+      "bin": [
+        "sq.exe"
+      ],
+      "hash": "4ab6301c5f7ef5ef8d3d230934aa6aa76e806cb233033360d98206fa95f05028"
+    }
+  },
+  "homepage": "https://sq.io",
+  "license": "MIT",
+  "description": "sq data wrangler"
 }

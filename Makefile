@@ -33,7 +33,7 @@ ifeq ($(UNAME_S),Darwin)
 endif
 
 .PHONY: all
-all: gen fmt lint lint-markdown test build install
+all: gen fmt lint test build install
 
 .PHONY: test
 test:
@@ -66,14 +66,11 @@ lint:
 	go tool -modfile=tools/golangci-lint/go.mod golangci-lint version
 	go tool -modfile=tools/golangci-lint/go.mod golangci-lint run --output.tab.path stdout
 	@shellcheck ./install.sh
-
-.PHONY: lint-markdown
-lint-markdown:
-	@# Lint all non-site markdown (root docs, skills/, driver/cli/libsq READMEs).
-	@# site/ has its own markdownlint config and is linted by the Site CI workflow.
-	@# Uses the pinned markdownlint-cli2 from the root package.json (NOT a system build).
+	@# Repo-wide formatting gate (markdown, JSON, YAML, TOML, SCSS, Go, JS).
 	@bun install --frozen-lockfile
-	@bun run lint:markdown
+	@bunx dprint check
+	@# Static analysis for site JS (replaces eslint).
+	@bunx biome lint
 
 .PHONY: gen
 gen:
@@ -84,21 +81,19 @@ gen:
 
 .PHONY: fmt
 fmt:
-	@# https://github.com/incu6us/goimports-reviser
-	@# Note that termz_windows.go is excluded because the tool seems
-	@# to mangle Go code that is guarded by build tags that
-	@# are not in use. Alas, we can't provide a double star glob,
-	@# e.g. **/*_windows.go, because filepath.Match doesn't support
-	@# double star, so we explicitly name the file.
-	@go tool -modfile=tools/goimports-reviser/go.mod goimports-reviser \
-		-company-prefixes github.com/neilotoole -set-alias \
-		-excludes 'libsq/core/termz/termz_windows.go' \
-		-rm-unused -output write \
-		-project-name github.com/neilotoole/sq ./...
+	@# Normalize Go import grouping (whole module) and aliasing (only changed
+	@# files, since -set-alias is expensive over ./...). Pass --all to alias the
+	@# whole module. See the script header for the cost breakdown.
+	@bash scripts/fmt-go-imports.sh
+	@# Format everything else with dprint: Go via the gofumpt plugin, plus
+	@# markdown, JSON, YAML, TOML, SCSS/CSS, and site JS. See dprint.json.
+	@bunx dprint fmt
 
-	@# Use gofumpt instead of "go fmt"
-	@# https://github.com/mvdan/gofumpt
-	@go tool -modfile=tools/gofumpt/go.mod gofumpt -w .
+.PHONY: fmt-check
+fmt-check:
+	@# Check formatting repo-wide with dprint (read-only; does not modify files).
+	@# See dprint.json for the plugin set and includes/excludes.
+	@bunx dprint check --list-different
 
 .PHONY: goreleaser-verify-config
 goreleaser-verify-config:

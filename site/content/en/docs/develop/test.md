@@ -7,6 +7,7 @@ weight: 6002
 toc: true
 url: /docs/develop/test
 ---
+
 In a nutshell:
 
 ```shell
@@ -36,26 +37,28 @@ databases have been wrapped up into Docker images in a sister project named `sak
 
 To run all of the `sq` tests, there must be an available Sakila database instance for each
 database/version. The full set of sources that the test code uses can be found in
+
 <!-- markdownlint-disable-next-line MD013 -->
+
 [testh/testdata/sources.sq.yml](https://github.com/neilotoole/sq/blob/master/testh/testdata/sources.sq.yml).
 That file looks something like (truncated version shown):
 
 ```yaml
 sources:
   items:
-    - handle: '@sakila_sl3'
+    - handle: "@sakila_sl3"
       type: sqlite3
       location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db
-    - handle: '@sakila_pg9'
+    - handle: "@sakila_pg9"
       type: postgres
       location: postgres://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_PG9}/sakila
-    - handle: '@sakila_pg10'
+    - handle: "@sakila_pg10"
       type: postgres
       location: postgres://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_PG10}/sakila
-    - handle: '@sakila_my56'
+    - handle: "@sakila_my56"
       type: mysql
       location: mysql://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_MY56}/sakila
-    - handle: '@sakila_my57'
+    - handle: "@sakila_my57"
       type: mysql
       location: mysql://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_MY57}/sakila
 ```

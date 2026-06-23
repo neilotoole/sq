@@ -1837,42 +1837,42 @@ func FinishRunInit(cfg *config.Config, ru *Run, ...) error {
 
 ### SQL Dialects
 
-| Component          | File Location                       | Lines   |
-| ------------------ | ----------------------------------- | ------- |
-| Dialect struct     | `libsq/driver/dialect/dialect.go`   | -       |
-| PostgreSQL dialect | `drivers/postgres/postgres.go`      | 91-102  |
-| MySQL dialect      | `drivers/mysql/mysql.go`            | 111-123 |
-| SQLite dialect     | `drivers/sqlite3/sqlite3.go`        | -       |
-| SQL Server dialect | `drivers/sqlserver/sqlserver.go`    | -       |
+| Component          | File Location                     | Lines   |
+| ------------------ | --------------------------------- | ------- |
+| Dialect struct     | `libsq/driver/dialect/dialect.go` | -       |
+| PostgreSQL dialect | `drivers/postgres/postgres.go`    | 91-102  |
+| MySQL dialect      | `drivers/mysql/mysql.go`          | 111-123 |
+| SQLite dialect     | `drivers/sqlite3/sqlite3.go`      | -       |
+| SQL Server dialect | `drivers/sqlserver/sqlserver.go`  | -       |
 
 ### Data Types
 
-| Component            | File Location                      | Lines   |
-| -------------------- | ---------------------------------- | ------- |
-| Kind enum            | `libsq/core/kind/kind.go`          | -       |
-| PostgreSQL: DB→Kind  | `drivers/postgres/metadata.go`     | 29-91   |
-| PostgreSQL: Kind→DB  | `drivers/postgres/render.go`       | 22-47   |
-| MySQL: DB→Kind       | `drivers/mysql/metadata.go`        | -       |
-| MySQL: Kind→DB       | `drivers/mysql/render.go`          | 16-39   |
-| SQLite: DB→Kind      | `drivers/sqlite3/metadata.go`      | 211-237 |
-| SQLite: Kind→DB      | `drivers/sqlite3/metadata.go`      | 240-265 |
+| Component           | File Location                  | Lines   |
+| ------------------- | ------------------------------ | ------- |
+| Kind enum           | `libsq/core/kind/kind.go`      | -       |
+| PostgreSQL: DB→Kind | `drivers/postgres/metadata.go` | 29-91   |
+| PostgreSQL: Kind→DB | `drivers/postgres/render.go`   | 22-47   |
+| MySQL: DB→Kind      | `drivers/mysql/metadata.go`    | -       |
+| MySQL: Kind→DB      | `drivers/mysql/render.go`      | 16-39   |
+| SQLite: DB→Kind     | `drivers/sqlite3/metadata.go`  | 211-237 |
+| SQLite: Kind→DB     | `drivers/sqlite3/metadata.go`  | 240-265 |
 
 ### Driver Framework
 
-| Component            | File Location                              | Lines   |
-| -------------------- | ------------------------------------------ | ------- |
-| Driver interfaces    | `libsq/driver/driver.go`                   | -       |
-| Driver registry      | `libsq/driver/registry.go`                 | -       |
-| Driver types enum    | `libsq/source/drivertype/drivertype.go`    | -       |
-| Driver registration  | `cli/run.go`                               | 276-341 |
+| Component           | File Location                           | Lines   |
+| ------------------- | --------------------------------------- | ------- |
+| Driver interfaces   | `libsq/driver/driver.go`                | -       |
+| Driver registry     | `libsq/driver/registry.go`              | -       |
+| Driver types enum   | `libsq/source/drivertype/drivertype.go` | -       |
+| Driver registration | `cli/run.go`                            | 276-341 |
 
 ### Rendering
 
-| Component       | File Location                   | Lines |
-| --------------- | ------------------------------- | ----- |
-| Renderer struct | `libsq/ast/render/render.go`    | -     |
-| AST definitions | `libsq/ast/ast.go`              | -     |
-| Query parser    | `libsq/ast/parser.go`           | -     |
+| Component       | File Location                | Lines |
+| --------------- | ---------------------------- | ----- |
+| Renderer struct | `libsq/ast/render/render.go` | -     |
+| AST definitions | `libsq/ast/ast.go`           | -     |
+| Query parser    | `libsq/ast/parser.go`        | -     |
 
 ---
 

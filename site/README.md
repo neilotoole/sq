@@ -140,14 +140,14 @@ This is an important note for the reader.
 
 The project uses GitHub Actions and Netlify for continuous integration:
 
-| Trigger                                 | Action                                                                                                                         |
-|-----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
-| Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl                   |
-| Pull request                            | Netlify deploy preview (when configured)                                                                                       |
-| Stable GitHub release (`vX.Y.Z`)        | `.github/workflows/site-publish-release.yml` builds, deploys to [sq.io](https://sq.io), and runs post-deploy smoke checks      |
-| Manual `workflow_dispatch`              | `.github/workflows/site-publish-dispatch.yml` — publish doc or dependency changes before the next release                      |
-| Daily schedule / manual                 | `.github/workflows/site-links-nightly.yml` runs a full external link crawl                                                     |
-| Daily schedule / manual                 | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml`; push triggers Site CI only (no production deploy)      |
+| Trigger                                 | Action                                                                                                                    |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl              |
+| Pull request                            | Netlify deploy preview (when configured)                                                                                  |
+| Stable GitHub release (`vX.Y.Z`)        | `.github/workflows/site-publish-release.yml` builds, deploys to [sq.io](https://sq.io), and runs post-deploy smoke checks |
+| Manual `workflow_dispatch`              | `.github/workflows/site-publish-dispatch.yml` — publish doc or dependency changes before the next release                 |
+| Daily schedule / manual                 | `.github/workflows/site-links-nightly.yml` runs a full external link crawl                                                |
+| Daily schedule / manual                 | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml`; push triggers Site CI only (no production deploy) |
 
 Merging to `master` with changes under `site/**` runs Site CI (lint, build, artifact
 validation) but does **not** update production. Netlify's git integration remains
@@ -193,23 +193,23 @@ Prefer **`make`** from this directory for install, test, and production build (s
 In **Common.make**, `make build` builds the **Docker** image, not the Hugo site;
 use **`make site-build`** for a normal production build to `public/`.
 
-| Make target                     | Bun equivalent              | Description                                           |
-|---------------------------------|-----------------------------|-------------------------------------------------------|
-| `make check`                    | —                           | Verify Bun, Hugo, Netlify CLI, jq, curl               |
-| `make check-netlify`            | —                           | `make check` + `checkenv` on `.env`                   |
-| `make deps`                     | `bun install`               | Install dependencies                                  |
-| `make site-local`               | `bun scripts/dev-server.js` | Hugo dev server                                       |
-| `make smoke-test`               | (script)                    | Docker smoke checks (`validate-build.sh --start`)     |
-| `make site-test`                | `bun run test:ci`           | Stable linters + internal link check                  |
-| `make site-test-full`           | `bun run test:full`         | Full linters + external link crawl                    |
-| `make site-build`               | `bun run build`             | Production site → `public/`                           |
-| `make ci`                       | (sequence below)            | `deps`, then `site-test`, then `site-build` (CI)      |
-| `make site-netlify-validate`    | —                           | Netlify deploy-preview build + API poll (`NETLIFY_*`) |
+| Make target                  | Bun equivalent              | Description                                           |
+| ---------------------------- | --------------------------- | ----------------------------------------------------- |
+| `make check`                 | —                           | Verify Bun, Hugo, Netlify CLI, jq, curl               |
+| `make check-netlify`         | —                           | `make check` + `checkenv` on `.env`                   |
+| `make deps`                  | `bun install`               | Install dependencies                                  |
+| `make site-local`            | `bun scripts/dev-server.js` | Hugo dev server                                       |
+| `make smoke-test`            | (script)                    | Docker smoke checks (`validate-build.sh --start`)     |
+| `make site-test`             | `bun run test:ci`           | Stable linters + internal link check                  |
+| `make site-test-full`        | `bun run test:full`         | Full linters + external link crawl                    |
+| `make site-build`            | `bun run build`             | Production site → `public/`                           |
+| `make ci`                    | (sequence below)            | `deps`, then `site-test`, then `site-build` (CI)      |
+| `make site-netlify-validate` | —                           | Netlify deploy-preview build + API poll (`NETLIFY_*`) |
 
 Other **package.json** scripts (call with `bun run …`):
 
 | Command                  | Description                                             |
-|--------------------------|---------------------------------------------------------|
+| ------------------------ | ------------------------------------------------------- |
 | `bun run preview`        | Build and serve locally at http://localhost:1313        |
 | `bun run gen:cmd-help`   | Regenerate command help files in `content/en/docs/cmd/` |
 | `bun run gen:syntax-css` | Regenerate syntax highlighting CSS                      |

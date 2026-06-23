@@ -1,13 +1,14 @@
 ---
 title: Sources
 description: Sources
-lead: ''
+lead: ""
 draft: false
 images: []
 weight: 1036
 toc: true
 url: /docs/source
 ---
+
 A _source_ is an individual data source, such as a database connection, or
 a CSV or Excel document.
 
@@ -24,7 +25,7 @@ A source has three main elements:
 In the `sq.yml` [config](/docs/config) file, these elements manifest as:
 
 ```yaml
-- handle: '@sakila_pg'
+- handle: "@sakila_pg"
   driver: postgres
   location: postgres://user:p_ssW0rd@localhost/sakila
 ```
@@ -100,6 +101,7 @@ database names, and even values for query params (e.g. `?sslmode=disable`) for
 each supported database. It never suggests passwords.
 
 <!-- markdownlint-disable-next-line MD013 -->
+
 {{< asciicast src="/casts/src-add-location-completion-pg.cast" poster="npt:0:8" idleTimeLimit=0.5 rows=6 speed=1.5 >}}
 
 ## List sources

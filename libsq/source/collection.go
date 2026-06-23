@@ -64,10 +64,18 @@ type collData struct {
 //  1. The color encoder needs to be able to handle json.RawMessage.
 //  2. Refactor source.Collection so that it doesn't have this weird internal
 //     representation.
+//
+// The returned value is a point-in-time snapshot read under the lock,
+// but it shares the underlying Sources backing array with the
+// collection. Callers that need isolation from later mutation must
+// [Collection.Clone] first (as the source writers do).
 func (c *Collection) Data() any {
 	if c == nil {
 		return nil
 	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	return c.data
 }
@@ -85,7 +93,15 @@ func (c *Collection) UnmarshalJSON(b []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	return json.Unmarshal(b, &c.data)
+	if err := json.Unmarshal(b, &c.data); err != nil {
+		return err
+	}
+
+	// Drop any nil source entries (a config whose sources list contains
+	// a null element unmarshals to a nil *Source). This keeps the
+	// collection's no-nil-entry invariant so readers don't have to.
+	c.data.Sources = lo.Compact(c.data.Sources)
+	return nil
 }
 
 // MarshalYAML implements yaml.Marshaler.
@@ -101,7 +117,12 @@ func (c *Collection) UnmarshalYAML(unmarshal func(any) error) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	return unmarshal(&c.data)
+	if err := unmarshal(&c.data); err != nil {
+		return err
+	}
+
+	c.data.Sources = lo.Compact(c.data.Sources)
+	return nil
 }
 
 // Sources returns a new slice containing the set's sources.
@@ -124,6 +145,9 @@ func (c *Collection) Visit(fn func(src *Source) error) error {
 	defer c.mu.Unlock()
 
 	for i := range c.data.Sources {
+		if c.data.Sources[i] == nil {
+			continue
+		}
 		if err := fn(c.data.Sources[i]); err != nil {
 			return err
 		}
@@ -141,6 +165,10 @@ func (c *Collection) String() string {
 func (c *Collection) Add(src *Source) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if src == nil {
+		return errz.New("cannot add nil source")
+	}
 
 	if err := ValidHandle(src.Handle); err != nil {
 		return err
@@ -201,7 +229,7 @@ func (c *Collection) isExistingHandle(handle string) bool {
 
 func (c *Collection) indexOf(handle string) (int, *Source) {
 	for i, src := range c.data.Sources {
-		if src.Handle == handle {
+		if src != nil && src.Handle == handle {
 			return i, src
 		}
 	}
@@ -319,13 +347,16 @@ func (c *Collection) RenameGroup(oldGroup, newGroup string) ([]*Source, error) {
 
 	var affectedSrcs []*Source
 
-	var newHandle string
 	for _, oldHandle := range oldHandles {
+		// oldGroup is always the handle's leading segment after "@"
+		// (oldHandle came from handlesInGroup(oldGroup)), so rewriting
+		// the "@oldGroup" prefix rewrites only the renamed group segment
+		// and preserves any nested subgroup segments.
+		var newHandle string
 		if newGroup == "" {
-			if i := strings.LastIndex(oldHandle, "/"); i != -1 {
-				newHandle = "@" + oldHandle[i+1:]
-			}
-		} else { // else, it's a non-root new group
+			// Renaming to root: drop the "@oldGroup/" prefix entirely.
+			newHandle = "@" + strings.TrimPrefix(oldHandle, "@"+oldGroup+"/")
+		} else {
 			newHandle = strings.Replace(oldHandle, oldGroup, newGroup, 1)
 		}
 
@@ -373,6 +404,10 @@ func (c *Collection) MoveHandleToGroup(handle, toGroup string) (*Source, error) 
 	var newHandle string
 	oldGroup := src.Group()
 
+	// oldGroup is always the handle's group segment (right after "@"),
+	// so replacing its first occurrence rewrites only that segment. For
+	// a root source (oldGroup == "") the "/"-anchored replaces are no-ops
+	// on a handle that has no "/", which is the intended behavior.
 	switch {
 	case toGroup == "/":
 		newHandle = strings.Replace(handle, oldGroup+"/", "", 1)
@@ -498,7 +533,7 @@ func (c *Collection) setActive(handle string, force bool) (*Source, error) {
 	}
 
 	for _, src := range c.data.Sources {
-		if src.Handle == handle {
+		if src != nil && src.Handle == handle {
 			c.data.ActiveSrc = handle
 			return src, nil
 		}
@@ -519,7 +554,7 @@ func (c *Collection) SetScratch(handle string) (*Source, error) {
 		return nil, nil //nolint:nilnil
 	}
 	for _, src := range c.data.Sources {
-		if src.Handle == handle {
+		if src != nil && src.Handle == handle {
 			c.data.ScratchSrc = handle
 			return src, nil
 		}
@@ -599,9 +634,8 @@ func (c *Collection) remove(handle string) error {
 	c.data.Sources = pre
 	c.data.Sources = append(c.data.Sources, post...)
 
-	if c.data.ActiveSrc == handle {
-		c.data.ActiveSrc = ""
-	}
+	// Note: c.data.ActiveSrc was already cleared above if it matched
+	// handle, so there's no need to re-check it here.
 
 	if !c.isExistingGroup(activeG) {
 		return c.setActiveGroup(RootGroup)
@@ -619,9 +653,11 @@ func (c *Collection) Handles() []string {
 }
 
 func (c *Collection) handles() []string {
-	handles := make([]string, len(c.data.Sources))
-	for i := range c.data.Sources {
-		handles[i] = c.data.Sources[i].Handle
+	handles := make([]string, 0, len(c.data.Sources))
+	for _, src := range c.data.Sources {
+		if src != nil {
+			handles = append(handles, src.Handle)
+		}
 	}
 
 	return handles
@@ -671,11 +707,13 @@ func (c *Collection) Clone() *Collection {
 		ActiveGroup: c.data.ActiveGroup,
 		ActiveSrc:   c.data.ActiveSrc,
 		ScratchSrc:  c.data.ScratchSrc,
-		Sources:     make([]*Source, len(c.data.Sources)),
+		Sources:     make([]*Source, 0, len(c.data.Sources)),
 	}
 
-	for i, src := range c.data.Sources {
-		data.Sources[i] = src.Clone()
+	for _, src := range c.data.Sources {
+		if src != nil {
+			data.Sources = append(data.Sources, src.Clone())
+		}
 	}
 
 	return &Collection{
@@ -717,6 +755,9 @@ func (c *Collection) groups() []string {
 	groups := make([]string, 0, len(c.data.Sources)+1)
 	groups = append(groups, "/")
 	for _, src := range c.data.Sources {
+		if src == nil {
+			continue
+		}
 		h := src.Handle
 
 		if !strings.ContainsRune(h, '/') {
@@ -821,8 +862,9 @@ func (c *Collection) SourcesInGroup(group string) ([]*Source, error) {
 func (c *Collection) sourcesInGroup(group string, directMembersOnly bool) ([]*Source, error) {
 	group = strings.TrimSpace(group)
 	if group == "" || group == "/" {
-		srcs := make([]*Source, len(c.data.Sources))
-		copy(srcs, c.data.Sources)
+		// lo.Compact both copies the slice and drops any nil entries
+		// (defense in depth; the collection should already be nil-free).
+		srcs := lo.Compact(c.data.Sources)
 
 		if directMembersOnly {
 			srcs = lo.Reject(srcs, func(item *Source, _ int) bool {
@@ -844,9 +886,13 @@ func (c *Collection) sourcesInGroup(group string, directMembersOnly bool) ([]*So
 
 	srcs := make([]*Source, 0)
 	for i := range c.data.Sources {
-		srcGroup := c.data.Sources[i].Group()
+		src := c.data.Sources[i]
+		if src == nil {
+			continue
+		}
+		srcGroup := src.Group()
 		if srcGroup == group || strings.HasPrefix(srcGroup, group+"/") {
-			srcs = append(srcs, c.data.Sources[i])
+			srcs = append(srcs, src)
 		}
 	}
 

@@ -31,4 +31,4 @@ builds:
       - sqlite_math_functions
 
 archives:
-  - formats: [ binary ]
+  - formats: [binary]

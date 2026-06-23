@@ -26,13 +26,10 @@ function waitForHugo() {
         reject(new Error("Hugo did not become ready in time"));
         return;
       }
-      const req = http.get(
-        `http://127.0.0.1:${HUGO_PORT}/`,
-        (res) => {
-          res.resume();
-          resolve();
-        }
-      );
+      const req = http.get(`http://127.0.0.1:${HUGO_PORT}/`, (res) => {
+        res.resume();
+        resolve();
+      });
       req.on("error", () => {
         setTimeout(tryFetch, 300);
       });
@@ -89,7 +86,7 @@ const server = http.createServer((req, res) => {
     (proxyRes) => {
       res.writeHead(proxyRes.statusCode ?? 200, proxyRes.headers);
       proxyRes.pipe(res);
-    }
+    },
   );
   proxyReq.on("error", () => {
     res.writeHead(502, { "Content-Type": "text/plain" });

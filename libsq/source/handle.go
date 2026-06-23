@@ -2,7 +2,7 @@ package source
 
 import (
 	"fmt"
-	"path/filepath"
+	"path"
 	"regexp"
 	"slices"
 	"strconv"
@@ -321,11 +321,14 @@ func suggestNameForScheme(scheme, body string) (string, bool) {
 		return strings.ToLower(body), true
 
 	case "file":
-		base := filepath.Base(body)
+		// body is a URI-style path (always forward-slash), so use
+		// path, not path/filepath: filepath.Base("/") returns "\" on
+		// Windows, which slips past the "/" guard below.
+		base := path.Base(body)
 		if base == "." || base == "/" || base == "" {
 			return "", false
 		}
-		if ext := filepath.Ext(base); ext != "" {
+		if ext := path.Ext(base); ext != "" {
 			base = base[:len(base)-len(ext)]
 		}
 		if base == "" {

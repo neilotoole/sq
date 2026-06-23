@@ -1,13 +1,14 @@
 ---
 title: Output
 description: Output
-lead: ''
+lead: ""
 draft: false
 images: []
 weight: 1039
 toc: true
 url: /docs/output
 ---
+
 `sq` can output in many formats, e.g. `text` or `json`. It can also write
 results to a database, using [`--insert`](#insert). The output format
 can be specified using command-line flags (e.g. `--text`, `--json` etc.), or

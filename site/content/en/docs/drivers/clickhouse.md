@@ -7,6 +7,7 @@ weight: 4035
 toc: true
 url: /docs/drivers/clickhouse
 ---
+
 The `sq` ClickHouse driver implements connectivity for
 [ClickHouse](https://clickhouse.com), an open-source columnar database focused on
 real-time analytics. The driver requires ClickHouse v25+.
@@ -44,7 +45,7 @@ clickhouse://username:password@hostname:9000/database?param=value
 Default ports:
 
 | Protocol | Non-Secure | Secure (TLS) |
-|----------|------------|--------------|
+| -------- | ---------- | ------------ |
 | Native   | `9000`     | `9440`       |
 
 If the port is omitted, `sq` auto-applies the default port: `9000` for
@@ -93,7 +94,7 @@ before mapping. For example, `LowCardinality(Nullable(String))` is treated
 as `String`, which maps to `kind.Text`.
 
 | ClickHouse Type (read)                | sq Kind         | ClickHouse Type (write) | Notes                              |
-|---------------------------------------|-----------------|-------------------------|------------------------------------|
+| ------------------------------------- | --------------- | ----------------------- | ---------------------------------- |
 | `Int8`, `Int16`, `Int32`, `Int64`     | `kind.Int`      | `Int64`                 | All signed integers                |
 | `UInt8`, `UInt16`, `UInt32`, `UInt64` | `kind.Int`      | `Int64`                 | All unsigned integers              |
 | `Float32`, `Float64`                  | `kind.Float`    | `Float64`               |                                    |
@@ -133,24 +134,25 @@ and the `system.tables` catalog.
 
 #### Source-level fields
 
-| Field | Source |
-| --- | --- |
-| `name`, `schema`, `catalog` | `currentDatabase()` |
-| `user` | `currentUser()` |
-| `db_product` | `"ClickHouse " + version()` |
-| `db_version` | `version()` |
-| `size` | `SELECT SUM(total_bytes) FROM system.tables WHERE database = ?` |
+| Field                       | Source                                                          |
+| --------------------------- | --------------------------------------------------------------- |
+| `name`, `schema`, `catalog` | `currentDatabase()`                                             |
+| `user`                      | `currentUser()`                                                 |
+| `db_product`                | `"ClickHouse " + version()`                                     |
+| `db_version`                | `version()`                                                     |
+| `size`                      | `SELECT SUM(total_bytes) FROM system.tables WHERE database = ?` |
 
 #### Per-table fields
 
-| Field | Source |
-| --- | --- |
+| Field       | Source                                                                                            |
+| ----------- | ------------------------------------------------------------------------------------------------- |
 | `row_count` | `total_rows` from `system.tables` (note: approximate for some engines such as `MergeTree` family) |
-| `size` | `total_bytes` from `system.tables` |
+| `size`      | `total_bytes` from `system.tables`                                                                |
 
 ## Related
 
 <!-- markdownlint-disable-next-line MD013 -->
+
 - [ClickHouse driver README](https://github.com/neilotoole/sq/blob/master/drivers/clickhouse/README.md)
 - [#544](https://github.com/neilotoole/sq/issues/544) — Type roundtrip issues (`kind.Time`, `kind.Bytes`)
 - [#545](https://github.com/neilotoole/sq/issues/545) — Array types flattened to CSV text

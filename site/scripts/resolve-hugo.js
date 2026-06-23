@@ -47,9 +47,7 @@ function hugoOnPath() {
 
 function readExpectedHugoVersion(cwd) {
   try {
-    const pkg = JSON.parse(
-      fs.readFileSync(path.join(cwd, "package.json"), "utf8")
-    );
+    const pkg = JSON.parse(fs.readFileSync(path.join(cwd, "package.json"), "utf8"));
     return pkg.otherDependencies?.hugo;
   } catch {
     return undefined;
@@ -78,12 +76,8 @@ function requireHugoBin(cwd = process.cwd()) {
   console.error("Install site dependencies from site/:");
   console.error("  make deps");
   console.error("  # or: bun install\n");
-  console.error(
-    "That runs hugo-installer and places the binary at node_modules/.bin/hugo/hugo"
-  );
-  console.error(
-    `\nAlternatively, install ${versionHint} and ensure hugo is on PATH.`
-  );
+  console.error("That runs hugo-installer and places the binary at node_modules/.bin/hugo/hugo");
+  console.error(`\nAlternatively, install ${versionHint} and ensure hugo is on PATH.`);
   process.exit(1);
 }
 
