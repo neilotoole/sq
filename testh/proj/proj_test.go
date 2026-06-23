@@ -3,6 +3,7 @@ package proj
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,12 @@ func TestFindProjDir(t *testing.T) {
 // systems) outside the repo tree, so the walk reaches the filesystem root
 // without a match.
 func TestFindProjDir_NotFound(t *testing.T) {
-	got, ok := findProjDir(t.TempDir())
+	tmpDir := t.TempDir()
+	if strings.HasPrefix(tmpDir, projDir) {
+		t.Skip("TMPDIR is inside the sq checkout; test's outside-the-tree assumption is violated")
+	}
+
+	got, ok := findProjDir(tmpDir)
 	require.False(t, ok, "temp dir outside repo must not resolve to a proj dir")
 	require.Empty(t, got)
 }

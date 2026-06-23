@@ -118,6 +118,10 @@ func isProjDir(dir string) bool {
 		}
 	}
 
+	if err := scanner.Err(); err != nil {
+		panic(err)
+	}
+
 	err = f.Close()
 	if err != nil {
 		panic(err)
