@@ -48,19 +48,19 @@ sources:
   items:
     - handle: "@sakila_sl3"
       type: sqlite3
-      location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db
+      location: sqlite3://${env:SQ_ROOT}/drivers/sqlite3/testdata/sakila.db
     - handle: "@sakila_pg9"
       type: postgres
-      location: postgres://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_PG9}/sakila
+      location: postgres://sakila:p_ssW0rd@${env:SQ_TEST_SRC__SAKILA_PG9}/sakila
     - handle: "@sakila_pg10"
       type: postgres
-      location: postgres://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_PG10}/sakila
+      location: postgres://sakila:p_ssW0rd@${env:SQ_TEST_SRC__SAKILA_PG10}/sakila
     - handle: "@sakila_my56"
       type: mysql
-      location: mysql://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_MY56}/sakila
+      location: mysql://sakila:p_ssW0rd@${env:SQ_TEST_SRC__SAKILA_MY56}/sakila
     - handle: "@sakila_my57"
       type: mysql
-      location: mysql://sakila:p_ssW0rd@${SQ_TEST_SRC__SAKILA_MY57}/sakila
+      location: mysql://sakila:p_ssW0rd@${env:SQ_TEST_SRC__SAKILA_MY57}/sakila
 ```
 
 Note that for each of the external databases, there is a matching envar. For example,
@@ -69,8 +69,8 @@ The envar is simply the `host` (meaning `hostname:port`) part of the connection 
 that source.
 
 > **Note:** In the `yaml` snippet above, for local file-based sources such as `@sakila_sl3`
-> with `location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db`, you'll notice a
-> variable `${SQ_ROOT}`. You do not set this variable yourself: the `sq` test framework
+> with `location: sqlite3://${env:SQ_ROOT}/drivers/sqlite3/testdata/sakila.db`, you'll notice a
+> placeholder `${env:SQ_ROOT}`. You do not set `SQ_ROOT` yourself: the `sq` test framework
 > always derives it in-process from the working directory (the sq module root). Any `SQ_ROOT`
 > you export in your shell is ignored.
 

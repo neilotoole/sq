@@ -272,16 +272,16 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 	require.False(h.T, h.coll.IsExistingSource(src.Handle),
 		"source {%s} already exists", src.Handle)
 
-	require.NoError(h.T, h.coll.Add(src))
-
-	// Resolve ${scheme:path} placeholders so the cache always holds a concrete
-	// location; mirrors the resolution added to Source for collection-loaded
-	// sources. init() must have run (via the h.Source(sakila.SL3) call above)
-	// before we reach here, so h.secretReg is set.
+	// Resolve ${scheme:path} placeholders before storing, so the collection
+	// and cache both hold a concrete location; mirrors the resolution in
+	// Source for collection-loaded sources. init() must have run (via the
+	// h.Source(sakila.SL3) call above) before we reach here, so h.secretReg
+	// is set.
 	var err error
 	src, err = driver.ResolveSourceSecrets(h.Context, h.secretReg, src)
 	require.NoError(h.T, err, "resolve placeholders for %s", src.Handle)
 
+	require.NoError(h.T, h.coll.Add(src))
 	h.srcCache[src.Handle] = src
 
 	// envDiffDB is the name of the envar that controls whether the testing
