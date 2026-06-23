@@ -115,7 +115,8 @@ func externalRootWarning(external, derived string) (msg string, warn bool) {
 		"[sq/testh] warning: SQ_ROOT=%s is set but ignored; the test harness "+
 			"derives the project root from the working directory (%s). Unset "+
 			"SQ_ROOT to avoid confusion, especially across git worktrees.",
-		external, derived), true
+		external, derived,
+	), true
 }
 
 // isProjDir returns true if dir contains a go.mod file
