@@ -549,10 +549,12 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 	for _, tblName := range tblNames {
 		quoted := stringz.DoubleQuote(tblName)
 		_, err = db.ExecContext(th.Context, fmt.Sprintf(
-			"CREATE TABLE %s (id INTEGER PRIMARY KEY, val TEXT)", quoted))
+			"CREATE TABLE %s (id INTEGER PRIMARY KEY, val TEXT)", quoted,
+		))
 		require.NoError(t, err)
 		_, err = db.ExecContext(th.Context, fmt.Sprintf(
-			"INSERT INTO %s (val) VALUES ('a'), ('b')", quoted))
+			"INSERT INTO %s (val) VALUES ('a'), ('b')", quoted,
+		))
 		require.NoError(t, err)
 	}
 

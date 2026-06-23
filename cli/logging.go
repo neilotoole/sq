@@ -61,7 +61,8 @@ var (
 		},
 		"Log output format (text or json)",
 		fmt.Sprintf(
-			`Log output format. Allowed formats are %q (human-friendly) or %q.`, format.Text, format.JSON),
+			`Log output format. Allowed formats are %q (human-friendly) or %q.`, format.Text, format.JSON,
+		),
 	)
 )
 
@@ -213,7 +214,8 @@ func getLogEnabled(ctx context.Context, osArgs []string, cfg *config.Config) boo
 
 	val, ok = os.LookupEnv(config.EnvarLogEnabled)
 	if ok {
-		bootLog.Debug("Using log 'enabled' specified via envar",
+		bootLog.Debug(
+			"Using log 'enabled' specified via envar",
 			lga.Env, config.EnvarLogEnabled,
 			lga.Val, val,
 		)

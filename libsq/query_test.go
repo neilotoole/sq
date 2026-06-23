@@ -46,7 +46,8 @@ func oracleSQL(s string) string {
 
 func TestOracleSQL(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t,
+	assert.Equal(
+		t,
 		`SELECT "ACTOR_ID" FROM "ACTOR" WHERE "FIRST_NAME" = 'x'`,
 		oracleSQL(`SELECT "actor_id" FROM "actor" WHERE "first_name" = 'x'`),
 	)

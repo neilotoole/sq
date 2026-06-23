@@ -510,7 +510,8 @@ func TestSakilaCrossDatabase(t *testing.T) {
 		// Insert data into Oracle (use uppercase table name)
 		insertSQL := fmt.Sprintf(
 			`INSERT INTO "%s" (ACTOR_ID, FIRST_NAME, LAST_NAME) VALUES (:1, :2, :3)`,
-			strings.ToUpper(testTableName))
+			strings.ToUpper(testTableName),
+		)
 		stmt, err := oracleDB.PrepareContext(ctx, insertSQL)
 		require.NoError(t, err, "Failed to prepare insert statement")
 		defer stmt.Close()

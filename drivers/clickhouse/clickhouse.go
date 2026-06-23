@@ -319,7 +319,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	// so trailing zeros from the fixed scale are trimmed by stringz.FormatDecimal
 	// at render time, as on the other result-cast drivers.
 	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult(
-		fmt.Sprintf("Nullable(Decimal(%d, %d))", render.AggDecimalPrecision, render.AggDecimalScale))
+		fmt.Sprintf("Nullable(Decimal(%d, %d))", render.AggDecimalPrecision, render.AggDecimalScale),
+	)
 	return r
 }
 
@@ -379,7 +380,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	}
 
 	if portAdded {
-		log.Debug("Applied default ClickHouse port at connection time",
+		log.Debug(
+			"Applied default ClickHouse port at connection time",
 			lga.Src, src.Handle,
 			lga.Before, src.Location,
 			lga.After, loc,
@@ -429,7 +431,8 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	}
 
 	if portAdded {
-		d.log.Debug("Applied default ClickHouse port to source location",
+		d.log.Debug(
+			"Applied default ClickHouse port to source location",
 			lga.Src, src.Handle,
 			lga.Before, src.Location,
 			lga.After, loc,
@@ -1013,7 +1016,8 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 // columns (NotNull is false by default), but ClickHouse columns are
 // non-nullable by default. This matches the behavior of buildCreateTableStmt.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s Nullable(%s)",
+	q := fmt.Sprintf(
+		"ALTER TABLE %s ADD COLUMN %s Nullable(%s)",
 		stringz.BacktickQuote(tbl),
 		stringz.BacktickQuote(col),
 		dbTypeNameFromKind(knd),
@@ -1026,7 +1030,8 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 // AlterTableRename implements driver.SQLDriver. It renames a table using
 // RENAME TABLE syntax.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	q := fmt.Sprintf("RENAME TABLE %s TO %s",
+	q := fmt.Sprintf(
+		"RENAME TABLE %s TO %s",
 		stringz.BacktickQuote(tbl),
 		stringz.BacktickQuote(newName),
 	)
@@ -1038,7 +1043,8 @@ func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName
 // AlterTableRenameColumn implements driver.SQLDriver. It renames a column
 // using ALTER TABLE ... RENAME COLUMN syntax.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s",
+	q := fmt.Sprintf(
+		"ALTER TABLE %s RENAME COLUMN %s TO %s",
 		stringz.BacktickQuote(tbl),
 		stringz.BacktickQuote(col),
 		stringz.BacktickQuote(newName),
@@ -1086,7 +1092,8 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context,
 	}
 
 	for i, col := range colNames {
-		q := fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s Nullable(%s)",
+		q := fmt.Sprintf(
+			"ALTER TABLE %s MODIFY COLUMN %s Nullable(%s)",
 			stringz.BacktickQuote(tbl),
 			stringz.BacktickQuote(col),
 			dbTypeNameFromKind(kinds[i]),

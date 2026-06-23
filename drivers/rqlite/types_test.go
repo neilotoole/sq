@@ -89,7 +89,8 @@ func TestRoundTrip_Bool(t *testing.T) {
 
 	// Rows 1-3: raw SQL literals, the gh775 repro shape.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %q (id, b) VALUES (1, 1), (2, 0), (3, NULL)", tblName))
+		"INSERT INTO %q (id, b) VALUES (1, 1), (2, 0), (3, NULL)", tblName,
+	))
 	require.NoError(t, err)
 
 	// Rows 4-5: sq's insert path with Go bool args.
@@ -97,7 +98,8 @@ func TestRoundTrip_Bool(t *testing.T) {
 	insertViaSq(t, th, grip, tblName, []string{"id", "b"}, int64(5), false)
 
 	sink, err := th.QuerySQL(src, nil, fmt.Sprintf(
-		"SELECT id, b FROM %q ORDER BY id", tblName))
+		"SELECT id, b FROM %q ORDER BY id", tblName,
+	))
 	require.NoError(t, err)
 	require.Len(t, sink.Recs, 5)
 	require.Equal(t, kind.Bool, sink.RecMeta[1].Kind())
@@ -137,7 +139,8 @@ func TestRoundTrip_Datetime(t *testing.T) {
 	insertViaSq(t, th, grip, tblName, []string{"id", "d", "dt"}, int64(4), wantDate, wantTS)
 
 	sink, err := th.QuerySQL(src, nil, fmt.Sprintf(
-		"SELECT id, d, dt FROM %q ORDER BY id", tblName))
+		"SELECT id, d, dt FROM %q ORDER BY id", tblName,
+	))
 	require.NoError(t, err)
 	require.Len(t, sink.Recs, 4)
 	require.Equal(t, kind.Date, sink.RecMeta[1].Kind())
@@ -177,7 +180,8 @@ func TestRoundTrip_Blob(t *testing.T) {
 
 	// Rows 1-3: raw SQL literals.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %q (id, bl) VALUES (1, X'DEADBEEF'), (2, X''), (3, NULL)", tblName))
+		"INSERT INTO %q (id, bl) VALUES (1, X'DEADBEEF'), (2, X''), (3, NULL)", tblName,
+	))
 	require.NoError(t, err)
 
 	// Rows 4-5: sq's insert path with []byte args.
@@ -188,7 +192,8 @@ func TestRoundTrip_Blob(t *testing.T) {
 	// The sq-written rows must be stored as genuine blobs, not as the
 	// base64 TEXT that gorqlite's default []byte JSON encoding produces.
 	rows, err := db.QueryContext(th.Context, fmt.Sprintf(
-		"SELECT id, typeof(bl) FROM %q WHERE id IN (1, 4, 5) ORDER BY id", tblName))
+		"SELECT id, typeof(bl) FROM %q WHERE id IN (1, 4, 5) ORDER BY id", tblName,
+	))
 	require.NoError(t, err)
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
@@ -201,7 +206,8 @@ func TestRoundTrip_Blob(t *testing.T) {
 	require.NoError(t, rows.Close())
 
 	sink, err := th.QuerySQL(src, nil, fmt.Sprintf(
-		"SELECT id, bl FROM %q ORDER BY id", tblName))
+		"SELECT id, bl FROM %q ORDER BY id", tblName,
+	))
 	require.NoError(t, err)
 	require.Len(t, sink.Recs, 5)
 	require.Equal(t, kind.Bytes, sink.RecMeta[1].Kind())

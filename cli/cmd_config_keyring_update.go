@@ -55,7 +55,8 @@ func execConfigKeyringUpdate(cmd *cobra.Command, args []string) error {
 		if errors.Is(err, secret.ErrNotFound) {
 			return errz.Errorf(
 				"no keyring entry at %q: use 'sq config keyring create' to add it",
-				path)
+				path,
+			)
 		}
 		return err
 	}

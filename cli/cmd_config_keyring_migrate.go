@@ -237,7 +237,8 @@ func applyMigratePlans(ctx context.Context, ru *run.Run, plans []migratePlan) (
 			})
 		}
 		return rows, errz.Errorf(
-			"migration failed and was rolled back; no sources were changed: %s", cause)
+			"migration failed and was rolled back; no sources were changed: %s", cause,
+		)
 	}
 
 	for _, p := range plans {

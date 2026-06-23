@@ -38,14 +38,16 @@ var _ output.MetadataWriter = (*metadataWriter)(nil)
 // errUnsupported is returned by the metadata operations that have no ERD
 // representation.
 var errUnsupported = errz.New(
-	"the png-erd and svg-erd formats support only source and table schema diagrams")
+	"the png-erd and svg-erd formats support only source and table schema diagrams",
+)
 
 // errNothingToRender is returned when there's no diagram to draw, i.e. no
 // tables with columns and no foreign keys. As with mermaidw, the diagram is
 // the entire output, so an empty render is an error rather than an empty
 // (and invalid) image file.
 var errNothingToRender = errz.New(
-	"the png-erd/svg-erd format has nothing to render: no columns or foreign keys found")
+	"the png-erd/svg-erd format has nothing to render: no columns or foreign keys found",
+)
 
 // metadataWriter implements output.MetadataWriter for the "png-erd" and
 // "svg-erd" formats, rendering the schema ERD to an image via go-graphviz.

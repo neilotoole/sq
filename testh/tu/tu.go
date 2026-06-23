@@ -423,7 +423,8 @@ func TempDir(tb testing.TB, subs ...string) string {
 			dirCount.Add(1),
 			time.Now().UnixMicro(),
 			randString(),
-		))
+		),
+	)
 
 	for _, sub := range subs {
 		fp = filepath.Join(fp, sub)

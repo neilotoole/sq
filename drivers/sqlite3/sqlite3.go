@@ -231,7 +231,8 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessM
 
 	if err = db.PingContext(ctx); err != nil {
 		err = errz.Wrapf(err, "ping %s: %s", src.Handle, src.Location)
-		lg.FromContext(ctx).Warn("ping failed",
+		lg.FromContext(ctx).Warn(
+			"ping failed",
 			lga.Src, src,
 			lga.Err, err,
 		)
