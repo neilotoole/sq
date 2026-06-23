@@ -85,7 +85,7 @@ Run `./sakila-start-local.sh` to start the containers and print the exact export
 
 By default the test harness loads `testh/testdata/test.sq.yml`. Set
 `SQ_TEST_CONFIG_FILE=/path/to/your/test.sq.yml` to point the harness at a
-different config file instead; its `${env:...}` placeholders (and `${SQ_ROOT}`
+different config file instead; its `${env:...}` placeholders (and `SQ_ROOT`
 via `${env:SQ_ROOT}`) resolve exactly like the default file.
 
 Importantly: **When running `sq` tests, if the envar for a source is not populated, any test

@@ -83,6 +83,11 @@ func init() { //nolint:gochecknoinits
 // nearest ancestor directory (inclusive) whose go.mod declares the sq module.
 // It returns the project root and true, or ("", false) if no ancestor is the
 // project root (e.g. startDir is outside any sq checkout).
+//
+// startDir must be a non-empty absolute path (the only caller passes
+// os.Getwd()). An empty startDir would panic at the dir[len(dir)-1] check, and
+// a relative startDir would loop forever because filepath.Dir never reaches a
+// path separator for a relative path.
 func findProjDir(startDir string) (dir string, ok bool) {
 	dir = startDir
 	for {

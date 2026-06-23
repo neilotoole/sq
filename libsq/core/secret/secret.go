@@ -108,7 +108,7 @@ func (r *Registry) Register(scheme string, resolver Resolver) {
 }
 
 // Schemes returns the registered scheme names, sorted ascending. It is
-// read-only and side-effect-free — it does not resolve anything — so it is
+// read-only and side-effect-free (it does not resolve anything), so it is
 // safe for diagnostics and tests that need to assert which resolvers are
 // present without triggering a backend hit (e.g. keyring IPC or an op exec).
 func (r *Registry) Schemes() []string {

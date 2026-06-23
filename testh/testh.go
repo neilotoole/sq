@@ -281,6 +281,11 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 	src, err = driver.ResolveSourceSecrets(h.Context, h.secretReg, src)
 	require.NoError(h.T, err, "resolve placeholders for %s", src.Handle)
 
+	// Unlike Source, Add does not make a per-test copy of file-based
+	// (SQLite/DuckDB) fixtures. A writable file source added here points at
+	// the original on-disk file, so a test that mutates it dirties the
+	// version-controlled fixture. Add a placeholder/path source only for
+	// read access, or copy the file yourself first.
 	require.NoError(h.T, h.coll.Add(src))
 	h.srcCache[src.Handle] = src
 
@@ -908,6 +913,9 @@ func (h *Helper) DiffDB(src *source.Source) {
 func mustLoadCollection(ctx context.Context, tb testing.TB) *source.Collection { //nolint:thelper
 	path := proj.Abs(testsrc.PathTestConfig)
 	if override := strings.TrimSpace(os.Getenv(proj.EnvTestConfigFile)); override != "" {
+		// A relative SQ_TEST_CONFIG_FILE is resolved against the test
+		// process's working directory, which under `go test` is the package
+		// dir (so it differs per package). Prefer an absolute path.
 		abs, err := filepath.Abs(override)
 		require.NoError(tb, err)
 		path = abs
