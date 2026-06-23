@@ -356,7 +356,7 @@ func (h *Helper) Source(handle string) *source.Source {
 
 	src, err := h.coll.Get(handle)
 	require.NoError(t, err,
-		"source %s was not found in %s", handle, testsrc.PathSrcsConfig)
+		"source %s was not found in %s", handle, testsrc.PathTestConfig)
 
 	// Resolve ${scheme:path} placeholders (e.g. ${env:SQ_ROOT},
 	// ${env:SQ_TEST_SRC__*}) before the file-copy logic and caching, so every
@@ -904,15 +904,9 @@ func (h *Helper) DiffDB(src *source.Source) {
 }
 
 func mustLoadCollection(ctx context.Context, tb testing.TB) *source.Collection { //nolint:thelper
-	hookExpand := func(data []byte) ([]byte, error) {
-		// expand vars such as "${SQ_ROOT}"
-		return []byte(proj.Expand(string(data))), nil
-	}
-
 	store := &yamlstore.Store{
-		Path:            proj.Abs(testsrc.PathSrcsConfig),
+		Path:            proj.Abs(testsrc.PathTestConfig),
 		OptionsRegistry: &options.Registry{},
-		HookLoad:        hookExpand,
 	}
 	cli.RegisterDefaultOpts(store.OptionsRegistry)
 
