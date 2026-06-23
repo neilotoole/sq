@@ -100,10 +100,11 @@ type Helper struct {
 
 	Context context.Context
 
-	registry *driver.Registry
-	files    *files.Files
-	grips    *driver.Grips
-	run      *run.Run
+	registry  *driver.Registry
+	files     *files.Files
+	grips     *driver.Grips
+	secretReg *secret.Registry
+	run       *run.Run
 
 	coll     *source.Collection
 	srcCache map[string]*source.Source
@@ -185,9 +186,12 @@ func (h *Helper) init() {
 		})
 
 		// Secret registry mirrors the production CLI (see newSecretRegistry /
-		// cli/run.go), so test source Locations can use ${scheme:path}
-		// placeholders resolved at connect time.
-		h.grips = driver.NewGrips(h.registry, h.files, newSecretRegistry(), sqlite3.NewScratchSource)
+		// cli/run.go). Stored on the Helper so the same instance resolves
+		// ${scheme:path} placeholders both in Grips (at connect time) and in
+		// Helper.Source (for harness helpers that bypass Grips, e.g. the
+		// file-copy logic and openNew).
+		h.secretReg = newSecretRegistry()
+		h.grips = driver.NewGrips(h.registry, h.files, h.secretReg, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.grips)
 
 		h.registry.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: h.Log()})
@@ -270,6 +274,14 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 
 	require.NoError(h.T, h.coll.Add(src))
 
+	// Resolve ${scheme:path} placeholders so the cache always holds a concrete
+	// location; mirrors the resolution added to Source for collection-loaded
+	// sources. init() must have run (via the h.Source(sakila.SL3) call above)
+	// before we reach here, so h.secretReg is set.
+	var err error
+	src, err = driver.ResolveSourceSecrets(h.Context, h.secretReg, src)
+	require.NoError(h.T, err, "resolve placeholders for %s", src.Handle)
+
 	h.srcCache[src.Handle] = src
 
 	// envDiffDB is the name of the envar that controls whether the testing
@@ -345,6 +357,14 @@ func (h *Helper) Source(handle string) *source.Source {
 	src, err := h.coll.Get(handle)
 	require.NoError(t, err,
 		"source %s was not found in %s", handle, testsrc.PathSrcsConfig)
+
+	// Resolve ${scheme:path} placeholders (e.g. ${env:SQ_ROOT},
+	// ${env:SQ_TEST_SRC__*}) before the file-copy logic and caching, so every
+	// downstream path (file copy, openNew, RowCount) sees a concrete location.
+	// External sources with an unset envar were already skipped above, so this
+	// never errors on a missing ${env:SQ_TEST_SRC__*}.
+	src, err = driver.ResolveSourceSecrets(h.Context, h.secretReg, src)
+	require.NoError(t, err, "resolve placeholders for %s", handle)
 
 	if src.Type == drivertype.SQLite {
 		// This could be easily generalized for CSV/XLSX etc.
