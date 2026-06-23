@@ -197,9 +197,9 @@ an `sq` command in a release section links to its `sq.io` documentation.
 
 Choose a prefix by change type:
 
-- `feature/` — new capability or enhancement
-- `fix/` — bug fix
-- `chore/` — maintenance, deps, CI, tooling, docs-only housekeeping
+- `feature/`: new capability or enhancement
+- `fix/`: bug fix
+- `chore/`: maintenance, deps, CI, tooling, docs-only housekeeping
 
 No linked GitHub issue:
 
@@ -223,7 +223,7 @@ checklist (merge `master`, run `make all`).
 
 Write commit messages in the imperative mood, focused on _what_ changed and
 _why_. Keep the subject line under ~70 characters; use the body for detail.
-There's no need to add AI / Claude attribution text; this is assumed these days.
+Do not add AI / Claude attribution text to commits or PRs.
 
 ## Drivers
 
