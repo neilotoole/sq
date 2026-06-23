@@ -109,7 +109,7 @@ collection:
       location: '${env:SQ_ROOT}/drivers/csv/testdata/person_noheader.csv'
     - handle: '@tsv_person'
       driver: tsv
-      location: '${env:SQ_ROOT}/sq/drivers/csv/testdata/person.tsv'
+      location: '${env:SQ_ROOT}/drivers/csv/testdata/person.tsv'
     - handle: '@tsv_person_noheader'
       driver: tsv
       location: '${env:SQ_ROOT}/drivers/csv/testdata/person_noheader.tsv'
