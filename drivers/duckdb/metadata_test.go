@@ -74,7 +74,8 @@ func TestSakilaFixture_ForeignKeyCount(t *testing.T) {
 	require.NoError(t, err)
 
 	var got int
-	require.NoError(t, db.QueryRowContext(context.Background(),
+	require.NoError(t, db.QueryRowContext(
+		context.Background(),
 		`SELECT count(*) FROM duckdb_constraints() WHERE constraint_type = 'FOREIGN KEY'`,
 	).Scan(&got))
 	require.Equal(t, 21, got,

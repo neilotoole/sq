@@ -24,14 +24,16 @@ var _ output.MetadataWriter = (*metadataWriter)(nil)
 // errUnsupported is returned by the metadata operations that have no Mermaid
 // ERD representation.
 var errUnsupported = errz.New(
-	"the mermaid-erd format supports only source and table schema diagrams")
+	"the mermaid-erd format supports only source and table schema diagrams",
+)
 
 // errNothingToRender is returned when there's no diagram to draw, i.e. no
 // tables with columns and no foreign keys. Unlike markdownw/htmlw, where the
 // ERD is one section of a larger document, here the diagram is the entire
 // output, so an empty render is an error rather than silent empty output.
 var errNothingToRender = errz.New(
-	"the mermaid-erd format has nothing to render: no columns or foreign keys found")
+	"the mermaid-erd format has nothing to render: no columns or foreign keys found",
+)
 
 // metadataWriter implements output.MetadataWriter for the "mermaid-erd"
 // format, emitting bare Mermaid.js erDiagram source.

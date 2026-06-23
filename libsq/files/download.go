@@ -169,7 +169,8 @@ func (fs *Files) downloaderFor(ctx context.Context, src *source.Source) (*downlo
 
 func (fs *Files) httpClientFor(ctx context.Context, src *source.Source) *http.Client {
 	o := options.Merge(options.FromContext(ctx), src.Options)
-	return httpz.NewClient(httpz.DefaultUserAgent,
+	return httpz.NewClient(
+		httpz.DefaultUserAgent,
 		httpz.OptRequestTimeout(OptHTTPRequestTimeout.Get(o)),
 		httpz.OptResponseTimeout(OptHTTPResponseTimeout.Get(o)),
 		httpz.OptInsecureSkipVerify(OptHTTPSInsecureSkipVerify.Get(o)),

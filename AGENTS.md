@@ -3,8 +3,8 @@
 Guidance for AI coding assistants (Claude Code, Copilot, Cursor, Codex, etc.) and
 human contributors working in this repo.
 
-For Claude Code, [`CLAUDE.md`](./CLAUDE.md) mirrors the essentials here and links
-to this file for expanded contributor content.
+[`CLAUDE.md`](./CLAUDE.md) is the Claude Code entry point; it points here for
+all shared rules.
 
 ## About `sq`
 
@@ -19,13 +19,13 @@ docs live at
 Before making non-trivial changes, read the document most relevant to your
 task:
 
-- [`README.md`](./README.md) — project overview and user-facing intro.
-- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — full contributor guide: tooling,
+- [`README.md`](./README.md): project overview and user-facing intro.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md): full contributor guide (tooling,
   `Makefile` usage, driver implementation patterns, test handles,
-  `CHANGELOG.md` format.
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — Mermaid ERD of core types
+  `CHANGELOG.md` format).
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md): Mermaid ERD of core types
   (`Source`, `Driver`, `Grip`, `Registry`, `RecordWriter`, etc.).
-- [sq.io](https://sq.io) — end-user documentation for commands and query
+- [sq.io](https://sq.io): end-user documentation for commands and query
   syntax.
 
 ## Common commands
@@ -54,8 +54,8 @@ or `go test -short ./...` to skip them.
 Run `make lint` after any change to `*.go` files. Fix all reported issues
 before committing. Common lint categories:
 
-- `godot` — comments must end with a period.
-- `unused` — unused variables, constants, functions.
+- `godot`: comments must end with a period.
+- `unused`: unused variables, constants, functions.
 
 Go formatting (gofumpt rules + import ordering) is handled by `make fmt`, not
 golangci-lint: `dprint` runs the gofumpt plugin (`modulePath` + `extraRules`)
@@ -68,9 +68,9 @@ Don't wait to be asked; treat `make lint` as part of "done".
 Prefer `github.com/stretchr/testify` for assertions, and prefer `require`
 over `assert`:
 
-- `require.*` — fails fast, stopping the test on first failure. Default
+- `require.*`: fails fast, stopping the test on first failure. Default
   choice.
-- `assert.*` — continues after failure. Use only when you genuinely want to
+- `assert.*`: continues after failure. Use only when you genuinely want to
   report multiple independent failures in one run.
 
 ```go
@@ -92,12 +92,83 @@ so they're skipped under `go test -short`. See
 [`CONTRIBUTING.md`](./CONTRIBUTING.md#test-handles) for driver test handle
 conventions.
 
+### Error handling
+
+Use [`libsq/core/errz`](./libsq/core/errz) for every error produced inside
+sq. `errz` wrappers attach a stack trace at the call site, which the CLI's
+debug output and `%+v` formatting rely on (errz errors implement
+`fmt.Formatter`). `errors.Is` / `errors.As` continue to work because `errz`
+exposes `Unwrap`.
+
+| Situation                                         | Use                            |
+| ------------------------------------------------- | ------------------------------ |
+| Brand-new error, plain string                     | `errz.New("...")`              |
+| Brand-new error, formatted                        | `errz.Errorf("... %s", x)`     |
+| Wrap an existing error                            | `errz.Wrap(err, "context")`    |
+| Wrap an existing error, formatted                 | `errz.Wrapf(err, "fmt %s", x)` |
+| Annotate an external error with no extra context  | `errz.Err(err)`                |
+| Package-level sentinel for `errors.Is` comparison | `errors.New("...")`            |
+
+Sentinels (e.g. `secret.ErrNotFound`, `errz.ErrStop`) intentionally stay on
+`errors.New`. Wrapping at package-init would attach a stack trace from
+program startup, which is meaningless. Wrap them with `errz` at the point
+they're returned.
+
+Errors crossing into sq from external libraries (stdlib, third-party
+packages) MUST be wrapped at the boundary so the stack trace anchors at the
+sq-side caller, not deep inside the external code.
+
+Avoid `fmt.Errorf` and `errors.New` outside sentinel declarations: they
+produce stackless errors that surface upstream with no useful trace.
+
+Command-authoring conventions for the `cli` package (including the rule that
+every argument-taking command must offer shell completion) live in
+[`cli/CLAUDE.md`](./cli/CLAUDE.md).
+
+### Passing data: prefer explicit signatures over `context.Value`
+
+Don't smuggle values through `context.Context` to avoid a signature or
+interface change. `context.Value` is for request-scoped metadata
+(cancellation, deadlines, trace/logging IDs), not for data a function needs
+to compute its result. If a value materially affects what a function returns
+or does, thread it as an explicit parameter (or field), even when that means
+changing an exported signature or a driver-interface method. sq is pre-v1.0.0,
+so such changes are acceptable and expected; reach for the cleaner API rather
+than working around the old one.
+
+If a `context.Value`-based approach genuinely seems warranted (it rarely is),
+stop and ask before taking that path.
+
+For a worked example of this rule applied, see `SQLDriver.RecordMeta`: its
+result-column kind hints are threaded as an explicit parameter rather than
+smuggled through `context.Value` (resolved in
+[#848](https://github.com/neilotoole/sq/issues/848)).
+
 ### English spelling
 
 Use US English in all prose: code comments, godoc, user-facing strings,
 commit messages, PR descriptions, CHANGELOG entries, and site docs. For
 example, "honors" not "honours", "color" not "colour", "behavior" not
 "behaviour", "optimize" not "optimise".
+
+### Prose style (no AI-isms)
+
+Applies to all written content in this repo: `README.md`, `CHANGELOG.md`,
+other root-level markdown, godoc and code comments, commit messages, PR
+descriptions, and everything under [`site/`](./site/). Does **not** apply to
+code itself (string literals, test fixtures, sample data).
+
+Write like a human contributor, not a generative model. Specifically, avoid:
+
+- **Em dashes** (`—`). Use a period, comma, parentheses, or ": ".
+  No en dashes (`–`) for ranges either; use `-` or "to".
+- **"Not just X, it's Y"** / "not only X but Y" sloganeering and other
+  marketing-style antitheses.
+- **Decorative emoji** in prose. GitHub callout admonitions
+  (`> [!NOTE]` etc.) are fine when they convey real information.
+
+When in doubt: shorter, plainer, more specific. Concrete nouns and verbs
+beat adjectives.
 
 ### Markdown
 
@@ -125,14 +196,26 @@ an `sq` command in a release section links to its `sq.io` documentation.
 
 ### Git branch naming
 
-Use the pattern:
+Choose a prefix by change type:
+
+- `feature/`: new capability or enhancement
+- `fix/`: bug fix
+- `chore/`: maintenance, deps, CI, tooling, docs-only housekeeping
+
+No linked GitHub issue:
 
 ```text
-gh{GITHUB_ISSUE_NUMBER}-{short-description}
+{prefix}{short-kebab-description}
 ```
 
-Examples: `gh531-sq-version-slow`, `gh412-add-db-filter`,
-`gh503-fix-migration`.
+Linked GitHub issue:
+
+```text
+{prefix}gh{ISSUE_NUMBER}-{short-kebab-description}
+```
+
+Examples: `feature/upgrade-gofumpt`, `fix/gh914-nightly-link-check`,
+`chore/gh928-update-gofumpt`.
 
 ### Commits and pull requests
 
@@ -141,7 +224,7 @@ checklist (merge `master`, run `make all`).
 
 Write commit messages in the imperative mood, focused on _what_ changed and
 _why_. Keep the subject line under ~70 characters; use the body for detail.
-There's no need to add AI / Claude attribution text; this is assumed these days.
+Do not add AI / Claude attribution text to commits or PRs.
 
 ## Drivers
 
@@ -149,12 +232,12 @@ There's no need to add AI / Claude attribution text; this is assumed these days.
 driver under [`drivers/`](./drivers/). When adding or modifying a driver,
 read the
 ["New driver implementations"](./CONTRIBUTING.md#new-driver-implementations)
-section of `CONTRIBUTING.md` — it covers package structure, type mapping,
+section of `CONTRIBUTING.md`. It covers package structure, type mapping,
 dialect configuration, test handles, and the SQL-vs-document driver split.
 
 **Adding a new driver type:** you must complete the
 [driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist) in the same
-PR — including [`site/content/en/docs/drivers/`](site/content/en/docs/drivers/)
+PR, including [`site/content/en/docs/drivers/`](site/content/en/docs/drivers/)
 and [`skills/sq/`](skills/sq/SKILL.md) (`SKILL.md` driver table plus
 `references/{driver}.md`). Do not mark driver work done until those files are
 updated; copy an existing `skills/sq/references/*.md` as a template.
@@ -173,9 +256,9 @@ This repo ships [Agent Skills](https://agentskills.io/specification) for
 | [`.agents/skills/`](.agents/skills/) | Contributors (Dependabot triage, etc.)                            |
 | [`skills/sq/`](skills/sq/SKILL.md)   | End users of the `sq` CLI (distribution; not repo auto-discovery) |
 
-When you **add a new driver type**, update [`skills/sq/`](skills/sq/SKILL.md)
-per the [driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist): add
-`references/{driver}.md` and a row in `SKILL.md`.
+Adding a new driver type also requires updating
+[`skills/sq/`](skills/sq/SKILL.md); see [Drivers](#drivers) and the
+[driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist).
 
 Claude Code discovers the same tree via [`.claude/skills`](.claude/skills)
 (symlink to `.agents/skills`). Cursor and Codex load `.agents/skills/`
@@ -187,13 +270,10 @@ tree as documented in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 | Skill                                                        | Use when                                                              |
 | ------------------------------------------------------------ | --------------------------------------------------------------------- |
 | [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/)   | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo). |
-| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) | Dependabot PRs for Go modules at repo root (placeholder).             |
+| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) | Dependabot PRs for Go modules (`go.mod`/`go.sum`) at repo root.       |
 
 Invoke explicitly when your agent supports it (e.g. `/sq-site-dependabot` in
 Cursor, `$sq-site-dependabot` in Codex) or ask to “clear site dependabot PRs”.
-
-Full site-dependabot workflow content lands in a follow-up PR; this scaffold
-adds directories and docs only.
 
 ### Installing and verifying skills (`npx skills`)
 

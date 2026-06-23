@@ -199,7 +199,8 @@ func readSqliteSequence(ctx context.Context, db sqlz.DB, tbl string) (sql.NullIn
 	// sqlite_sequence only exists once an AUTOINCREMENT table has been
 	// created in the DB; querying it blindly would error.
 	var n int
-	if err := db.QueryRowContext(ctx,
+	if err := db.QueryRowContext(
+		ctx,
 		"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'",
 	).Scan(&n); err != nil {
 		return seq, errz.Wrap(errw(err),
@@ -209,7 +210,8 @@ func readSqliteSequence(ctx context.Context, db sqlz.DB, tbl string) (sql.NullIn
 		return seq, nil
 	}
 
-	if err := db.QueryRowContext(ctx,
+	if err := db.QueryRowContext(
+		ctx,
 		"SELECT seq FROM sqlite_sequence WHERE name=?", tbl,
 	).Scan(&seq); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return seq, errz.Wrapf(errw(err),

@@ -296,7 +296,8 @@ func TestIngestDuplicateColumns(t *testing.T) {
 	ctx := context.Background()
 	tr := testrun.New(ctx, t, nil).Hush()
 
-	err := tr.Exec("add",
+	err := tr.Exec(
+		"add",
 		"--handle", "@actor_dup",
 		"--ingest.header=true",
 		filepath.Join("testdata", "actor_duplicate_cols.xlsx"),

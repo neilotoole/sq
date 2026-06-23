@@ -179,7 +179,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	// fractional digits is rounded per row before summing, unlike the result-cast
 	// dialects which round the final sum.
 	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastOperand(
-		fmt.Sprintf("DECIMAL(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale))
+		fmt.Sprintf("DECIMAL(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale),
+	)
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsCollate
 	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithCollate
@@ -233,7 +234,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		cfg.Database = src.Catalog
 		loc = cfg.URL().String()
 
-		log.Debug("Using catalog as database in connection string",
+		log.Debug(
+			"Using catalog as database in connection string",
 			lga.Src, src,
 			lga.Catalog, src.Catalog,
 			lga.Conn, location.Redact(loc),

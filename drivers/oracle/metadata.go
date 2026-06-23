@@ -74,11 +74,13 @@ FROM DUAL`
 	//   3. The BANNER as a last resort.
 	var version string
 	switch {
-	case db.QueryRowContext(ctx,
+	case db.QueryRowContext(
+		ctx,
 		"SELECT version_full FROM product_component_version WHERE ROWNUM = 1",
 	).Scan(&version) == nil && version != "":
 		md.DBVersion = version
-	case db.QueryRowContext(ctx,
+	case db.QueryRowContext(
+		ctx,
 		"SELECT version FROM v$instance WHERE ROWNUM = 1",
 	).Scan(&version) == nil && version != "":
 		md.DBVersion = version
@@ -203,7 +205,8 @@ ORDER BY t.table_name`)
 	for _, tblName := range baseNames {
 		tblMeta, err := getTableMetadata(ctx, db, tblName, false)
 		if err != nil {
-			log.Warn("oracle metadata: skipped base table (continuing)",
+			log.Warn(
+				"oracle metadata: skipped base table (continuing)",
 				lga.Handle, handle,
 				lga.Table, tblName,
 				lga.Err, err,
@@ -216,7 +219,8 @@ ORDER BY t.table_name`)
 	for _, mvName := range mviewNames {
 		tblMeta, err := getMaterializedViewMetadata(ctx, db, mvName)
 		if err != nil {
-			log.Warn("oracle metadata: skipped materialized view (continuing)",
+			log.Warn(
+				"oracle metadata: skipped materialized view (continuing)",
 				lga.Handle, handle,
 				lga.Table, mvName,
 				lga.Err, err,
@@ -229,7 +233,8 @@ ORDER BY t.table_name`)
 	for _, viewName := range viewNames {
 		tblMeta, err := getViewMetadata(ctx, db, viewName)
 		if err != nil {
-			log.Warn("oracle metadata: skipped view (continuing)",
+			log.Warn(
+				"oracle metadata: skipped view (continuing)",
 				lga.Handle, handle,
 				lga.Table, viewName,
 				lga.Err, err,
@@ -347,7 +352,8 @@ WHERE t.table_name = :1`
 	var bytes int64
 
 	err := db.QueryRowContext(ctx, queryTable, strings.ToUpper(tblName)).Scan(
-		&numRows, &comment, &bytes)
+		&numRows, &comment, &bytes,
+	)
 	if err != nil {
 		return nil, errw(err)
 	}
