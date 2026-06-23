@@ -42,52 +42,46 @@ func init() { //nolint:gochecknoinits
 		}
 	}
 
-	var path string
-	envar, ok = os.LookupEnv(EnvRoot)
-	if !ok || envar == "" {
-		dir, err := os.Getwd()
-		if err != nil {
-			panic(err)
-		}
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
 
-		for {
-			if isProjDir(dir) {
-				path = dir
-				break
-			}
+	path, ok := findProjDir(cwd)
+	if !ok {
+		panic("unable to determine sq project dir from cwd: " + cwd)
+	}
 
-			if os.IsPathSeparator(dir[len(dir)-1]) {
-				// per filepath.Dir contract, we're at the root
-				break
-			}
-
-			dir = filepath.Dir(dir)
-		}
-
-		if path == "" {
-			panic("unable to determine sq project dir")
-		}
-
-		// If we get here, we've found the proj dir.
-
-		// Set the env so that os.ExpandEnv etc can use the envar
-		err = os.Setenv(EnvRoot, path)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		var err error
-		path, err = filepath.Abs(envar)
-		if err != nil {
-			panic(err)
-		}
-
-		if !isProjDir(path) {
-			panic("envar " + EnvRoot + " does not appear to be sq project dir: " + envar)
-		}
+	// SQ_ROOT is synthetic: it is always derived in-process from cwd, never
+	// read from the caller's environment. Any externally-set SQ_ROOT is
+	// intentionally ignored, so a stale value exported for a sibling worktree
+	// cannot hijack this run. We set the envar here so os.ExpandEnv (and the
+	// ${env:SQ_ROOT} secret resolver) can read the derived value.
+	if err = os.Setenv(EnvRoot, path); err != nil {
+		panic(err)
 	}
 
 	projDir = path
+}
+
+// findProjDir walks up from startDir to locate the sq project root: the
+// nearest ancestor directory (inclusive) whose go.mod declares the sq module.
+// It returns the project root and true, or ("", false) if no ancestor is the
+// project root (e.g. startDir is outside any sq checkout).
+func findProjDir(startDir string) (dir string, ok bool) {
+	dir = startDir
+	for {
+		if isProjDir(dir) {
+			return dir, true
+		}
+
+		if os.IsPathSeparator(dir[len(dir)-1]) {
+			// per filepath.Dir contract, we're at the root
+			return "", false
+		}
+
+		dir = filepath.Dir(dir)
+	}
 }
 
 // isProjDir returns true if dir contains a go.mod file
@@ -132,7 +126,8 @@ func isProjDir(dir string) bool {
 }
 
 // Dir returns the absolute path to the root of the sq project,
-// as set in envar EnvRoot or determined programmatically.
+// determined in-process by walking up from the working directory at
+// package-init time. An externally-set SQ_ROOT is ignored.
 func Dir() string {
 	return projDir
 }
