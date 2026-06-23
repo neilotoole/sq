@@ -524,26 +524,30 @@ func isFpath(loc string) (fpath string, ok bool) {
 		return "", false
 	}
 
-	if strings.Contains(loc, "://") {
-		// Any "scheme://" authority form is a URL (a SQL driver DSN,
-		// http/https, or an unknown/unsupported scheme), never a local
-		// file path. Mirrors the "://" convention used by IsSQL, Short,
-		// and Parse. Excluding unknown schemes here too avoids mangling a
-		// mistyped URL into a garbage path before it fails downstream.
-		return "", false
-	}
+	// Inspect the leading "scheme:" token (the bytes before the first
+	// colon), anchoring the URL/DSN checks on that token rather than
+	// substring-matching anywhere in loc.
+	if scheme, rest, found := strings.Cut(loc, ":"); found {
+		if strings.HasPrefix(rest, "//") {
+			// A "scheme://" authority form is a URL (a SQL driver DSN,
+			// http/https, or an unknown/unsupported scheme), never a local
+			// file path. Excluding unknown schemes here too avoids mangling
+			// a mistyped URL into a garbage path before it fails downstream.
+			return "", false
+		}
 
-	if scheme, _, found := strings.Cut(loc, ":"); found && isFileDBScheme(scheme) {
-		// A leading "scheme:" token naming a file-based DB driver is a
-		// bare DSN, not a path: "sqlite3:f.db", "duckdb:f.db", the legacy
-		// "sqlite:f.db" spelling, and malformed single-slash forms like
-		// "sqlite3:/path". A single-letter Windows volume ("C:\db") is not
-		// such a scheme, so it stays a path, dissolving the gh #797 trap
-		// without a dedicated drive-letter branch. A colon inside a
-		// filename ("./dump.sqlite3:old.db"), or a leading token that only
-		// looks like a network scheme ("postgres:notes.csv"), likewise
-		// stays a path (gh #859).
-		return "", false
+		if isFileDBScheme(scheme) {
+			// A leading "scheme:" token naming a file-based DB driver is a
+			// bare DSN, not a path: "sqlite3:f.db", "duckdb:f.db", the
+			// legacy "sqlite:f.db" spelling, and malformed single-slash
+			// forms like "sqlite3:/path". A single-letter Windows volume
+			// ("C:\db") is not such a scheme, so it stays a path,
+			// dissolving the gh #797 trap without a dedicated drive-letter
+			// branch. A colon inside a filename ("./dump.sqlite3:old.db"),
+			// or a leading token that only looks like a network scheme
+			// ("postgres:notes.csv"), likewise stays a path (gh #859).
+			return "", false
+		}
 	}
 
 	fpath, err := absTemplatePath(loc)
