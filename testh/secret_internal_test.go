@@ -1,6 +1,8 @@
 package testh
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -76,4 +78,31 @@ func TestHelperSourceResolvesEnvPlaceholder(t *testing.T) {
 	require.NoError(t, db.QueryRowContext(th.Context,
 		"SELECT COUNT(*) FROM "+sakila.TblActor).Scan(&count))
 	require.Positive(t, count)
+}
+
+// TestSourceConfigFileOverride verifies that SQ_TEST_CONFIG_FILE points the
+// harness at a different config file, whose ${env:...} placeholders still
+// resolve.
+func TestSourceConfigFileOverride(t *testing.T) {
+	dbPath := proj.Abs(sakila.PathSL3)
+	t.Setenv("SQ_TEST_OVERRIDE_DB", dbPath)
+
+	cfgPath := filepath.Join(t.TempDir(), "test.sq.yml")
+	cfgYAML := "config.version: v0.34.0\n" +
+		"collection:\n" +
+		"  sources:\n" +
+		"    - handle: '@override_sl3'\n" +
+		"      driver: sqlite3\n" +
+		"      location: sqlite3://${env:SQ_TEST_OVERRIDE_DB}\n"
+	require.NoError(t, os.WriteFile(cfgPath, []byte(cfgYAML), 0o600))
+	t.Setenv(proj.EnvTestConfigFile, cfgPath)
+
+	th := New(t)
+	grip := th.Open(th.Source("@override_sl3"))
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	var count int
+	require.NoError(t, db.QueryRowContext(th.Context,
+		"SELECT COUNT(*) FROM "+sakila.TblActor).Scan(&count))
+	require.Positive(t, count, "override config source must load and resolve")
 }

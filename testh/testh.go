@@ -904,8 +904,15 @@ func (h *Helper) DiffDB(src *source.Source) {
 }
 
 func mustLoadCollection(ctx context.Context, tb testing.TB) *source.Collection { //nolint:thelper
+	path := proj.Abs(testsrc.PathTestConfig)
+	if override := strings.TrimSpace(os.Getenv(proj.EnvTestConfigFile)); override != "" {
+		abs, err := filepath.Abs(override)
+		require.NoError(tb, err)
+		path = abs
+	}
+
 	store := &yamlstore.Store{
-		Path:            proj.Abs(testsrc.PathTestConfig),
+		Path:            path,
 		OptionsRegistry: &options.Registry{},
 	}
 	cli.RegisterDefaultOpts(store.OptionsRegistry)

@@ -30,6 +30,12 @@ const (
 	DefaultPassw = "p_ssW0rd"
 
 	EnvLogFile = "SQ_LOGFILE"
+
+	// EnvTestConfigFile, when set, overrides the path of the test source
+	// config file the harness loads (default: the in-repo test.sq.yml).
+	// The override file is loaded and its ${scheme:path} placeholders are
+	// resolved exactly like the default file.
+	EnvTestConfigFile = "SQ_TEST_CONFIG_FILE"
 )
 
 var projDir string
