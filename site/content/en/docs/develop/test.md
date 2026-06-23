@@ -70,8 +70,9 @@ that source.
 
 > **Note:** In the `yaml` snippet above, for local file-based sources such as `@sakila_sl3`
 > with `location: sqlite3://${SQ_ROOT}/drivers/sqlite3/testdata/sakila.db`, you'll notice a
-> variable `${SQ_ROOT}`. It is not necessary to explicitly set this variable as an envar: the
-> `sq` test framework calculates it automatically.
+> variable `${SQ_ROOT}`. You do not set this variable yourself: the `sq` test framework
+> always derives it in-process from the working directory (the sq module root). Any `SQ_ROOT`
+> you export in your shell is ignored.
 
 Importantly: **When running `sq` tests, if the envar for a source is not populated, any test
 that uses that source is skipped.**
