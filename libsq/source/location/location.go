@@ -47,11 +47,15 @@ var fileDBSchemes = map[string]bool{
 	"duckdb":  true,
 }
 
-// isFileDBScheme reports whether scheme (matched case-insensitively, as
-// URL schemes are per RFC 3986) is a file-based DB driver scheme whose
-// bare "scheme:path" form isFpath must treat as a DSN, not a file path.
+// isFileDBScheme reports whether scheme is a file-based DB driver scheme
+// whose bare "scheme:path" form isFpath must treat as a DSN, not a file
+// path. Matching is case-sensitive, consistent with the rest of the
+// location pipeline: IsSQL, Parse, and munging all compare scheme
+// prefixes case-sensitively, so an off-case spelling like "SQLITE3:" is
+// not a DSN sq recognizes and must be left as an ordinary filename (which
+// isFpath then absolutizes).
 func isFileDBScheme(scheme string) bool {
-	return fileDBSchemes[strings.ToLower(scheme)]
+	return fileDBSchemes[scheme]
 }
 
 // Filename returns the final component of the file/URL path.

@@ -383,13 +383,17 @@ func TestIsFpath(t *testing.T) {
 		{loc: "https://acme.com/data.csv", wantOK: false},
 		{loc: "postgres://u:p@host/db", wantOK: false},
 		{loc: "weird://host/x.db", wantOK: false},
-		// Driver schemes are not bare file paths; scheme match is
-		// case-insensitive.
+		// File-DB driver schemes are not bare file paths.
 		{loc: "sqlite3:sakila.db", wantOK: false},
-		{loc: "SQLITE3:sakila.db", wantOK: false},
 		{loc: "sqlite:sakila.db", wantOK: false},
 		{loc: `sqlite3:C:\db`, wantOK: false},
 		{loc: "duckdb:foo.duckdb", wantOK: false},
+		// Scheme matching is case-sensitive, consistent with Parse and
+		// munging: an off-case "SQLITE3:" is not a DSN sq recognizes, so
+		// it stays a path and is absolutized (otherwise isFpath would
+		// disagree with the rest of the pipeline and skip absolutizing a
+		// real file named "SQLITE3:foo.db").
+		{loc: "SQLITE3:sakila.db", wantOK: true},
 		// A known scheme with a malformed single slash is still not a path.
 		{loc: "sqlite3:/path/to/file", wantOK: false},
 		// Well-formed placeholder: resolves at use time, not a path.
