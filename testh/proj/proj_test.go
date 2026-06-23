@@ -27,7 +27,7 @@ func TestFindProjDir(t *testing.T) {
 // without a match.
 func TestFindProjDir_NotFound(t *testing.T) {
 	tmpDir := t.TempDir()
-	if strings.HasPrefix(tmpDir, projDir) {
+	if tmpDir == projDir || strings.HasPrefix(tmpDir, projDir+string(os.PathSeparator)) {
 		t.Skip("TMPDIR is inside the sq checkout; test's outside-the-tree assumption is violated")
 	}
 

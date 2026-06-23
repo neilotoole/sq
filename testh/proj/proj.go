@@ -94,8 +94,8 @@ func findProjDir(startDir string) (dir string, ok bool) {
 }
 
 // externalRootWarning returns a warning message and true when an external
-// SQ_ROOT envar is set. The test harness ignores SQ_ROOT — the project root is
-// always derived in-process from the working directory — so a lingering value
+// SQ_ROOT envar is set. The test harness ignores SQ_ROOT: the project root is
+// always derived in-process from the working directory, so a lingering value
 // (e.g. exported for a sibling worktree) silently does nothing and can confuse
 // a later run. The message advises unsetting it and names derived, the root
 // actually in use, so the developer can see the effective value. It returns
@@ -136,6 +136,11 @@ func isProjDir(dir string) bool {
 	if err != nil {
 		panic(err)
 	}
+	defer func() {
+		if cerr := f.Close(); cerr != nil {
+			panic(cerr)
+		}
+	}()
 
 	gotMatch = false // reuse var
 	scanner := bufio.NewScanner(f)
@@ -150,10 +155,6 @@ func isProjDir(dir string) bool {
 		panic(err)
 	}
 
-	err = f.Close()
-	if err != nil {
-		panic(err)
-	}
 	return gotMatch
 }
 
