@@ -30,6 +30,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   aliasing only changed files (the `-set-alias` whole-module pass cost ~145s; it is now ~1s).
   Formatting, including Go import order, is enforced in CI. This is a contributor-facing
   change with no effect on the `sq` binary.
+- Go formatting upgraded to [gofumpt](https://github.com/mvdan/gofumpt) v0.10 via the dprint
+  plugin v0.0.11 (~67 files; mechanical trailing-comma and redundant-paren changes only, no
+  behavior change). Deferred from [#927] to keep that PR a tooling-only swap.
 
 ### Fixed
 

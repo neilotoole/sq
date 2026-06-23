@@ -23,7 +23,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/langz"
 )
 
-var _ io.ReadCloser = (Doc)(nil)
+var _ io.ReadCloser = Doc(nil)
 
 // Doc is a diff document that implements [io.ReadCloser]. It is used to stream
 // diff output.

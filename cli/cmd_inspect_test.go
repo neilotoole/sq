@@ -373,7 +373,8 @@ func TestCmdInspect_markdown(t *testing.T) { //nolint:tparallel
 	t.Run("overview", func(t *testing.T) {
 		tr2 := testrun.New(th.Context, t, tr)
 		require.NoError(t, tr2.Exec(
-			"inspect", sakila.SL3, "--"+flag.InspectOverview, "--"+format.Markdown.String()))
+			"inspect", sakila.SL3, "--"+flag.InspectOverview, "--"+format.Markdown.String(),
+		))
 		out := tr2.Out.String()
 		require.Contains(t, out, "# "+src.Handle)
 		require.NotContains(t, out, "```mermaid")
@@ -436,7 +437,8 @@ func TestCmdInspect_mermaidERD(t *testing.T) { //nolint:tparallel
 	t.Run("table", func(t *testing.T) {
 		tr2 := testrun.New(th.Context, t, tr)
 		require.NoError(t, tr2.Exec(
-			"inspect", src.Handle+".film_actor", "-f", format.MermaidERD.String()))
+			"inspect", src.Handle+".film_actor", "-f", format.MermaidERD.String(),
+		))
 		out := tr2.Out.String()
 		require.True(t, strings.HasPrefix(out, "erDiagram"))
 		require.Contains(t, out, "film_actor {")
@@ -446,7 +448,8 @@ func TestCmdInspect_mermaidERD(t *testing.T) { //nolint:tparallel
 	t.Run("overview", func(t *testing.T) {
 		tr2 := testrun.New(th.Context, t, tr)
 		err := tr2.Exec(
-			"inspect", sakila.SL3, "--"+flag.InspectOverview, "-f", format.MermaidERD.String())
+			"inspect", sakila.SL3, "--"+flag.InspectOverview, "-f", format.MermaidERD.String(),
+		)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "mermaid-erd")
 	})
@@ -475,7 +478,8 @@ func TestCmdInspect_svgERD(t *testing.T) { //nolint:tparallel
 	t.Run("table", func(t *testing.T) {
 		tr2 := testrun.New(th.Context, t, tr)
 		require.NoError(t, tr2.Exec(
-			"inspect", src.Handle+".film_actor", "-f", format.SVGERD.String()))
+			"inspect", src.Handle+".film_actor", "-f", format.SVGERD.String(),
+		))
 		out := tr2.Out.String()
 		require.Contains(t, out, "<svg")
 		require.Contains(t, out, "film_actor")
@@ -500,7 +504,8 @@ func TestCmdInspect_pngERD(t *testing.T) {
 	})
 
 	require.NoError(t, tr.Exec(
-		"inspect", "--format="+format.PNGERD.String(), "-o", outputFile.Name()))
+		"inspect", "--format="+format.PNGERD.String(), "-o", outputFile.Name(),
+	))
 
 	// Nothing should have been written to stdout.
 	require.Empty(t, tr.Out.String())
@@ -612,7 +617,8 @@ func TestCmdInspect_OutputFlag(t *testing.T) {
 	})
 
 	require.NoError(t, tr.Exec(
-		"inspect", "--"+format.Markdown.String(), "-o", outputFile.Name()))
+		"inspect", "--"+format.Markdown.String(), "-o", outputFile.Name(),
+	))
 
 	// Nothing should have been written to stdout.
 	require.Empty(t, tr.Out.String())

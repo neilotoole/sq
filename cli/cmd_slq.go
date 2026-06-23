@@ -245,7 +245,8 @@ func execSLQRenderSQL(ctx context.Context, ru *run.Run, mArgs map[string]string)
 	if fm := getFormat(ru.Cmd, ru.Config.Options); !renderSQLSupportsFormat(fm) {
 		lg.FromContext(ctx).Warn(
 			"--render-sql has no writer for the requested format; falling back to text",
-			"format", fm)
+			"format", fm,
+		)
 	}
 
 	slq, err := preprocessUserSLQ(ctx, ru, ru.Args)

@@ -188,7 +188,8 @@ func ingestJSONA(ctx context.Context, job *ingestJob) error {
 		return err
 	}
 
-	log.Debug("Inserted rows",
+	log.Debug(
+		"Inserted rows",
 		lga.Count, inserted,
 		lga.Target, source.Target(job.destGrip.Source(), tblDef.Name),
 	)

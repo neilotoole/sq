@@ -127,7 +127,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.Ac
 		if mode == driver.ModeReadOnlyExplicit {
 			if conflict, ok := d.DetectReadOnlyConflict(loc); ok {
 				return nil, errz.Errorf(
-					"duckdb: cannot open %s read-only: its location sets %s", src.Handle, conflict)
+					"duckdb: cannot open %s read-only: its location sets %s", src.Handle, conflict,
+				)
 			}
 		}
 		var changed bool

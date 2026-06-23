@@ -448,13 +448,15 @@ func newSource(ctx context.Context, dp driver.Provider, typ drivertype.Type, han
 	log := lg.FromContext(ctx)
 
 	if opts == nil {
-		log.Debug("Create new data source",
+		log.Debug(
+			"Create new data source",
 			lga.Handle, handle,
 			lga.Driver, typ,
 			lga.Loc, location.Redact(loc),
 		)
 	} else {
-		log.Debug("Create new data source with opts",
+		log.Debug(
+			"Create new data source with opts",
 			lga.Handle, handle,
 			lga.Driver, typ,
 			lga.Loc, location.Redact(loc),

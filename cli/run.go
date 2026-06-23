@@ -213,7 +213,8 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	if cmdFlagChanged(ru.Cmd, flag.NoRedact) {
 		lg.FromContext(ctx).Warn(
 			"--no-redact is deprecated; use --reveal instead",
-			lga.Cmd, ru.Cmd.CommandPath())
+			lga.Cmd, ru.Cmd.CommandPath(),
+		)
 	}
 
 	// Build the secret registry before FinishRunInit, which constructs

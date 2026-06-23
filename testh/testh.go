@@ -624,7 +624,8 @@ func (h *Helper) CopyTable(
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
 	}
 
-	h.Log().Debug("Copied table",
+	h.Log().Debug(
+		"Copied table",
 		lga.From, fromTable,
 		lga.To, toTable,
 		"copy_data", copyData,

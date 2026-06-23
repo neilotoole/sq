@@ -336,7 +336,8 @@ func helperCmd(t *testing.T, ctrl helperControl) *execz.Cmd {
 	return &execz.Cmd{
 		Name: testExe(t),
 		Args: []string{"-test.run=^TestHelperProcess$", "--"},
-		Env: append(base,
+		Env: append(
+			base,
 			"GO_EXECZ_WANT_HELPER_PROCESS=1",
 			"HELPER_STDOUT="+ctrl.stdout,
 			"HELPER_STDERR="+ctrl.stderr,

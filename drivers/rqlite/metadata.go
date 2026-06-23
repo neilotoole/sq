@@ -86,7 +86,8 @@ func setScanType(ctx context.Context, colType *record.ColumnTypeData) {
 
 	switch knd { //nolint:exhaustive
 	default:
-		lg.FromContext(ctx).Warn("Unknown kind for col",
+		lg.FromContext(ctx).Warn(
+			"Unknown kind for col",
 			lga.Col, colType.Name,
 			lga.DBType, colType.DatabaseTypeName,
 		)
@@ -187,7 +188,8 @@ func kindFromDBTypeName(ctx context.Context, colName, dbTypeName string, scanTyp
 	switch {
 	default:
 		knd = kind.Unknown
-		log.Warn("Unknown SQLite database column type: using alt",
+		log.Warn(
+			"Unknown SQLite database column type: using alt",
 			lga.DBType, dbTypeName,
 			lga.Col, colName,
 			lga.Kind, knd,
@@ -466,7 +468,8 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	var isVirtualTbl sql.NullFloat64
 	query := fmt.Sprintf(tpl, stringz.DoubleQuote(tblMeta.Name))
 	err := db.QueryRowContext(ctx, query, tblMeta.Name, tblMeta.Name).Scan(
-		&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schemaName)
+		&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schemaName,
+	)
 	if err != nil {
 		return nil, errw(err)
 	}
