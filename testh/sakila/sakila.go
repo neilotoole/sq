@@ -159,7 +159,8 @@ const (
 	TblPayment        = "payment"
 	TblPaymentCount   = 16049
 
-	// TblFilmText is present in each sakila dataset.
+	// TblFilmText is present in each sakila dataset, except the Oracle image
+	// (see libsq/driver/driver_test.go and sakiladb/oracle schema notes).
 	TblFilmText   = "film_text"
 	ViewActorInfo = "actor_info"
 	ViewFilmList  = "film_list"
