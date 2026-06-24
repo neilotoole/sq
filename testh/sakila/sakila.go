@@ -171,8 +171,7 @@ const (
 	TblPayment        = "payment"
 	TblPaymentCount   = 16049
 
-	// TblFilmText is present in each sakila dataset, except Postgres for
-	// some reason.
+	// TblFilmText is present in each sakila dataset.
 	TblFilmText   = "film_text"
 	ViewActorInfo = "actor_info"
 	ViewFilmList  = "film_list"
@@ -255,16 +254,6 @@ func AllTblsViews() []string {
 		"actor", "address", "category", "city", "country", "customer", "customer_list", "film",
 		"film_actor", "film_category", "film_list", "film_text", "inventory", "language", "payment", "rental",
 		"sales_by_film_category", "sales_by_store", "staff", "staff_list", "store",
-	}
-}
-
-// AllTblsExceptFilmText exists because our current postgres image is different
-// from the others in that it doesn't have the film_text table.
-func AllTblsExceptFilmText() []string {
-	// TODO: delete AllTblsExceptFilmText when postgres image is updated to include film_text.
-	return []string{
-		"actor", "address", "category", "city", "country", "customer", "film", "film_actor",
-		"film_category", "inventory", "language", "payment", "rental", "staff", "store",
 	}
 }
 
