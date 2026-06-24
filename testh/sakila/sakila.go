@@ -40,13 +40,6 @@ const (
 	MS19           = "@sakila_ms19"
 	MS             = MS19
 
-	// AZ1 is the handle for Azure SQL Edge v1.x.
-	// Note that Azure SQL Edge is basically the same thing as MS SQL Server.
-	// AZ is not well-supported in the sq codebase. It's possible it will be
-	// removed at some point.
-	AZ1 = "@sakila_az1"
-	AZ  = AZ1
-
 	CH25 = "@sakila_ch25"
 	// CH is the handle for the latest ClickHouse.
 	CH = CH25
@@ -73,7 +66,6 @@ func AllHandles() []string {
 		My8,
 		// MS17,
 		MS19,
-		AZ1,
 		CH25,
 		Ora23,
 		RQ,
@@ -95,7 +87,6 @@ func SQLAll() []string {
 		My8,
 		// MS17,
 		MS19,
-		AZ1,
 		CH25,
 		Ora23,
 		RQ,
@@ -115,7 +106,6 @@ func SQLAllExternal() []string {
 		My8,
 		// MS17,
 		MS19,
-		AZ1,
 		CH25,
 		Ora23,
 		RQ,
@@ -149,12 +139,10 @@ func MyAll() []string {
 }
 
 // MSAll returns the handles for all SQL Server versions.
-// This includes both SQLServer and Azure SQL Edge.
 func MSAll() []string {
 	return []string{
 		// MS17,
 		MS19,
-		AZ1,
 	}
 }
 
