@@ -119,7 +119,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 		{sakila.SL3, sakila.AllTbls()},
 		{sakila.Duck, sakila.AllTbls()},
 		{sakila.RQ, sakila.AllTbls()},
-		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
+		{sakila.Pg, sakila.AllTbls()},
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
 	}
@@ -158,10 +158,6 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 					gotTableNames = lo.Intersect(gotTableNames, possibleTbls)
 
 					for _, wantTblName := range tc.wantTbls {
-						if src.Type == drivertype.Pg && wantTblName == sakila.TblFilmText {
-							// Postgres sakila DB doesn't have film_text for some reason
-							continue
-						}
 						require.Contains(t, gotTableNames, wantTblName)
 					}
 
@@ -245,7 +241,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 		{sakila.XLSX, sakila.AllTbls()},
 		{sakila.SL3, sakila.AllTbls()},
 		{sakila.Duck, sakila.AllTbls()},
-		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
+		{sakila.Pg, sakila.AllTbls()},
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
 	}
@@ -269,10 +265,6 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 			require.Contains(t, output, location.Redact(src.Location))
 
 			for _, wantTblName := range tc.wantTbls {
-				if src.Type == drivertype.Pg && wantTblName == "film_text" {
-					// Postgres sakila DB doesn't have film_text for some reason
-					continue
-				}
 				require.Contains(t, output, wantTblName)
 			}
 
