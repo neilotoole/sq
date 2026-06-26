@@ -220,6 +220,146 @@ func TestRecordMeta_BlobScan(t *testing.T) {
 	require.Nil(t, recs[1][1])
 }
 
+// TestInspect_GeneratedColumn verifies that a column declared GENERATED ALWAYS
+// AS is flagged as generated and that a regular DEFAULT column is not.
+func TestInspect_GeneratedColumn(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@gen_col_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (
+		id      INTEGER,
+		price   DECIMAL(10,2) DEFAULT 9.99,
+		tax     DECIMAL(10,2) GENERATED ALWAYS AS (price * 0.1)
+	)`)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(ctx, "t")
+	require.NoError(t, err)
+
+	colByName := make(map[string]*metadata.Column, len(md.Columns))
+	for _, col := range md.Columns {
+		colByName[col.Name] = col
+	}
+
+	idCol := colByName["id"]
+	require.NotNil(t, idCol)
+	require.False(t, idCol.Generated, "plain column should not be marked generated")
+	require.Empty(t, idCol.DefaultValue)
+
+	priceCol := colByName["price"]
+	require.NotNil(t, priceCol)
+	require.False(t, priceCol.Generated, "DEFAULT column should not be marked generated")
+	require.NotEmpty(t, priceCol.DefaultValue, "regular default should be preserved")
+
+	taxCol := colByName["tax"]
+	require.NotNil(t, taxCol)
+	require.True(t, taxCol.Generated, "GENERATED ALWAYS AS column must be marked generated")
+	require.NotEmpty(t, taxCol.GeneratedExpr, "GeneratedExpr must be populated")
+	require.Empty(t, taxCol.DefaultValue, "generated expr must not appear as DefaultValue")
+}
+
+// TestInspect_CheckConstraint verifies that CHECK constraints are returned for
+// both per-table and source-level inspect.
+func TestInspect_CheckConstraint(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@check_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (
+		id    INTEGER,
+		price DECIMAL(10,2),
+		CONSTRAINT chk_price CHECK (price > 0)
+	)`)
+	require.NoError(t, err)
+
+	t.Run("per_table", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "t")
+		require.NoError(t, err)
+		require.Len(t, md.CheckConstraints, 1)
+		cc := md.CheckConstraints[0]
+		// DuckDB auto-generates constraint names (the CONSTRAINT name clause
+		// is not preserved in this version), so check only that a name is present.
+		require.NotEmpty(t, cc.Name)
+		require.Equal(t, "t", cc.Table)
+		require.NotEmpty(t, cc.Clause)
+	})
+
+	t.Run("source_level", func(t *testing.T) {
+		srcMd, err := grip.SourceMetadata(ctx, false)
+		require.NoError(t, err)
+		var tbl *metadata.Table
+		for _, tb := range srcMd.Tables {
+			if tb.Name == "t" {
+				tbl = tb
+				break
+			}
+		}
+		require.NotNil(t, tbl)
+		require.Len(t, tbl.CheckConstraints, 1)
+		require.NotEmpty(t, tbl.CheckConstraints[0].Name)
+	})
+}
+
+// TestInspect_ViewDefinition verifies that ViewDefinition is populated for
+// both per-table and source-level inspect.
+func TestInspect_ViewDefinition(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@view_def_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (id INT, name VARCHAR)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE VIEW v AS SELECT id, name FROM t`)
+	require.NoError(t, err)
+
+	t.Run("per_table", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "v")
+		require.NoError(t, err)
+		require.NotEmpty(t, md.ViewDefinition)
+		require.Contains(t, md.ViewDefinition, "SELECT")
+	})
+
+	t.Run("source_level", func(t *testing.T) {
+		srcMd, err := grip.SourceMetadata(ctx, false)
+		require.NoError(t, err)
+		var viewTbl *metadata.Table
+		for _, tbl := range srcMd.Tables {
+			if tbl.Name == "v" {
+				viewTbl = tbl
+				break
+			}
+		}
+		require.NotNil(t, viewTbl)
+		require.NotEmpty(t, viewTbl.ViewDefinition)
+		require.Contains(t, viewTbl.ViewDefinition, "SELECT")
+	})
+}
+
 // pkColumnNames returns the names of columns where PrimaryKey is true.
 func pkColumnNames(cols []*metadata.Column) []string {
 	var names []string
