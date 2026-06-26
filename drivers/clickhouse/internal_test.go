@@ -176,6 +176,18 @@ func TestExtractViewSelectFromCHDDL(t *testing.T) {
 			ddl:  "create view db.v as select id from t",
 			want: "select id from t",
 		},
+		{
+			// Non-ASCII runes before AS SELECT: the Unicode fi-ligature ﬁ
+			// (U+FB01, 3 UTF-8 bytes) uppercases to "FI" (2 bytes), so two
+			// occurrences create a 2-byte cumulative shift.  The old
+			// strings.ToUpper+strings.Index approach applied the shifted index
+			// to the original string, landing mid-word and returning
+			// "S SELECT id FROM t" instead of "SELECT id FROM t".  The
+			// regexp-based fix operates directly on the original bytes.
+			name: "unicode byte-length-changing rune before AS SELECT",
+			ddl:  "CREATE VIEW dbﬁﬁ.v AS SELECT id FROM t",
+			want: "SELECT id FROM t",
+		},
 	}
 
 	for _, tc := range testCases {

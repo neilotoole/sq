@@ -321,6 +321,80 @@ func TestInspect_GeneratedColumn(t *testing.T) {
 	})
 }
 
+// TestInspect_GeneratedColumn_UnbalancedParenInDefault verifies that a table
+// whose DDL contains a string literal with an unbalanced closing paren in a
+// DEFAULT value does not suppress a subsequent GENERATED ALWAYS AS column.
+//
+// The outer column-list boundary scanner was not literal-aware; ':)' caused
+// it to close prematurely, dropping the generated column from the map and
+// leaving Generated=false.
+func TestInspect_GeneratedColumn_UnbalancedParenInDefault(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@gen_paren_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (
+		a       INT,
+		note    VARCHAR DEFAULT ':)',
+		doubled INT GENERATED ALWAYS AS (a*2)
+	)`)
+	require.NoError(t, err)
+
+	t.Run("per_table", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "t")
+		require.NoError(t, err)
+
+		colByName := make(map[string]*metadata.Column, len(md.Columns))
+		for _, col := range md.Columns {
+			colByName[col.Name] = col
+		}
+
+		noteCol := colByName["note"]
+		require.NotNil(t, noteCol)
+		require.False(t, noteCol.Generated, "note must not be marked generated")
+		require.NotEmpty(t, noteCol.DefaultValue, "note DEFAULT must be preserved")
+
+		doubledCol := colByName["doubled"]
+		require.NotNil(t, doubledCol)
+		require.True(t, doubledCol.Generated,
+			"doubled must be marked generated even though ':)' precedes it in the DDL")
+		require.NotEmpty(t, doubledCol.GeneratedExpr)
+	})
+
+	t.Run("source_level", func(t *testing.T) {
+		srcMd, err := grip.SourceMetadata(ctx, false)
+		require.NoError(t, err)
+
+		var tbl *metadata.Table
+		for _, tb := range srcMd.Tables {
+			if tb.Name == "t" {
+				tbl = tb
+				break
+			}
+		}
+		require.NotNil(t, tbl)
+
+		colByName := make(map[string]*metadata.Column, len(tbl.Columns))
+		for _, col := range tbl.Columns {
+			colByName[col.Name] = col
+		}
+
+		doubledCol := colByName["doubled"]
+		require.NotNil(t, doubledCol)
+		require.True(t, doubledCol.Generated,
+			"doubled must be marked generated in source-wide path")
+		require.NotEmpty(t, doubledCol.GeneratedExpr)
+	})
+}
+
 // TestInspect_CheckConstraint verifies that CHECK constraints are returned for
 // both per-table and source-level inspect.
 func TestInspect_CheckConstraint(t *testing.T) {

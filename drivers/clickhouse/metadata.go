@@ -543,6 +543,16 @@ func getClickHouseViewDefinitions(ctx context.Context, db sqlz.DB, dbName, tblNa
 	return defs, errw(rows.Err())
 }
 
+// reCHViewAsSelect matches " AS SELECT " case-insensitively in a ClickHouse
+// DDL string.  The regex operates on the original bytes, so the match index
+// is a valid byte offset into the original string regardless of any non-ASCII
+// characters that appear before the match.
+var reCHViewAsSelect = regexp.MustCompile(`(?i) AS SELECT `)
+
+// reCHViewAs matches " AS " case-insensitively.  Used as a fallback when
+// reCHViewAsSelect finds no match.
+var reCHViewAs = regexp.MustCompile(`(?i) AS `)
+
 // extractViewSelectFromCHDDL extracts the SELECT portion from a ClickHouse
 // CREATE [MATERIALIZED] VIEW DDL string. ClickHouse stores the full DDL in
 // create_table_query as "CREATE [MATERIALIZED] VIEW db.name AS SELECT ...".
@@ -554,15 +564,23 @@ func getClickHouseViewDefinitions(ctx context.Context, db sqlz.DB, dbName, tblNa
 //
 // Returns "" if neither pattern is present; returning the raw DDL blob when
 // no SELECT is found is unhelpful and incorrect.
+//
+// The match is performed with a regexp on the original ddl string rather than
+// on strings.ToUpper(ddl), because strings.ToUpper can change the byte length
+// of non-ASCII runes (e.g. the Unicode fi-ligature ﬁ expands from 3 bytes to
+// 2-byte "FI"), making an index from the uppercased copy invalid when applied
+// to the original — a source of corrupted output or an out-of-range slice panic.
 func extractViewSelectFromCHDDL(ddl string) string {
-	upper := strings.ToUpper(ddl)
-	// Prefer the specific " AS SELECT " pattern to avoid false splits.
-	if idx := strings.Index(upper, " AS SELECT "); idx != -1 {
-		return strings.TrimSpace(ddl[idx+4:])
+	// Prefer the specific " AS SELECT " pattern to avoid false splits on an
+	// earlier " AS " (e.g. a column alias or a TO clause).
+	if loc := reCHViewAsSelect.FindStringIndex(ddl); loc != nil {
+		// loc[0] is the byte offset of the leading space before "AS SELECT".
+		// Skip " AS " (4 ASCII bytes) to land at "SELECT …".
+		return strings.TrimSpace(ddl[loc[0]+4:])
 	}
 	// Fallback: first " AS " (handles unusual formatting or non-SELECT views).
-	if idx := strings.Index(upper, " AS "); idx != -1 {
-		return strings.TrimSpace(ddl[idx+4:])
+	if loc := reCHViewAs.FindStringIndex(ddl); loc != nil {
+		return strings.TrimSpace(ddl[loc[0]+4:])
 	}
 	// No recognizable AS separator: do not return the raw DDL blob.
 	return ""

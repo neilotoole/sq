@@ -245,7 +245,7 @@ ORDER BY t.table_name`)
 	}
 
 	for _, viewName := range viewNames {
-		tblMeta, err := getViewMetadata(ctx, db, viewName)
+		tblMeta, err := getViewMetadata(ctx, db, viewName, false)
 		if err != nil {
 			log.Warn(
 				"oracle metadata: skipped view (continuing)",
@@ -320,7 +320,7 @@ FETCH FIRST 1 ROW ONLY`
 	case "MATERIALIZED VIEW":
 		return getMaterializedViewMetadata(ctx, db, canonical)
 	case "VIEW":
-		return getViewMetadata(ctx, db, canonical)
+		return getViewMetadata(ctx, db, canonical, true)
 	case "TABLE":
 		return getTableMetadata(ctx, db, canonical, true)
 	default:
@@ -896,7 +896,15 @@ func getOracleViewDefinition(ctx context.Context, db *sql.DB, viewName string) (
 }
 
 // getViewMetadata returns metadata for a view (USER_VIEWS / USER_TAB_COLUMNS).
-func getViewMetadata(ctx context.Context, db *sql.DB, viewName string) (*metadata.Table, error) {
+//
+// loadTriggers controls whether per-view trigger metadata is fetched:
+//   - Pass true for the per-table path (getObjectMetadata / Grip.TableMetadata)
+//     so that the standalone [metadata.Table] carries its INSTEAD OF triggers.
+//   - Pass false for the source-wide path (loadUserSchemaObjectsMetadata) where
+//     a bulk getOracleTriggers("") + AssignTriggers runs after this function
+//     returns and would overwrite any per-view result — fetching triggers here
+//     would be an unnecessary N extra round-trips.
+func getViewMetadata(ctx context.Context, db *sql.DB, viewName string, loadTriggers bool) (*metadata.Table, error) {
 	const q = `SELECT v.view_name, tc.comments
 FROM user_views v
 LEFT JOIN user_tab_comments tc
@@ -943,10 +951,14 @@ WHERE v.view_name = :1`
 	}
 
 	// INSTEAD OF triggers are stored in USER_TRIGGERS with TABLE_NAME equal
-	// to the view name, so getOracleTriggers returns them when called for a view.
-	tblMeta.Triggers, err = getOracleTriggers(ctx, db, viewName)
-	if err != nil {
-		return nil, err
+	// to the view name, so getOracleTriggers returns them when called for a
+	// view.  Only fetch here for the per-table path; the source-wide path
+	// relies on a subsequent bulk AssignTriggers call that overwrites this.
+	if loadTriggers {
+		tblMeta.Triggers, err = getOracleTriggers(ctx, db, viewName)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return tblMeta, nil

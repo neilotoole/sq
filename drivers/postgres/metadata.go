@@ -1110,13 +1110,12 @@ WHERE con.contype = 'c' AND n.nspname = current_schema()`
 // Internal triggers (constraint-enforcement triggers created by Postgres itself)
 // are excluded via NOT t.tgisinternal.
 //
-// Note: INSTEAD OF triggers can only be defined on views. The source-wide
-// path (tblName == "") captures them correctly because the query is not
-// table-type-filtered and AssignTriggers assigns to every entry in md.Tables
-// (including views). However, the per-table path in populateTableExtras
-// short-circuits for non-table types before calling getPgTriggers, so a
-// single-table inspect of a view will miss its INSTEAD OF triggers. This is
-// a known Phase-1 gap; the common case (full-source inspect) is correct.
+// Note: INSTEAD OF triggers can only be defined on views. Both paths correctly
+// capture them: the source-wide path (tblName == "") uses an unfiltered query so
+// AssignTriggers populates every entry in md.Tables including views; the
+// per-table path in populateTableExtras explicitly calls getPgTriggers when
+// TableType is view, so single-table inspect of a view returns its INSTEAD OF
+// triggers as well.
 func getPgTriggers(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Trigger, error) {
 	log := lg.FromContext(ctx)
 

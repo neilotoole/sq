@@ -101,7 +101,7 @@ func TestMetadataHelpers_ErrorPaths(t *testing.T) {
 	_, err = getOracleIndexes(ctx, db, tbl)
 	require.Error(t, err)
 
-	_, err = getViewMetadata(ctx, db, tbl)
+	_, err = getViewMetadata(ctx, db, tbl, true)
 	require.Error(t, err)
 
 	_, err = getMaterializedViewMetadata(ctx, db, tbl)

@@ -195,6 +195,27 @@ func TestPathFromLocation(t *testing.T) {
 	}
 }
 
+// TestParseDuckDBGeneratedColumnNames_UnbalancedParenInLiteral verifies that
+// a string literal containing an unbalanced closing paren does not confuse the
+// outer column-list boundary scanner in parseDuckDBGeneratedColumnNames.
+//
+// The old scanner was not literal-aware: ':)' caused it to close the depth
+// counter prematurely, truncating the column list so that the GENERATED ALWAYS
+// AS column that follows was silently dropped (map entry absent, Generated not
+// set).  After the fix the scanner tracks single-quoted literals and ignores
+// parens inside them.
+func TestParseDuckDBGeneratedColumnNames_UnbalancedParenInLiteral(t *testing.T) {
+	ddl := `CREATE TABLE t (a INT, note VARCHAR DEFAULT ':)', doubled INT GENERATED ALWAYS AS (a*2))`
+	got := parseDuckDBGeneratedColumnNames(ddl)
+	require.NotNil(t, got, "result map must not be nil")
+	require.True(t, got["doubled"],
+		"'doubled' must be marked as generated; unbalanced paren in literal must not truncate column list")
+	require.False(t, got["note"],
+		"'note' must not be marked as generated (it has a DEFAULT, not GENERATED ALWAYS AS)")
+	require.False(t, got["a"],
+		"'a' must not be marked as generated (plain column)")
+}
+
 // TestParseDuckDBIndexExpressions covers the shapes that
 // duckdb_indexes().expressions emits without needing a live DB.
 func TestParseDuckDBIndexExpressions(t *testing.T) {

@@ -1143,13 +1143,36 @@ func parseDuckDBGeneratedColumnNames(ddl string) map[string]bool {
 	if start < 0 {
 		return nil
 	}
+	// Scan for the matching close-paren, tracking string literals so that
+	// an unbalanced paren inside a quoted value (e.g. DEFAULT ':)') does not
+	// terminate the search early.  The logic mirrors duckdbSplitTopLevel.
 	depth := 0
 	end := -1
+	inSingle := false
+	inDouble := false
 	for i := start; i < len(ddl); i++ {
-		switch ddl[i] {
-		case '(':
+		c := ddl[i]
+		switch {
+		case inSingle:
+			if c == '\'' {
+				// SQL escaped quote '' — skip the second quote.
+				if i+1 < len(ddl) && ddl[i+1] == '\'' {
+					i++
+				} else {
+					inSingle = false
+				}
+			}
+		case inDouble:
+			if c == '"' {
+				inDouble = false
+			}
+		case c == '\'':
+			inSingle = true
+		case c == '"':
+			inDouble = true
+		case c == '(':
 			depth++
-		case ')':
+		case c == ')':
 			depth--
 			if depth == 0 {
 				end = i
