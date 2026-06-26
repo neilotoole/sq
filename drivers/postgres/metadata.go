@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -397,8 +398,17 @@ func getPgSettings(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 func getAllTableNames(ctx context.Context, db sqlz.DB) ([]string, error) {
 	log := lg.FromContext(ctx)
 
-	const tblNamesQuery = `SELECT table_name FROM information_schema.tables
-WHERE table_catalog = current_catalog AND table_schema = current_schema()
+	// Matviews live only in pg_catalog (pg_class.relkind='m'), not in
+	// information_schema.tables, so they are UNIONed in explicitly.
+	const tblNamesQuery = `SELECT table_name FROM (
+  SELECT table_name FROM information_schema.tables
+  WHERE table_catalog = current_catalog AND table_schema = current_schema()
+  UNION
+  SELECT c.relname AS table_name
+  FROM pg_catalog.pg_class c
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind = 'm' AND n.nspname = current_schema()
+) AS t
 ORDER BY table_name`
 
 	rows, err := db.QueryContext(ctx, tblNamesQuery)
@@ -445,6 +455,13 @@ AND table_name = $1`
 	err := db.QueryRowContext(ctx, tablesQuery, tblName).
 		Scan(&pgTbl.tableCatalog, &pgTbl.tableSchema, &pgTbl.tableName, &pgTbl.tableType, &pgTbl.isInsertable,
 			&pgTbl.rowCount, &pgTbl.size, &pgTbl.oid, &pgTbl.comment)
+	if errors.Is(err, sql.ErrNoRows) {
+		// A matview is absent from information_schema.tables, so the
+		// query above returns no rows. Fall back to the pg_catalog path,
+		// which also returns the canonical not-found error if tblName is
+		// not a matview either.
+		return getMatviewMetadata(ctx, db, tblName)
+	}
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -488,6 +505,136 @@ AND table_name = $1`
 	return tblMeta, nil
 }
 
+// getMatviewMetadata builds a *metadata.Table for a materialized view from
+// pg_catalog. Matviews are absent from information_schema, so this is the
+// fallback path from getTableMetadata. It is a two-step operation: first
+// confirm that name actually is a matview (returning the canonical not-found
+// error otherwise), and only then interpolate the confirmed name into the
+// COUNT/size/comment/viewdef queries — interpolating an unconfirmed or
+// non-matview relation name would error at plan time.
+func getMatviewMetadata(ctx context.Context, db sqlz.DB, name string) (*metadata.Table, error) {
+	// Step A: confirm name is a matview in the current schema, and get
+	// the catalog & schema for the FQ name.
+	const confirmQuery = `SELECT current_database(), current_schema()
+WHERE EXISTS (
+  SELECT 1 FROM pg_catalog.pg_class c
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relname = $1 AND n.nspname = current_schema() AND c.relkind = 'm'
+)`
+	var catalog, schema string
+	err := db.QueryRowContext(ctx, confirmQuery, name).Scan(&catalog, &schema)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Not a matview (nor any other relation found in info-schema):
+		// behave as before for a genuinely-missing relation.
+		return nil, errz.Errorf("table {%s} not found", name)
+	}
+	if err != nil {
+		return nil, errw(err)
+	}
+	progress.Incr(ctx, 1)
+	debugz.DebugSleep(ctx)
+
+	// Step B: name is confirmed a matview; safe to interpolate it,
+	// mirroring the %s/%q style used by tblsQueryTpl.
+	const detailQueryTpl = `SELECT
+  (SELECT COUNT(*) FROM "%s") AS row_count,
+  pg_total_relation_size('%q') AS mv_size,
+  obj_description('%q'::regclass, 'pg_class') AS mv_comment,
+  pg_get_viewdef('%q'::regclass, true) AS view_def`
+	detailQuery := fmt.Sprintf(detailQueryTpl, name, name, name, name)
+
+	var (
+		rowCount int64
+		mvSize   sql.NullInt64
+		comment  sql.NullString
+		viewDef  sql.NullString
+	)
+	err = db.QueryRowContext(ctx, detailQuery).Scan(&rowCount, &mvSize, &comment, &viewDef)
+	if err != nil {
+		return nil, errw(err)
+	}
+	progress.Incr(ctx, 1)
+	debugz.DebugSleep(ctx)
+
+	tblMeta := &metadata.Table{
+		Name:           name,
+		FQName:         fmt.Sprintf("%s.%s.%s", catalog, schema, name),
+		TableType:      sqlz.TableTypeMaterializedView,
+		DBTableType:    "MATERIALIZED VIEW",
+		RowCount:       rowCount,
+		Comment:        comment.String,
+		ViewDefinition: viewDef.String,
+	}
+	if mvSize.Valid && mvSize.Int64 > 0 {
+		tblMeta.Size = &mvSize.Int64
+	}
+
+	cols, err := getPgMatviewColumns(ctx, db, name)
+	if err != nil {
+		return nil, err
+	}
+	tblMeta.Columns = cols
+
+	return tblMeta, nil
+}
+
+// getPgMatviewColumns returns the columns of a materialized view, sourced from
+// pg_attribute (matview result columns are absent from
+// information_schema.columns). Matview columns carry none of identity,
+// auto-increment, generated, default, collation, or primary-key semantics.
+func getPgMatviewColumns(ctx context.Context, db sqlz.DB, name string) ([]*metadata.Column, error) {
+	log := lg.FromContext(ctx)
+
+	const colsQuery = `SELECT a.attname, a.attnum,
+  format_type(a.atttypid, a.atttypmod) AS data_type,
+  t.typname AS udt_name,
+  a.attnotnull,
+  col_description(a.attrelid, a.attnum::int) AS col_comment
+FROM pg_catalog.pg_attribute a
+JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+WHERE c.relname = $1 AND n.nspname = current_schema() AND c.relkind = 'm'
+  AND a.attnum > 0 AND NOT a.attisdropped
+ORDER BY a.attnum`
+
+	rows, err := db.QueryContext(ctx, colsQuery, name)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var cols []*metadata.Column
+	for rows.Next() {
+		var (
+			attName, dataType, udtName string
+			attNum                     int64
+			attNotNull                 bool
+			colComment                 sql.NullString
+		)
+		if err = rows.Scan(&attName, &attNum, &dataType, &udtName, &attNotNull, &colComment); err != nil {
+			return nil, errw(err)
+		}
+
+		cols = append(cols, &metadata.Column{
+			Name:       attName,
+			Position:   attNum,
+			BaseType:   udtName,
+			ColumnType: dataType,
+			Kind:       kindFromDBTypeName(log, attName, udtName),
+			Nullable:   !attNotNull,
+			Comment:    colComment.String,
+		})
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+	}
+	if err = closeRows(rows); err != nil {
+		return nil, err
+	}
+
+	return cols, nil
+}
+
 // populateTableExtras loads outgoing FKs, incoming FKs, unique
 // constraints, indexes, and (for views) the view definition for tblMeta,
 // filtered by tblMeta.Name. It is the per-table counterpart to the bulk
@@ -505,6 +652,13 @@ func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Tabl
 		}
 		tblMeta.ViewDefinition = defs[tblMeta.Name]
 		return nil
+	}
+	if tblMeta.TableType == sqlz.TableTypeMaterializedView {
+		// Matviews have no FK/PK/unique/check/triggers, only indexes.
+		// ViewDefinition and columns were already set by getMatviewMetadata.
+		var err error
+		tblMeta.Indexes, err = getPgIndexes(ctx, db, tblMeta.Name)
+		return err
 	}
 	if tblMeta.TableType != sqlz.TableTypeTable {
 		return nil

@@ -353,3 +353,74 @@ func TestPostgres_Triggers(t *testing.T) {
 	require.True(t, *found.Enabled)
 	require.Contains(t, found.Definition, "CREATE TRIGGER")
 }
+
+// TestPostgres_Matview verifies that materialized views (which live only in
+// pg_catalog, not information_schema) are surfaced by sq inspect via both the
+// per-table and source-wide metadata paths, with real columns, view
+// definition, row count, and indexes.
+func TestPostgres_Matview(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("mv_base")
+	mv := stringz.UniqTableName("mv_view")
+	ix := stringz.UniqTableName("mv_idx")
+
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+tbl+` (id INT, label TEXT)`)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		`INSERT INTO `+tbl+` (id, label) VALUES (1, 'alpha'), (2, 'beta'), (3, 'gamma')`)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE MATERIALIZED VIEW `+mv+` AS SELECT id, label FROM `+tbl+` WHERE id > 0`)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE INDEX `+ix+` ON `+mv+` (id)`)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP MATERIALIZED VIEW IF EXISTS `+mv)
+		th.DropTable(src, tablefq.From(tbl))
+	})
+
+	// Per-table path.
+	mvMd, err := th.Open(src).TableMetadata(th.Context, mv)
+	require.NoError(t, err)
+	require.Equal(t, sqlz.TableTypeMaterializedView, mvMd.TableType,
+		"TableType should be materialized_view")
+	require.Equal(t, "MATERIALIZED VIEW", mvMd.DBTableType)
+	require.NotEmpty(t, mvMd.Columns, "matview columns must be populated")
+	require.NotNil(t, mvMd.Column("id"))
+	require.NotNil(t, mvMd.Column("label"))
+	require.NotEmpty(t, mvMd.ViewDefinition, "ViewDefinition should not be empty")
+	require.Contains(t, mvMd.ViewDefinition, "label",
+		"ViewDefinition should contain a recognizable column fragment")
+	require.NotNil(t, pgIndexByName(mvMd.Indexes, ix),
+		"index %q should appear in matview indexes", ix)
+	require.Equal(t, int64(3), mvMd.RowCount, "RowCount should match inserted rows")
+
+	// Source-wide path.
+	srcMd, err := th.Open(src).SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+
+	var mvFromSrc *metadata.Table
+	for _, tm := range srcMd.Tables {
+		if tm.Name == mv {
+			mvFromSrc = tm
+			break
+		}
+	}
+	require.NotNil(t, mvFromSrc, "matview %q should be present in SourceMetadata", mv)
+	require.Equal(t, sqlz.TableTypeMaterializedView, mvFromSrc.TableType)
+	require.NotEmpty(t, mvFromSrc.Columns, "matview columns must be populated in source-wide path")
+	require.NotNil(t, pgIndexByName(mvFromSrc.Indexes, ix),
+		"index %q should be attached in source-wide path", ix)
+}
