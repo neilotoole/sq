@@ -213,7 +213,7 @@ func TestIngest_DuplicateColumns(t *testing.T) {
 
 	// Make sure the data is correct
 	require.Len(t, data, sakila.TblActorCount+1) // +1 for header row
-	wantFirstDataRecord := []string{"1", "PENELOPE", "GUINESS", "2020-02-15T06:59:28Z", "1"}
+	wantFirstDataRecord := []string{"1", "PENELOPE", "GUINESS", "2006-02-15T04:34:33Z", "1"}
 	require.Equal(t, wantFirstDataRecord, data[1])
 
 	// Verify that changing the template works

@@ -123,13 +123,22 @@ func tableColumns(db *sql.DB, table string) ([]column, error) {
 }
 
 // isoDatetime converts a SQLite datetime text ("2006-02-15 04:34:33.000") to the
-// ISO-8601 form the fixtures use ("2006-02-15T04:34:33Z").
+// ISO-8601 form the fixtures use ("2006-02-15T04:34:33Z"). Inputs that don't at
+// least carry a full date are returned unchanged rather than mangled into a
+// bogus "…Z" string (every Sakila TIMESTAMP column is a full datetime, so this
+// only guards against future/other schemas).
 func isoDatetime(s string) string {
+	if len(s) < len("2006-02-15") {
+		return s
+	}
 	if len(s) >= 19 {
 		s = s[:19]
 	}
 	s = strings.Replace(s, " ", "T", 1)
-	return s + "Z"
+	if !strings.HasSuffix(s, "Z") {
+		s += "Z"
+	}
+	return s
 }
 
 func buildWorkbook(db *sql.DB, file string, tables []string, hasHeader bool) error {
@@ -218,13 +227,15 @@ func writeCell(f *excelize.File, sheet, cell string, c column, v string) error {
 	case c.decimal:
 		n, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return f.SetCellStr(sheet, cell, v)
+			// Fail loudly: silently writing a string cell would flip the
+			// column's inferred kind (Decimal -> Text) and break the fixture.
+			return fmt.Errorf("%s.%s: parse decimal %q: %w", sheet, c.name, v, err)
 		}
 		return f.SetCellValue(sheet, cell, n)
 	case c.numeric:
 		n, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			return f.SetCellStr(sheet, cell, v)
+			return fmt.Errorf("%s.%s: parse int %q: %w", sheet, c.name, v, err)
 		}
 		return f.SetCellValue(sheet, cell, n)
 	default:
