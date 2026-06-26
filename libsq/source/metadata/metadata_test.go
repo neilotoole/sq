@@ -1477,6 +1477,35 @@ func TestAssignCheckConstraints(t *testing.T) {
 		"the warn must label the kind so operators can grep for check-constraint drops specifically")
 }
 
+func TestAssignTriggers(t *testing.T) {
+	var buf bytes.Buffer
+	log := newJSONLog(&buf, slog.LevelWarn)
+	enabled := true
+	tbls := []*metadata.Table{{Name: "widget"}, {Name: "gadget"}}
+	trigs := []*metadata.Trigger{
+		{
+			Name: "widget_audit", Table: "widget", Timing: "AFTER",
+			Events: []string{"INSERT", "UPDATE"}, Enabled: &enabled, Definition: "CREATE TRIGGER ...",
+		},
+		{
+			Name: "orphan_trigger", Table: "ghost", Timing: "BEFORE",
+			Events: []string{"DELETE"}, Enabled: &enabled, Definition: "CREATE TRIGGER ...",
+		},
+	}
+	metadata.AssignTriggers(log, tbls, trigs)
+	require.Len(t, tbls[0].Triggers, 1)
+	require.Equal(t, "widget_audit", tbls[0].Triggers[0].Name)
+	require.Equal(t, []string{"INSERT", "UPDATE"}, tbls[0].Triggers[0].Events)
+	require.Empty(t, tbls[1].Triggers)
+
+	entries := parseEntries(t, &buf)
+	require.Len(t, entries, 1)
+	require.Equal(t, "WARN", entries[0]["level"])
+	require.Equal(t, "ghost", entries[0]["table"])
+	require.Equal(t, "trigger", entries[0]["kind"],
+		"the warn must label the kind so operators can grep for trigger drops specifically")
+}
+
 func TestAssignIndexes(t *testing.T) {
 	t.Run("empty_idxs_noop", func(t *testing.T) {
 		tables := []*metadata.Table{{Name: "actor"}}

@@ -236,6 +236,9 @@ type Table struct { //nolint:govet // field alignment
 	// CheckConstraints are the CHECK constraint declarations on this table.
 	CheckConstraints []*CheckConstraint `json:"check_constraints,omitempty" yaml:"check_constraints,omitempty"`
 
+	// Triggers are the trigger declarations attached to this table.
+	Triggers []*Trigger `json:"triggers,omitempty" yaml:"triggers,omitempty"`
+
 	// Indexes are the physical indexes that back this table. Use
 	// [Index.Unique] / [Index.Primary] to distinguish kinds. Non-unique
 	// secondary indexes (e.g. created via CREATE INDEX for performance)
@@ -307,6 +310,13 @@ func (t *Table) Clone() *Table {
 		c.CheckConstraints = make([]*CheckConstraint, len(t.CheckConstraints))
 		for i, cc := range t.CheckConstraints {
 			c.CheckConstraints[i] = cc.Clone()
+		}
+	}
+
+	if t.Triggers != nil {
+		c.Triggers = make([]*Trigger, len(t.Triggers))
+		for i, tr := range t.Triggers {
+			c.Triggers[i] = tr.Clone()
 		}
 	}
 
@@ -615,6 +625,40 @@ func (c *CheckConstraint) Clone() *CheckConstraint {
 	return &CheckConstraint{Name: c.Name, Table: c.Table, Clause: c.Clause}
 }
 
+// Trigger models a database trigger attached to a table.
+type Trigger struct {
+	Name  string `json:"name" yaml:"name"`
+	Table string `json:"table" yaml:"table"`
+	// Timing is BEFORE | AFTER | INSTEAD OF; empty if unknown.
+	Timing string `json:"timing,omitempty" yaml:"timing,omitempty"`
+	// Events are the firing events (INSERT, UPDATE, DELETE); a single
+	// trigger may fire on several (pg/oracle/sqlite).
+	Events []string `json:"events,omitempty" yaml:"events,omitempty"`
+	// Enabled is nil where the engine has no enabled/disabled concept
+	// (MySQL, SQLite).
+	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	// Definition is the raw/reconstructed trigger DDL; opaque and not
+	// comparable across engines.
+	Definition string `json:"definition,omitempty" yaml:"definition,omitempty"`
+}
+
+func (t *Trigger) String() string { return t.Name }
+
+func (t *Trigger) Clone() *Trigger {
+	if t == nil {
+		return nil
+	}
+	c := &Trigger{Name: t.Name, Table: t.Table, Timing: t.Timing, Definition: t.Definition}
+	if t.Events != nil {
+		c.Events = append([]string(nil), t.Events...)
+	}
+	if t.Enabled != nil {
+		v := *t.Enabled
+		c.Enabled = &v
+	}
+	return c
+}
+
 // Index models a physical index defined on a table. Indexes include the
 // implicit ones that back primary keys and unique constraints — use the
 // [Index.Primary] and [Index.Unique] flags to distinguish. Drivers that
@@ -792,6 +836,31 @@ func AssignCheckConstraints(log *slog.Logger, tables []*Table, checks []*CheckCo
 		}
 	}
 	warnOrphans(log, "check constraint", byTable)
+}
+
+// AssignTriggers groups triggers by owning-table name and assigns
+// each group to the matching entry in tables, warning on orphans.
+func AssignTriggers(log *slog.Logger, tables []*Table, triggers []*Trigger) {
+	if len(triggers) == 0 {
+		return
+	}
+	byTable := make(map[string][]*Trigger, len(triggers))
+	for _, tr := range triggers {
+		if tr == nil {
+			continue
+		}
+		byTable[tr.Table] = append(byTable[tr.Table], tr)
+	}
+	for _, tbl := range tables {
+		if tbl == nil {
+			continue
+		}
+		if got, ok := byTable[tbl.Name]; ok {
+			tbl.Triggers = got
+			delete(byTable, tbl.Name)
+		}
+	}
+	warnOrphans(log, "trigger", byTable)
 }
 
 // AssignIndexes groups idxs by their owning-table name and assigns
