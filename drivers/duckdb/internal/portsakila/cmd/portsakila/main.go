@@ -38,6 +38,7 @@ func main() {
 	mainFiles := []string{
 		"sqlite-sakila-schema.sql",
 		"sqlite-sakila-insert-data.sql",
+		"sqlite-sakila-finalize.sql",
 		"sqlite-sakila-drop-objects.sql",
 		"sqlite-sakila-delete-data.sql",
 	}
@@ -156,6 +157,9 @@ func buildSakila(ctx context.Context) error {
 	for _, f := range []string{
 		filepath.Join(dstDir, "duckdb-sakila-schema.sql"),
 		filepath.Join(dstDir, "duckdb-sakila-insert-data.sql"),
+		// Populate film_text from film (the source data has no film_text
+		// INSERTs; it is filled here, after the data load).
+		filepath.Join(dstDir, "duckdb-sakila-finalize.sql"),
 	} {
 		if err := execFile(ctx, db, f); err != nil {
 			return err
@@ -203,10 +207,17 @@ func buildSakilaWhitespace(ctx context.Context) error {
 	if err := execFile(ctx, db, filepath.Join(dstDir, "duckdb-sakila-insert-data.sql")); err != nil {
 		return err
 	}
+	if err := execFile(ctx, db, filepath.Join(dstDir, "duckdb-sakila-finalize.sql")); err != nil {
+		return err
+	}
 
-	// Drop dependents before rename.
+	// Drop dependents before rename. All three actor/cast views reference
+	// actor.first_name/last_name and film_actor, so all must be dropped (and
+	// recreated below with the renamed identifiers).
 	dropStmts := []string{
 		`DROP VIEW IF EXISTS film_list`,
+		`DROP VIEW IF EXISTS nicer_but_slower_film_list`,
+		`DROP VIEW IF EXISTS actor_info`,
 		`DROP INDEX IF EXISTS idx_actor_last_name`,
 		`DROP INDEX IF EXISTS idx_fk_film_actor_actor`,
 		`DROP INDEX IF EXISTS idx_fk_film_actor_film`,
@@ -226,21 +237,42 @@ func buildSakilaWhitespace(ctx context.Context) error {
 		`CREATE INDEX idx_actor_last_name ON actor("last name")`,
 		`CREATE INDEX idx_fk_film_actor_actor ON "film actor"(actor_id)`,
 		`CREATE INDEX idx_fk_film_actor_film ON "film actor"(film_id)`,
-		// Recreate film_list view with updated identifiers.
+		// Recreate the three cast views with the renamed identifiers
+		// (actor."first name"/"last name", "film actor").
 		`CREATE VIEW film_list AS
-SELECT film.film_id AS FID,
-       film.title AS title,
-       film.description AS description,
-       category.name AS category,
-       film.rental_rate AS price,
-       film.length AS length,
-       film.rating AS rating,
-       actor."first name"||' '||actor."last name" AS actors
+SELECT film.film_id AS FID, film.title AS title, film.description AS description, category.name AS category,
+       film.rental_rate AS price, film.length AS length, film.rating AS rating,
+       group_concat(actor."first name"||' '||actor."last name", ', ' ORDER BY actor."first name", actor."last name", actor.actor_id) AS actors
 FROM category
   LEFT JOIN film_category ON category.category_id = film_category.category_id
   LEFT JOIN film ON film_category.film_id = film.film_id
   JOIN "film actor" ON film.film_id = "film actor".film_id
-  JOIN actor ON "film actor".actor_id = actor.actor_id`,
+  JOIN actor ON "film actor".actor_id = actor.actor_id
+GROUP BY film.film_id, film.title, film.description, category.name, film.rental_rate, film.length, film.rating`,
+		`CREATE VIEW nicer_but_slower_film_list AS
+SELECT film.film_id AS FID, film.title AS title, film.description AS description, category.name AS category,
+       film.rental_rate AS price, film.length AS length, film.rating AS rating,
+       group_concat(upper(substr(actor."first name",1,1))||lower(substr(actor."first name",2))||' '||upper(substr(actor."last name",1,1))||lower(substr(actor."last name",2)), ', ' ORDER BY actor."first name", actor."last name", actor.actor_id) AS actors
+FROM category
+  LEFT JOIN film_category ON category.category_id = film_category.category_id
+  LEFT JOIN film ON film_category.film_id = film.film_id
+  JOIN "film actor" ON film.film_id = "film actor".film_id
+  JOIN actor ON "film actor".actor_id = actor.actor_id
+GROUP BY film.film_id, film.title, film.description, category.name, film.rental_rate, film.length, film.rating`,
+		`CREATE VIEW actor_info AS
+SELECT a.actor_id, a."first name", a."last name",
+       group_concat(cat.cat_line, '; ' ORDER BY cat.name) AS film_info
+FROM actor a
+JOIN (
+  SELECT fa.actor_id AS actor_id, c.name AS name,
+         c.name||': '||group_concat(f.title, ', ' ORDER BY f.title) AS cat_line
+  FROM "film actor" fa
+  JOIN film f ON fa.film_id = f.film_id
+  JOIN film_category fc ON f.film_id = fc.film_id
+  JOIN category c ON fc.category_id = c.category_id
+  GROUP BY fa.actor_id, c.category_id, c.name
+) cat ON a.actor_id = cat.actor_id
+GROUP BY a.actor_id, a."first name", a."last name"`,
 	}
 	for _, stmt := range recreateStmts {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
