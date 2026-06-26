@@ -11,8 +11,8 @@ import (
 func Test_renderTableMeta2YAML(t *testing.T) {
 	t.Run("with_check_trigger_viewdef", func(t *testing.T) {
 		tm := &metadata.Table{
-			Name:        "my_view",
-			TableType:   "view",
+			Name:           "my_view",
+			TableType:      "view",
 			ViewDefinition: "SELECT id, name FROM actor WHERE active = 1",
 			CheckConstraints: []*metadata.CheckConstraint{
 				{Name: "chk_name_len", Table: "my_view", Clause: "length(name) > 0"},

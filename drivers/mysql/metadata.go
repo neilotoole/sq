@@ -614,9 +614,7 @@ ORDER BY cols.ordinal_position ASC`
 		if strings.Contains(strings.ToLower(extra), "auto_increment") {
 			col.AutoIncrement = true
 		}
-		if strings.Contains(strings.ToUpper(extra), "GENERATED") {
-			col.Generated = true
-		}
+		col.Generated = generationExpr != ""
 		col.GeneratedExpr = generationExpr
 		col.Collation = collationName
 
@@ -929,9 +927,7 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		if strings.Contains(strings.ToLower(colExtra.String), "auto_increment") {
 			col.AutoIncrement = true
 		}
-		if strings.Contains(strings.ToUpper(colExtra.String), "GENERATED") {
-			col.Generated = true
-		}
+		col.Generated = colGenExpr.String != ""
 		col.GeneratedExpr = colGenExpr.String
 		col.Collation = colCollation.String
 

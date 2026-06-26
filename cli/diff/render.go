@@ -77,14 +77,14 @@ func renderTableMeta2YAML(showRowCounts bool, tm *metadata.Table) (string, error
 		DBTableType string `json:"table_type_db,omitempty" yaml:"table_type_db,omitempty"`
 		// RowCount is a pointer, because its display is controlled
 		// by a variable.
-		RowCount         *int64                       `json:"row_count,omitempty" yaml:"row_count,omitempty"`
-		Size             *int64                       `json:"size,omitempty" yaml:"size,omitempty"`
-		Comment          string                       `json:"comment,omitempty" yaml:"comment,omitempty"`
-		ColumnCount      int64                        `json:"column_count" yaml:"column_count"`
-		Columns          []*metadata.Column           `json:"columns" yaml:"columns"`
-		CheckConstraints []*metadata.CheckConstraint  `json:"check_constraints,omitempty" yaml:"check_constraints,omitempty"`
-		Triggers         []*metadata.Trigger          `json:"triggers,omitempty" yaml:"triggers,omitempty"`
-		ViewDefinition   string                       `json:"view_definition,omitempty" yaml:"view_definition,omitempty"`
+		RowCount         *int64                      `json:"row_count,omitempty" yaml:"row_count,omitempty"`
+		Size             *int64                      `json:"size,omitempty" yaml:"size,omitempty"`
+		Comment          string                      `json:"comment,omitempty" yaml:"comment,omitempty"`
+		ColumnCount      int64                       `json:"column_count" yaml:"column_count"`
+		Columns          []*metadata.Column          `json:"columns" yaml:"columns"`
+		CheckConstraints []*metadata.CheckConstraint `json:"check_constraints,omitempty" yaml:"check_constraints,omitempty"`
+		Triggers         []*metadata.Trigger         `json:"triggers,omitempty" yaml:"triggers,omitempty"`
+		ViewDefinition   string                      `json:"view_definition,omitempty" yaml:"view_definition,omitempty"`
 	}
 
 	tmr := &tableMeta{

@@ -545,7 +545,9 @@ WHERE EXISTS (
   pg_total_relation_size($1::regclass) AS mv_size,
   obj_description($1::regclass, 'pg_class') AS mv_comment,
   pg_get_viewdef($1::regclass, true) AS view_def`
-	detailQuery := fmt.Sprintf(detailQueryTpl, name) // only the COUNT FROM identifier; name confirmed a matview in Step A
+	// Double any embedded double-quotes so the identifier literal can't be broken out of.
+	safeName := strings.ReplaceAll(name, `"`, `""`)
+	detailQuery := fmt.Sprintf(detailQueryTpl, safeName)
 
 	var (
 		rowCount int64
@@ -738,20 +740,20 @@ func tblMetaFromPgTable(pgt *pgTable) *metadata.Table {
 // pgColumn holds query results for column metadata.
 // See https://www.postgresql.org/docs/8.0/infoschema-columns.html
 type pgColumn struct {
-	tableCatalog  string
-	tableSchema   string
-	tableName     string
-	columnName    string
-	dataType      string
-	udtCatalog    string
-	udtSchema     string
-	udtName       string
-	columnDefault sql.NullString
-	domainCatalog sql.NullString
-	domainSchema  sql.NullString
-	domainName    sql.NullString
-	isGenerated         sql.NullString
-	collationName       sql.NullString
+	tableCatalog         string
+	tableSchema          string
+	tableName            string
+	columnName           string
+	dataType             string
+	udtCatalog           string
+	udtSchema            string
+	udtName              string
+	columnDefault        sql.NullString
+	domainCatalog        sql.NullString
+	domainSchema         sql.NullString
+	domainName           sql.NullString
+	isGenerated          sql.NullString
+	collationName        sql.NullString
 	generationExpression sql.NullString
 
 	// comment holds any column comment. Note that this field is

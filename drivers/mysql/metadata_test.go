@@ -218,7 +218,8 @@ func TestMySQL_ColumnFlags(t *testing.T) {
 	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tbl+` (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   name       VARCHAR(100) COLLATE utf8mb4_bin NOT NULL,
-  name_upper VARCHAR(100) COLLATE utf8mb4_bin GENERATED ALWAYS AS (UPPER(name)) STORED
+  name_upper VARCHAR(100) COLLATE utf8mb4_bin GENERATED ALWAYS AS (UPPER(name)) STORED,
+  ts         TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
@@ -226,7 +227,7 @@ func TestMySQL_ColumnFlags(t *testing.T) {
 	// Per-table path.
 	md, err := th.Open(src).TableMetadata(th.Context, tbl)
 	require.NoError(t, err)
-	require.Len(t, md.Columns, 3)
+	require.Len(t, md.Columns, 4)
 
 	colID := md.Columns[0]
 	require.True(t, colID.AutoIncrement, "id should be AUTO_INCREMENT")
@@ -243,6 +244,13 @@ func TestMySQL_ColumnFlags(t *testing.T) {
 	require.NotEmpty(t, colGen.GeneratedExpr, "GeneratedExpr should be set")
 	require.Equal(t, "utf8mb4_bin", colGen.Collation)
 
+	// Negative case: ts has DEFAULT CURRENT_TIMESTAMP, which MySQL reports as
+	// EXTRA="DEFAULT_GENERATED..." — the substring "GENERATED" must NOT cause
+	// Generated=true when GENERATION_EXPRESSION is empty.
+	colTS := md.Columns[3]
+	require.False(t, colTS.Generated, "ts has an expression default, not a generated column")
+	require.Empty(t, colTS.GeneratedExpr, "GeneratedExpr should be empty for expression-default column")
+
 	// Source-wide path: verify the same table's columns are also mapped.
 	srcMd, err := th.Open(src).SourceMetadata(th.Context, false)
 	require.NoError(t, err)
@@ -254,10 +262,11 @@ func TestMySQL_ColumnFlags(t *testing.T) {
 		}
 	}
 	require.NotNil(t, srcTbl, "table should appear in source metadata")
-	require.Len(t, srcTbl.Columns, 3)
+	require.Len(t, srcTbl.Columns, 4)
 	require.True(t, srcTbl.Columns[0].AutoIncrement)
 	require.Equal(t, "utf8mb4_bin", srcTbl.Columns[1].Collation)
 	require.True(t, srcTbl.Columns[2].Generated)
+	require.False(t, srcTbl.Columns[3].Generated, "ts: expression default must not be flagged as generated")
 }
 
 // TestMySQL_CheckConstraints verifies that named CHECK constraints are
