@@ -43,6 +43,8 @@ func hasErrCode(err error, code uint16) bool {
 const (
 	errNumTableNotExist = uint16(1146)
 	errNumConCount      = uint16(1040)
+	// errNumUnknownColumn is ER_BAD_FIELD_ERROR: "Unknown column 'X' in 'field list'".
+	errNumUnknownColumn = uint16(1054)
 )
 
 func isErrTooManyConnections(err error) bool {

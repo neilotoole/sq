@@ -571,6 +571,11 @@ ORDER BY kcu.TABLE_NAME, rc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION`
 func getColumnMetadata(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Column, error) {
 	log := lg.FromContext(ctx)
 
+	// generation_expression was added to information_schema.columns in MySQL 5.7.6.
+	// On MySQL < 5.7.6, querying it produces ER_BAD_FIELD_ERROR (1054). In that
+	// case we fall back to queryLegacy which omits the column; generated columns
+	// did not exist before 5.7.6, so leaving Column.Generated/GeneratedExpr empty
+	// is correct. collation_name has been present since MySQL 4.x — no guard needed.
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
        is_nullable, column_key, column_comment, extra,
        COALESCE(generation_expression, '') AS generation_expression,
@@ -579,9 +584,25 @@ FROM information_schema.columns cols
 WHERE cols.TABLE_SCHEMA = DATABASE() AND cols.TABLE_NAME = ?
 ORDER BY cols.ordinal_position ASC`
 
+	const queryLegacy = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
+       is_nullable, column_key, column_comment, extra,
+       COALESCE(collation_name, '') AS collation_name
+FROM information_schema.columns cols
+WHERE cols.TABLE_SCHEMA = DATABASE() AND cols.TABLE_NAME = ?
+ORDER BY cols.ordinal_position ASC`
+
 	rows, err := db.QueryContext(ctx, query, tblName)
+	hasGenExpr := true
 	if err != nil {
-		return nil, errw(err)
+		if !hasErrCode(err, errNumUnknownColumn) {
+			return nil, errw(err)
+		}
+		// MySQL < 5.7.6: generation_expression column is absent. Use legacy query.
+		hasGenExpr = false
+		rows, err = db.QueryContext(ctx, queryLegacy, tblName)
+		if err != nil {
+			return nil, errw(err)
+		}
 	}
 	defer sqlz.CloseRows(log, rows)
 
@@ -589,11 +610,17 @@ ORDER BY cols.ordinal_position ASC`
 
 	for rows.Next() {
 		col := &metadata.Column{}
-		var isNullable, colKey, extra, generationExpr, collationName string
+		var isNullable, colKey, extra, collationName string
+		var generationExpr string
 
 		defVal := &sql.NullString{}
-		err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey,
-			&col.Comment, &extra, &generationExpr, &collationName)
+		if hasGenExpr {
+			err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey,
+				&col.Comment, &extra, &generationExpr, &collationName)
+		} else {
+			err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey,
+				&col.Comment, &extra, &collationName)
+		}
 		if err != nil {
 			return nil, errw(err)
 		}
@@ -822,11 +849,29 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 
+	// GENERATION_EXPRESSION was added to information_schema.COLUMNS in MySQL 5.7.6.
+	// On MySQL < 5.7.6, querying it produces ER_BAD_FIELD_ERROR (1054). In that
+	// case we fall back to queryLegacy which omits the column; generated columns
+	// did not exist before 5.7.6, so leaving Column.Generated/GeneratedExpr empty
+	// is correct. COLLATION_NAME has been present since MySQL 4.x — no guard needed.
 	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
        (DATA_LENGTH + INDEX_LENGTH) AS table_size,
        c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE,
        c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA,
        COALESCE(c.GENERATION_EXPRESSION, '') AS generation_expression,
+       COALESCE(c.COLLATION_NAME, '') AS collation_name
+FROM information_schema.TABLES t
+         LEFT JOIN information_schema.COLUMNS c
+                   ON c.TABLE_CATALOG = t.TABLE_CATALOG
+                       AND c.TABLE_SCHEMA = t.TABLE_SCHEMA
+                       AND c.TABLE_NAME = t.TABLE_NAME
+WHERE t.TABLE_SCHEMA = DATABASE()
+ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
+
+	const queryLegacy = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
+       (DATA_LENGTH + INDEX_LENGTH) AS table_size,
+       c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE,
+       c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA,
        COALESCE(c.COLLATION_NAME, '') AS collation_name
 FROM information_schema.TABLES t
          LEFT JOIN information_schema.COLUMNS c
@@ -856,8 +901,17 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	)
 
 	rows, err := db.QueryContext(ctx, query)
+	hasGenExpr := true
 	if err != nil {
-		return nil, errw(err)
+		if !hasErrCode(err, errNumUnknownColumn) {
+			return nil, errw(err)
+		}
+		// MySQL < 5.7.6: GENERATION_EXPRESSION column is absent. Use legacy query.
+		hasGenExpr = false
+		rows, err = db.QueryContext(ctx, queryLegacy)
+		if err != nil {
+			return nil, errw(err)
+		}
 	}
 	defer sqlz.CloseRows(log, rows)
 
@@ -871,9 +925,15 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		var colName, colDefault, colNullable, colKey, colBaseType, colColumnType, colComment, colExtra, colGenExpr, colCollation sql.NullString
 		var colPosition sql.NullInt64
 
-		err = rows.Scan(&schema, &curTblName, &curTblType, &curTblComment, &curTblSize, &colName, &colPosition,
-			&colKey, &colBaseType, &colColumnType, &colNullable, &colDefault, &colComment, &colExtra,
-			&colGenExpr, &colCollation)
+		if hasGenExpr {
+			err = rows.Scan(&schema, &curTblName, &curTblType, &curTblComment, &curTblSize, &colName, &colPosition,
+				&colKey, &colBaseType, &colColumnType, &colNullable, &colDefault, &colComment, &colExtra,
+				&colGenExpr, &colCollation)
+		} else {
+			err = rows.Scan(&schema, &curTblName, &curTblType, &curTblComment, &curTblSize, &colName, &colPosition,
+				&colKey, &colBaseType, &colColumnType, &colNullable, &colDefault, &colComment, &colExtra,
+				&colCollation)
+		}
 		if err != nil {
 			return nil, errw(err)
 		}
