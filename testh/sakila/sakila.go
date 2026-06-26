@@ -160,7 +160,7 @@ const (
 	TblPaymentCount   = 16049
 
 	// TblFilmText is present in every sakila dataset. (The Oracle image now
-	// includes it too, kept as a plain table — see sakiladb/oracle schema notes.)
+	// includes it too, as a plain table. See sakiladb/oracle schema notes.)
 	TblFilmText                = "film_text"
 	ViewActorInfo              = "actor_info"
 	ViewFilmList               = "film_list"

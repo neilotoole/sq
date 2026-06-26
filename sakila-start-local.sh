@@ -6,8 +6,8 @@
 #
 # Each `docker run` uses `--pull always` so a republished image (same tag, new
 # digest) is fetched before the container starts. Without it, a locally-cached
-# image can be silently stale — e.g. an old sakiladb/sqlserver:2019 with 5 views
-# instead of the current 7 — which makes the sakila count tests fail confusingly.
+# image can be silently stale, e.g. an old sakiladb/sqlserver:2019 with 5 views
+# instead of the current 7, which makes the sakila count tests fail confusingly.
 # NOTE: This script has only been tested on MacOS on Apple Silicon.
 
 set +e

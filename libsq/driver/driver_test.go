@@ -605,8 +605,8 @@ func TestGrip_SourceMetadata_OracleViewsAndCounts(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, md)
 
-	// The SAKILA Oracle image now carries all 7 views — actor_info and
-	// nicer_but_slower_film_list are ported via LISTAGG; see sakiladb/oracle schema notes.
+	// The SAKILA Oracle image now carries all 7 views: actor_info and
+	// nicer_but_slower_film_list are ported via LISTAGG. See sakiladb/oracle schema notes.
 	require.Equal(t, int64(7), md.ViewCount)
 
 	// Oracle stores unquoted identifiers as upper, so look up by uppercase.

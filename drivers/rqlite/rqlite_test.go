@@ -44,7 +44,7 @@ func TestSmoke(t *testing.T) {
 
 // TestSourceMetadata verifies that getSourceMetadata returns the
 // expected shape: rqlite driver, "main" schema, and the right
-// table/view counts (16 tables, 5 views in the bundled Sakila).
+// table/view counts (16 tables, 7 views in the bundled Sakila).
 func TestSourceMetadata(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
