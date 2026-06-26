@@ -153,7 +153,10 @@ func TestMergeRecordsByKey_ScatteredInserts(t *testing.T) {
 	// Issue #947 minimal shape: right has 3 extra rows (2,5,8) scattered
 	// through the key range. Expect 3 clean "added", everything else "same".
 	left := []record.Record{rowID(1), rowID(3), rowID(4), rowID(6), rowID(7), rowID(9), rowID(10)}
-	right := []record.Record{rowID(1), rowID(2), rowID(3), rowID(4), rowID(5), rowID(6), rowID(7), rowID(8), rowID(9), rowID(10)}
+	right := []record.Record{
+		rowID(1), rowID(2), rowID(3), rowID(4), rowID(5),
+		rowID(6), rowID(7), rowID(8), rowID(9), rowID(10),
+	}
 	got := drainMerge(t, []int{0}, left, right)
 	require.Equal(t, []string{
 		"same=1", "added=2", "same=3", "same=4", "added=5",

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -254,7 +255,7 @@ func runDiffDefaultContext(t *testing.T, format string, ids []int, intactLeft bo
 	srcMod := th.Source(sakila.SL3)
 	idStrs := make([]string, len(ids))
 	for i, id := range ids {
-		idStrs[i] = fmt.Sprintf("%d", id)
+		idStrs[i] = strconv.Itoa(id)
 	}
 	th.ExecSQL(srcMod, "DELETE FROM actor WHERE actor_id IN ("+strings.Join(idStrs, ", ")+")")
 	require.Equal(t, int64(sakila.TblActorCount-len(ids)), th.RowCount(srcMod, sakila.TblActor))

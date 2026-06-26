@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 
 	"github.com/samber/lo"
@@ -82,7 +83,7 @@ func differForTableData(cfg *Config, title bool, td1, td2 source.Table) *diffdoc
 // [diffdoc.HunkDoc.Err]. Any error should also be propagated via cancelFn, to
 // cancel any peer goroutines. Note that the returned doc's [diffdoc.Doc.Read]
 // method blocks until the doc is completed (or errors out).
-func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //nolint:gocognit
+func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	cfg *Config, td1, td2 source.Table, doc *diffdoc.HunkDoc,
 ) {
 	log := lg.FromContext(ctx).With(lga.Left, td1.String(), lga.Right, td2.String())
@@ -239,9 +240,22 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	go func() {
 		incr := func(n int64) { bar.Incr(int(n)) }
 		if pkColNames != nil {
-			if err := collateByKey(ctx, rs1, rs2, pkColNames, recPairsCh, cfg, incr, dbCancel); err != nil {
-				cancelFn(err)
+			// collateByKey owns cancellation: it sets the cause via cancelFn before
+			// it closes recPairsCh, so the exec goroutine can never observe a clean
+			// close (and Seal a nil error) while an error is still in flight.
+			kc := keyCollation{
+				rs1:        rs1,
+				rs2:        rs2,
+				pkColNames: pkColNames,
+				recPairsCh: recPairsCh,
+				cfg:        cfg,
+				incr:       incr,
+				dbCancel:   dbCancel,
+				cancelFn:   cancelFn,
 			}
+			// collateByKey owns cancellation (it calls cancelFn before closing
+			// recPairsCh), so we intentionally discard its error return here.
+			_ = collateByKey(ctx, kc)
 			return
 		}
 		collatePositional(ctx, rs1, rs2, recPairsCh, cfg, incr, dbCancel)
@@ -328,20 +342,50 @@ func collatePositional(ctx context.Context, rs1, rs2 *dbResults, recPairsCh chan
 	}
 }
 
-// collateByKey merges rs1 and rs2 by primary key into record.Pair values,
-// sending them to recPairsCh. The records must arrive PK-ordered (the queries
+// keyCollation bundles the wiring for collateByKey. It groups the inputs the
+// key-merge collation needs (the two result streams, the PK column names, the
+// output channel, config, and progress callback) together with the two cancel
+// functions: dbCancel signals an explicit --stop to the DB queries, and cancelFn
+// propagates a real error to the shared ctx so peer goroutines (and doc.Seal)
+// observe the cause.
+type keyCollation struct {
+	rs1, rs2   *dbResults
+	recPairsCh chan<- record.Pair
+	cfg        *Config
+	incr       func(int64)
+	dbCancel   context.CancelCauseFunc
+	cancelFn   context.CancelCauseFunc
+
+	// pkColNames is a slice, placed last to keep the struct's pointer region
+	// compact (govet fieldalignment).
+	pkColNames []string
+}
+
+// collateByKey merges kc.rs1 and kc.rs2 by primary key into record.Pair values,
+// sending them to kc.recPairsCh. The records must arrive PK-ordered (the queries
 // use order_by). The PK column positions within a record are resolved from
 // rs1.recMeta, which isn't known until the query engine invokes dbResults.Open;
-// collateByKey waits on rs1.opened for that signal before resolving. It closes
-// recPairsCh before returning.
+// collateByKey waits on rs1.opened for that signal before resolving.
+//
+// collateByKey owns both cancellation and channel close. On a non-context error
+// it sets the cause via kc.cancelFn BEFORE closing kc.recPairsCh, so the exec
+// goroutine ranging over recPairsCh can never observe a clean close (and Seal a
+// nil error) while the error is still in flight. The caller must NOT also call
+// cancelFn; collateByKey owns it.
 //
 // collateByKey owns the same --stop bookkeeping as collatePositional: it counts
 // differing pairs, and once cfg.StopAfter is reached it emits cfg.Lines more
-// pairs of trailing context before stopping the DB queries via dbCancel.
-func collateByKey(ctx context.Context, rs1, rs2 *dbResults, pkColNames []string,
-	recPairsCh chan<- record.Pair, cfg *Config, incr func(int64), dbCancel context.CancelCauseFunc,
-) error {
-	defer close(recPairsCh)
+// pairs of trailing context before stopping the DB queries via kc.dbCancel.
+func collateByKey(ctx context.Context, kc keyCollation) (err error) {
+	// Set the cause before the channel close becomes visible to the reader. A
+	// plain `defer close` would let the exec goroutine finish its range over the
+	// closed channel and Seal(nil) while the cause is still nil, masking err.
+	defer func() {
+		if err != nil {
+			kc.cancelFn(err)
+		}
+		close(kc.recPairsCh)
+	}()
 
 	// recMeta isn't populated until the query engine invokes dbResults.Open on
 	// another goroutine. Wait for that before resolving the PK column indexes.
@@ -350,17 +394,17 @@ func collateByKey(ctx context.Context, rs1, rs2 *dbResults, pkColNames []string,
 	select {
 	case <-ctx.Done():
 		return errz.Err(context.Cause(ctx))
-	case <-rs1.opened:
+	case <-kc.rs1.opened:
 	}
 
 	// Resolve PK column indexes from recMeta. A mismatch at this point is a real
 	// bug (pkMergeKey already validated the PK against the table metadata), not
 	// normal flow, so there's no mid-stream fallback: we return an error that
 	// seals the doc.
-	keyIdxs, ok := pkColIndexes(rs1.recMeta, pkColNames)
+	keyIdxs, ok := pkColIndexes(kc.rs1.recMeta, kc.pkColNames)
 	if !ok {
 		return errz.Errorf("diff: PK columns %v not found in result columns %v",
-			pkColNames, rs1.recMeta.Names())
+			kc.pkColNames, kc.rs1.recMeta.Names())
 	}
 
 	var (
@@ -369,18 +413,18 @@ func collateByKey(ctx context.Context, rs1, rs2 *dbResults, pkColNames []string,
 		row       int
 	)
 
-	return mergeRecordsByKey(ctx, rs1.recCh, rs2.recCh, keyIdxs, func(rp record.Pair) bool {
-		incr(1)
+	return mergeRecordsByKey(ctx, kc.rs1.recCh, kc.rs2.recCh, keyIdxs, func(rp record.Pair) bool {
+		kc.incr(1)
 		if !rp.Equal() {
 			diffCount++
 		}
-		recPairsCh <- rp
+		kc.recPairsCh <- rp
 
-		if stopAt == -1 && cfg.StopAfter > 0 && diffCount >= cfg.StopAfter {
-			stopAt = row + cfg.Lines
+		if stopAt == -1 && kc.cfg.StopAfter > 0 && diffCount >= kc.cfg.StopAfter {
+			stopAt = row + kc.cfg.Lines
 		}
 		if stopAt > -1 && row >= stopAt {
-			dbCancel(errz.ErrStop) // Explicit stop
+			kc.dbCancel(errz.ErrStop) // Explicit stop
 			return false
 		}
 		row++
@@ -633,7 +677,7 @@ func (rd *recordDiffer) execAndSeal(ctx, dbCtx context.Context,
 	// dbCancel(errz.ErrStop), write a trailer so the truncation is never silent.
 	if errz.IsContextStop(dbCtx) {
 		if h, hErr := doc.NewHunk(0); hErr == nil {
-			_, _ = h.Write([]byte(fmt.Sprintf("… (stopped after %d differences)\n", rd.cfg.StopAfter)))
+			_, _ = fmt.Fprintf(h, "… (stopped after %d differences)\n", rd.cfg.StopAfter)
 			h.Seal(nil, nil)
 		}
 	}
@@ -642,7 +686,7 @@ func (rd *recordDiffer) execAndSeal(ctx, dbCtx context.Context,
 	// rows were aligned by position (inserts/deletes may cascade in the output).
 	if rd.pkColNames == nil && rd.hadDiffs {
 		if h, hErr := doc.NewHunk(0); hErr == nil {
-			_, _ = h.Write([]byte("… (no primary key; rows aligned by position — inserts/deletes may cascade)\n"))
+			_, _ = io.WriteString(h, "… (no primary key; rows aligned by position — inserts/deletes may cascade)\n")
 			h.Seal(nil, nil)
 		}
 	}
@@ -667,9 +711,8 @@ var _ libsq.RecordWriter = (*dbResults)(nil)
 // dbResults is a trivial [libsq.RecordWriter] impl, whose recCh field is
 // used to capture records returned from a query.
 type dbResults struct {
-	recCh   chan record.Record
-	errCh   chan error
-	recMeta record.Meta
+	recCh chan record.Record
+	errCh chan error
 
 	// opened is closed by Open once recMeta has been set. The key-merge collation
 	// path (collateByKey) must read recMeta to resolve the PK column indexes, but
@@ -678,6 +721,10 @@ type dbResults struct {
 	// (the close happens-before the receive). The positional path doesn't need
 	// this because it reads recMeta lazily, long after Open, at hunk-write time.
 	opened chan struct{}
+
+	// recMeta is set by Open. It's a slice, so it's placed last to keep the
+	// struct's pointer region compact (govet fieldalignment).
+	recMeta record.Meta
 }
 
 // Open implements libsq.RecordWriter.

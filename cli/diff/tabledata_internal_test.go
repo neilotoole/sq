@@ -287,8 +287,17 @@ func collectPairs(t *testing.T, keyIdxs []int, left, right []record.Record) []re
 
 	recPairsCh := make(chan record.Pair, len(left)+len(right)+2)
 	cfg := &Config{Lines: 3, StopAfter: 0}
-	err := collateByKey(context.Background(), rs1, rs2, pkColNames, recPairsCh, cfg,
-		func(int64) {}, func(error) {})
+	kc := keyCollation{
+		rs1:        rs1,
+		rs2:        rs2,
+		pkColNames: pkColNames,
+		recPairsCh: recPairsCh,
+		cfg:        cfg,
+		incr:       func(int64) {},
+		dbCancel:   func(error) {},
+		cancelFn:   func(error) {},
+	}
+	err := collateByKey(context.Background(), kc)
 	require.NoError(t, err)
 
 	var got []record.Pair
@@ -432,7 +441,7 @@ func makeAllDiff(n int) []bool {
 // collateByKey/collatePositional do when the threshold is reached). It drives
 // recordDiffer.execAndSeal, which is the method that owns the trailer logic,
 // so the assertion exercises the real production code path.
-func runRecordDifferStop(t *testing.T, numLines, hunkMaxSize, stopAfter int, equal []bool) (*fakeHunkWriter, string) {
+func runRecordDifferStop(t *testing.T, numLines, hunkMaxSize, stopAfter int, equal []bool) string {
 	t.Helper()
 
 	fake := &fakeHunkWriter{}
@@ -477,7 +486,7 @@ func runRecordDifferStop(t *testing.T, numLines, hunkMaxSize, stopAfter int, equ
 	out, err := io.ReadAll(doc)
 	require.NoError(t, err)
 
-	return fake, string(out)
+	return string(out)
 }
 
 // TestStopTrailer_PresentWhenTruncated verifies that execAndSeal appends a
@@ -485,11 +494,11 @@ func runRecordDifferStop(t *testing.T, numLines, hunkMaxSize, stopAfter int, equ
 // errz.ErrStop, and emits no trailer when StopAfter is 0.
 func TestStopTrailer_PresentWhenTruncated(t *testing.T) {
 	// 10 differing pairs, StopAfter=2 -> stop occurred -> trailer present.
-	_, out := runRecordDifferStop(t, 0, 5000, 2, makeAllDiff(10))
+	out := runRecordDifferStop(t, 0, 5000, 2, makeAllDiff(10))
 	require.Contains(t, out, "stopped after")
 
 	// No StopAfter -> no stop -> no trailer.
-	_, out = runRecordDifferStop(t, 0, 5000, 0, makeAllDiff(10))
+	out = runRecordDifferStop(t, 0, 5000, 0, makeAllDiff(10))
 	require.NotContains(t, out, "stopped after")
 }
 
@@ -498,7 +507,7 @@ func TestStopTrailer_PresentWhenTruncated(t *testing.T) {
 // pkColNames simulates a table with no usable integer primary key.
 func runRecordDifferWithPK(t *testing.T, pkColNames []string,
 	numLines, hunkMaxSize int, equal []bool,
-) (*fakeHunkWriter, string) {
+) string {
 	t.Helper()
 
 	fake := &fakeHunkWriter{}
@@ -533,7 +542,7 @@ func runRecordDifferWithPK(t *testing.T, pkColNames []string,
 
 	out, err := io.ReadAll(doc)
 	require.NoError(t, err)
-	return fake, string(out)
+	return string(out)
 }
 
 // TestPositionalFallbackNote verifies that execAndSeal appends the no-PK note
@@ -543,15 +552,15 @@ func TestPositionalFallbackNote(t *testing.T) {
 	const notePosition = "by position"
 
 	// No PK, tables differ: note must be present.
-	_, out := runRecordDifferWithPK(t, nil, 1, 5000, makeAllDiff(3))
+	out := runRecordDifferWithPK(t, nil, 1, 5000, makeAllDiff(3))
 	require.Contains(t, out, noteText, "note must appear when no PK and tables differ")
 	require.Contains(t, out, notePosition, "note must mention positional alignment")
 
 	// No PK, tables identical: no hunks -> note must NOT be present.
-	_, out = runRecordDifferWithPK(t, nil, 1, 5000, []bool{true, true, true})
+	out = runRecordDifferWithPK(t, nil, 1, 5000, []bool{true, true, true})
 	require.NotContains(t, out, noteText, "note must not appear when tables are identical")
 
 	// Has eligible PK, tables differ: note must NOT be present.
-	_, out = runRecordDifferWithPK(t, []string{"id"}, 1, 5000, makeAllDiff(3))
+	out = runRecordDifferWithPK(t, []string{"id"}, 1, 5000, makeAllDiff(3))
 	require.NotContains(t, out, noteText, "note must not appear when an eligible PK exists")
 }
