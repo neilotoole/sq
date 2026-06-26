@@ -120,8 +120,8 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 		for j = i; j < len(pairs) && !pairs[j].Equal(); j++ {
 			// Print deletion lines:
 			//
-			// -38,TOM,MCKELLEN,2020-06-11T02:50:54Z
-			// -39,GOLDIE,BRODY,2020-06-11T02:50:54Z
+			// -38,TOM,MCKELLEN,2006-02-15T04:34:33Z
+			// -39,GOLDIE,BRODY,2006-02-15T04:34:33Z
 			recs[0] = pairs[j].Rec1()
 			if recs[0] == nil {
 				break
@@ -138,8 +138,8 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 		for k = i; k < len(pairs) && !pairs[k].Equal(); k++ {
 			// Print insertion lines:
 			//
-			// +38,THOMAS,MCKELLEN,2020-06-11T02:50:54Z
-			// +39,GOLDIE,LOCKS,2020-06-11T02:50:54Z
+			// +38,THOMAS,MCKELLEN,2006-02-15T04:34:33Z
+			// +39,GOLDIE,LOCKS,2006-02-15T04:34:33Z
 			recs[0] = pairs[k].Rec2()
 			if recs[0] == nil {
 				break
