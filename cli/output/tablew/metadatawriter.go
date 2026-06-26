@@ -146,6 +146,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 		"NAME",
 		"TYPE",
 		"PK",
+		"AUTO",
 		"FK",
 		"INDEXES",
 		"UNIQUE CONSTRAINTS",
@@ -161,6 +162,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 	w.tbl.tblImpl.SetColTrans(7, w.tbl.pr.Faint.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(8, w.tbl.pr.Faint.SprintFunc())
 	w.tbl.tblImpl.SetColTrans(9, w.tbl.pr.Faint.SprintFunc())
+	w.tbl.tblImpl.SetColTrans(10, w.tbl.pr.Faint.SprintFunc())
 
 	var rows [][]string
 	var row []string
@@ -171,6 +173,24 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 		}
 
 		return w.tbl.pr.Bool.Sprint("pk")
+	}
+
+	// getAuto returns a compact marker for auto-population semantics:
+	// "identity" for SQL IDENTITY/GENERATED ALWAYS AS IDENTITY columns,
+	// "auto_inc" for AUTO_INCREMENT columns (MySQL/SQLite), and
+	// "generated" for computed/generated columns (GENERATED ALWAYS AS expr).
+	// Priority: identity > auto_inc > generated. Returns "" for plain columns.
+	getAuto := func(col *metadata.Column) string {
+		switch {
+		case col.Identity:
+			return w.tbl.pr.Bool.Sprint("identity")
+		case col.AutoIncrement:
+			return w.tbl.pr.Bool.Sprint("auto_inc")
+		case col.Generated:
+			return w.tbl.pr.Bool.Sprint("generated")
+		default:
+			return ""
+		}
 	}
 
 	// formatIdxCell turns the per-column index entries into a single
@@ -216,7 +236,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 				tbl.TableType,
 				strconv.FormatInt(tbl.RowCount, 10),
 				"0",
-				"", "", "", "", "", "",
+				"", "", "", "", "", "", "",
 			})
 			continue
 		}
@@ -229,6 +249,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 			tbl.Columns[0].Name,
 			tbl.Columns[0].BaseType,
 			getPK(tbl.Columns[0]),
+			getAuto(tbl.Columns[0]),
 			formatFKRefs(fkByCol[tbl.Columns[0].Name]),
 			formatIdxCell(idxByCol[tbl.Columns[0].Name]),
 			strings.Join(ucByCol[tbl.Columns[0].Name], ", "),
@@ -245,6 +266,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 				tbl.Columns[i].Name,
 				tbl.Columns[i].BaseType,
 				getPK(tbl.Columns[i]),
+				getAuto(tbl.Columns[i]),
 				formatFKRefs(fkByCol[tbl.Columns[i].Name]),
 				formatIdxCell(idxByCol[tbl.Columns[i].Name]),
 				strings.Join(ucByCol[tbl.Columns[i].Name], ", "),
