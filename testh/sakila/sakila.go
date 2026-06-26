@@ -159,11 +159,12 @@ const (
 	TblPayment        = "payment"
 	TblPaymentCount   = 16049
 
-	// TblFilmText is present in each sakila dataset, except the Oracle image
-	// (see libsq/driver/driver_test.go and sakiladb/oracle schema notes).
-	TblFilmText   = "film_text"
-	ViewActorInfo = "actor_info"
-	ViewFilmList  = "film_list"
+	// TblFilmText is present in every sakila dataset. (The Oracle image now
+	// includes it too, kept as a plain table — see sakiladb/oracle schema notes.)
+	TblFilmText                = "film_text"
+	ViewActorInfo              = "actor_info"
+	ViewFilmList               = "film_list"
+	ViewNicerButSlowerFilmList = "nicer_but_slower_film_list"
 
 	MillerEmail  = "MARIA.MILLER@sakilacustomer.org"
 	MillerCustID = 7
@@ -237,12 +238,14 @@ func AllTbls() []string {
 	}
 }
 
-// AllTblsViews returns all table AND view names.
+// AllTblsViews returns all table AND view names (16 tables + 7 views),
+// sorted by name.
 func AllTblsViews() []string {
 	return []string{
-		"actor", "address", "category", "city", "country", "customer", "customer_list", "film",
-		"film_actor", "film_category", "film_list", "film_text", "inventory", "language", "payment", "rental",
-		"sales_by_film_category", "sales_by_store", "staff", "staff_list", "store",
+		"actor", "actor_info", "address", "category", "city", "country", "customer", "customer_list", "film",
+		"film_actor", "film_category", "film_list", "film_text", "inventory", "language",
+		"nicer_but_slower_film_list", "payment", "rental", "sales_by_film_category", "sales_by_store",
+		"staff", "staff_list", "store",
 	}
 }
 
