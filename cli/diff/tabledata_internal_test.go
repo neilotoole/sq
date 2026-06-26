@@ -242,6 +242,75 @@ func TestRecordDifferExec_WriteHunkPanicNoDoubleSeal(t *testing.T) {
 	_ = rd.exec(context.Background(), ch, doc)
 }
 
+// collectPairs runs collateByKey over two synthetic PK-ordered streams and
+// returns the emitted pairs. It builds a record.Meta whose column names map
+// back to keyIdxs, then passes the corresponding pkColNames so that collateByKey
+// resolves indices via pkColIndexes exactly as production does.
+func collectPairs(t *testing.T, keyIdxs []int, left, right []record.Record) []record.Pair {
+	t.Helper()
+	rs1 := &dbResults{recCh: make(chan record.Record, len(left)+1), opened: make(chan struct{})}
+	rs2 := &dbResults{recCh: make(chan record.Record, len(right)+1), opened: make(chan struct{})}
+	for _, r := range left {
+		rs1.recCh <- r
+	}
+	rs1.recCh <- nil // end-of-data sentinel used by the collation loop
+	for _, r := range right {
+		rs2.recCh <- r
+	}
+	rs2.recCh <- nil
+
+	// Build a record.Meta with one named column per record position, so
+	// pkColIndexes(recMeta, pkColNames) resolves back to keyIdxs.
+	nCols := 0
+	for _, r := range append(append([]record.Record{}, left...), right...) {
+		if len(r) > nCols {
+			nCols = len(r)
+		}
+	}
+	names := make([]string, nCols)
+	rm := make(record.Meta, nCols)
+	for i := range names {
+		names[i] = fmt.Sprintf("col%d", i)
+		rm[i] = newFieldMeta(names[i])
+	}
+	rs1.recMeta = rm
+	rs2.recMeta = rm
+	// Signal that recMeta is ready, mimicking dbResults.Open.
+	close(rs1.opened)
+	close(rs2.opened)
+
+	pkColNames := make([]string, len(keyIdxs))
+	for i, idx := range keyIdxs {
+		pkColNames[i] = names[idx]
+	}
+
+	recPairsCh := make(chan record.Pair, len(left)+len(right)+2)
+	cfg := &Config{Lines: 3, StopAfter: 0}
+	err := collateByKey(context.Background(), rs1, rs2, pkColNames, recPairsCh, cfg,
+		func(int64) {}, func(error) {})
+	require.NoError(t, err)
+
+	var got []record.Pair
+	for rp := range recPairsCh {
+		got = append(got, rp)
+	}
+	return got
+}
+
+func TestCollateByKey_ScatteredInserts(t *testing.T) {
+	left := []record.Record{{int64(1)}, {int64(3)}, {int64(4)}}
+	right := []record.Record{{int64(1)}, {int64(2)}, {int64(3)}, {int64(4)}}
+	pairs := collectPairs(t, []int{0}, left, right)
+
+	require.Len(t, pairs, 4)
+	// Only the inserted key (2) is an "added" pair; the rest are equal.
+	require.True(t, pairs[0].Equal())     // 1
+	require.Nil(t, pairs[1].Rec1())       // 2 added
+	require.Equal(t, int64(2), pairs[1].Rec2()[0])
+	require.True(t, pairs[2].Equal()) // 3
+	require.True(t, pairs[3].Equal()) // 4
+}
+
 func TestRecordDifferExec(t *testing.T) {
 	testCases := []struct {
 		name        string
