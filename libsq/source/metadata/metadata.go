@@ -233,6 +233,9 @@ type Table struct { //nolint:govet // field alignment
 	// are returned with their columns in declaration order.
 	UniqueConstraints []*UniqueConstraint `json:"unique_constraints,omitempty" yaml:"unique_constraints,omitempty"`
 
+	// CheckConstraints are the CHECK constraint declarations on this table.
+	CheckConstraints []*CheckConstraint `json:"check_constraints,omitempty" yaml:"check_constraints,omitempty"`
+
 	// Indexes are the physical indexes that back this table. Use
 	// [Index.Unique] / [Index.Primary] to distinguish kinds. Non-unique
 	// secondary indexes (e.g. created via CREATE INDEX for performance)
@@ -297,6 +300,13 @@ func (t *Table) Clone() *Table {
 		c.UniqueConstraints = make([]*UniqueConstraint, len(t.UniqueConstraints))
 		for i := range t.UniqueConstraints {
 			c.UniqueConstraints[i] = t.UniqueConstraints[i].Clone()
+		}
+	}
+
+	if t.CheckConstraints != nil {
+		c.CheckConstraints = make([]*CheckConstraint, len(t.CheckConstraints))
+		for i, cc := range t.CheckConstraints {
+			c.CheckConstraints[i] = cc.Clone()
 		}
 	}
 
@@ -584,6 +594,27 @@ func (uc *UniqueConstraint) String() string {
 	return string(bytes)
 }
 
+// CheckConstraint models a CHECK constraint on a table.
+type CheckConstraint struct {
+	Name  string `json:"name,omitempty" yaml:"name,omitempty"`
+	Table string `json:"table" yaml:"table"`
+	// Clause is the raw, engine-specific CHECK expression text. It is
+	// not comparable across engines.
+	Clause string `json:"clause" yaml:"clause"`
+	// TODO(inspect-gaps): capture participating Columns []string where the
+	// engine exposes them cheaply (pg via pg_attribute, sqlserver, oracle).
+	// Deferred in phase 1 for a uniform clause-only model across drivers.
+}
+
+func (c *CheckConstraint) String() string { return c.Name }
+
+func (c *CheckConstraint) Clone() *CheckConstraint {
+	if c == nil {
+		return nil
+	}
+	return &CheckConstraint{Name: c.Name, Table: c.Table, Clause: c.Clause}
+}
+
 // Index models a physical index defined on a table. Indexes include the
 // implicit ones that back primary keys and unique constraints — use the
 // [Index.Primary] and [Index.Unique] flags to distinguish. Drivers that
@@ -736,6 +767,31 @@ func AssignUniqueConstraints(log *slog.Logger, tables []*Table, ucs []*UniqueCon
 	}
 
 	warnOrphans(log, "unique constraint", byTable)
+}
+
+// AssignCheckConstraints groups checks by owning-table name and assigns
+// each group to the matching entry in tables, warning on orphans.
+func AssignCheckConstraints(log *slog.Logger, tables []*Table, checks []*CheckConstraint) {
+	if len(checks) == 0 {
+		return
+	}
+	byTable := make(map[string][]*CheckConstraint, len(checks))
+	for _, cc := range checks {
+		if cc == nil {
+			continue
+		}
+		byTable[cc.Table] = append(byTable[cc.Table], cc)
+	}
+	for _, tbl := range tables {
+		if tbl == nil {
+			continue
+		}
+		if got, ok := byTable[tbl.Name]; ok {
+			tbl.CheckConstraints = got
+			delete(byTable, tbl.Name)
+		}
+	}
+	warnOrphans(log, "check constraint", byTable)
 }
 
 // AssignIndexes groups idxs by their owning-table name and assigns

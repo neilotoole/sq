@@ -1456,6 +1456,18 @@ func TestAssignUniqueConstraints(t *testing.T) {
 	})
 }
 
+func TestAssignCheckConstraints(t *testing.T) {
+	tbls := []*metadata.Table{{Name: "widget"}, {Name: "gadget"}}
+	checks := []*metadata.CheckConstraint{
+		{Name: "widget_price_pos", Table: "widget", Clause: "price > 0"},
+		{Name: "orphan", Table: "ghost", Clause: "1=1"},
+	}
+	metadata.AssignCheckConstraints(nil, tbls, checks)
+	require.Len(t, tbls[0].CheckConstraints, 1)
+	require.Equal(t, "widget_price_pos", tbls[0].CheckConstraints[0].Name)
+	require.Empty(t, tbls[1].CheckConstraints)
+}
+
 func TestAssignIndexes(t *testing.T) {
 	t.Run("empty_idxs_noop", func(t *testing.T) {
 		tables := []*metadata.Table{{Name: "actor"}}
