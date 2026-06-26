@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -262,6 +263,45 @@ func TestPostgres_ColumnFlags(t *testing.T) {
 	countryCol := md.Column("country")
 	require.NotNil(t, countryCol)
 	require.Equal(t, "C", countryCol.Collation, "country: Collation should be 'C'")
+}
+
+// TestPostgres_ViewDefinition verifies that ViewDefinition is populated for
+// views and is empty for base tables.
+func TestPostgres_ViewDefinition(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("vdef_base")
+	view := stringz.UniqTableName("vdef_view")
+
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+tbl+` (id INT, price NUMERIC)`)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE VIEW `+view+` AS SELECT id, price FROM `+tbl+` WHERE price > 0`)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP VIEW IF EXISTS `+view)
+		th.DropTable(src, tablefq.From(tbl))
+	})
+
+	viewMd, err := th.Open(src).TableMetadata(th.Context, view)
+	require.NoError(t, err)
+	require.Equal(t, sqlz.TableTypeView, viewMd.TableType, "TableType should be 'view'")
+	require.NotEmpty(t, viewMd.ViewDefinition, "ViewDefinition should not be empty for a view")
+	require.Contains(t, viewMd.ViewDefinition, "WHERE",
+		"ViewDefinition should contain 'WHERE'")
+
+	// Base table must have empty ViewDefinition.
+	tblMd, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.Empty(t, tblMd.ViewDefinition, "ViewDefinition should be empty for a base table")
 }
 
 // TestPostgres_Triggers verifies that trigger metadata is populated from the

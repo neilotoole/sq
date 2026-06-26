@@ -285,14 +285,7 @@ current_setting('server_version'), version(), "current_user"()`
 		}
 	}
 
-	for _, tbl := range md.Tables {
-		switch tbl.TableType {
-		case sqlz.TableTypeTable:
-			md.TableCount++
-		case sqlz.TableTypeView:
-			md.ViewCount++
-		}
-	}
+	md.RecomputeTableCounts()
 
 	// Fetch foreign keys for all tables in one query, assign them to
 	// their owning tables, and derive the cross-table back-references.
@@ -325,6 +318,16 @@ current_setting('server_version'), version(), "current_user"()`
 		return nil, err
 	}
 	metadata.AssignIndexes(log, md.Tables, allIdxs)
+
+	allViewDefs, err := getPgViewDefinitions(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	for _, tbl := range md.Tables {
+		if tbl.TableType == sqlz.TableTypeView {
+			tbl.ViewDefinition = allViewDefs[tbl.Name]
+		}
+	}
 
 	// Derive incoming FK back-references last so the Assign* helpers
 	// have fully populated the source. Matches the call order in the
@@ -486,15 +489,23 @@ AND table_name = $1`
 }
 
 // populateTableExtras loads outgoing FKs, incoming FKs, unique
-// constraints, and indexes for tblMeta (filtered by tblMeta.Name). It
-// is the per-table counterpart to the bulk loaders called by
-// getSourceMetadata, and is what Grip.TableMetadata uses to give
-// single-table inspect the same FK shape as full-source inspect.
+// constraints, indexes, and (for views) the view definition for tblMeta,
+// filtered by tblMeta.Name. It is the per-table counterpart to the bulk
+// loaders called by getSourceMetadata, and is what Grip.TableMetadata
+// uses to give single-table inspect the same shape as full-source inspect.
 //
-// Views (and other non-table relations) carry no FKs, UCs, or
-// indexes, so populateTableExtras returns immediately for them and
-// avoids the four extra round-trips.
+// For views, only ViewDefinition is fetched. For base tables, FKs, unique
+// constraints, check constraints, triggers, and indexes are loaded.
+// All other relation types are skipped.
 func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Table) error {
+	if tblMeta.TableType == sqlz.TableTypeView {
+		defs, err := getPgViewDefinitions(ctx, db, tblMeta.Name)
+		if err != nil {
+			return err
+		}
+		tblMeta.ViewDefinition = defs[tblMeta.Name]
+		return nil
+	}
 	if tblMeta.TableType != sqlz.TableTypeTable {
 		return nil
 	}
@@ -1016,6 +1027,50 @@ WHERE NOT t.tgisinternal AND n.nspname = current_schema()`
 		})
 	}
 	return triggers, errw(rows.Err())
+}
+
+// getPgViewDefinitions returns a map of view name → defining SQL for regular
+// views (relkind='v') in the current schema. If tblName is non-empty, only
+// that view is returned; passing an empty tblName returns all views.
+//
+// The definition is produced by pg_get_viewdef(oid, true), which formats the
+// SQL with pretty-printing enabled. Base tables are never included; callers
+// should only read from the returned map for view-typed relations.
+func getPgViewDefinitions(ctx context.Context, db sqlz.DB, tblName string) (map[string]string, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT c.relname, pg_get_viewdef(c.oid, true)
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind = 'v' AND n.nspname = current_schema()`
+
+	var args []any
+	if tblName != "" {
+		query += ` AND c.relname = $1`
+		args = append(args, tblName)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	defs := map[string]string{}
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			name string
+			def  sql.NullString
+		)
+		if err = rows.Scan(&name, &def); err != nil {
+			return nil, errw(err)
+		}
+		defs[name] = strings.TrimSpace(def.String)
+	}
+	return defs, errw(rows.Err())
 }
 
 // pgIndexHasIndnkeyatts reports whether pg_index has the indnkeyatts
