@@ -32,6 +32,122 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+// TestCmdInspect_EnrichmentMetadata_JSON confirms that sq inspect surfaces the
+// full enrichment pipeline through the CLI JSON path. It creates a fresh temp
+// SQLite DB (no fixture, no network), populates it with:
+//   - a table with an AUTOINCREMENT PK, a REAL column with a CHECK constraint,
+//     and a GENERATED (virtual) column
+//   - an AFTER INSERT trigger on that table
+//   - a view over the table
+//
+// then runs sq inspect --json and asserts that the unmarshalled
+// *metadata.Source carries the expected enrichment fields:
+//   - PK column AutoIncrement == true
+//   - generated column Generated == true with non-empty GeneratedExpr
+//   - table CheckConstraints is non-empty and references the constrained column
+//   - table Triggers is non-empty with Timing == "AFTER" and Events containing "INSERT"
+//   - view ViewDefinition is non-empty
+func TestCmdInspect_EnrichmentMetadata_JSON(t *testing.T) {
+	t.Parallel()
+
+	// Create a fresh SQLite DB file; SQLite creates the file on first open.
+	dbPath := tu.TempFile(t, "enrichment_test.db")
+	const handle = "@enrich_test"
+	src := source.Source{
+		Handle:   handle,
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + dbPath,
+	}
+
+	th := testh.New(t)
+	db := th.OpenDB(&src)
+
+	// Table: AUTOINCREMENT PK, constrained REAL, and a virtual generated column.
+	_, err := db.ExecContext(th.Context, `
+		CREATE TABLE enrich_tbl (
+			id      INTEGER PRIMARY KEY AUTOINCREMENT,
+			amount  REAL    NOT NULL CHECK(amount > 0),
+			doubled REAL    GENERATED ALWAYS AS (amount * 2) VIRTUAL
+		)`)
+	require.NoError(t, err)
+
+	// Trigger: fires AFTER INSERT.
+	_, err = db.ExecContext(th.Context, `
+		CREATE TRIGGER enrich_trig
+		AFTER INSERT ON enrich_tbl
+		BEGIN
+			SELECT 1;
+		END`)
+	require.NoError(t, err)
+
+	// View over the table.
+	_, err = db.ExecContext(th.Context, `
+		CREATE VIEW enrich_view AS SELECT id, doubled FROM enrich_tbl`)
+	require.NoError(t, err)
+
+	// Build a testrun sharing the same source.
+	tr := testrun.New(th.Context, t, nil).Hush().Add(src)
+	require.NoError(t, tr.Exec("inspect", handle, "--json"))
+
+	srcMeta := &metadata.Source{}
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), srcMeta))
+
+	// Locate the table and view in the metadata.
+	var tblMeta, viewMeta *metadata.Table
+	for _, tbl := range srcMeta.Tables {
+		switch strings.ToLower(tbl.Name) {
+		case "enrich_tbl":
+			tblMeta = tbl
+		case "enrich_view":
+			viewMeta = tbl
+		}
+	}
+	require.NotNil(t, tblMeta, "enrich_tbl must appear in inspect JSON")
+	require.NotNil(t, viewMeta, "enrich_view must appear in inspect JSON")
+
+	// Column assertions.
+	var idCol, doubledCol *metadata.Column
+	for _, col := range tblMeta.Columns {
+		switch strings.ToLower(col.Name) {
+		case "id":
+			idCol = col
+		case "doubled":
+			doubledCol = col
+		}
+	}
+	require.NotNil(t, idCol, "id column must appear in enrich_tbl columns")
+	require.NotNil(t, doubledCol, "doubled column must appear in enrich_tbl columns")
+	require.True(t, idCol.AutoIncrement, "id column must have AutoIncrement == true")
+	require.True(t, doubledCol.Generated, "doubled column must have Generated == true")
+	require.NotEmpty(t, doubledCol.GeneratedExpr, "doubled column must have a non-empty GeneratedExpr")
+
+	// CHECK constraint: the clause must reference the constrained column.
+	require.NotEmpty(t, tblMeta.CheckConstraints,
+		"enrich_tbl must have at least one check constraint")
+	var foundCheck bool
+	for _, cc := range tblMeta.CheckConstraints {
+		if strings.Contains(cc.Clause, "amount") {
+			foundCheck = true
+			break
+		}
+	}
+	require.True(t, foundCheck,
+		"a check constraint referencing 'amount' must be present in enrich_tbl")
+
+	// Trigger: AFTER INSERT.
+	require.NotEmpty(t, tblMeta.Triggers,
+		"enrich_tbl must have at least one trigger")
+	trig := tblMeta.Triggers[0]
+	require.Equal(t, "AFTER", strings.ToUpper(trig.Timing),
+		"trigger timing must be AFTER")
+	require.Contains(t, trig.Events, "INSERT",
+		"trigger must fire on INSERT")
+
+	// View definition.
+	require.NotEmpty(t, viewMeta.ViewDefinition,
+		"enrich_view must carry a non-empty ViewDefinition")
+}
+
 // TestCmdInspect_FKMetadata_JSON pins the end-to-end JSON shape of the
 // FK / unique-constraint / index metadata added by #498. It runs against
 // every SQL driver that supports foreign keys (i.e. everything except
