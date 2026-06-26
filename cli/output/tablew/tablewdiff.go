@@ -139,7 +139,7 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 	sc1 := scannerz.NewScanner(ctx, buf1)
 	sc2 := scannerz.NewScanner(ctx, buf2)
 	var line []byte
-	var i, j, k int
+	var i int
 	for i = 0; i < len(pairs) && ctx.Err() == nil; i++ {
 		if pairs[i].Equal() {
 			_ = sc1.Scan()
@@ -152,19 +152,25 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 			continue
 		}
 
-		// We've found a difference. We need to print all consecutive "deletion"
-		// lines; and when those are done, we do the consecutive "insertion" lines.
+		// We've found a difference: a contiguous run of differing pairs. We print
+		// all the run's "deletion" lines first, then all its "insertion" lines. A
+		// pair may be single-sided (added: Rec1()==nil; removed: Rec2()==nil) or
+		// two-sided (changed). We make TWO FULL passes over the run, SKIPPING (not
+		// breaking on) the nil side, so a changed pair adjacent to an added/removed
+		// pair still gets both its lines rendered (issue #947).
 
-		for j = i; ctx.Err() == nil && j < len(pairs) && !pairs[j].Equal(); j++ {
-			// Skip single-sided "added" pairs: they have no left-side record, so
-			// there's no deletion line for them in sc1. Without this guard, sc1
-			// would consume the line belonging to a later pair, mislabeling an
-			// unchanged neighbor as a deletion (issue #947).
-			if pairs[j].Rec1() == nil {
-				break
-			}
-			if !sc1.Scan() {
-				break
+		// Find the end of this contiguous run of differing pairs.
+		end := i
+		for end < len(pairs) && !pairs[end].Equal() {
+			end++
+		}
+
+		// Deletion pass: every pair with a left side (removed + changed). When
+		// Rec1()==nil the pair contributed no line to sc1, so the short-circuit
+		// skips it WITHOUT consuming a scan, keeping sc1 aligned to recs1.
+		for p := i; ctx.Err() == nil && p < end; p++ {
+			if pairs[p].Rec1() == nil || !sc1.Scan() {
+				continue
 			}
 			line = sc1.Bytes()
 			_, _ = dest.Write(dw.deletePrefix)
@@ -176,14 +182,10 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 			return
 		}
 
-		for k = i; ctx.Err() == nil && k < len(pairs) && !pairs[k].Equal(); k++ {
-			// Skip single-sided "removed" pairs: they have no right-side record,
-			// so there's no insertion line for them in sc2 (issue #947).
-			if pairs[k].Rec2() == nil {
-				break
-			}
-			if !sc2.Scan() {
-				break
+		// Insertion pass: every pair with a right side (added + changed).
+		for p := i; ctx.Err() == nil && p < end; p++ {
+			if pairs[p].Rec2() == nil || !sc2.Scan() {
+				continue
 			}
 			line = sc2.Bytes()
 			_, _ = dest.Write(dw.insertPrefix)
@@ -197,7 +199,7 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 
 		// Adjust the main loop index to skip over the differing
 		// records that we've just processed.
-		i = max(j, k) - 1
+		i = end - 1
 	}
 
 	offset := dest.Offset() + 1
@@ -280,7 +282,7 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 	buf2 := &bytes.Buffer{}
 
 	sc := scannerz.NewScanner(ctx, bufAllRecs)
-	var i, j, k int
+	var i int
 	for i = 0; ctx.Err() == nil && i < len(recs1) && sc.Scan(); i++ {
 		_, _ = buf1.Write(sc.Bytes())
 		buf1.WriteByte('\n')
@@ -315,19 +317,25 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 			continue
 		}
 
-		// We've found a difference. We need to print all consecutive "deletion"
-		// lines; and when those are done, we do the consecutive "insertion" lines.
+		// We've found a difference: a contiguous run of differing pairs. We print
+		// all the run's "deletion" lines first, then all its "insertion" lines. A
+		// pair may be single-sided (added: Rec1()==nil; removed: Rec2()==nil) or
+		// two-sided (changed). We make TWO FULL passes over the run, SKIPPING (not
+		// breaking on) the nil side, so a changed pair adjacent to an added/removed
+		// pair still gets both its lines rendered (issue #947).
 
-		for j = i; ctx.Err() == nil && j < len(pairs) && !pairs[j].Equal(); j++ {
-			// Skip single-sided "added" pairs: they have no left-side record, so
-			// there's no deletion line for them in sc1. Without this guard, sc1
-			// would consume the line belonging to a later pair, mislabeling an
-			// unchanged neighbor as a deletion (issue #947).
-			if pairs[j].Rec1() == nil {
-				break
-			}
-			if !sc1.Scan() {
-				break
+		// Find the end of this contiguous run of differing pairs.
+		end := i
+		for end < len(pairs) && !pairs[end].Equal() {
+			end++
+		}
+
+		// Deletion pass: every pair with a left side (removed + changed). When
+		// Rec1()==nil the pair contributed no line to sc1, so the short-circuit
+		// skips it WITHOUT consuming a scan, keeping sc1 aligned to recs1.
+		for p := i; ctx.Err() == nil && p < end; p++ {
+			if pairs[p].Rec1() == nil || !sc1.Scan() {
+				continue
 			}
 			line = sc1.Bytes()
 			_, _ = dest.Write(dw.deletePrefix)
@@ -339,14 +347,10 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 			return
 		}
 
-		for k = i; ctx.Err() == nil && k < len(pairs) && !pairs[k].Equal(); k++ {
-			// Skip single-sided "removed" pairs: they have no right-side record,
-			// so there's no insertion line for them in sc2 (issue #947).
-			if pairs[k].Rec2() == nil {
-				break
-			}
-			if !sc2.Scan() {
-				break
+		// Insertion pass: every pair with a right side (added + changed).
+		for p := i; ctx.Err() == nil && p < end; p++ {
+			if pairs[p].Rec2() == nil || !sc2.Scan() {
+				continue
 			}
 			line = sc2.Bytes()
 			_, _ = dest.Write(dw.insertPrefix)
@@ -360,7 +364,7 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 
 		// Adjust the main loop index to skip over the differing
 		// records that we've just processed.
-		i = max(j, k) - 1
+		i = end - 1
 	}
 
 	offset := dest.Offset() + 1

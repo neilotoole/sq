@@ -305,3 +305,133 @@ func runDiffDefaultContext(t *testing.T, format string, ids []int, intactLeft bo
 	}
 	return added, removed, ctxLines
 }
+
+// TestDiff_Data_PKAlignChangedAdjacent is the gate for the residual #947 writer
+// bug where a CHANGED row that is adjacent (in PK order, same differing run) to
+// an ADDED or REMOVED row had one of its diff lines silently dropped.
+//
+// The pre-fix text/csv writers rendered a contiguous run of differing pairs with
+// TWO break-on-nil loops (a deletion loop emitting Rec1 lines and an insertion
+// loop emitting Rec2 lines), then advanced the outer index by max(j,k)-1. When a
+// single-sided pair (added: Rec1()==nil, removed: Rec2()==nil) preceded a changed
+// pair in the same run, the corresponding loop broke at the single-sided pair and
+// never reached the changed pair's line, and the index jump skipped it:
+//
+//   - changed adjacent to ADDED   → the changed row's "-old" line was dropped.
+//   - changed adjacent to REMOVED → the changed row's "+new" line was dropped.
+//
+// We build a copied actor table where actor_id K is single-sided (deleted from
+// one side) and the adjacent actor_id K+1 is changed (a non-key column set to a
+// distinct sentinel on each side). We then assert the rendered diff contains BOTH
+// the changed row's "-old" line (left sentinel) AND its "+new" line (right
+// sentinel), for text AND csv.
+func TestDiff_Data_PKAlignChangedAdjacent(t *testing.T) {
+	const (
+		k        = 50 // single-sided actor_id (added/removed)
+		changeID = 51 // adjacent changed actor_id (k+1)
+		leftSent = "LEFTSENT"
+		rightSnt = "RIGHTSENT"
+	)
+
+	for _, format := range []string{"text", "csv"} {
+		format := format
+		t.Run(format, func(t *testing.T) {
+			t.Run("added", func(t *testing.T) {
+				// Modified copy on the LEFT: actor_id k deleted (so it surfaces as
+				// "added" relative to the left), and the adjacent changed row set to
+				// the left sentinel. Intact copy on the RIGHT with the right sentinel.
+				got := runDiffChangedAdjacent(t, format,
+					func(th *testh.Helper, left, right *source.Source) {
+						th.ExecSQL(left, fmt.Sprintf(
+							"DELETE FROM actor WHERE actor_id = %d", k))
+						th.ExecSQL(left, fmt.Sprintf(
+							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", leftSent, changeID))
+						th.ExecSQL(right, fmt.Sprintf(
+							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", rightSnt, changeID))
+					})
+
+				requireHasDiffLine(t, got, "-", leftSent,
+					"changed row's -old line (adjacent to an added row) must not be dropped")
+				requireHasDiffLine(t, got, "+", rightSnt,
+					"changed row's +new line must be present")
+			})
+
+			t.Run("removed", func(t *testing.T) {
+				// Intact copy on the LEFT with the left sentinel. Modified copy on the
+				// RIGHT: actor_id k deleted (so it surfaces as "removed"), adjacent
+				// changed row set to the right sentinel.
+				got := runDiffChangedAdjacent(t, format,
+					func(th *testh.Helper, left, right *source.Source) {
+						th.ExecSQL(right, fmt.Sprintf(
+							"DELETE FROM actor WHERE actor_id = %d", k))
+						th.ExecSQL(right, fmt.Sprintf(
+							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", rightSnt, changeID))
+						th.ExecSQL(left, fmt.Sprintf(
+							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", leftSent, changeID))
+					})
+
+				requireHasDiffLine(t, got, "-", leftSent,
+					"changed row's -old line must be present")
+				requireHasDiffLine(t, got, "+", rightSnt,
+					"changed row's +new line (adjacent to a removed row) must not be dropped")
+			})
+		})
+	}
+}
+
+// runDiffChangedAdjacent sets up two writable copies of the Sakila actor table
+// (left @test_left, right @test_right), applies mutate to them, then runs
+// sq diff --data at the default context with the given format and returns the
+// rendered output.
+func runDiffChangedAdjacent(t *testing.T, format string,
+	mutate func(th *testh.Helper, left, right *source.Source),
+) string {
+	t.Helper()
+	th := testh.New(t)
+
+	srcLeft := th.Source(sakila.SL3) // writable temp copy
+
+	// Build a second writable copy for the right operand.
+	origPath := proj.Abs(sakila.PathSL3)
+	dstPath := filepath.Join(tu.TempDir(t), "sakila_right.db")
+	require.NoError(t, ioz.CopyFile(dstPath, origPath, true))
+	srcRight := source.Source{
+		Handle:   "@test_right",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + dstPath,
+	}
+
+	mutate(th, srcLeft, &srcRight)
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*srcLeft).Add(srcRight)
+	args := []string{"diff", "--data", "--stop", "0"}
+	if format != "text" {
+		args = append(args, "-f", format)
+	}
+	args = append(args, srcLeft.Handle+"."+sakila.TblActor, srcRight.Handle+"."+sakila.TblActor)
+
+	err := tr.Exec(args...)
+	require.Error(t, err, "diff must report differences (exit code 1)")
+	require.Equal(t, 1, errz.ExitCode(err), "sq diff exits 1 when differences exist")
+
+	got := tr.Out.String()
+	t.Log("diff output:\n" + got)
+	return got
+}
+
+// requireHasDiffLine asserts that got contains a diff data line beginning with
+// the single-character prefix ("-" or "+") and containing substr, excluding the
+// ---/+++ file-header lines.
+func requireHasDiffLine(t *testing.T, got, prefix, substr, msg string) {
+	t.Helper()
+	header := prefix + prefix + prefix // "---" or "+++"
+	for _, line := range strings.Split(got, "\n") {
+		if strings.HasPrefix(line, header) {
+			continue // file header line, not a data row
+		}
+		if strings.HasPrefix(line, prefix) && strings.Contains(line, substr) {
+			return
+		}
+	}
+	t.Fatalf("%s: no %q data line containing %q found in diff output:\n%s", msg, prefix, substr, got)
+}
