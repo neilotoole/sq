@@ -238,7 +238,8 @@ func TestInspect_GeneratedColumn(t *testing.T) {
 	_, err = db.ExecContext(ctx, `CREATE TABLE t (
 		id      INTEGER,
 		price   DECIMAL(10,2) DEFAULT 9.99,
-		tax     DECIMAL(10,2) GENERATED ALWAYS AS (price * 0.1)
+		tax     DECIMAL(10,2) GENERATED ALWAYS AS (price * 0.1),
+		note    VARCHAR DEFAULT 'GENERATED ALWAYS AS legacy'
 	)`)
 	require.NoError(t, err)
 
@@ -271,6 +272,14 @@ func TestInspect_GeneratedColumn(t *testing.T) {
 		require.True(t, taxCol.Generated, "GENERATED ALWAYS AS column must be marked generated")
 		require.NotEmpty(t, taxCol.GeneratedExpr, "GeneratedExpr must be populated")
 		require.Empty(t, taxCol.DefaultValue, "generated expr must not appear as DefaultValue")
+
+		noteCol := colByName["note"]
+		require.NotNil(t, noteCol)
+		require.False(t, noteCol.Generated,
+			"column with GENERATED-keyword inside a string literal DEFAULT must NOT be marked generated")
+		require.NotEmpty(t, noteCol.DefaultValue,
+			"DEFAULT value must be preserved when literal contains GENERATED keyword")
+		require.Contains(t, noteCol.DefaultValue, "legacy")
 	})
 
 	t.Run("source_level", func(t *testing.T) {
@@ -301,6 +310,14 @@ func TestInspect_GeneratedColumn(t *testing.T) {
 			"GENERATED ALWAYS AS column must be marked generated in source-wide path")
 		require.NotEmpty(t, taxCol.GeneratedExpr, "GeneratedExpr must be populated in source-wide path")
 		require.Empty(t, taxCol.DefaultValue, "generated expr must not appear as DefaultValue")
+
+		noteCol := colByName["note"]
+		require.NotNil(t, noteCol)
+		require.False(t, noteCol.Generated,
+			"column with GENERATED-keyword inside a string literal DEFAULT must NOT be marked generated (source-wide path)")
+		require.NotEmpty(t, noteCol.DefaultValue,
+			"DEFAULT value must be preserved when literal contains GENERATED keyword (source-wide path)")
+		require.Contains(t, noteCol.DefaultValue, "legacy")
 	})
 }
 

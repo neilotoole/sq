@@ -1169,7 +1169,11 @@ func parseDuckDBGeneratedColumnNames(ddl string) map[string]bool {
 	result := make(map[string]bool)
 	for _, def := range defs {
 		def = strings.TrimSpace(def)
-		if !reDuckDBGeneratedAlways.MatchString(def) {
+		// Strip string-literal contents before the regex match so that a
+		// DEFAULT value containing the text "GENERATED ALWAYS AS" (e.g.
+		// DEFAULT 'GENERATED ALWAYS AS legacy') does not produce a false
+		// positive.
+		if !reDuckDBGeneratedAlways.MatchString(duckdbStripStringLiterals(def)) {
 			continue
 		}
 		// Skip table-level constraint clauses (CHECK, PRIMARY KEY, etc.) which
@@ -1238,6 +1242,44 @@ func duckdbSplitTopLevel(s string, sep rune) []string {
 		parts = append(parts, buf.String())
 	}
 	return parts
+}
+
+// duckdbStripStringLiterals returns s with the contents of single-quoted SQL
+// string literals replaced by space characters, so that subsequent text scans
+// (e.g. a regex looking for GENERATED ALWAYS AS) cannot match keywords that
+// appear only inside a literal value. The surrounding quote characters are
+// preserved to keep the string length stable; only the interior bytes are
+// blanked. Double-quoted identifiers are left untouched because their contents
+// are SQL names, not data values.
+func duckdbStripStringLiterals(s string) string {
+	// Fast path: if there are no single quotes, nothing to do.
+	if !strings.Contains(s, "'") {
+		return s
+	}
+	buf := []byte(s)
+	inSingle := false
+	for i := 0; i < len(buf); i++ {
+		c := buf[i]
+		if inSingle {
+			if c == '\'' {
+				// Check for escaped quote ('').
+				if i+1 < len(buf) && buf[i+1] == '\'' {
+					buf[i] = ' '
+					buf[i+1] = ' '
+					i++ // skip the second quote too
+				} else {
+					inSingle = false
+					// Leave the closing quote as-is.
+				}
+			} else {
+				buf[i] = ' '
+			}
+		} else if c == '\'' {
+			inSingle = true
+			// Leave the opening quote as-is.
+		}
+	}
+	return string(buf)
 }
 
 // duckdbFirstIdentifier returns the first SQL identifier (bare or
