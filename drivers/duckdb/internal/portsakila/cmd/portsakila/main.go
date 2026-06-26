@@ -242,7 +242,8 @@ func buildSakilaWhitespace(ctx context.Context) error {
 		`CREATE VIEW film_list AS
 SELECT film.film_id AS FID, film.title AS title, film.description AS description, category.name AS category,
        film.rental_rate AS price, film.length AS length, film.rating AS rating,
-       group_concat(actor."first name"||' '||actor."last name", ', ' ORDER BY actor."first name", actor."last name", actor.actor_id) AS actors
+       group_concat(actor."first name"||' '||actor."last name", ', '
+         ORDER BY actor."first name", actor."last name", actor.actor_id) AS actors
 FROM category
   LEFT JOIN film_category ON category.category_id = film_category.category_id
   LEFT JOIN film ON film_category.film_id = film.film_id
@@ -252,7 +253,10 @@ GROUP BY film.film_id, film.title, film.description, category.name, film.rental_
 		`CREATE VIEW nicer_but_slower_film_list AS
 SELECT film.film_id AS FID, film.title AS title, film.description AS description, category.name AS category,
        film.rental_rate AS price, film.length AS length, film.rating AS rating,
-       group_concat(upper(substr(actor."first name",1,1))||lower(substr(actor."first name",2))||' '||upper(substr(actor."last name",1,1))||lower(substr(actor."last name",2)), ', ' ORDER BY actor."first name", actor."last name", actor.actor_id) AS actors
+       group_concat(
+         upper(substr(actor."first name",1,1))||lower(substr(actor."first name",2))||' '||
+         upper(substr(actor."last name",1,1))||lower(substr(actor."last name",2)), ', '
+         ORDER BY actor."first name", actor."last name", actor.actor_id) AS actors
 FROM category
   LEFT JOIN film_category ON category.category_id = film_category.category_id
   LEFT JOIN film ON film_category.film_id = film.film_id

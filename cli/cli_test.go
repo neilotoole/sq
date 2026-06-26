@@ -295,5 +295,5 @@ func TestSQLiteStdin(t *testing.T) {
 	gotMap := tr.BindMap()
 	require.Equal(t, drivertype.SQLite.String(), gotMap["db_driver"])
 	require.Equal(t, source.StdinHandle, gotMap["handle"])
-	require.Len(t, gotMap["tables"], 21)
+	require.Len(t, gotMap["tables"], 23) // 16 tables + 7 views
 }

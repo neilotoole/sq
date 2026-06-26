@@ -44,7 +44,7 @@ func TestSmoke(t *testing.T) {
 
 // TestSourceMetadata verifies that getSourceMetadata returns the
 // expected shape: rqlite driver, "main" schema, and the right
-// table/view counts (16 tables, 5 views in the bundled Sakila).
+// table/view counts (16 tables, 7 views in the bundled Sakila).
 func TestSourceMetadata(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -63,7 +63,7 @@ func TestSourceMetadata(t *testing.T) {
 	// create extra transient tables that may still be live when the
 	// metadata query runs. Assert the lower bound rather than equality.
 	require.GreaterOrEqual(t, md.TableCount, int64(16))
-	require.Equal(t, int64(5), md.ViewCount)
+	require.Equal(t, int64(7), md.ViewCount)
 	// rqlite's HTTP API doesn't expose a database file size, so the
 	// driver leaves Source.Size as nil (gh744). Asserting nil prevents a
 	// regression to the int64 zero value, which would render as "0.0B".
@@ -89,12 +89,11 @@ func TestTableMetadata_Actor(t *testing.T) {
 	for i, col := range tbl.Columns {
 		gotKinds[i] = col.Kind
 	}
-	// actor: actor_id (decimal due to NUMERIC affinity), first_name,
-	// last_name (text), last_update (datetime). sakila.TblActorColKinds
-	// returns kind.Int for actor_id; the SQLite-on-rqlite shape uses
-	// NUMERIC → decimal, so we assert the column kinds explicitly here
-	// rather than reusing the shared helper.
-	require.Equal(t, []kind.Kind{kind.Decimal, kind.Text, kind.Text, kind.Datetime}, gotKinds)
+	// The canonical rqlite fixture (16 tables + 7 views) declares actor_id as
+	// INTEGER, so its column kinds match the shared helper: actor_id (int),
+	// first_name, last_name (text), last_update (datetime). (Older fixtures used
+	// NUMERIC affinity, which mapped actor_id to decimal instead.)
+	require.Equal(t, sakila.TblActorColKinds(), gotKinds)
 	require.True(t, tbl.Columns[0].PrimaryKey, "actor_id should be primary key")
 }
 
