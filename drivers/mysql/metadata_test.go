@@ -203,6 +203,210 @@ func TestForeignKey_CompositeOrdering_MySQL(t *testing.T) {
 	}
 }
 
+// TestMySQL_ColumnFlags verifies that AUTO_INCREMENT, GENERATED, GeneratedExpr,
+// and Collation are populated on MySQL column metadata — both through the
+// per-table path (TableMetadata) and the source-wide path (SourceMetadata).
+func TestMySQL_ColumnFlags(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.My)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("col_flags")
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tbl+` (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  name       VARCHAR(100) COLLATE utf8mb4_bin NOT NULL,
+  name_upper VARCHAR(100) COLLATE utf8mb4_bin GENERATED ALWAYS AS (UPPER(name)) STORED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	// Per-table path.
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 3)
+
+	colID := md.Columns[0]
+	require.True(t, colID.AutoIncrement, "id should be AUTO_INCREMENT")
+	require.False(t, colID.Generated, "id should not be GENERATED")
+
+	colName := md.Columns[1]
+	require.False(t, colName.AutoIncrement)
+	require.False(t, colName.Generated)
+	require.Equal(t, "utf8mb4_bin", colName.Collation)
+
+	colGen := md.Columns[2]
+	require.False(t, colGen.AutoIncrement)
+	require.True(t, colGen.Generated, "name_upper should be GENERATED")
+	require.NotEmpty(t, colGen.GeneratedExpr, "GeneratedExpr should be set")
+	require.Equal(t, "utf8mb4_bin", colGen.Collation)
+
+	// Source-wide path: verify the same table's columns are also mapped.
+	srcMd, err := th.Open(src).SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	var srcTbl *metadata.Table
+	for _, t2 := range srcMd.Tables {
+		if t2.Name == tbl {
+			srcTbl = t2
+			break
+		}
+	}
+	require.NotNil(t, srcTbl, "table should appear in source metadata")
+	require.Len(t, srcTbl.Columns, 3)
+	require.True(t, srcTbl.Columns[0].AutoIncrement)
+	require.Equal(t, "utf8mb4_bin", srcTbl.Columns[1].Collation)
+	require.True(t, srcTbl.Columns[2].Generated)
+}
+
+// TestMySQL_CheckConstraints verifies that named CHECK constraints are
+// returned by the per-table and source-wide metadata paths on MySQL 8.
+func TestMySQL_CheckConstraints(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.My)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("chk_constr")
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tbl+` (
+  id    INT PRIMARY KEY,
+  score INT NOT NULL,
+  CONSTRAINT chk_score_positive CHECK (score > 0)
+) ENGINE=InnoDB`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	// Per-table path.
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.CheckConstraints, "expected at least one CHECK constraint")
+
+	var found *metadata.CheckConstraint
+	for _, cc := range md.CheckConstraints {
+		if cc.Name == "chk_score_positive" {
+			found = cc
+			break
+		}
+	}
+	require.NotNil(t, found, "chk_score_positive should be present")
+	require.Equal(t, tbl, found.Table)
+	require.NotEmpty(t, found.Clause)
+
+	// Source-wide path.
+	srcMd, err := th.Open(src).SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	var srcTbl *metadata.Table
+	for _, t2 := range srcMd.Tables {
+		if t2.Name == tbl {
+			srcTbl = t2
+			break
+		}
+	}
+	require.NotNil(t, srcTbl)
+	var found2 *metadata.CheckConstraint
+	for _, cc := range srcTbl.CheckConstraints {
+		if cc.Name == "chk_score_positive" {
+			found2 = cc
+			break
+		}
+	}
+	require.NotNil(t, found2, "chk_score_positive should appear in source-wide metadata")
+}
+
+// TestMySQL_Triggers verifies that trigger metadata (Timing, Events,
+// Definition) is populated, and that Enabled is nil (MySQL has no
+// per-trigger enabled/disabled state).
+func TestMySQL_Triggers(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.My)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("trig_tbl")
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tbl+` (
+  id   INT AUTO_INCREMENT PRIMARY KEY,
+  val  INT NOT NULL DEFAULT 0
+) ENGINE=InnoDB`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE TRIGGER trg_`+tbl+` BEFORE INSERT ON `+tbl+` FOR EACH ROW SET NEW.val = ABS(NEW.val)`)
+	require.NoError(t, err)
+
+	// Per-table path.
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.Triggers, "expected at least one trigger")
+
+	trig := md.Triggers[0]
+	require.Equal(t, "BEFORE", trig.Timing)
+	require.Equal(t, []string{"INSERT"}, trig.Events)
+	require.NotEmpty(t, trig.Definition)
+	require.Nil(t, trig.Enabled, "MySQL has no per-trigger enabled state; Enabled must be nil")
+
+	// Source-wide path.
+	srcMd, err := th.Open(src).SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	var srcTbl *metadata.Table
+	for _, t2 := range srcMd.Tables {
+		if t2.Name == tbl {
+			srcTbl = t2
+			break
+		}
+	}
+	require.NotNil(t, srcTbl)
+	require.NotEmpty(t, srcTbl.Triggers)
+	require.Nil(t, srcTbl.Triggers[0].Enabled)
+}
+
+// TestMySQL_ViewDefinition verifies that view definition SQL is populated
+// for view-typed tables, via both the per-table and source-wide paths.
+func TestMySQL_ViewDefinition(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.My)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("vdef_base")
+	view := stringz.UniqTableName("vdef_view")
+
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+tbl+` (id INT PRIMARY KEY, label VARCHAR(50)) ENGINE=InnoDB`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE VIEW `+view+` AS SELECT id, label FROM `+tbl+` WHERE id > 0`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(view)) })
+
+	// Per-table path.
+	md, err := th.Open(src).TableMetadata(th.Context, view)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.ViewDefinition, "ViewDefinition must be set for a view")
+
+	// Source-wide path.
+	srcMd, err := th.Open(src).SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	var srcView *metadata.Table
+	for _, t2 := range srcMd.Tables {
+		if t2.Name == view {
+			srcView = t2
+			break
+		}
+	}
+	require.NotNil(t, srcView)
+	require.NotEmpty(t, srcView.ViewDefinition, "ViewDefinition must be set in source-wide metadata")
+}
+
 // TestForeignKey_OnDeleteOnUpdate_MySQL pins that the loader populates
 // OnDelete / OnUpdate from INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 // with the explicit non-default actions ("CASCADE" / "SET NULL").

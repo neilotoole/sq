@@ -205,9 +205,18 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 		return nil, err
 	}
 
-	// FK / unique-constraint / index introspection is only meaningful
-	// for real tables. Views show up in INFORMATION_SCHEMA.TABLES but
-	// carry no FKs, UCs, or indexes, so skip the four extra round-trips.
+	// For views, load only the view definition.
+	if tblMeta.TableType == sqlz.TableTypeView {
+		viewDefs, err := getMySQLViewDefinitions(ctx, db, tblMeta.Name)
+		if err != nil {
+			return nil, err
+		}
+		tblMeta.ViewDefinition = viewDefs[tblMeta.Name]
+		return tblMeta, nil
+	}
+
+	// FK / unique-constraint / check / trigger / index introspection is
+	// only meaningful for real tables. All other relation types are skipped.
 	if tblMeta.TableType != sqlz.TableTypeTable {
 		return tblMeta, nil
 	}
@@ -223,6 +232,16 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
 	tblMeta.UniqueConstraints, err = getMySQLUniqueConstraints(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.CheckConstraints, err = getMySQLCheckConstraints(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.Triggers, err = getMySQLTriggers(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
@@ -553,7 +572,9 @@ func getColumnMetadata(ctx context.Context, db sqlz.DB, tblName string) ([]*meta
 	log := lg.FromContext(ctx)
 
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
-       is_nullable, column_key, column_comment, extra
+       is_nullable, column_key, column_comment, extra,
+       COALESCE(generation_expression, '') AS generation_expression,
+       COALESCE(collation_name, '') AS collation_name
 FROM information_schema.columns cols
 WHERE cols.TABLE_SCHEMA = DATABASE() AND cols.TABLE_NAME = ?
 ORDER BY cols.ordinal_position ASC`
@@ -568,11 +589,11 @@ ORDER BY cols.ordinal_position ASC`
 
 	for rows.Next() {
 		col := &metadata.Column{}
-		var isNullable, colKey, extra string
+		var isNullable, colKey, extra, generationExpr, collationName string
 
 		defVal := &sql.NullString{}
 		err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey,
-			&col.Comment, &extra)
+			&col.Comment, &extra, &generationExpr, &collationName)
 		if err != nil {
 			return nil, errw(err)
 		}
@@ -589,6 +610,15 @@ ORDER BY cols.ordinal_position ASC`
 
 		col.DefaultValue = defVal.String
 		col.Kind = kindFromDBTypeName(ctx, col.Name, col.BaseType)
+
+		if strings.Contains(strings.ToLower(extra), "auto_increment") {
+			col.AutoIncrement = true
+		}
+		if strings.Contains(strings.ToUpper(extra), "GENERATED") {
+			col.Generated = true
+		}
+		col.GeneratedExpr = generationExpr
+		col.Collation = collationName
 
 		cols = append(cols, col)
 	}
@@ -658,14 +688,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		return nil, err
 	}
 
-	for _, tbl := range md.Tables {
-		switch tbl.TableType {
-		case sqlz.TableTypeTable:
-			md.TableCount++
-		case sqlz.TableTypeView:
-			md.ViewCount++
-		}
-	}
+	md.RecomputeTableCounts()
 
 	if !noSchema {
 		log := lg.FromContext(ctx)
@@ -675,7 +698,6 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 			return nil, err
 		}
 		metadata.AssignForeignKeys(log, md.Tables, allFKs)
-		metadata.LinkForeignKeys(log, md)
 
 		allUCs, err := getMySQLUniqueConstraints(ctx, db, "")
 		if err != nil {
@@ -683,11 +705,35 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		}
 		metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
 
+		allChecks, err := getMySQLCheckConstraints(ctx, db, "")
+		if err != nil {
+			return nil, err
+		}
+		metadata.AssignCheckConstraints(log, md.Tables, allChecks)
+
+		allTriggers, err := getMySQLTriggers(ctx, db, "")
+		if err != nil {
+			return nil, err
+		}
+		metadata.AssignTriggers(log, md.Tables, allTriggers)
+
 		allIdxs, err := getMySQLIndexes(ctx, db, "")
 		if err != nil {
 			return nil, err
 		}
 		metadata.AssignIndexes(log, md.Tables, allIdxs)
+
+		allViewDefs, err := getMySQLViewDefinitions(ctx, db, "")
+		if err != nil {
+			return nil, err
+		}
+		for _, tbl := range md.Tables {
+			if tbl.TableType == sqlz.TableTypeView {
+				tbl.ViewDefinition = allViewDefs[tbl.Name]
+			}
+		}
+
+		metadata.LinkForeignKeys(log, md)
 	}
 
 	return md, nil
@@ -781,7 +827,9 @@ func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*metadata.Table, error) 
 	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
        (DATA_LENGTH + INDEX_LENGTH) AS table_size,
        c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE,
-       c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA
+       c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA,
+       COALESCE(c.GENERATION_EXPRESSION, '') AS generation_expression,
+       COALESCE(c.COLLATION_NAME, '') AS collation_name
 FROM information_schema.TABLES t
          LEFT JOIN information_schema.COLUMNS c
                    ON c.TABLE_CATALOG = t.TABLE_CATALOG
@@ -822,11 +870,12 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		default:
 		}
 
-		var colName, colDefault, colNullable, colKey, colBaseType, colColumnType, colComment, colExtra sql.NullString
+		var colName, colDefault, colNullable, colKey, colBaseType, colColumnType, colComment, colExtra, colGenExpr, colCollation sql.NullString
 		var colPosition sql.NullInt64
 
 		err = rows.Scan(&schema, &curTblName, &curTblType, &curTblComment, &curTblSize, &colName, &colPosition,
-			&colKey, &colBaseType, &colColumnType, &colNullable, &colDefault, &colComment, &colExtra)
+			&colKey, &colBaseType, &colColumnType, &colNullable, &colDefault, &colComment, &colExtra,
+			&colGenExpr, &colCollation)
 		if err != nil {
 			return nil, errw(err)
 		}
@@ -876,6 +925,15 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		if strings.Contains(colKey.String, "PRI") {
 			col.PrimaryKey = true
 		}
+
+		if strings.Contains(strings.ToLower(colExtra.String), "auto_increment") {
+			col.AutoIncrement = true
+		}
+		if strings.Contains(strings.ToUpper(colExtra.String), "GENERATED") {
+			col.Generated = true
+		}
+		col.GeneratedExpr = colGenExpr.String
+		col.Collation = colCollation.String
 
 		curTblMeta.Columns = append(curTblMeta.Columns, col)
 	}
@@ -1122,6 +1180,141 @@ func mungeSetZeroValue(i int, rec []any, destMeta record.Meta) {
 	//  and kind.Time (e.g. "00:00" for time)?
 	z := reflect.Zero(destMeta[i].ScanType()).Interface()
 	rec[i] = z
+}
+
+// getMySQLCheckConstraints returns the CHECK constraints declared on tables in
+// the current database. If tblName is empty, constraints for every table are
+// returned; otherwise only constraints on tblName are returned.
+//
+// Graceful degradation: information_schema.CHECK_CONSTRAINTS was added in
+// MySQL 8.0.16. On older MySQL or some MariaDB variants the table is absent
+// and the query returns error 1146. In that case an empty slice is returned
+// (no error) so that inspect degrades silently rather than failing.
+func getMySQLCheckConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.CheckConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT tc.TABLE_NAME, cc.CONSTRAINT_NAME, cc.CHECK_CLAUSE
+FROM information_schema.CHECK_CONSTRAINTS cc
+JOIN information_schema.TABLE_CONSTRAINTS tc
+  ON  tc.CONSTRAINT_SCHEMA = cc.CONSTRAINT_SCHEMA
+  AND tc.CONSTRAINT_NAME   = cc.CONSTRAINT_NAME
+WHERE tc.CONSTRAINT_TYPE = 'CHECK'
+  AND cc.CONSTRAINT_SCHEMA = DATABASE()`
+	var args []any
+	if tblName != "" {
+		query += ` AND tc.TABLE_NAME = ?`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		// CHECK_CONSTRAINTS is absent in MySQL < 8.0.16 and some MariaDB
+		// variants. Return empty slice rather than failing the inspect.
+		if hasErrCode(err, errNumTableNotExist) {
+			return nil, nil
+		}
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var checks []*metadata.CheckConstraint
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		cc := &metadata.CheckConstraint{}
+		if err = rows.Scan(&cc.Table, &cc.Name, &cc.Clause); err != nil {
+			return nil, errw(err)
+		}
+		checks = append(checks, cc)
+	}
+	return checks, errw(rows.Err())
+}
+
+// getMySQLTriggers returns the triggers declared on tables in the current
+// database. If tblName is empty, triggers for every table are returned;
+// otherwise only triggers on tblName are returned.
+//
+// MySQL has no enabled/disabled state for individual triggers, so the
+// Enabled field is always left nil.
+func getMySQLTriggers(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Trigger, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT EVENT_OBJECT_TABLE, TRIGGER_NAME, ACTION_TIMING,
+       EVENT_MANIPULATION, ACTION_STATEMENT
+FROM information_schema.TRIGGERS
+WHERE TRIGGER_SCHEMA = DATABASE()`
+	var args []any
+	if tblName != "" {
+		query += ` AND EVENT_OBJECT_TABLE = ?`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY EVENT_OBJECT_TABLE, TRIGGER_NAME`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var triggers []*metadata.Trigger
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var tbl, name, timing, event, definition string
+		if err = rows.Scan(&tbl, &name, &timing, &event, &definition); err != nil {
+			return nil, errw(err)
+		}
+		// MySQL has no per-trigger enabled/disabled state; Enabled stays nil.
+		triggers = append(triggers, &metadata.Trigger{
+			Name:       name,
+			Table:      tbl,
+			Timing:     timing,
+			Events:     []string{event},
+			Definition: definition,
+		})
+	}
+	return triggers, errw(rows.Err())
+}
+
+// getMySQLViewDefinitions returns a map of view name → defining SQL for
+// views in the current database. If tblName is non-empty, only that view
+// is returned; passing an empty tblName returns all views.
+func getMySQLViewDefinitions(ctx context.Context, db sqlz.DB, tblName string) (map[string]string, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT TABLE_NAME, VIEW_DEFINITION
+FROM information_schema.VIEWS
+WHERE TABLE_SCHEMA = DATABASE()`
+	var args []any
+	if tblName != "" {
+		query += ` AND TABLE_NAME = ?`
+		args = append(args, tblName)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	defs := map[string]string{}
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			name string
+			def  sql.NullString
+		)
+		if err = rows.Scan(&name, &def); err != nil {
+			return nil, errw(err)
+		}
+		defs[name] = strings.TrimSpace(def.String)
+	}
+	return defs, errw(rows.Err())
 }
 
 // canonicalTableType returns the canonical name for "BASE TABLE"
