@@ -3,10 +3,13 @@ package diff
 
 import (
 	"context"
+	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -169,4 +172,21 @@ func compareIntKey(rec1, rec2 record.Record, idxs []int) (int, error) {
 		}
 	}
 	return 0, nil
+}
+
+// dataQuery returns the SLQ query that the diff engine executes for one side of
+// a table-data diff. With no pkColNames it returns the bare table query,
+// identical to the legacy positional path. With pkColNames it appends an
+// order_by so the rows arrive PK-sorted, which the key-merge collation requires.
+func dataQuery(td source.Table, pkColNames []string) string {
+	q := td.Handle + "." + stringz.DoubleQuote(td.Name)
+	if len(pkColNames) == 0 {
+		return q
+	}
+
+	sel := make([]string, len(pkColNames))
+	for i, name := range pkColNames {
+		sel[i] = "." + name
+	}
+	return q + " | order_by(" + strings.Join(sel, ", ") + ")"
 }

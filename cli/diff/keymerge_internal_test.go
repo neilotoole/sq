@@ -10,6 +10,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -204,4 +205,21 @@ func TestMergeRecordsByKey_EmitStop(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
+}
+
+func TestDataQuery(t *testing.T) {
+	td := source.Table{Handle: "@a", Name: "payment"}
+
+	// No PK -> bare query, unchanged from the positional path.
+	require.Equal(t, `@a."payment"`, dataQuery(td, nil))
+
+	// Single int PK -> ordered.
+	require.Equal(t, `@a."payment" | order_by(.payment_id)`, dataQuery(td, []string{"payment_id"}))
+
+	// Composite PK -> ordered by both, in order.
+	fa := source.Table{Handle: "@a", Name: "film_actor"}
+	require.Equal(t,
+		`@a."film_actor" | order_by(.actor_id, .film_id)`,
+		dataQuery(fa, []string{"actor_id", "film_id"}),
+	)
 }
