@@ -21,6 +21,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -54,6 +55,7 @@ func main() {
 }
 
 func run() error {
+	ctx := context.Background()
 	db, err := sql.Open("sqlite3", srcDB)
 	if err != nil {
 		return err
@@ -71,10 +73,10 @@ func run() error {
 	}
 
 	for _, s := range specs {
-		if err := buildWorkbook(db, s.file, s.tables, s.hasHeader); err != nil {
+		if err := buildWorkbook(ctx, db, s.file, s.tables, s.hasHeader); err != nil {
 			return fmt.Errorf("%s: %w", s.file, err)
 		}
-		fmt.Printf("wrote %s/%s (%d sheets, header=%v)\n", dstDir, s.file, len(s.tables), s.hasHeader)
+		fmt.Fprintf(os.Stdout, "wrote %s/%s (%d sheets, header=%v)\n", dstDir, s.file, len(s.tables), s.hasHeader)
 	}
 	return nil
 }
@@ -103,8 +105,11 @@ func classify(declType string) column {
 	return c
 }
 
-func tableColumns(db *sql.DB, table string) ([]column, error) {
-	rows, err := db.Query("SELECT name, type FROM pragma_table_info('" + table + "')")
+func tableColumns(ctx context.Context, db *sql.DB, table string) ([]column, error) {
+	// table is always a hardcoded fixture name (fullTables/subsetTables), never
+	// user input, so the concatenation is safe.
+	q := "SELECT name, type FROM pragma_table_info('" + table + "')" //nolint:gosec // G202: hardcoded name
+	rows, err := db.QueryContext(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -141,12 +146,12 @@ func isoDatetime(s string) string {
 	return s
 }
 
-func buildWorkbook(db *sql.DB, file string, tables []string, hasHeader bool) error {
+func buildWorkbook(ctx context.Context, db *sql.DB, file string, tables []string, hasHeader bool) error {
 	f := excelize.NewFile()
 	defer f.Close()
 
 	for _, table := range tables {
-		cols, err := tableColumns(db, table)
+		cols, err := tableColumns(ctx, db, table)
 		if err != nil {
 			return err
 		}
@@ -158,8 +163,9 @@ func buildWorkbook(db *sql.DB, file string, tables []string, hasHeader bool) err
 		for j, c := range cols {
 			colNames[j] = c.name
 		}
-		query := "SELECT " + strings.Join(colNames, ", ") + " FROM " + table
-		dataRows, err := db.Query(query)
+		// table + column names are hardcoded fixture identifiers, not user input.
+		query := "SELECT " + strings.Join(colNames, ", ") + " FROM " + table //nolint:gosec // G202: hardcoded
+		dataRows, err := db.QueryContext(ctx, query)
 		if err != nil {
 			return err
 		}
