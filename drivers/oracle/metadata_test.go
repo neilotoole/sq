@@ -249,6 +249,50 @@ func TestInspectTrigger_Oracle(t *testing.T) {
 	require.NotEmpty(t, tr.Definition, "TRIGGER_BODY (LONG) should be readable")
 }
 
+// TestInspectTriggerUpdateOf_Oracle verifies that a column-scoped update trigger
+// ("BEFORE UPDATE OF col ...") produces Events containing plain "UPDATE" (not
+// "UPDATE OF col"). On Oracle 23c USER_TRIGGERS.TRIGGERING_EVENT already strips
+// the column qualifier and stores "INSERT OR UPDATE", so the normalization in
+// getOracleTriggers is a defensive no-op here; the test acts as a regression
+// guard for any Oracle version that might retain the qualifier.
+func TestInspectTriggerUpdateOf_Oracle(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+	src := th.Source(sakila.Ora)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("trg_upd_of")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+tbl+" (id NUMBER NOT NULL PRIMARY KEY, n NUMBER)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	// Declare a column-scoped update trigger plus INSERT.
+	// Oracle 23c stores TRIGGERING_EVENT as "INSERT OR UPDATE" (column qualifier
+	// stripped); the normalization code handles any version that retains it.
+	trg := strings.ToUpper(tbl) + "_TRG"
+	_, err = db.ExecContext(th.Context,
+		"CREATE OR REPLACE TRIGGER "+trg+
+			" BEFORE UPDATE OF n OR INSERT ON "+tbl+
+			" FOR EACH ROW BEGIN NULL; END;")
+	require.NoError(t, err)
+	// The trigger drops with the table; no separate cleanup needed.
+
+	md, err := th.Open(src).TableMetadata(th.Context, strings.ToUpper(tbl))
+	require.NoError(t, err)
+
+	require.Len(t, md.Triggers, 1)
+	tr := md.Triggers[0]
+	require.Equal(t, "BEFORE", tr.Timing)
+	// Events must be normalized: "UPDATE OF N" → "UPDATE", not the raw form.
+	require.ElementsMatch(t, []string{"UPDATE", "INSERT"}, tr.Events)
+}
+
 // TestInspectViewInsteadOfTrigger_Oracle verifies that an INSTEAD OF trigger
 // on a view is returned by the per-table inspect path (Grip.TableMetadata),
 // matching the behaviour of source-wide inspect.

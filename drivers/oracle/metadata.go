@@ -842,10 +842,23 @@ FROM user_triggers`
 		}
 
 		// TRIGGERING_EVENT is a space-delimited " OR " list, e.g.
-		// "INSERT OR UPDATE OR DELETE".
+		// "INSERT OR UPDATE OR DELETE". Oracle 23c stores the plain keyword
+		// ("UPDATE") even for column-scoped triggers, but defensively normalize
+		// any "UPDATE OF col1, col2" form to its base keyword by taking only
+		// the leading word. Deduplicate in case normalization produces repeats.
 		var events []string
+		seen := make(map[string]bool)
 		for _, e := range strings.Split(strings.ToUpper(trigEvent), " OR ") {
-			if e = strings.TrimSpace(e); e != "" {
+			e = strings.TrimSpace(e)
+			if e == "" {
+				continue
+			}
+			// Collapse "UPDATE OF col1, col2" → "UPDATE" (take leading keyword).
+			if i := strings.IndexByte(e, ' '); i > 0 {
+				e = e[:i]
+			}
+			if !seen[e] {
+				seen[e] = true
 				events = append(events, e)
 			}
 		}
