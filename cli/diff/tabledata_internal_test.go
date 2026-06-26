@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/record"
 )
 
@@ -415,4 +416,79 @@ func TestRecordDifferExec(t *testing.T) {
 			}
 		})
 	}
+}
+
+// makeAllDiff returns a []bool of length n where every element is false
+// (all record pairs differ). Used to construct an all-differing stream for
+// stop-trailer tests.
+func makeAllDiff(n int) []bool {
+	// Zero value of bool is false, so a plain make is enough.
+	return make([]bool, n)
+}
+
+// runRecordDifferStop is the stop-trailer analogue of runRecordDiffer. It
+// accepts a stopAfter parameter and simulates the production stop signal by
+// cancelling a synthetic dbCtx with errz.ErrStop (mirroring what
+// collateByKey/collatePositional do when the threshold is reached). It drives
+// recordDiffer.execAndSeal, which is the method that owns the trailer logic,
+// so the assertion exercises the real production code path.
+func runRecordDifferStop(t *testing.T, numLines, hunkMaxSize, stopAfter int, equal []bool) (*fakeHunkWriter, string) {
+	t.Helper()
+
+	fake := &fakeHunkWriter{}
+	rd := &recordDiffer{
+		cfg: &Config{
+			Lines:            numLines,
+			HunkMaxSize:      hunkMaxSize,
+			StopAfter:        stopAfter,
+			RecordHunkWriter: fake,
+		},
+		recMetaFn: func() (rm1, rm2 record.Meta) { return nil, nil },
+	}
+
+	doc := diffdoc.NewHunkDoc(
+		diffdoc.Titlef(nil, "test diff"),
+		diffdoc.Headerf(nil, "left", "right"),
+	)
+
+	ch := make(chan record.Pair, len(equal)+1)
+	for i, eq := range equal {
+		if eq {
+			rec := record.Record{fmt.Sprintf("r%d", i)}
+			ch <- record.NewPair(i, rec, rec)
+			continue
+		}
+		ch <- record.NewPair(i, record.Record{fmt.Sprintf("a%d", i)}, record.Record{fmt.Sprintf("b%d", i)})
+	}
+	close(ch)
+
+	// Simulate the stop signal. In production, collateByKey/collatePositional
+	// call dbCancel(errz.ErrStop) when the stop threshold is reached, cancelling
+	// dbCtx (not the outer ctx). We pre-cancel dbCtx here to mimic that. When
+	// stopAfter is 0 no stop is configured and dbCtx is left uncancelled.
+	dbCtx, dbCancel := context.WithCancelCause(context.Background())
+	defer dbCancel(nil)
+	if stopAfter > 0 {
+		dbCancel(errz.ErrStop)
+	}
+
+	rd.execAndSeal(context.Background(), dbCtx, ch, doc)
+
+	out, err := io.ReadAll(doc)
+	require.NoError(t, err)
+
+	return fake, string(out)
+}
+
+// TestStopTrailer_PresentWhenTruncated verifies that execAndSeal appends a
+// "stopped after N differences" trailer when the db context was cancelled with
+// errz.ErrStop, and emits no trailer when StopAfter is 0.
+func TestStopTrailer_PresentWhenTruncated(t *testing.T) {
+	// 10 differing pairs, StopAfter=2 -> stop occurred -> trailer present.
+	_, out := runRecordDifferStop(t, 0, 5000, 2, makeAllDiff(10))
+	require.Contains(t, out, "stopped after")
+
+	// No StopAfter -> no stop -> no trailer.
+	_, out = runRecordDifferStop(t, 0, 5000, 0, makeAllDiff(10))
+	require.NotContains(t, out, "stopped after")
 }

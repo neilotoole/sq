@@ -251,8 +251,6 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	go func() {
 		defer bar.Stop() // Now is as good a time as any to cancel the progress bar.
 
-		// First, we construct a recordDiffer instance. It encapsulates building
-		// the diff from the record pairs in recPairsCh.
 		recDiffer := &recordDiffer{
 			cfg: cfg,
 			td1: td1,
@@ -262,46 +260,10 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 			},
 		}
 
-		// Shortly below, we invoke recordDiffer.exec, which consumes the record
-		// pairs from recPairsCh, and writes the diff to doc. At the end of this
-		// unction, doc.Seal is invoked. There are three possibilities:
-		//
-		//  - Happy path: everything worked, and doc.Seal(nil) is invoked.
-		//  - recordDiffer.exec encountered an error, and doc.Seal(err) is invoked.
-		//  - One of the other goroutines encountered an error, and propagated that
-		//    error via cancelFn(err). Thus, in this goroutine, we must check that
-		//    condition, and invoke doc.Seal() with the cancel cause error.
-
-		var err error
-
-		// OK, finally we get to generating the diff! The generated diff is written
-		// to doc.
-		if err = recDiffer.exec(ctx, recPairsCh, doc); err != nil {
-			// Something bad happened, err is non-nil. Propagate err to the doc, and
-			// get the hell outta here.
-			if !errz.IsErrContext(err) {
-				// No need to generate logs for context errors; the cause will be
-				// logged elsewhere.
-				log.Error("Error generating diff", lga.Err, err)
-			}
-
-			doc.Seal(err)
-			return
-		}
-
-		// We didn't get an error from recordDiffer.exec. Presumably we're on the
-		// happy path, and so the error arg to doc.Seal should be nil.
-		//
-		// BUT... if any of the other goroutines encountered an error, that error
-		// was propagated to ctx via cancelFn, and we would need to pass that error
-		// to doc.Seal.
-		//
-		// But hopefully we're just passing nil to doc.Seal here.
-		err = errz.Err(context.Cause(ctx))
-		if err != nil {
-			log.Error("Record differ: post-execution: error in ctx", lga.Err, err)
-		}
-		doc.Seal(err)
+		// execAndSeal drives exec, appends a stop-trailer if the collation was
+		// cut short, and seals doc. dbCtx carries the stop signal
+		// (dbCancel(errz.ErrStop)) set by collateByKey/collatePositional.
+		recDiffer.execAndSeal(ctx, dbCtx, recPairsCh, doc)
 	}()
 
 	// Now diffTableData returns, while the goroutines do their magic.
@@ -628,6 +590,50 @@ LOOP:
 	}
 
 	return err
+}
+
+// execAndSeal is the body of diffTableData's "main action" goroutine. It
+// drives recordDiffer.exec, then, when the collation was cut short by an
+// explicit stop (dbCtx cancelled with errz.ErrStop), appends a trailer hunk so
+// truncation is never silent. Finally it seals doc. Factoring this out of the
+// goroutine literal lets the test harness call it directly without a real
+// database connection.
+//
+// dbCtx is the child context passed to dbCancel; it carries the stop cause
+// independently of the outer ctx so that a stop does not look like an error.
+func (rd *recordDiffer) execAndSeal(ctx, dbCtx context.Context,
+	recPairsCh <-chan record.Pair, doc *diffdoc.HunkDoc,
+) {
+	log := lg.FromContext(ctx)
+
+	if err := rd.exec(ctx, recPairsCh, doc); err != nil {
+		// Something bad happened; propagate err to the doc and bail.
+		if !errz.IsErrContext(err) {
+			// No need to generate logs for context errors; the cause will be
+			// logged elsewhere.
+			log.Error("Error generating diff", lga.Err, err)
+		}
+		doc.Seal(err)
+		return
+	}
+
+	// If the collation goroutine explicitly stopped early via
+	// dbCancel(errz.ErrStop), write a trailer so the truncation is never silent.
+	if errz.IsContextStop(dbCtx) {
+		if h, hErr := doc.NewHunk(0); hErr == nil {
+			_, _ = h.Write([]byte(fmt.Sprintf("… (stopped after %d differences)\n", rd.cfg.StopAfter)))
+			h.Seal(nil, nil)
+		}
+	}
+
+	// We didn't get an error from exec. Presumably we're on the happy path, and
+	// doc.Seal should be nil. But if another goroutine encountered an error, that
+	// error was propagated to ctx via cancelFn, and we pass it to doc.Seal.
+	err := errz.Err(context.Cause(ctx))
+	if err != nil {
+		log.Error("Record differ: post-execution: error in ctx", lga.Err, err)
+	}
+	doc.Seal(err)
 }
 
 func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
