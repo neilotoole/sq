@@ -2,6 +2,8 @@
 package diff
 
 import (
+	"context"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -56,6 +58,93 @@ func pkColIndexes(recMeta record.Meta, pkColNames []string) (idxs []int, ok bool
 		idxs[i] = found
 	}
 	return idxs, true
+}
+
+// mergeRecordsByKey reads PK-ordered records from left and right and emits
+// record.Pair values in key order. Both channels must deliver records sorted
+// ascending by the PK columns at keyIdxs (the caller guarantees this via an
+// ORDER BY query). A receive of nil from a channel signals that side is
+// exhausted.
+//
+// For each step the lower-keyed record is emitted: equal keys produce a pair of
+// both records (equal/changed decided by record.Equal inside NewPair); a
+// left-only key produces (rec, nil) (removed); a right-only key produces
+// (nil, rec) (added). emit is called once per pair; if it returns false the
+// merge stops and returns nil. row is a monotonic counter used as the pair's
+// nominal row index, matching the positional path's semantics.
+func mergeRecordsByKey(ctx context.Context, left, right <-chan record.Record,
+	keyIdxs []int, emit func(rp record.Pair) bool,
+) error {
+	var (
+		rec1, rec2   record.Record
+		advance1     = true
+		advance2     = true
+		have1, have2 bool
+		row          int
+	)
+
+	recv := func(ch <-chan record.Record) (record.Record, bool, error) {
+		select {
+		case <-ctx.Done():
+			return nil, false, errz.Err(context.Cause(ctx))
+		case r := <-ch:
+			return r, r != nil, nil
+		}
+	}
+
+	for {
+		if ctx.Err() != nil {
+			return errz.Err(context.Cause(ctx))
+		}
+
+		var err error
+		if advance1 {
+			if rec1, have1, err = recv(left); err != nil {
+				return err
+			}
+			advance1 = false
+		}
+		if advance2 {
+			if rec2, have2, err = recv(right); err != nil {
+				return err
+			}
+			advance2 = false
+		}
+
+		var rp record.Pair
+		switch {
+		case !have1 && !have2:
+			return nil // both exhausted
+		case !have2:
+			rp = record.NewPair(row, rec1, nil) // removed
+			advance1 = true
+		case !have1:
+			rp = record.NewPair(row, nil, rec2) // added
+			advance2 = true
+		default:
+			c, cmpErr := compareIntKey(rec1, rec2, keyIdxs)
+			if cmpErr != nil {
+				return cmpErr
+			}
+			switch {
+			case c == 0:
+				rp = record.NewPair(row, rec1, rec2) // same or changed
+				advance1 = true
+				advance2 = true
+			case c < 0:
+				rp = record.NewPair(row, rec1, nil) // removed (left key is lower)
+				advance1 = true
+			default:
+				rp = record.NewPair(row, nil, rec2) // added (right key is lower)
+				advance2 = true
+			}
+		}
+
+		row++
+		if !emit(rp) {
+			return nil
+		}
+	}
 }
 
 // compareIntKey returns -1, 0 or 1 comparing the integer PK tuples of rec1 and

@@ -2,6 +2,8 @@
 package diff
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -98,4 +100,108 @@ func TestCompareIntKey(t *testing.T) {
 	// Non-int keyed value -> error.
 	_, err = compareIntKey(record.Record{"x"}, record.Record{int64(1)}, idxs)
 	require.Error(t, err)
+}
+
+// drainMerge feeds left/right records into mergeRecordsByKey and returns the
+// emitted pairs as compact "k:side" tokens: "added=K" (left nil), "removed=K"
+// (right nil), "same=K" (equal), "chg=K" (both present, differ). Key is the
+// first PK column's int64 value, taken from whichever side is non-nil.
+func drainMerge(t *testing.T, keyIdxs []int, leftRows, rightRows []record.Record) []string {
+	t.Helper()
+	left := make(chan record.Record, len(leftRows)+1)
+	right := make(chan record.Record, len(rightRows)+1)
+	for _, r := range leftRows {
+		left <- r
+	}
+	close(left)
+	for _, r := range rightRows {
+		right <- r
+	}
+	close(right)
+
+	var got []string
+	err := mergeRecordsByKey(context.Background(), left, right, keyIdxs, func(rp record.Pair) bool {
+		var k int64
+		switch {
+		case rp.Rec1() != nil:
+			k = rp.Rec1()[keyIdxs[0]].(int64)
+		default:
+			k = rp.Rec2()[keyIdxs[0]].(int64)
+		}
+		switch {
+		case rp.Rec1() == nil:
+			got = append(got, fmt.Sprintf("added=%d", k))
+		case rp.Rec2() == nil:
+			got = append(got, fmt.Sprintf("removed=%d", k))
+		case rp.Equal():
+			got = append(got, fmt.Sprintf("same=%d", k))
+		default:
+			got = append(got, fmt.Sprintf("chg=%d", k))
+		}
+		return true
+	})
+	require.NoError(t, err)
+	return got
+}
+
+func rowID(id int64, rest ...any) record.Record {
+	return append(record.Record{id}, rest...)
+}
+
+func TestMergeRecordsByKey_ScatteredInserts(t *testing.T) {
+	// Issue #947 minimal shape: right has 3 extra rows (2,5,8) scattered
+	// through the key range. Expect 3 clean "added", everything else "same".
+	left := []record.Record{rowID(1), rowID(3), rowID(4), rowID(6), rowID(7), rowID(9), rowID(10)}
+	right := []record.Record{rowID(1), rowID(2), rowID(3), rowID(4), rowID(5), rowID(6), rowID(7), rowID(8), rowID(9), rowID(10)}
+	got := drainMerge(t, []int{0}, left, right)
+	require.Equal(t, []string{
+		"same=1", "added=2", "same=3", "same=4", "added=5",
+		"same=6", "same=7", "added=8", "same=9", "same=10",
+	}, got)
+}
+
+func TestMergeRecordsByKey_Removed(t *testing.T) {
+	left := []record.Record{rowID(1), rowID(2), rowID(3)}
+	right := []record.Record{rowID(2)}
+	got := drainMerge(t, []int{0}, left, right)
+	require.Equal(t, []string{"removed=1", "same=2", "removed=3"}, got)
+}
+
+func TestMergeRecordsByKey_Changed(t *testing.T) {
+	// Same key, differing non-key column -> "chg", not removed+added.
+	left := []record.Record{rowID(1, "a"), rowID(2, "b")}
+	right := []record.Record{rowID(1, "a"), rowID(2, "B")}
+	got := drainMerge(t, []int{0}, left, right)
+	require.Equal(t, []string{"same=1", "chg=2"}, got)
+}
+
+func TestMergeRecordsByKey_OneSideEmpty(t *testing.T) {
+	got := drainMerge(t, []int{0}, nil, []record.Record{rowID(1), rowID(2)})
+	require.Equal(t, []string{"added=1", "added=2"}, got)
+
+	got = drainMerge(t, []int{0}, []record.Record{rowID(1), rowID(2)}, nil)
+	require.Equal(t, []string{"removed=1", "removed=2"}, got)
+}
+
+func TestMergeRecordsByKey_EmitStop(t *testing.T) {
+	left := []record.Record{rowID(1), rowID(2), rowID(3)}
+	right := []record.Record{rowID(1), rowID(2), rowID(3)}
+	left2 := make(chan record.Record, 4)
+	right2 := make(chan record.Record, 4)
+	for _, r := range left {
+		left2 <- r
+	}
+	close(left2)
+	for _, r := range right {
+		right2 <- r
+	}
+	close(right2)
+
+	var n int
+	err := mergeRecordsByKey(context.Background(), left2, right2, []int{0}, func(record.Pair) bool {
+		n++
+		return n < 2 // stop after emitting 2 pairs
+	})
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
 }
