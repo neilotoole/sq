@@ -492,3 +492,66 @@ func TestStopTrailer_PresentWhenTruncated(t *testing.T) {
 	_, out = runRecordDifferStop(t, 0, 5000, 0, makeAllDiff(10))
 	require.NotContains(t, out, "stopped after")
 }
+
+// runRecordDifferWithPK is like runRecordDifferStop but lets the caller
+// supply pkColNames to test the positional-fallback note path. A nil
+// pkColNames simulates a table with no usable integer primary key.
+func runRecordDifferWithPK(t *testing.T, pkColNames []string,
+	numLines, hunkMaxSize int, equal []bool,
+) (*fakeHunkWriter, string) {
+	t.Helper()
+
+	fake := &fakeHunkWriter{}
+	rd := &recordDiffer{
+		cfg: &Config{
+			Lines:            numLines,
+			HunkMaxSize:      hunkMaxSize,
+			RecordHunkWriter: fake,
+		},
+		pkColNames: pkColNames,
+		recMetaFn:  func() (rm1, rm2 record.Meta) { return nil, nil },
+	}
+
+	doc := diffdoc.NewHunkDoc(
+		diffdoc.Titlef(nil, "test diff"),
+		diffdoc.Headerf(nil, "left", "right"),
+	)
+
+	ch := make(chan record.Pair, len(equal)+1)
+	for i, eq := range equal {
+		if eq {
+			rec := record.Record{fmt.Sprintf("r%d", i)}
+			ch <- record.NewPair(i, rec, rec)
+			continue
+		}
+		ch <- record.NewPair(i, record.Record{fmt.Sprintf("a%d", i)}, record.Record{fmt.Sprintf("b%d", i)})
+	}
+	close(ch)
+
+	dbCtx := context.Background()
+	rd.execAndSeal(context.Background(), dbCtx, ch, doc)
+
+	out, err := io.ReadAll(doc)
+	require.NoError(t, err)
+	return fake, string(out)
+}
+
+// TestPositionalFallbackNote verifies that execAndSeal appends the no-PK note
+// exactly when pkColNames is nil AND the tables actually differ.
+func TestPositionalFallbackNote(t *testing.T) {
+	const noteText = "no primary key"
+	const notePosition = "by position"
+
+	// No PK, tables differ: note must be present.
+	_, out := runRecordDifferWithPK(t, nil, 1, 5000, makeAllDiff(3))
+	require.Contains(t, out, noteText, "note must appear when no PK and tables differ")
+	require.Contains(t, out, notePosition, "note must mention positional alignment")
+
+	// No PK, tables identical: no hunks -> note must NOT be present.
+	_, out = runRecordDifferWithPK(t, nil, 1, 5000, []bool{true, true, true})
+	require.NotContains(t, out, noteText, "note must not appear when tables are identical")
+
+	// Has eligible PK, tables differ: note must NOT be present.
+	_, out = runRecordDifferWithPK(t, []string{"id"}, 1, 5000, makeAllDiff(3))
+	require.NotContains(t, out, noteText, "note must not appear when an eligible PK exists")
+}

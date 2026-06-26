@@ -252,9 +252,10 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 		defer bar.Stop() // Now is as good a time as any to cancel the progress bar.
 
 		recDiffer := &recordDiffer{
-			cfg: cfg,
-			td1: td1,
-			td2: td2,
+			cfg:        cfg,
+			td1:        td1,
+			td2:        td2,
+			pkColNames: pkColNames,
 			recMetaFn: func() (meta1, meta2 record.Meta) {
 				return rs1.recMeta, rs2.recMeta
 			},
@@ -397,6 +398,16 @@ type recordDiffer struct {
 	// isn't guaranteed to be available at the time of recordDiffer construction).
 	recMetaFn func() (rm1, rm2 record.Meta)
 	td1, td2  source.Table
+
+	// pkColNames holds the primary-key column names used for key-aware row
+	// merging, as determined by pkMergeKey. A nil value means the diff fell back
+	// to positional (ordinal) alignment because no usable integer PK was found.
+	pkColNames []string
+
+	// hadDiffs is set to true by exec the first time a differing hunk is
+	// created. execAndSeal uses it to decide whether to emit the positional
+	// fallback note.
+	hadDiffs bool
 }
 
 // exec compares the record pairs from recPairsCh, writing the diff results to
@@ -467,6 +478,7 @@ LOOP:
 			break
 		}
 		pendingHunk = hunk
+		rd.hadDiffs = true
 
 		// Now we need to get the after-the-difference record pairs. We look for a
 		// sequence of non-differing (matching) record pairs, appending each
@@ -622,6 +634,15 @@ func (rd *recordDiffer) execAndSeal(ctx, dbCtx context.Context,
 	if errz.IsContextStop(dbCtx) {
 		if h, hErr := doc.NewHunk(0); hErr == nil {
 			_, _ = h.Write([]byte(fmt.Sprintf("… (stopped after %d differences)\n", rd.cfg.StopAfter)))
+			h.Seal(nil, nil)
+		}
+	}
+
+	// If there were differences and no usable primary key was found, note that
+	// rows were aligned by position (inserts/deletes may cascade in the output).
+	if rd.pkColNames == nil && rd.hadDiffs {
+		if h, hErr := doc.NewHunk(0); hErr == nil {
+			_, _ = h.Write([]byte("… (no primary key; rows aligned by position — inserts/deletes may cascade)\n"))
 			h.Seal(nil, nil)
 		}
 	}
