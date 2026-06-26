@@ -605,9 +605,9 @@ func TestGrip_SourceMetadata_OracleViewsAndCounts(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, md)
 
-	// The SAKILA Oracle image omits actor_info and nicer_but_slower_film_list
-	// (they rely on MySQL GROUP_CONCAT); see sakiladb/oracle schema notes.
-	require.Equal(t, int64(5), md.ViewCount)
+	// The SAKILA Oracle image now carries all 7 views: actor_info and
+	// nicer_but_slower_film_list are ported via LISTAGG. See sakiladb/oracle schema notes.
+	require.Equal(t, int64(7), md.ViewCount)
 
 	// Oracle stores unquoted identifiers as upper, so look up by uppercase.
 	view := md.Table(strings.ToUpper(sakila.ViewFilmList))
@@ -697,13 +697,13 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 		wantViews  int
 	}{
 		{handle: sakila.Pg12, schema: "public", wantTables: 16, wantViews: 7},
-		{handle: sakila.MS19, schema: "dbo", wantTables: 16, wantViews: 5},
-		{handle: sakila.SL3, schema: "main", wantTables: 16, wantViews: 5},
+		{handle: sakila.MS19, schema: "dbo", wantTables: 16, wantViews: 7},
+		{handle: sakila.SL3, schema: "main", wantTables: 16, wantViews: 7},
 		{handle: sakila.My8, schema: "sakila", wantTables: 16, wantViews: 7},
 		// Oracle schemas are users; schema lookup is owner-scoped and case-insensitive.
-		// The SAKILA Oracle image omits the film_text table and the actor_info /
-		// nicer_but_slower_film_list views; see sakiladb/oracle schema notes.
-		{handle: sakila.Ora, schema: "SAKILA", wantTables: 15, wantViews: 5},
+		// The SAKILA Oracle image is now at the full 16 tables + 7 views (film_text
+		// included as a plain table); see sakiladb/oracle schema notes.
+		{handle: sakila.Ora, schema: "SAKILA", wantTables: 16, wantViews: 7},
 	}
 
 	for _, tc := range testCases {
