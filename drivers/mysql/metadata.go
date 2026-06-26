@@ -575,7 +575,7 @@ func getColumnMetadata(ctx context.Context, db sqlz.DB, tblName string) ([]*meta
 	// On MySQL < 5.7.6, querying it produces ER_BAD_FIELD_ERROR (1054). In that
 	// case we fall back to queryLegacy which omits the column; generated columns
 	// did not exist before 5.7.6, so leaving Column.Generated/GeneratedExpr empty
-	// is correct. collation_name has been present since MySQL 4.x — no guard needed.
+	// is correct. collation_name has been present since MySQL 4.x; no guard needed.
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
        is_nullable, column_key, column_comment, extra,
        COALESCE(generation_expression, '') AS generation_expression,
@@ -853,7 +853,7 @@ func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*metadata.Table, error) 
 	// On MySQL < 5.7.6, querying it produces ER_BAD_FIELD_ERROR (1054). In that
 	// case we fall back to queryLegacy which omits the column; generated columns
 	// did not exist before 5.7.6, so leaving Column.Generated/GeneratedExpr empty
-	// is correct. COLLATION_NAME has been present since MySQL 4.x — no guard needed.
+	// is correct. COLLATION_NAME has been present since MySQL 4.x; no guard needed.
 	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
        (DATA_LENGTH + INDEX_LENGTH) AS table_size,
        c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE,

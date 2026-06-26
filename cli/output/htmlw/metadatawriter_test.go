@@ -255,7 +255,7 @@ func TestMetadataWriter_embed(t *testing.T) {
 // TestMetadataWriter_InspectEnrichment verifies that the HTML writer renders
 // the new inspect metadata: Auto/GeneratedExpr/Collation columns in the
 // column table, check-constraint section, trigger section, and view-definition
-// block — each conditional on data presence.
+// block, each conditional on data presence.
 func TestMetadataWriter_InspectEnrichment(t *testing.T) {
 	enabled := true
 

@@ -946,7 +946,7 @@ func applyTableDDLMetadata(ctx context.Context, ddl string, tblMeta *metadata.Ta
 // getTableTriggers returns the triggers attached to tblName, reading them
 // from sqlite_master (type='trigger') and parsing each trigger's DDL for
 // its timing and firing events. A parse failure keeps the raw Definition
-// and leaves the structured fields empty. Trigger.Enabled stays nil —
+// and leaves the structured fields empty. Trigger.Enabled stays nil;
 // SQLite has no enabled/disabled concept.
 func getTableTriggers(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Trigger, error) {
 	log := lg.FromContext(ctx)

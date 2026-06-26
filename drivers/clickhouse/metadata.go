@@ -569,7 +569,7 @@ var reCHViewAs = regexp.MustCompile(`(?i) AS `)
 // on strings.ToUpper(ddl), because strings.ToUpper can change the byte length
 // of non-ASCII runes (e.g. the Unicode fi-ligature ﬁ expands from 3 bytes to
 // 2-byte "FI"), making an index from the uppercased copy invalid when applied
-// to the original — a source of corrupted output or an out-of-range slice panic.
+// to the original, a source of corrupted output or an out-of-range slice panic.
 func extractViewSelectFromCHDDL(ddl string) string {
 	// Prefer the specific " AS SELECT " pattern to avoid false splits on an
 	// earlier " AS " (e.g. a column alias or a TO clause).

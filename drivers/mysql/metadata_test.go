@@ -204,7 +204,7 @@ func TestForeignKey_CompositeOrdering_MySQL(t *testing.T) {
 }
 
 // TestMySQL_ColumnFlags verifies that AUTO_INCREMENT, GENERATED, GeneratedExpr,
-// and Collation are populated on MySQL column metadata — both through the
+// and Collation are populated on MySQL column metadata, both through the
 // per-table path (TableMetadata) and the source-wide path (SourceMetadata).
 func TestMySQL_ColumnFlags(t *testing.T) {
 	tu.SkipShort(t, true)
@@ -245,7 +245,7 @@ func TestMySQL_ColumnFlags(t *testing.T) {
 	require.Equal(t, "utf8mb4_bin", colGen.Collation)
 
 	// Negative case: ts has DEFAULT CURRENT_TIMESTAMP, which MySQL reports as
-	// EXTRA="DEFAULT_GENERATED..." — the substring "GENERATED" must NOT cause
+	// EXTRA="DEFAULT_GENERATED..."; the substring "GENERATED" must NOT cause
 	// Generated=true when GENERATION_EXPRESSION is empty.
 	colTS := md.Columns[3]
 	require.False(t, colTS.Generated, "ts has an expression default, not a generated column")

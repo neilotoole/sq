@@ -396,8 +396,8 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 		return tblMeta, nil
 	}
 
-	// For views: fetch the definition and any INSTEAD OF triggers, then return
-	// — no FKs, UCs, indexes, or check constraints apply.
+	// For views: fetch the definition and any INSTEAD OF triggers, then return.
+	// No FKs, UCs, indexes, or check constraints apply.
 	if tblMeta.TableType == sqlz.TableTypeView {
 		defs, vErr := getMSSQLViewDefinitions(ctx, db, tblSchema, tblName)
 		if vErr != nil {

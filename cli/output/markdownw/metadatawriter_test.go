@@ -379,7 +379,7 @@ func TestMetadataWriter_empty(t *testing.T) {
 // TestMetadataWriter_InspectEnrichment verifies that the new inspect-metadata
 // fields (Identity/AutoIncrement/Generated, GeneratedExpr, Collation,
 // CheckConstraints, Triggers, ViewDefinition) render correctly. No DB is
-// required — the fixture is hand-constructed.
+// required: the fixture is hand-constructed.
 func TestMetadataWriter_InspectEnrichment(t *testing.T) {
 	enabled := true
 

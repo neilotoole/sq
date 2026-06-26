@@ -1155,7 +1155,7 @@ func parseDuckDBGeneratedColumnNames(ddl string) map[string]bool {
 		switch {
 		case inSingle:
 			if c == '\'' {
-				// SQL escaped quote '' — skip the second quote.
+				// SQL escaped quote '': skip the second quote.
 				if i+1 < len(ddl) && ddl[i+1] == '\'' {
 					i++
 				} else {

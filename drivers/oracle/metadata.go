@@ -902,7 +902,7 @@ func getOracleViewDefinition(ctx context.Context, db *sql.DB, viewName string) (
 //     so that the standalone [metadata.Table] carries its INSTEAD OF triggers.
 //   - Pass false for the source-wide path (loadUserSchemaObjectsMetadata) where
 //     a bulk getOracleTriggers("") + AssignTriggers runs after this function
-//     returns and would overwrite any per-view result — fetching triggers here
+//     returns and would overwrite any per-view result; fetching triggers here
 //     would be an unnecessary N extra round-trips.
 func getViewMetadata(ctx context.Context, db *sql.DB, viewName string, loadTriggers bool) (*metadata.Table, error) {
 	const q = `SELECT v.view_name, tc.comments

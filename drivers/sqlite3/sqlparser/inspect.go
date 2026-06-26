@@ -11,8 +11,8 @@ import (
 
 // This file implements DDL extraction used by the sqlite3 (and rqlite)
 // driver's inspect metadata path. SQLite has no catalog views for CHECK
-// constraints or triggers — the structured detail lives only in the
-// CREATE DDL text stored in sqlite_master.sql — so these functions parse
+// constraints or triggers: the structured detail lives only in the
+// CREATE DDL text stored in sqlite_master.sql, so these functions parse
 // that DDL with the vendored ANTLR grammar.
 
 // CheckClause is a single CHECK constraint extracted from a CREATE TABLE

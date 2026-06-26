@@ -966,7 +966,7 @@ WHERE name = ? AND type IN ('table','view') LIMIT 1`
 // applyTableDDLMetadata parses a table's CREATE DDL to populate the
 // metadata SQLite exposes nowhere else: CHECK constraints, the
 // AUTOINCREMENT column flag, and generated-column expressions. Parse
-// failures are logged at debug level and swallowed — the column and
+// failures are logged at debug level and swallowed; the column and
 // constraint metadata already gathered via pragmas stays intact, and
 // inspect never fails on un-parseable DDL.
 func applyTableDDLMetadata(ctx context.Context, ddl string, tblMeta *metadata.Table) {
@@ -1014,7 +1014,7 @@ func applyTableDDLMetadata(ctx context.Context, ddl string, tblMeta *metadata.Ta
 // for its timing (BEFORE/AFTER/INSTEAD OF) and firing events
 // (INSERT/UPDATE/DELETE); a parse failure keeps the raw Definition and
 // leaves the structured fields empty rather than failing inspect.
-// Trigger.Enabled stays nil — SQLite has no enabled/disabled concept.
+// Trigger.Enabled stays nil; SQLite has no enabled/disabled concept.
 func getTableTriggers(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Trigger, error) {
 	log := lg.FromContext(ctx)
 	const q = `SELECT name, COALESCE(sql, '') FROM sqlite_master

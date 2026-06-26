@@ -537,8 +537,8 @@ WHERE EXISTS (
 
 	// Step B: name is confirmed a matview. The size/comment/viewdef
 	// functions take name as a bound $1::regclass parameter. Only the
-	// COUNT(*) FROM identifier must be interpolated — a relation name
-	// cannot be a bind parameter in a FROM clause — and it's safe here
+	// COUNT(*) FROM identifier must be interpolated: a relation name
+	// cannot be a bind parameter in a FROM clause, and it's safe here
 	// because Step A confirmed name is a real matview in this schema.
 	const detailQueryTpl = `SELECT
   (SELECT COUNT(*) FROM "%s") AS row_count,
