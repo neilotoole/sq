@@ -1457,15 +1457,24 @@ func TestAssignUniqueConstraints(t *testing.T) {
 }
 
 func TestAssignCheckConstraints(t *testing.T) {
+	var buf bytes.Buffer
+	log := newJSONLog(&buf, slog.LevelWarn)
 	tbls := []*metadata.Table{{Name: "widget"}, {Name: "gadget"}}
 	checks := []*metadata.CheckConstraint{
 		{Name: "widget_price_pos", Table: "widget", Clause: "price > 0"},
 		{Name: "orphan", Table: "ghost", Clause: "1=1"},
 	}
-	metadata.AssignCheckConstraints(nil, tbls, checks)
+	metadata.AssignCheckConstraints(log, tbls, checks)
 	require.Len(t, tbls[0].CheckConstraints, 1)
 	require.Equal(t, "widget_price_pos", tbls[0].CheckConstraints[0].Name)
 	require.Empty(t, tbls[1].CheckConstraints)
+
+	entries := parseEntries(t, &buf)
+	require.Len(t, entries, 1)
+	require.Equal(t, "WARN", entries[0]["level"])
+	require.Equal(t, "ghost", entries[0]["table"])
+	require.Equal(t, "check constraint", entries[0]["kind"],
+		"the warn must label the kind so operators can grep for check-constraint drops specifically")
 }
 
 func TestAssignIndexes(t *testing.T) {
