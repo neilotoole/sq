@@ -314,6 +314,12 @@ current_setting('server_version'), version(), "current_user"()`
 	}
 	metadata.AssignCheckConstraints(log, md.Tables, allChecks)
 
+	allTriggers, err := getPgTriggers(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignTriggers(log, md.Tables, allTriggers)
+
 	allIdxs, err := getPgIndexes(ctx, db, "")
 	if err != nil {
 		return nil, err
@@ -509,6 +515,11 @@ func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Tabl
 	}
 
 	tblMeta.CheckConstraints, err = getPgCheckConstraints(ctx, db, tblMeta.Name)
+	if err != nil {
+		return err
+	}
+
+	tblMeta.Triggers, err = getPgTriggers(ctx, db, tblMeta.Name)
 	if err != nil {
 		return err
 	}
@@ -917,6 +928,94 @@ WHERE con.contype = 'c' AND n.nspname = current_schema()`
 		checks = append(checks, cc)
 	}
 	return checks, errw(rows.Err())
+}
+
+// getPgTriggers returns the triggers declared on tables (and views) in the
+// current schema. If tblName is empty, triggers for every relation in the
+// current schema are returned; otherwise only triggers on tblName are returned.
+// Internal triggers (constraint-enforcement triggers created by Postgres itself)
+// are excluded via NOT t.tgisinternal.
+//
+// Note: INSTEAD OF triggers can only be defined on views. The source-wide
+// path (tblName == "") captures them correctly because the query is not
+// table-type-filtered and AssignTriggers assigns to every entry in md.Tables
+// (including views). However, the per-table path in populateTableExtras
+// short-circuits for non-table types before calling getPgTriggers, so a
+// single-table inspect of a view will miss its INSTEAD OF triggers. This is
+// a known Phase-1 gap; the common case (full-source inspect) is correct.
+func getPgTriggers(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Trigger, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT c.relname AS table_name, t.tgname,
+  CASE WHEN (t.tgtype & 2)<>0 THEN 'BEFORE'
+       WHEN (t.tgtype & 64)<>0 THEN 'INSTEAD OF' ELSE 'AFTER' END AS timing,
+  (t.tgtype & 4)<>0  AS on_insert,
+  (t.tgtype & 8)<>0  AS on_delete,
+  (t.tgtype & 16)<>0 AS on_update,
+  t.tgenabled <> 'D' AS enabled,
+  pg_get_triggerdef(t.oid, TRUE) AS definition
+FROM pg_trigger t
+JOIN pg_class c ON c.oid = t.tgrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE NOT t.tgisinternal AND n.nspname = current_schema()`
+
+	var args []any
+	if tblName != "" {
+		query += ` AND c.relname = $1`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY c.relname, t.tgname`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var triggers []*metadata.Trigger
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			tblNameVal string
+			trigName   string
+			timing     string
+			onInsert   bool
+			onDelete   bool
+			onUpdate   bool
+			enabled    bool
+			definition string
+		)
+		if err = rows.Scan(&tblNameVal, &trigName, &timing,
+			&onInsert, &onDelete, &onUpdate, &enabled, &definition); err != nil {
+			return nil, errw(err)
+		}
+
+		var events []string
+		if onInsert {
+			events = append(events, "INSERT")
+		}
+		if onUpdate {
+			events = append(events, "UPDATE")
+		}
+		if onDelete {
+			events = append(events, "DELETE")
+		}
+
+		// Allocate a fresh bool inside the loop so each Trigger.Enabled
+		// points to its own value and not a shared loop variable.
+		enabledVal := enabled
+		triggers = append(triggers, &metadata.Trigger{
+			Name:       trigName,
+			Table:      tblNameVal,
+			Timing:     timing,
+			Events:     events,
+			Enabled:    &enabledVal,
+			Definition: definition,
+		})
+	}
+	return triggers, errw(rows.Err())
 }
 
 // pgIndexHasIndnkeyatts reports whether pg_index has the indnkeyatts

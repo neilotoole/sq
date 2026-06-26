@@ -263,3 +263,53 @@ func TestPostgres_ColumnFlags(t *testing.T) {
 	require.NotNil(t, countryCol)
 	require.Equal(t, "C", countryCol.Collation, "country: Collation should be 'C'")
 }
+
+// TestPostgres_Triggers verifies that trigger metadata is populated from the
+// Postgres catalog via pg_trigger.
+func TestPostgres_Triggers(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("trig_widget")
+	fnName := tbl + "_fn"
+	trigName := tbl + "_audit"
+
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tbl+` (id INT)`)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		th.DropTable(src, tablefq.From(tbl))
+		_, _ = db.ExecContext(th.Context, `DROP FUNCTION IF EXISTS `+fnName+`()`)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE FUNCTION `+fnName+`() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$`)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE TRIGGER `+trigName+` AFTER INSERT OR UPDATE ON `+tbl+
+			` FOR EACH ROW EXECUTE FUNCTION `+fnName+`()`)
+	require.NoError(t, err)
+
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.Triggers, "Triggers should not be empty")
+
+	var found *metadata.Trigger
+	for _, tr := range md.Triggers {
+		if tr.Name == trigName {
+			found = tr
+			break
+		}
+	}
+	require.NotNil(t, found, "trigger %q not found in Triggers", trigName)
+	require.Equal(t, "AFTER", found.Timing)
+	require.Contains(t, found.Events, "INSERT")
+	require.Contains(t, found.Events, "UPDATE")
+	require.NotNil(t, found.Enabled)
+	require.True(t, *found.Enabled)
+	require.Contains(t, found.Definition, "CREATE TRIGGER")
+}
