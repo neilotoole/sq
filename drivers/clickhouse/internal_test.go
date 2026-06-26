@@ -92,6 +92,29 @@ func TestExtractClickHouseCheckConstraints(t *testing.T) {
 			tblName: "t",
 			wantLen: 0,
 		},
+		{
+			// A closing paren inside a string literal must not close the CHECK
+			// expression. Without string-literal awareness, balancedParenContents
+			// exits at the ')' inside ')', truncating the clause to "name != '".
+			name:    "paren inside single-quoted string literal",
+			ddl:     "CREATE TABLE t (`id` Int64, `name` String, CONSTRAINT chk_name CHECK (name != ')')) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []struct{ name, clause string }{
+				{"chk_name", "name != ')'"},
+			},
+		},
+		{
+			// Escaped quote (SQL-standard '' pair) inside a string that also
+			// contains a closing paren must not prematurely end the expression.
+			name:    "escaped quote and paren inside string literal",
+			ddl:     "CREATE TABLE t (`id` Int64, CONSTRAINT chk_id CHECK (id != 0)) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []struct{ name, clause string }{
+				{"chk_id", "id != 0"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -103,6 +126,62 @@ func TestExtractClickHouseCheckConstraints(t *testing.T) {
 				require.Equal(t, want.name, got[i].Name)
 				require.Equal(t, want.clause, got[i].Clause)
 			}
+		})
+	}
+}
+
+// TestExtractViewSelectFromCHDDL tests the pure-function DDL parser used to
+// extract the SELECT text from a CREATE [MATERIALIZED] VIEW DDL string.
+func TestExtractViewSelectFromCHDDL(t *testing.T) {
+	testCases := []struct {
+		name string
+		ddl  string
+		want string
+	}{
+		{
+			// Standard view DDL: the common case.
+			name: "standard view",
+			ddl:  "CREATE VIEW sakila.actor_info AS SELECT id, name FROM actor",
+			want: "SELECT id, name FROM actor",
+		},
+		{
+			// Materialized view with TO target: " AS " appears once, before SELECT.
+			name: "materialized view with TO target",
+			ddl:  "CREATE MATERIALIZED VIEW sakila.mv TO sakila.mv_target AS SELECT id FROM actor",
+			want: "SELECT id FROM actor",
+		},
+		{
+			// " AS SELECT " match is preferred when the DDL has an earlier " AS "
+			// (e.g. a column alias in the header), avoiding a false split.
+			name: "AS SELECT preferred over earlier AS",
+			ddl:  "CREATE VIEW db.v AS SELECT id AS alias_id FROM t",
+			want: "SELECT id AS alias_id FROM t",
+		},
+		{
+			// No " AS " in the DDL: must return "" rather than the raw DDL blob.
+			// The old code returned the full string unchanged, which is wrong.
+			name: "no AS returns empty string",
+			ddl:  "CREATE TABLE t (id Int64) ENGINE = MergeTree ORDER BY id",
+			want: "",
+		},
+		{
+			// Empty input.
+			name: "empty DDL",
+			ddl:  "",
+			want: "",
+		},
+		{
+			// Lowercase keywords: case-insensitive matching.
+			name: "lowercase as select",
+			ddl:  "create view db.v as select id from t",
+			want: "select id from t",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := extractViewSelectFromCHDDL(tc.ddl)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

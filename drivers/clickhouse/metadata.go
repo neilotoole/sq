@@ -453,13 +453,45 @@ func extractClickHouseCheckConstraints(ddl, tblName string) []*metadata.CheckCon
 // start and its matching closing paren, exclusive of both parens. Returns an
 // empty string if start is out of range, ddl[start] != '(', or the parens are
 // unbalanced.
+//
+// The scanner is string-literal-aware: parentheses inside single-quoted strings
+// and backtick-quoted identifiers are not counted toward the depth. Both
+// SQL-standard doubled-quote escapes and backslash-escaped quotes are handled
+// inside single-quoted strings.
 func balancedParenContents(ddl string, start int) string {
 	if start < 0 || start >= len(ddl) || ddl[start] != '(' {
 		return ""
 	}
 	depth := 0
+	inSingleQuote := false
+	inBacktick := false
 	for i := start; i < len(ddl); i++ {
-		switch ddl[i] {
+		ch := ddl[i]
+		if inSingleQuote {
+			switch ch {
+			case '\\':
+				i++ // skip backslash-escaped char (e.g. \')
+			case '\'':
+				// SQL-standard '' escape: two consecutive quotes stay inside string.
+				if i+1 < len(ddl) && ddl[i+1] == '\'' {
+					i++ // skip second quote; remain inside string
+				} else {
+					inSingleQuote = false
+				}
+			}
+			continue
+		}
+		if inBacktick {
+			if ch == '`' {
+				inBacktick = false
+			}
+			continue
+		}
+		switch ch {
+		case '\'':
+			inSingleQuote = true
+		case '`':
+			inBacktick = true
 		case '(':
 			depth++
 		case ')':
@@ -512,15 +544,28 @@ func getClickHouseViewDefinitions(ctx context.Context, db sqlz.DB, dbName, tblNa
 }
 
 // extractViewSelectFromCHDDL extracts the SELECT portion from a ClickHouse
-// CREATE [MATERIALIZED] VIEW DDL string. ClickHouse stores the full DDL as
-// "CREATE VIEW db.name (...) AS SELECT ...". This function returns everything
-// after the first " AS " separator, trimmed. If " AS " is not found, the full
-// DDL string is returned unchanged as a best-effort fallback.
+// CREATE [MATERIALIZED] VIEW DDL string. ClickHouse stores the full DDL in
+// create_table_query as "CREATE [MATERIALIZED] VIEW db.name AS SELECT ...".
+//
+// The function first searches for the more-specific " AS SELECT " marker
+// (case-insensitive) to avoid splitting on an " AS " that appears before the
+// defining SELECT (e.g. a column alias or TO clause). It falls back to the
+// first case-insensitive " AS " if " AS SELECT " is not found.
+//
+// Returns "" if neither pattern is present; returning the raw DDL blob when
+// no SELECT is found is unhelpful and incorrect.
 func extractViewSelectFromCHDDL(ddl string) string {
-	if idx := strings.Index(ddl, " AS "); idx != -1 {
+	upper := strings.ToUpper(ddl)
+	// Prefer the specific " AS SELECT " pattern to avoid false splits.
+	if idx := strings.Index(upper, " AS SELECT "); idx != -1 {
 		return strings.TrimSpace(ddl[idx+4:])
 	}
-	return ddl
+	// Fallback: first " AS " (handles unusual formatting or non-SELECT views).
+	if idx := strings.Index(upper, " AS "); idx != -1 {
+		return strings.TrimSpace(ddl[idx+4:])
+	}
+	// No recognizable AS separator: do not return the raw DDL blob.
+	return ""
 }
 
 // Type prefix lengths for ClickHouse wrapper types.
