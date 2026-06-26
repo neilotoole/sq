@@ -386,7 +386,13 @@ func TestMySQL_ViewDefinition(t *testing.T) {
 	_, err = db.ExecContext(th.Context,
 		`CREATE VIEW `+view+` AS SELECT id, label FROM `+tbl+` WHERE id > 0`)
 	require.NoError(t, err)
-	t.Cleanup(func() { th.DropTable(src, tablefq.From(view)) })
+	// Use DROP VIEW (not th.DropTable, which issues DROP TABLE and does
+	// NOT drop a MySQL view). Registered after the base-table cleanup so
+	// LIFO ordering drops the view first, leaving no dangling view that
+	// would break a concurrent SourceMetadata's getTableRowCounts.
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, "DROP VIEW IF EXISTS "+view)
+	})
 
 	// Per-table path.
 	md, err := th.Open(src).TableMetadata(th.Context, view)
