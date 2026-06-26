@@ -550,9 +550,6 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 		return tblMeta, nil
 	}
 
-	if err = applyColumnGeneratedFlags(ctx, db, tblMeta); err != nil {
-		return nil, err
-	}
 	applyTableDDLMetadata(ctx, ddl, tblMeta)
 
 	outgoing, fkErr := getTableForeignKeys(ctx, db, tblName)
@@ -746,9 +743,6 @@ ORDER BY m.name, p.cid
 			continue
 		}
 
-		if ddlErr = applyColumnGeneratedFlags(ctx, db, tblMeta); ddlErr != nil {
-			return nil, ddlErr
-		}
 		applyTableDDLMetadata(ctx, ddl, tblMeta)
 	}
 
@@ -905,44 +899,6 @@ WHERE name = ? AND type IN ('table','view') LIMIT 1`
 		return "", errw(err)
 	}
 	return ddl, nil
-}
-
-// applyColumnGeneratedFlags sets Column.Generated for every column of
-// tblMeta that pragma_table_xinfo reports as a generated column (its
-// hidden field is 2 for VIRTUAL, 3 for STORED). The expression text
-// comes separately from the DDL.
-func applyColumnGeneratedFlags(ctx context.Context, db sqlz.DB, tblMeta *metadata.Table) error {
-	log := lg.FromContext(ctx)
-	const q = `SELECT name, hidden FROM pragma_table_xinfo(?)`
-	rows, err := db.QueryContext(ctx, q, tblMeta.Name)
-	if err != nil {
-		return errw(err)
-	}
-	defer sqlz.CloseRows(log, rows)
-
-	generated := make(map[string]bool)
-	for rows.Next() {
-		var (
-			name   string
-			hidden int64
-		)
-		if err = rows.Scan(&name, &hidden); err != nil {
-			return errw(err)
-		}
-		if hidden == 2 || hidden == 3 {
-			generated[name] = true
-		}
-	}
-	if err = rows.Err(); err != nil {
-		return errw(err)
-	}
-
-	for _, col := range tblMeta.Columns {
-		if generated[col.Name] {
-			col.Generated = true
-		}
-	}
-	return nil
 }
 
 // applyTableDDLMetadata parses a table's CREATE DDL to populate the

@@ -138,6 +138,17 @@ func TestExtractColumnDDLInfo(t *testing.T) {
 		require.Equal(t, "a + 1", got["b"].GeneratedExpr)
 	})
 
+	t.Run("pk_no_autoincrement", func(t *testing.T) {
+		// A bare INTEGER PRIMARY KEY is a rowid alias, NOT an explicit
+		// AUTOINCREMENT column; it must not be flagged AutoIncrement.
+		got, err := sqlparser.ExtractColumnDDLInfo(
+			`CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)`)
+		require.NoError(t, err)
+		require.False(t, got["id"].AutoIncrement, "bare INTEGER PRIMARY KEY is not AUTOINCREMENT")
+		_, hasID := got["id"]
+		require.False(t, hasID, "a column with no DDL-only attributes is omitted from the map")
+	})
+
 	t.Run("none", func(t *testing.T) {
 		got, err := sqlparser.ExtractColumnDDLInfo(`CREATE TABLE t (a INTEGER, b TEXT)`)
 		require.NoError(t, err)
