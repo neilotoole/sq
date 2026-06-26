@@ -67,7 +67,7 @@ func TestSakila_query(t *testing.T) {
 			wantKinds: sakila.TblActorColKinds(),
 			wantRec0: record.Record{
 				int64(1), "PENELOPE", "GUINESS",
-				time.Date(2020, time.February, 15, 6, 59, 28, 0, time.UTC),
+				time.Date(2006, time.February, 15, 4, 34, 33, 0, time.UTC),
 			},
 		},
 		{
@@ -77,7 +77,7 @@ func TestSakila_query(t *testing.T) {
 			wantKinds: sakila.TblFilmActorColKinds(),
 			wantRec0: record.Record{
 				int64(1), int64(1),
-				time.Date(2020, time.February, 15, 6, 59, 32, 0, time.UTC),
+				time.Date(2006, time.February, 15, 5, 5, 3, 0, time.UTC),
 			},
 		},
 		{
@@ -88,7 +88,7 @@ func TestSakila_query(t *testing.T) {
 			wantRec0: record.Record{
 				int64(1), int64(1), int64(1), int64(76), decimal.New(299, -2),
 				time.Date(2005, time.May, 25, 11, 30, 37, 0, time.UTC),
-				time.Date(2020, time.February, 15, 6, 59, 47, 0, time.UTC),
+				time.Date(2006, time.February, 15, 22, 12, 30, 0, time.UTC),
 			},
 		},
 	}
@@ -164,9 +164,14 @@ func TestEmptyAsNull(t *testing.T) {
 	require.Equal(t, 1, len(sink.Recs))
 	tu.OpenFileCount(t, true, "after sink") // FIXME: delete this line
 
-	require.Equal(t, stringz.Strings(sakila.TblAddressColKinds()), stringz.Strings(sink.RecMeta.Kinds()))
+	// phone is now restored to real phone numbers; CSV/TSV has no schema, so the
+	// driver infers phone as int (it is text in the SQL schema). All other kinds
+	// match the shared helper.
+	require.Equal(t,
+		[]string{"int", "text", "text", "text", "int", "int", "int", "datetime"},
+		stringz.Strings(sink.RecMeta.Kinds()))
 
-	ts, err := timez.ParseTimestampUTC("2020-02-15T06:59:28Z")
+	ts, err := timez.ParseTimestampUTC("2006-02-15T04:45:30Z")
 	require.NoError(t, err)
 
 	rec0 := sink.Recs[0]
@@ -174,7 +179,7 @@ func TestEmptyAsNull(t *testing.T) {
 		int64(1),
 		"47 MySakila Drive",
 		nil,
-		nil,
+		"Alberta",
 		int64(300),
 		nil,
 		nil,

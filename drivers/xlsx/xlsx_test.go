@@ -201,7 +201,7 @@ func TestSakila_query(t *testing.T) {
 			wantKinds: sakila.TblActorColKinds(),
 			wantRec0: record.Record{
 				int64(1), "PENELOPE", "GUINESS",
-				time.Date(2020, time.February, 15, 6, 59, 28, 0, time.UTC),
+				time.Date(2006, time.February, 15, 4, 34, 33, 0, time.UTC),
 			},
 		},
 		{
@@ -211,7 +211,7 @@ func TestSakila_query(t *testing.T) {
 			wantKinds: sakila.TblFilmActorColKinds(),
 			wantRec0: record.Record{
 				int64(1), int64(1),
-				time.Date(2020, time.February, 15, 6, 59, 32, 0, time.UTC),
+				time.Date(2006, time.February, 15, 5, 5, 3, 0, time.UTC),
 			},
 		},
 		{
@@ -222,7 +222,7 @@ func TestSakila_query(t *testing.T) {
 			wantRec0: record.Record{
 				int64(1), int64(1), int64(1), int64(76), decimal.New(299, -2),
 				time.Date(2005, time.May, 25, 11, 30, 37, 0, time.UTC),
-				time.Date(2020, time.February, 15, 6, 59, 47, 0, time.UTC),
+				time.Date(2006, time.February, 15, 22, 12, 30, 0, time.UTC),
 			},
 		},
 	}
@@ -291,7 +291,7 @@ func TestHandleSomeSheetsEmpty(t *testing.T) {
 }
 
 func TestIngestDuplicateColumns(t *testing.T) {
-	actorDataRow0 := []string{"1", "PENELOPE", "GUINESS", "2020-02-15T06:59:28Z", "1"}
+	actorDataRow0 := []string{"1", "PENELOPE", "GUINESS", "2006-02-15T04:34:33Z", "1"}
 
 	ctx := context.Background()
 	tr := testrun.New(ctx, t, nil).Hush()
@@ -333,9 +333,9 @@ func TestIngestDuplicateColumns(t *testing.T) {
 
 func TestDetectHeaderRow(t *testing.T) {
 	actorRows := [][]string{
-		{"1", "PENELOPE", "GUINESS", "2020-02-15T06:59:28Z"},
-		{"2", "NICK", "WAHLBERG", "2020-02-15T06:59:28Z"},
-		{"3", "ED", "CHASE", "2020-02-15T06:59:28Z"},
+		{"1", "PENELOPE", "GUINESS", "2006-02-15T04:34:33Z"},
+		{"2", "NICK", "WAHLBERG", "2006-02-15T04:34:33Z"},
+		{"3", "ED", "CHASE", "2006-02-15T04:34:33Z"},
 	}
 	abcd := []string{"A", "B", "C", "D"}
 
