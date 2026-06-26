@@ -524,6 +524,17 @@ func TestColumn_Clone(t *testing.T) {
 	})
 }
 
+func TestColumn_Clone_NewFields(t *testing.T) {
+	c := &metadata.Column{
+		Name: "id", Position: 1, PrimaryKey: true,
+		Identity: true, AutoIncrement: false,
+		Generated: true, GeneratedExpr: "a || b", Collation: "en_US",
+	}
+	got := c.Clone()
+	require.Equal(t, c, got)
+	require.NotSame(t, c, got)
+}
+
 func TestColumn_String(t *testing.T) {
 	col := &metadata.Column{
 		Name: "actor_id",

@@ -369,6 +369,12 @@ type Column struct { //nolint:govet // field alignment
 	Nullable     bool      `json:"nullable" yaml:"nullable"`
 	DefaultValue string    `json:"default_value,omitempty" yaml:"default_value,omitempty"`
 	Comment      string    `json:"comment,omitempty" yaml:"comment,omitempty"`
+
+	Identity      bool   `json:"identity,omitempty" yaml:"identity,omitempty"`
+	AutoIncrement bool   `json:"auto_increment,omitempty" yaml:"auto_increment,omitempty"`
+	Generated     bool   `json:"generated,omitempty" yaml:"generated,omitempty"`
+	GeneratedExpr string `json:"generated_expr,omitempty" yaml:"generated_expr,omitempty"`
+	Collation     string `json:"collation,omitempty" yaml:"collation,omitempty"`
 }
 
 // Clone returns a deep copy of c. If c is nil, nil is returned.
@@ -387,6 +393,11 @@ func (c *Column) Clone() *Column {
 		Nullable:     c.Nullable,
 		DefaultValue: c.DefaultValue,
 		Comment:      c.Comment,
+		Identity:      c.Identity,
+		AutoIncrement: c.AutoIncrement,
+		Generated:     c.Generated,
+		GeneratedExpr: c.GeneratedExpr,
+		Collation:     c.Collation,
 	}
 }
 
