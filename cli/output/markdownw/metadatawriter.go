@@ -239,14 +239,17 @@ func writeTableHeading(buf *bytes.Buffer, tbl *metadata.Table, level int) {
 	}
 }
 
-// writeTableBody writes the per-table detail: a column table plus
-// foreign-key, unique-constraint, and index sections (each omitted when
-// empty).
+// writeTableBody writes the per-table detail: an optional view-definition
+// block, a column table, and foreign-key, unique-constraint, index,
+// check-constraint, and trigger sections (each omitted when empty).
 func (w *metadataWriter) writeTableBody(buf *bytes.Buffer, tbl *metadata.Table) {
+	w.writeViewDefinition(buf, tbl)
 	w.writeColumns(buf, tbl)
 	w.writeForeignKeys(buf, tbl)
 	w.writeUniqueConstraints(buf, tbl)
 	w.writeIndexes(buf, tbl)
+	w.writeCheckConstraints(buf, tbl)
+	w.writeTriggers(buf, tbl)
 }
 
 func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
@@ -256,16 +259,32 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 
 	fkCols := commonw.FKColumnSet(tbl)
 
-	// Only include the Default / Comment columns when at least one
-	// column populates them, keeping the common case clean.
+	// Only include optional columns when at least one column populates them,
+	// keeping the common case clean.
 	var hasDefault, hasComment bool
+	var hasAuto, hasGeneratedExpr, hasCollation bool
 	for _, col := range tbl.Columns {
 		hasDefault = hasDefault || col.DefaultValue != ""
 		hasComment = hasComment || col.Comment != ""
+		hasAuto = hasAuto || col.Identity || col.AutoIncrement || col.Generated
+		hasGeneratedExpr = hasGeneratedExpr || col.GeneratedExpr != ""
+		hasCollation = hasCollation || col.Collation != ""
 	}
 
 	headers := []string{"Column", "Type", "Nullable", "PK", "FK"}
 	aligns := []string{"---", "---", ":---:", ":---:", ":---:"}
+	if hasAuto {
+		headers = append(headers, "Auto")
+		aligns = append(aligns, "---")
+	}
+	if hasGeneratedExpr {
+		headers = append(headers, "Generated Expr")
+		aligns = append(aligns, "---")
+	}
+	if hasCollation {
+		headers = append(headers, "Collation")
+		aligns = append(aligns, "---")
+	}
 	if hasDefault {
 		headers = append(headers, "Default")
 		aligns = append(aligns, "---")
@@ -287,6 +306,15 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 			checkMark(col.PrimaryKey),
 			checkMark(fkCols[col.Name]),
 		}
+		if hasAuto {
+			cells = append(cells, columnAutoLabel(col))
+		}
+		if hasGeneratedExpr {
+			cells = append(cells, mdCodeCell(col.GeneratedExpr))
+		}
+		if hasCollation {
+			cells = append(cells, escapeMarkdown(col.Collation))
+		}
 		if hasDefault {
 			cells = append(cells, mdCodeCell(col.DefaultValue))
 		}
@@ -294,6 +322,21 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 			cells = append(cells, escapeMarkdown(col.Comment))
 		}
 		writeTableRow(buf, cells...)
+	}
+}
+
+// columnAutoLabel returns the auto-population label for a column
+// ("identity", "auto_inc", or "generated"), or "" if none applies.
+func columnAutoLabel(col *metadata.Column) string {
+	switch {
+	case col.Identity:
+		return "identity"
+	case col.AutoIncrement:
+		return "auto_inc"
+	case col.Generated:
+		return "generated"
+	default:
+		return ""
 	}
 }
 
@@ -349,6 +392,93 @@ func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
 			r.Type,
 		)
 	}
+}
+
+// writeViewDefinition renders the raw view DDL as a fenced SQL code block
+// when tbl is a view/materialized_view with a non-empty ViewDefinition.
+func (w *metadataWriter) writeViewDefinition(buf *bytes.Buffer, tbl *metadata.Table) {
+	if tbl.ViewDefinition == "" {
+		return
+	}
+	buf.WriteString("\n**View definition:**\n\n```sql\n")
+	buf.WriteString(tbl.ViewDefinition)
+	if !strings.HasSuffix(tbl.ViewDefinition, "\n") {
+		buf.WriteByte('\n')
+	}
+	buf.WriteString("```\n")
+}
+
+// writeCheckConstraints renders a "Check constraints" subsection (table of
+// name + clause) when tbl.CheckConstraints is non-empty.
+func (w *metadataWriter) writeCheckConstraints(buf *bytes.Buffer, tbl *metadata.Table) {
+	if len(tbl.CheckConstraints) == 0 {
+		return
+	}
+
+	buf.WriteString("\n**Check constraints:**\n\n")
+	writeTableRow(buf, "Constraint", "Clause")
+	writeTableRow(buf, "---", "---")
+	for _, cc := range tbl.CheckConstraints {
+		writeTableRow(buf, mdCodeCell(cc.Name), escapeMarkdown(cc.Clause))
+	}
+}
+
+// writeTriggers renders a "Triggers" subsection (name, timing, events,
+// enabled, definition) when tbl.Triggers is non-empty. The "Enabled" column
+// is only emitted when at least one trigger carries a non-nil Enabled value;
+// the "Definition" column is only emitted when at least one trigger has a
+// non-empty Definition.
+func (w *metadataWriter) writeTriggers(buf *bytes.Buffer, tbl *metadata.Table) {
+	if len(tbl.Triggers) == 0 {
+		return
+	}
+
+	var hasEnabled, hasDefinition bool
+	for _, tr := range tbl.Triggers {
+		hasEnabled = hasEnabled || tr.Enabled != nil
+		hasDefinition = hasDefinition || tr.Definition != ""
+	}
+
+	buf.WriteString("\n**Triggers:**\n\n")
+	headers := []string{"Trigger", "Timing", "Events"}
+	aligns := []string{"---", "---", "---"}
+	if hasEnabled {
+		headers = append(headers, "Enabled")
+		aligns = append(aligns, ":---:")
+	}
+	if hasDefinition {
+		headers = append(headers, "Definition")
+		aligns = append(aligns, "---")
+	}
+	writeTableRow(buf, headers...)
+	writeTableRow(buf, aligns...)
+
+	for _, tr := range tbl.Triggers {
+		cells := []string{
+			mdCodeCell(tr.Name),
+			escapeMarkdown(tr.Timing),
+			escapeMarkdown(strings.Join(tr.Events, ", ")),
+		}
+		if hasEnabled {
+			cells = append(cells, triggerEnabledMark(tr.Enabled))
+		}
+		if hasDefinition {
+			cells = append(cells, mdCodeCell(tr.Definition))
+		}
+		writeTableRow(buf, cells...)
+	}
+}
+
+// triggerEnabledMark returns "✓" when enabled is true, "✗" when false, and
+// "" when nil (engine has no enabled/disabled concept).
+func triggerEnabledMark(enabled *bool) string {
+	if enabled == nil {
+		return ""
+	}
+	if *enabled {
+		return "✓"
+	}
+	return "✗"
 }
 
 func compareTables(a, b *metadata.Table) int {
