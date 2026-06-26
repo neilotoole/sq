@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
@@ -180,6 +181,25 @@ func (s *Source) TableNames() []string {
 		}
 	}
 	return names
+}
+
+// RecomputeTableCounts derives TableCount and ViewCount from s.Tables.
+// This is the single classification point for canonical table types;
+// new types (external, snapshot, ...) extend the switch here rather
+// than in every driver. Materialized views count as views.
+func (s *Source) RecomputeTableCounts() {
+	s.TableCount, s.ViewCount = 0, 0
+	for _, tbl := range s.Tables {
+		if tbl == nil {
+			continue
+		}
+		switch tbl.TableType {
+		case sqlz.TableTypeTable:
+			s.TableCount++
+		case sqlz.TableTypeView, sqlz.TableTypeMaterializedView:
+			s.ViewCount++
+		}
+	}
 }
 
 // String returns a log/debug friendly representation.

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -58,9 +59,11 @@ func FKColumnSet(tbl *metadata.Table) map[string]bool {
 }
 
 // IsView reports whether tbl is a view (rather than a table). Table.TableType
-// is the driver-independent "table" / "view" value.
+// is the driver-independent canonical type; both "view" and "materialized_view"
+// are considered views.
 func IsView(tbl *metadata.Table) bool {
-	return tbl != nil && tbl.TableType == "view"
+	return tbl != nil &&
+		(tbl.TableType == sqlz.TableTypeView || tbl.TableType == sqlz.TableTypeMaterializedView)
 }
 
 // HasViews reports whether tables contains any view.

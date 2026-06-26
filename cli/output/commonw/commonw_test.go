@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output/commonw"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -27,13 +28,16 @@ func TestFKColumnSet(t *testing.T) {
 func TestViews(t *testing.T) {
 	tbl := &metadata.Table{Name: "t", TableType: "table"}
 	view := &metadata.Table{Name: "v", TableType: "view"}
+	matview := &metadata.Table{Name: "mv", TableType: sqlz.TableTypeMaterializedView}
 
 	require.False(t, commonw.IsView(tbl))
 	require.True(t, commonw.IsView(view))
+	require.True(t, commonw.IsView(matview))
 	require.False(t, commonw.IsView(nil))
 
 	require.False(t, commonw.HasViews([]*metadata.Table{tbl}))
 	require.True(t, commonw.HasViews([]*metadata.Table{tbl, view}))
+	require.True(t, commonw.HasViews([]*metadata.Table{tbl, matview}))
 }
 
 func TestFKRows(t *testing.T) {

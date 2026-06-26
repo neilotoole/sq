@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"log/slog"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -1680,6 +1682,103 @@ func TestAllExpressionKeys(t *testing.T) {
 			require.Equal(t, tc.want, metadata.AllExpressionKeys(tc.cols))
 		})
 	}
+}
+
+func TestSource_RecomputeTableCounts(t *testing.T) {
+	s := &metadata.Source{Tables: []*metadata.Table{
+		{TableType: sqlz.TableTypeTable}, {TableType: sqlz.TableTypeTable},
+		{TableType: sqlz.TableTypeView},
+		{TableType: sqlz.TableTypeMaterializedView},
+		{TableType: sqlz.TableTypeVirtual},
+	}}
+	s.RecomputeTableCounts()
+	require.Equal(t, int64(2), s.TableCount)
+	require.Equal(t, int64(2), s.ViewCount) // view + matview
+}
+
+// TestColumn_Clone_AllFieldsCovered is a reflective guard: every exported
+// Column field must survive a Clone. Note: kind.Kind is int (not int64),
+// so reflect.Int is included alongside reflect.Int64 to cover it.
+func TestColumn_Clone_AllFieldsCovered(t *testing.T) {
+	orig := &metadata.Column{}
+	v := reflect.ValueOf(orig).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Field(i)
+		if !f.CanSet() {
+			continue
+		}
+		switch f.Kind() {
+		case reflect.String:
+			f.SetString("x")
+		case reflect.Bool:
+			f.SetBool(true)
+		case reflect.Int64:
+			f.SetInt(7)
+		case reflect.Int: // kind.Kind is int
+			f.SetInt(7)
+		}
+	}
+	require.Equal(t, orig, orig.Clone(), "Column.Clone missing a field")
+}
+
+// TestTable_Clone_AllFieldsCovered constructs a Table with every field set
+// to a non-zero value and asserts Clone produces an equal value. This is a
+// "drop-nothing" guard: if Table.Clone() omits any field, the test fails.
+// FK is populated with Outgoing only (no Incoming) because FKGroup.Clone()
+// intentionally drops Incoming (re-derived by Source.Clone via LinkForeignKeys).
+func TestTable_Clone_AllFieldsCovered(t *testing.T) {
+	sz := int64(42)
+	enabled := true
+	tbl := &metadata.Table{
+		Name:           "film",
+		FQName:         "sakila.public.film",
+		TableType:      "table",
+		DBTableType:    "BASE TABLE",
+		ViewDefinition: "SELECT 1",
+		RowCount:       200,
+		Size:           &sz,
+		Comment:        "Film table",
+		Columns: []*metadata.Column{
+			{
+				Name: "film_id", Position: 1, PrimaryKey: true,
+				BaseType: "int4", ColumnType: "integer", Kind: kind.Int,
+				Nullable: false, DefaultValue: "1", Comment: "pk",
+				Identity: true, AutoIncrement: true,
+				Generated: true, GeneratedExpr: "x+1", Collation: "en_US",
+			},
+		},
+		FK: metadata.NewFKGroup(
+			[]*metadata.ForeignKey{{
+				Name: "fk_film_language", Table: "film",
+				Columns:    []string{"language_id"},
+				RefTable:   "language",
+				RefColumns: []string{"language_id"},
+				OnDelete:   "CASCADE",
+				OnUpdate:   "RESTRICT",
+			}},
+			nil,
+		),
+		UniqueConstraints: []*metadata.UniqueConstraint{
+			{Name: "uq_title", Table: "film", Columns: []string{"title"}},
+		},
+		CheckConstraints: []*metadata.CheckConstraint{
+			{Name: "chk_length", Table: "film", Clause: "length > 0"},
+		},
+		Triggers: []*metadata.Trigger{
+			{
+				Name: "trg_audit", Table: "film", Timing: "AFTER",
+				Events: []string{"INSERT"}, Enabled: &enabled,
+				Definition: "CREATE TRIGGER ...",
+			},
+		},
+		Indexes: []*metadata.Index{
+			{
+				Name: "idx_title", Table: "film", Columns: []string{"title"},
+				Unique: true, Primary: false, Type: "BTREE",
+			},
+		},
+	}
+	require.Equal(t, tbl, tbl.Clone(), "Table.Clone missing a field")
 }
 
 // TestSource_Clone_NilLoggerSilencesWarnings locks the contract from
