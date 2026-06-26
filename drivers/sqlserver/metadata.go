@@ -206,18 +206,11 @@ GROUP BY database_id) AS total_size_bytes`
 		}
 	}
 
-	for _, tbl := range md.Tables {
-		switch tbl.TableType {
-		case sqlz.TableTypeTable:
-			md.TableCount++
-		case sqlz.TableTypeView:
-			md.ViewCount++
-		}
-	}
+	md.RecomputeTableCounts()
 
-	// Fetch FKs / unique constraints / indexes in three bulk queries
-	// rather than 3N per-table calls inside the errgroup above. The
-	// Assign* helpers route each result to its owning table by name,
+	// Fetch FKs / unique constraints / indexes / check constraints / triggers
+	// in bulk queries rather than N per-table calls inside the errgroup above.
+	// The Assign* helpers route each result to its owning table by name,
 	// and LinkForeignKeys derives FK.Incoming across the whole source.
 	allFKs, err := getMSSQLForeignKeys(ctx, db, catalog, schema, "")
 	if err != nil {
@@ -231,11 +224,33 @@ GROUP BY database_id) AS total_size_bytes`
 	}
 	metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
 
+	allChecks, err := getMSSQLCheckConstraints(ctx, db, schema, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignCheckConstraints(log, md.Tables, allChecks)
+
+	allTriggers, err := getMSSQLTriggers(ctx, db, schema, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignTriggers(log, md.Tables, allTriggers)
+
 	allIdxs, err := getMSSQLIndexes(ctx, db, schema, "")
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignIndexes(log, md.Tables, allIdxs)
+
+	allViewDefs, err := getMSSQLViewDefinitions(ctx, db, schema, "")
+	if err != nil {
+		return nil, err
+	}
+	for _, tbl := range md.Tables {
+		if tbl.TableType == sqlz.TableTypeView {
+			tbl.ViewDefinition = allViewDefs[tbl.Name]
+		}
+	}
 
 	metadata.LinkForeignKeys(log, md)
 
@@ -244,15 +259,16 @@ GROUP BY database_id) AS total_size_bytes`
 
 // getTableMetadata builds the [metadata.Table] for a single
 // (catalog, schema, table). The loadConstraints flag controls whether
-// per-table FK / unique-constraint / index queries are issued:
+// per-table FK / unique-constraint / check-constraint / trigger / index /
+// view-definition queries are issued:
 //
 //   - Source-level inspect passes false. [getSourceMetadata] runs
-//     three bulk loaders after the per-table errgroup completes, which
-//     is 3 round-trips total instead of 3N. [metadata.LinkForeignKeys]
+//     bulk loaders after the per-table errgroup completes, which is a
+//     constant number of round-trips instead of N. [metadata.LinkForeignKeys]
 //     then derives [FK.Incoming] across the whole source.
 //   - Single-table inspect (grip.TableMetadata) passes true so the
-//     standalone [metadata.Table] carries its FK / unique-constraint /
-//     index metadata directly, including [FK.Incoming].
+//     standalone [metadata.Table] carries its full metadata directly,
+//     including [FK.Incoming].
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	tblSchema, tblName, tblType string, loadConstraints bool,
 ) (*metadata.Table, error) {
@@ -355,6 +371,13 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 			cols[i].ColumnType = dbCols[i].DataType
 		}
 
+		cols[i].Identity = dbCols[i].IsIdentity
+		cols[i].Generated = dbCols[i].IsComputed
+		cols[i].GeneratedExpr = dbCols[i].GeneratedExpr.String
+		cols[i].Collation = dbCols[i].CollationName.String
+		// SQL Server IDENTITY maps to Identity; there is no separate
+		// auto-increment concept, so AutoIncrement remains false.
+
 		for _, dbConstraint := range dbConstraints {
 			if dbCols[i].ColumnName == dbConstraint.ColumnName {
 				if dbConstraint.ConstraintType == "PRIMARY KEY" {
@@ -367,12 +390,25 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 
 	tblMeta.Columns = cols
 
-	// Source-level inspect skips per-table FK / UC / Index queries
-	// entirely; [getSourceMetadata] runs three bulk loaders below.
-	// Views (and other non-table relations) carry no FKs, UCs, or
-	// indexes, so single-table inspect skips them too rather than
-	// issuing four pointless round-trips.
-	if !loadConstraints || tblMeta.TableType != sqlz.TableTypeTable {
+	// Source-level inspect skips per-table constraint/view queries entirely;
+	// [getSourceMetadata] runs bulk loaders after the errgroup completes.
+	if !loadConstraints {
+		return tblMeta, nil
+	}
+
+	// For views: fetch the definition, then return — no FKs, UCs, indexes,
+	// checks, or triggers apply.
+	if tblMeta.TableType == sqlz.TableTypeView {
+		defs, vErr := getMSSQLViewDefinitions(ctx, db, tblSchema, tblName)
+		if vErr != nil {
+			return nil, vErr
+		}
+		tblMeta.ViewDefinition = defs[tblName]
+		return tblMeta, nil
+	}
+
+	// Below: base tables only (loadConstraints=true, TableType=TABLE).
+	if tblMeta.TableType != sqlz.TableTypeTable {
 		return tblMeta, nil
 	}
 
@@ -387,6 +423,16 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
 	tblMeta.UniqueConstraints, err = getMSSQLUniqueConstraints(ctx, db, tblCatalog, tblSchema, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.CheckConstraints, err = getMSSQLCheckConstraints(ctx, db, tblSchema, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.Triggers, err = getMSSQLTriggers(ctx, db, tblSchema, tblName)
 	if err != nil {
 		return nil, err
 	}
@@ -770,18 +816,32 @@ ORDER BY TABLE_NAME ASC, TABLE_TYPE ASC`
 func getColumnMeta(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblName string) ([]columnMeta, error) {
 	log := lg.FromContext(ctx)
 
-	// TODO: sq doesn't use all of these columns, no need to select them all.
+	// The query joins INFORMATION_SCHEMA.COLUMNS with sys.* catalog views to
+	// detect IDENTITY columns (sys.identity_columns) and computed/generated
+	// columns (sys.computed_columns). The join goes through sys.schemas and
+	// sys.objects to anchor on object_id without relying on OBJECT_ID() string
+	// concatenation. COLLATION_NAME is already in INFORMATION_SCHEMA.COLUMNS.
 	const query = `SELECT
-		TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME,
-		COLUMN_NAME, ORDINAL_POSITION, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE,
-		CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH,
-		NUMERIC_PRECISION, NUMERIC_PRECISION_RADIX, NUMERIC_SCALE,
-		DATETIME_PRECISION,
-		CHARACTER_SET_CATALOG, CHARACTER_SET_SCHEMA, CHARACTER_SET_NAME,
-		COLLATION_CATALOG, COLLATION_SCHEMA, COLLATION_NAME,
-		DOMAIN_CATALOG, DOMAIN_SCHEMA, DOMAIN_NAME
-	FROM INFORMATION_SCHEMA.COLUMNS
-	WHERE TABLE_CATALOG = @p1 AND TABLE_SCHEMA = @p2 AND TABLE_NAME = @p3`
+		c.TABLE_CATALOG, c.TABLE_SCHEMA, c.TABLE_NAME,
+		c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_DEFAULT, c.IS_NULLABLE, c.DATA_TYPE,
+		c.CHARACTER_MAXIMUM_LENGTH, c.CHARACTER_OCTET_LENGTH,
+		c.NUMERIC_PRECISION, c.NUMERIC_PRECISION_RADIX, c.NUMERIC_SCALE,
+		c.DATETIME_PRECISION,
+		c.CHARACTER_SET_CATALOG, c.CHARACTER_SET_SCHEMA, c.CHARACTER_SET_NAME,
+		c.COLLATION_CATALOG, c.COLLATION_SCHEMA, c.COLLATION_NAME,
+		c.DOMAIN_CATALOG, c.DOMAIN_SCHEMA, c.DOMAIN_NAME,
+		CAST(CASE WHEN ic.column_id IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS is_identity,
+		CAST(CASE WHEN cc.column_id IS NOT NULL THEN 1 ELSE 0 END AS BIT) AS is_computed,
+		cc.definition AS generated_expr
+	FROM INFORMATION_SCHEMA.COLUMNS c
+	JOIN sys.schemas s ON s.name = c.TABLE_SCHEMA
+	JOIN sys.objects o ON o.name = c.TABLE_NAME AND o.schema_id = s.schema_id
+	LEFT JOIN sys.identity_columns ic
+		ON ic.object_id = o.object_id AND ic.name = c.COLUMN_NAME
+	LEFT JOIN sys.computed_columns cc
+		ON cc.object_id = o.object_id AND cc.name = c.COLUMN_NAME
+	WHERE c.TABLE_CATALOG = @p1 AND c.TABLE_SCHEMA = @p2 AND c.TABLE_NAME = @p3
+	ORDER BY c.ORDINAL_POSITION`
 
 	rows, err := db.QueryContext(ctx, query, tblCatalog, tblSchema, tblName)
 	if err != nil {
@@ -798,7 +858,8 @@ func getColumnMeta(ctx context.Context, db sqlz.DB, tblCatalog, tblSchema, tblNa
 			&c.ColumnDefault, &c.Nullable, &c.DataType, &c.CharMaxLength, &c.CharOctetLength, &c.NumericPrecision,
 			&c.NumericPrecisionRadix, &c.NumericScale, &c.DateTimePrecision, &c.CharSetCatalog, &c.CharSetSchema,
 			&c.CharSetName, &c.CollationCatalog, &c.CollationSchema, &c.CollationName, &c.DomainCatalog,
-			&c.DomainSchema, &c.DomainName)
+			&c.DomainSchema, &c.DomainName,
+			&c.IsIdentity, &c.IsComputed, &c.GeneratedExpr)
 		if err != nil {
 			return nil, errw(err)
 		}
@@ -893,4 +954,188 @@ type columnMeta struct { //nolint:govet // field alignment
 	DomainCatalog         sql.NullString `db:"DOMAIN_CATALOG"`
 	DomainSchema          sql.NullString `db:"DOMAIN_SCHEMA"`
 	DomainName            sql.NullString `db:"DOMAIN_NAME"`
+	// IsIdentity is true when the column is declared with IDENTITY.
+	IsIdentity bool `db:"is_identity"`
+	// IsComputed is true when the column is a computed (generated) column.
+	IsComputed bool `db:"is_computed"`
+	// GeneratedExpr is the T-SQL expression for computed columns; empty otherwise.
+	GeneratedExpr sql.NullString `db:"generated_expr"`
+}
+
+// getMSSQLCheckConstraints returns the CHECK constraints declared on tables in
+// the given schema. If tblName is empty, constraints for every table in the
+// schema are returned; otherwise only constraints on tblName are returned.
+// The Clause field holds the engine-formatted expression as stored in
+// sys.check_constraints.definition.
+func getMSSQLCheckConstraints(ctx context.Context, db sqlz.DB, tblSchema, tblName string,
+) ([]*metadata.CheckConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT
+  t.name        AS table_name,
+  cc.name       AS constraint_name,
+  cc.definition AS clause
+FROM sys.check_constraints cc
+JOIN sys.objects t ON t.object_id = cc.parent_object_id
+JOIN sys.schemas s ON s.schema_id = t.schema_id
+WHERE s.name = @p1`
+	args := []any{tblSchema}
+	if tblName != "" {
+		query += ` AND t.name = @p2`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY t.name, cc.name`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var checks []*metadata.CheckConstraint
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		cc := &metadata.CheckConstraint{}
+		if err = rows.Scan(&cc.Table, &cc.Name, &cc.Clause); err != nil {
+			return nil, errw(err)
+		}
+		checks = append(checks, cc)
+	}
+	return checks, errw(rows.Err())
+}
+
+// getMSSQLTriggers returns the DML triggers (parent_class = 1) attached to
+// user tables in the given schema. If tblName is empty, triggers for every
+// table in the schema are returned; otherwise only triggers on tblName are
+// returned.
+//
+// Timing is derived from is_instead_of_trigger: "INSTEAD OF" or "AFTER".
+// SQL Server has no BEFORE trigger timing. Events are built from the
+// ExecIsInsertTrigger / ExecIsUpdateTrigger / ExecIsDeleteTrigger properties
+// in INSERT, UPDATE, DELETE order. Enabled = NOT is_disabled as a *bool.
+// Definition comes from sys.sql_modules.definition (not truncated).
+func getMSSQLTriggers(ctx context.Context, db sqlz.DB, tblSchema, tblName string,
+) ([]*metadata.Trigger, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT
+  OBJECT_NAME(tr.parent_id)                                           AS table_name,
+  tr.name                                                              AS trigger_name,
+  CAST(CASE WHEN tr.is_instead_of_trigger = 1
+            THEN 'INSTEAD OF' ELSE 'AFTER' END AS NVARCHAR(20))        AS timing,
+  CAST(OBJECTPROPERTY(tr.object_id, 'ExecIsInsertTrigger') AS BIT)    AS on_insert,
+  CAST(OBJECTPROPERTY(tr.object_id, 'ExecIsUpdateTrigger') AS BIT)    AS on_update,
+  CAST(OBJECTPROPERTY(tr.object_id, 'ExecIsDeleteTrigger') AS BIT)    AS on_delete,
+  CAST(CASE WHEN tr.is_disabled = 0 THEN 1 ELSE 0 END AS BIT)        AS enabled,
+  sm.definition                                                         AS definition
+FROM sys.triggers    tr
+JOIN sys.objects     t  ON t.object_id  = tr.parent_id
+JOIN sys.schemas     s  ON s.schema_id  = t.schema_id
+JOIN sys.sql_modules sm ON sm.object_id = tr.object_id
+WHERE tr.parent_class = 1
+  AND s.name = @p1`
+	args := []any{tblSchema}
+	if tblName != "" {
+		query += ` AND t.name = @p2`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY t.name, tr.name`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var triggers []*metadata.Trigger
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			tblNameVal string
+			trigName   string
+			timing     string
+			onInsert   bool
+			onUpdate   bool
+			onDelete   bool
+			enabled    bool
+			definition string
+		)
+		if err = rows.Scan(&tblNameVal, &trigName, &timing,
+			&onInsert, &onUpdate, &onDelete, &enabled, &definition); err != nil {
+			return nil, errw(err)
+		}
+
+		var events []string
+		if onInsert {
+			events = append(events, "INSERT")
+		}
+		if onUpdate {
+			events = append(events, "UPDATE")
+		}
+		if onDelete {
+			events = append(events, "DELETE")
+		}
+
+		// Allocate a fresh bool inside the loop so each Trigger.Enabled
+		// points to its own value and not a shared loop variable.
+		enabledVal := enabled
+		triggers = append(triggers, &metadata.Trigger{
+			Name:       trigName,
+			Table:      tblNameVal,
+			Timing:     timing,
+			Events:     events,
+			Enabled:    &enabledVal,
+			Definition: definition,
+		})
+	}
+	return triggers, errw(rows.Err())
+}
+
+// getMSSQLViewDefinitions returns a map of view name → defining SQL for
+// views in the given schema. If tblName is non-empty, only that view is
+// returned; passing an empty tblName returns all views. The definition is
+// sourced from sys.sql_modules.definition, which does not truncate at
+// 4000 chars as INFORMATION_SCHEMA.VIEWS.VIEW_DEFINITION does.
+func getMSSQLViewDefinitions(ctx context.Context, db sqlz.DB, tblSchema, tblName string,
+) (map[string]string, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT
+  v.name        AS view_name,
+  sm.definition AS definition
+FROM sys.views       v
+JOIN sys.schemas     s  ON s.schema_id  = v.schema_id
+JOIN sys.sql_modules sm ON sm.object_id = v.object_id
+WHERE s.name = @p1`
+	args := []any{tblSchema}
+	if tblName != "" {
+		query += ` AND v.name = @p2`
+		args = append(args, tblName)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	defs := map[string]string{}
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			name string
+			def  sql.NullString
+		)
+		if err = rows.Scan(&name, &def); err != nil {
+			return nil, errw(err)
+		}
+		defs[name] = strings.TrimSpace(def.String)
+	}
+	return defs, errw(rows.Err())
 }
