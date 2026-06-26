@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"database/sql"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -91,14 +92,25 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		return nil, err
 	}
 
+	log := lg.FromContext(ctx)
+
+	allChecks, err := getClickHouseCheckConstraints(ctx, db, database, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignCheckConstraints(log, md.Tables, allChecks)
+
+	allViewDefs, err := getClickHouseViewDefinitions(ctx, db, database, "")
+	if err != nil {
+		return nil, err
+	}
 	for _, tbl := range md.Tables {
-		switch tbl.TableType {
-		case sqlz.TableTypeTable:
-			md.TableCount++
-		case sqlz.TableTypeView:
-			md.ViewCount++
+		if tbl.TableType == sqlz.TableTypeView {
+			tbl.ViewDefinition = allViewDefs[tbl.Name]
 		}
 	}
+
+	md.RecomputeTableCounts()
 
 	return md, nil
 }
@@ -224,12 +236,27 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, dbName, tblName string) (
 		tblMeta.Size = &bytes
 	}
 
-	// Get column metadata
+	// Get column metadata.
 	cols, err := getColumnsMetadata(ctx, db, dbName, tblName)
 	if err != nil {
 		return nil, err
 	}
 	tblMeta.Columns = cols
+
+	// Enrich with view definition or check constraints.
+	if tblMeta.TableType == sqlz.TableTypeView {
+		defs, defErr := getClickHouseViewDefinitions(ctx, db, dbName, tblName)
+		if defErr != nil {
+			return nil, defErr
+		}
+		tblMeta.ViewDefinition = defs[tblName]
+	} else {
+		checks, chkErr := getClickHouseCheckConstraints(ctx, db, dbName, tblName)
+		if chkErr != nil {
+			return nil, chkErr
+		}
+		tblMeta.CheckConstraints = checks
+	}
 
 	return tblMeta, nil
 }
@@ -345,6 +372,155 @@ func tableTypeFromEngine(engine string) string {
 	default:
 		return sqlz.TableTypeTable
 	}
+}
+
+// checkConstraintRe matches the start of a ClickHouse CONSTRAINT … CHECK
+// declaration inside a CREATE TABLE DDL string. The first capture group is
+// the constraint name (an unquoted identifier). The match ends immediately
+// after the opening parenthesis of the CHECK expression, so the caller can
+// walk forward from that position to extract the balanced-paren clause.
+var checkConstraintRe = regexp.MustCompile(`CONSTRAINT\s+(\w+)\s+CHECK\s+\(`)
+
+// getClickHouseCheckConstraints returns the CHECK constraints declared on
+// ClickHouse tables in dbName. If tblName is non-empty, only constraints for
+// that table are returned; passing an empty tblName returns all tables.
+//
+// ClickHouse has no dedicated catalog table for CHECK constraints; they are
+// extracted by parsing system.tables.create_table_query with a bounded regex
+// followed by a parenthesis-depth walk. Graceful: if none are found or parsing
+// fails, an empty slice is returned without error.
+func getClickHouseCheckConstraints(ctx context.Context, db sqlz.DB, dbName, tblName string) ([]*metadata.CheckConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT name, create_table_query FROM system.tables WHERE database = ? AND engine NOT IN ('View', 'MaterializedView')`
+	args := []any{dbName}
+	if tblName != "" {
+		query += ` AND name = ?`
+		args = append(args, tblName)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var checks []*metadata.CheckConstraint
+	for rows.Next() {
+		var name, createQuery string
+		if err = rows.Scan(&name, &createQuery); err != nil {
+			return nil, errw(err)
+		}
+		checks = append(checks, extractClickHouseCheckConstraints(createQuery, name)...)
+	}
+	return checks, errw(rows.Err())
+}
+
+// extractClickHouseCheckConstraints parses a ClickHouse CREATE TABLE DDL
+// string and extracts any CONSTRAINT <name> CHECK (<expr>) declarations. The
+// returned constraints have their Table field set to tblName.
+//
+// The extractor uses a two-step approach: a regexp locates each CONSTRAINT …
+// CHECK ( header and captures the constraint name; a parenthesis-depth walk
+// then extracts the balanced-paren expression. This avoids trying to match
+// nested parens with a single regex.
+//
+// Graceful: unbalanced parentheses (malformed DDL) yield an empty clause; the
+// constraint is still appended so the name is surfaced.
+func extractClickHouseCheckConstraints(ddl, tblName string) []*metadata.CheckConstraint {
+	matches := checkConstraintRe.FindAllStringSubmatchIndex(ddl, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	checks := make([]*metadata.CheckConstraint, 0, len(matches))
+	for _, m := range matches {
+		// m[2]:m[3] is the name capture group.
+		name := ddl[m[2]:m[3]]
+		// m[1] is the byte position just after the opening '(' of the CHECK
+		// expression, i.e. ddl[m[1]-1] == '('. Walk forward to find the
+		// matching closing paren.
+		openPos := m[1] - 1
+		checks = append(checks, &metadata.CheckConstraint{
+			Table:  tblName,
+			Name:   name,
+			Clause: balancedParenContents(ddl, openPos),
+		})
+	}
+	return checks
+}
+
+// balancedParenContents returns the text between the opening paren at position
+// start and its matching closing paren, exclusive of both parens. Returns an
+// empty string if start is out of range, ddl[start] != '(', or the parens are
+// unbalanced.
+func balancedParenContents(ddl string, start int) string {
+	if start < 0 || start >= len(ddl) || ddl[start] != '(' {
+		return ""
+	}
+	depth := 0
+	for i := start; i < len(ddl); i++ {
+		switch ddl[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return ddl[start+1 : i]
+			}
+		}
+	}
+	return "" // unbalanced / malformed DDL
+}
+
+// getClickHouseViewDefinitions returns a map of view name → defining SELECT
+// for views in dbName. ClickHouse exposes the SELECT text directly in
+// system.tables.as_select; create_table_query is used as a fallback when
+// as_select is empty.
+//
+// If tblName is non-empty, only that view is returned. Passing an empty
+// tblName returns all views and materialized views.
+func getClickHouseViewDefinitions(ctx context.Context, db sqlz.DB, dbName, tblName string) (map[string]string, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT name, as_select, create_table_query FROM system.tables WHERE database = ? AND engine IN ('View', 'MaterializedView')`
+	args := []any{dbName}
+	if tblName != "" {
+		query += ` AND name = ?`
+		args = append(args, tblName)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	defs := make(map[string]string)
+	for rows.Next() {
+		var name, asSelect, createQuery string
+		if err = rows.Scan(&name, &asSelect, &createQuery); err != nil {
+			return nil, errw(err)
+		}
+		def := asSelect
+		if def == "" {
+			// Fallback: extract the SELECT from the full CREATE VIEW DDL.
+			def = extractViewSelectFromCHDDL(createQuery)
+		}
+		defs[name] = def
+	}
+	return defs, errw(rows.Err())
+}
+
+// extractViewSelectFromCHDDL extracts the SELECT portion from a ClickHouse
+// CREATE [MATERIALIZED] VIEW DDL string. ClickHouse stores the full DDL as
+// "CREATE VIEW db.name (...) AS SELECT ...". This function returns everything
+// after the first " AS " separator, trimmed. If " AS " is not found, the full
+// DDL string is returned unchanged as a best-effort fallback.
+func extractViewSelectFromCHDDL(ddl string) string {
+	if idx := strings.Index(ddl, " AS "); idx != -1 {
+		return strings.TrimSpace(ddl[idx+4:])
+	}
+	return ddl
 }
 
 // Type prefix lengths for ClickHouse wrapper types.

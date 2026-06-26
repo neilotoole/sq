@@ -51,6 +51,62 @@ var (
 	ResolveQualifiedColNames   = resolveQualifiedColNames
 )
 
+// TestExtractClickHouseCheckConstraints tests the pure DDL parser used to
+// extract CHECK constraints from system.tables.create_table_query.
+func TestExtractClickHouseCheckConstraints(t *testing.T) {
+	testCases := []struct {
+		name     string
+		ddl      string
+		tblName  string
+		wantLen  int
+		wantCons []struct{ name, clause string }
+	}{
+		{
+			name:    "no constraints",
+			ddl:     "CREATE TABLE t (`id` Int64, `name` String) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 0,
+		},
+		{
+			name:    "single simple constraint",
+			ddl:     "CREATE TABLE t (`id` Int64, `price` Decimal(10, 2), CONSTRAINT chk_price CHECK (price > 0)) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []struct{ name, clause string }{
+				{"chk_price", "price > 0"},
+			},
+		},
+		{
+			name:    "multiple constraints with nested parens",
+			ddl:     "CREATE TABLE t (`id` Int64, `age` Int32, CONSTRAINT chk_price CHECK (price > 0), CONSTRAINT chk_age CHECK ((age >= 0) AND (age <= 150))) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 2,
+			wantCons: []struct{ name, clause string }{
+				{"chk_price", "price > 0"},
+				{"chk_age", "(age >= 0) AND (age <= 150)"},
+			},
+		},
+		{
+			name:    "empty DDL",
+			ddl:     "",
+			tblName: "t",
+			wantLen: 0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := extractClickHouseCheckConstraints(tc.ddl, tc.tblName)
+			require.Len(t, got, tc.wantLen)
+			for i, want := range tc.wantCons {
+				require.Equal(t, tc.tblName, got[i].Table)
+				require.Equal(t, want.name, got[i].Name)
+				require.Equal(t, want.clause, got[i].Clause)
+			}
+		})
+	}
+}
+
 // clickhouse.go exports.
 var LocationWithDefaultPort = locationWithDefaultPort
 
