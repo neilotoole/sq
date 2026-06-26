@@ -191,6 +191,39 @@ func TestForeignKey_ReservedWordColumn_Postgres(t *testing.T) {
 	require.Equal(t, []string{"id"}, fk.RefColumns)
 }
 
+// TestPostgres_CheckConstraints verifies that CHECK constraints are
+// populated from the Postgres catalog via pg_constraint.
+func TestPostgres_CheckConstraints(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("chk_widget")
+	conName := tbl + "_price_positive"
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+tbl+` (id INT, price NUMERIC, CONSTRAINT `+conName+` CHECK (price > 0))`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.CheckConstraints, "CheckConstraints should not be empty")
+
+	var found bool
+	for _, cc := range md.CheckConstraints {
+		if cc.Name == conName {
+			found = true
+			require.Contains(t, cc.Clause, "price",
+				"CHECK clause should contain 'price'")
+			break
+		}
+	}
+	require.True(t, found, "CHECK constraint %q not found in CheckConstraints", conName)
+}
+
 // TestPostgres_ColumnFlags verifies that identity, generated, and collation
 // column metadata fields are correctly populated from the Postgres catalog.
 func TestPostgres_ColumnFlags(t *testing.T) {

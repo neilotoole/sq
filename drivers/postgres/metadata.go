@@ -308,6 +308,12 @@ current_setting('server_version'), version(), "current_user"()`
 	}
 	metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
 
+	allChecks, err := getPgCheckConstraints(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignCheckConstraints(log, md.Tables, allChecks)
+
 	allIdxs, err := getPgIndexes(ctx, db, "")
 	if err != nil {
 		return nil, err
@@ -498,6 +504,11 @@ func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Tabl
 	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
 	tblMeta.UniqueConstraints, err = getPgUniqueConstraints(ctx, db, tblMeta.Name)
+	if err != nil {
+		return err
+	}
+
+	tblMeta.CheckConstraints, err = getPgCheckConstraints(ctx, db, tblMeta.Name)
 	if err != nil {
 		return err
 	}
@@ -865,6 +876,47 @@ WHERE tc.constraint_type = 'UNIQUE'
 		uc.Columns = append(uc.Columns, columnName)
 	}
 	return ucs, errw(rows.Err())
+}
+
+// getPgCheckConstraints returns the CHECK constraints declared on tables in
+// the current catalog and schema. If tblName is empty, constraints for every
+// table in the current schema are returned; otherwise only constraints on
+// tblName are returned. The Clause field holds the engine-formatted expression
+// text as returned by pg_get_constraintdef.
+func getPgCheckConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.CheckConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT rel.relname, con.conname, pg_get_constraintdef(con.oid, TRUE)
+FROM pg_catalog.pg_constraint con
+JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+JOIN pg_catalog.pg_namespace n ON n.oid = rel.relnamespace
+WHERE con.contype = 'c' AND n.nspname = current_schema()`
+
+	var args []any
+	if tblName != "" {
+		query += ` AND rel.relname = $1`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY rel.relname, con.conname`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var checks []*metadata.CheckConstraint
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		cc := &metadata.CheckConstraint{}
+		if err = rows.Scan(&cc.Table, &cc.Name, &cc.Clause); err != nil {
+			return nil, errw(err)
+		}
+		checks = append(checks, cc)
+	}
+	return checks, errw(rows.Err())
 }
 
 // pgIndexHasIndnkeyatts reports whether pg_index has the indnkeyatts
