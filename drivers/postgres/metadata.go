@@ -559,7 +559,9 @@ type pgColumn struct {
 	domainCatalog sql.NullString
 	domainSchema  sql.NullString
 	domainName    sql.NullString
-	isGenerated   sql.NullString
+	isGenerated         sql.NullString
+	collationName       sql.NullString
+	generationExpression sql.NullString
 
 	// comment holds any column comment. Note that this field is
 	// not part of the standard postgres infoschema, but is
@@ -608,6 +610,8 @@ func getPgColumns(ctx context.Context, db sqlz.DB, tblName string) ([]*pgColumn,
   udt_name,
   is_identity,
   is_generated,
+  collation_name,
+  generation_expression,
   is_updatable,
   (
 	SELECT
@@ -655,7 +659,8 @@ func scanPgColumn(rows *sql.Rows, c *pgColumn) error {
 		&c.numericPrecision, &c.numericPrecisionRadix, &c.numericScale,
 		&c.datetimePrecision, &c.domainCatalog, &c.domainSchema, &c.domainName,
 		&c.udtCatalog, &c.udtSchema, &c.udtName,
-		&c.isIdentity, &c.isGenerated, &c.isUpdatable, &c.comment)
+		&c.isIdentity, &c.isGenerated, &c.collationName, &c.generationExpression,
+		&c.isUpdatable, &c.comment)
 	return errw(err)
 }
 
@@ -671,6 +676,12 @@ func colMetaFromPgColumn(log *slog.Logger, pgCol *pgColumn) *metadata.Column {
 		DefaultValue: pgCol.columnDefault.String,
 		Comment:      pgCol.comment.String,
 	}
+	colMeta.Identity = pgCol.isIdentity.Bool
+	colMeta.Generated = strings.EqualFold(pgCol.isGenerated.String, "ALWAYS")
+	colMeta.GeneratedExpr = pgCol.generationExpression.String
+	colMeta.Collation = pgCol.collationName.String
+	// Note: Postgres serial (default nextval(...)) is intentionally NOT
+	// flagged as AutoIncrement; it remains visible via DefaultValue.
 	return colMeta
 }
 

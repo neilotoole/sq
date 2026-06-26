@@ -190,3 +190,43 @@ func TestForeignKey_ReservedWordColumn_Postgres(t *testing.T) {
 		`quoted reserved-word column "from" must round-trip unquoted in Columns`)
 	require.Equal(t, []string{"id"}, fk.RefColumns)
 }
+
+// TestPostgres_ColumnFlags verifies that identity, generated, and collation
+// column metadata fields are correctly populated from the Postgres catalog.
+func TestPostgres_ColumnFlags(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("col_flags")
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+tbl+` (
+			id         bigint GENERATED ALWAYS AS IDENTITY,
+			first_name text,
+			last_name  text,
+			full_name  text GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
+			country    text COLLATE "C"
+		)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+
+	idCol := md.Column("id")
+	require.NotNil(t, idCol)
+	require.True(t, idCol.Identity, "id: Identity should be true")
+
+	fullNameCol := md.Column("full_name")
+	require.NotNil(t, fullNameCol)
+	require.True(t, fullNameCol.Generated, "full_name: Generated should be true")
+	require.Contains(t, fullNameCol.GeneratedExpr, "first_name",
+		"full_name: GeneratedExpr should contain 'first_name'")
+
+	countryCol := md.Column("country")
+	require.NotNil(t, countryCol)
+	require.Equal(t, "C", countryCol.Collation, "country: Collation should be 'C'")
+}
