@@ -205,6 +205,10 @@ type Table struct { //nolint:govet // field alignment
 	// The value is driver-dependent, e.g. "BASE TABLE" or "VIEW" for postgres.
 	DBTableType string `json:"table_type_db,omitempty" yaml:"table_type_db,omitempty"`
 
+	// ViewDefinition is the raw/reconstructed view DDL; opaque and not
+	// comparable across engines. Empty for tables.
+	ViewDefinition string `json:"view_definition,omitempty" yaml:"view_definition,omitempty"`
+
 	// RowCount is the number of rows in the table.
 	RowCount int64 `json:"row_count" yaml:"row_count"`
 
@@ -276,14 +280,15 @@ func (t *Table) Clone() *Table {
 	}
 
 	c := &Table{
-		Name:        t.Name,
-		FQName:      t.FQName,
-		TableType:   t.TableType,
-		DBTableType: t.DBTableType,
-		RowCount:    t.RowCount,
-		Size:        clonePtr(t.Size),
-		Comment:     t.Comment,
-		Columns:     nil,
+		Name:           t.Name,
+		FQName:         t.FQName,
+		TableType:      t.TableType,
+		DBTableType:    t.DBTableType,
+		ViewDefinition: t.ViewDefinition,
+		RowCount:       t.RowCount,
+		Size:           clonePtr(t.Size),
+		Comment:        t.Comment,
+		Columns:        nil,
 	}
 
 	if t.Columns != nil {

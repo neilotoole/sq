@@ -384,6 +384,11 @@ func TestTable_PKCols(t *testing.T) {
 	}
 }
 
+func TestTable_Clone_ViewDefinition(t *testing.T) {
+	tbl := &metadata.Table{Name: "v", TableType: "view", ViewDefinition: "SELECT 1"}
+	require.Equal(t, "SELECT 1", tbl.Clone().ViewDefinition)
+}
+
 func TestTable_Clone(t *testing.T) {
 	t.Run("nil_table", func(t *testing.T) {
 		var tbl *metadata.Table
