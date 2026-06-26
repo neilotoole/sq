@@ -509,9 +509,10 @@ AND table_name = $1`
 // pg_catalog. Matviews are absent from information_schema, so this is the
 // fallback path from getTableMetadata. It is a two-step operation: first
 // confirm that name actually is a matview (returning the canonical not-found
-// error otherwise), and only then interpolate the confirmed name into the
-// COUNT/size/comment/viewdef queries — interpolating an unconfirmed or
-// non-matview relation name would error at plan time.
+// error otherwise), and only then run the detail query. The size/comment/
+// viewdef functions take name as a bound $1::regclass parameter; only the
+// COUNT(*) FROM identifier is interpolated, and only after Step A confirms
+// name is a real matview.
 func getMatviewMetadata(ctx context.Context, db sqlz.DB, name string) (*metadata.Table, error) {
 	// Step A: confirm name is a matview in the current schema, and get
 	// the catalog & schema for the FQ name.
@@ -534,14 +535,17 @@ WHERE EXISTS (
 	progress.Incr(ctx, 1)
 	debugz.DebugSleep(ctx)
 
-	// Step B: name is confirmed a matview; safe to interpolate it,
-	// mirroring the %s/%q style used by tblsQueryTpl.
+	// Step B: name is confirmed a matview. The size/comment/viewdef
+	// functions take name as a bound $1::regclass parameter. Only the
+	// COUNT(*) FROM identifier must be interpolated — a relation name
+	// cannot be a bind parameter in a FROM clause — and it's safe here
+	// because Step A confirmed name is a real matview in this schema.
 	const detailQueryTpl = `SELECT
   (SELECT COUNT(*) FROM "%s") AS row_count,
-  pg_total_relation_size('%q') AS mv_size,
-  obj_description('%q'::regclass, 'pg_class') AS mv_comment,
-  pg_get_viewdef('%q'::regclass, true) AS view_def`
-	detailQuery := fmt.Sprintf(detailQueryTpl, name, name, name, name)
+  pg_total_relation_size($1::regclass) AS mv_size,
+  obj_description($1::regclass, 'pg_class') AS mv_comment,
+  pg_get_viewdef($1::regclass, true) AS view_def`
+	detailQuery := fmt.Sprintf(detailQueryTpl, name) // only the COUNT FROM identifier; name confirmed a matview in Step A
 
 	var (
 		rowCount int64
@@ -549,7 +553,7 @@ WHERE EXISTS (
 		comment  sql.NullString
 		viewDef  sql.NullString
 	)
-	err = db.QueryRowContext(ctx, detailQuery).Scan(&rowCount, &mvSize, &comment, &viewDef)
+	err = db.QueryRowContext(ctx, detailQuery, name).Scan(&rowCount, &mvSize, &comment, &viewDef)
 	if err != nil {
 		return nil, errw(err)
 	}
