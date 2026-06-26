@@ -6,8 +6,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
@@ -102,4 +104,218 @@ func TestForeignKey_OnDelete_Oracle(t *testing.T) {
 	require.Equal(t, "CASCADE", fk.OnDelete)
 	require.Empty(t, fk.OnUpdate,
 		"Oracle exposes no ON UPDATE referential action; OnUpdate must stay empty")
+}
+
+// findColumn returns the named column (case-insensitive) from md, or fails.
+func findColumn(t *testing.T, md *metadata.Table, name string) *metadata.Column {
+	t.Helper()
+	for _, c := range md.Columns {
+		if strings.EqualFold(c.Name, name) {
+			return c
+		}
+	}
+	require.Failf(t, "column not found", "no column %q in table %q", name, md.Name)
+	return nil
+}
+
+// TestInspectColumnFlags_Oracle pins the column-level flag and collation
+// mapping sourced from USER_TAB_COLS: IDENTITY_COLUMN→Identity,
+// VIRTUAL_COLUMN→Generated (+DATA_DEFAULT→GeneratedExpr), COLLATION→Collation.
+// Oracle models auto-increment as identity, so AutoIncrement stays false.
+func TestInspectColumnFlags_Oracle(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+	src := th.Source(sakila.Ora)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("col_flags")
+	// full_name is a virtual (generated) column; id is an identity column;
+	// first_name is a plain VARCHAR2 carrying Oracle's default collation.
+	// Explicit per-column COLLATE is rejected on MAX_STRING_SIZE=STANDARD
+	// instances, so we assert the default collation Oracle reports instead.
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+tbl+" ("+
+			"id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "+
+			"first_name VARCHAR2(50), "+
+			"last_name VARCHAR2(50), "+
+			"full_name VARCHAR2(120) GENERATED ALWAYS AS (first_name || ' ' || last_name) VIRTUAL)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, strings.ToUpper(tbl))
+	require.NoError(t, err)
+
+	id := findColumn(t, md, "id")
+	require.True(t, id.Identity, "identity column must set Identity")
+	require.False(t, id.AutoIncrement, "Oracle uses identity, not auto_increment")
+	require.False(t, id.Generated, "identity column is not a generated/virtual column")
+
+	full := findColumn(t, md, "full_name")
+	require.True(t, full.Generated, "virtual column must set Generated")
+	require.Contains(t, strings.ToUpper(full.GeneratedExpr), "FIRST_NAME",
+		"GeneratedExpr should carry the virtual-column expression")
+
+	first := findColumn(t, md, "first_name")
+	require.False(t, first.Generated)
+	require.False(t, first.Identity)
+	require.NotEmpty(t, first.Collation,
+		"a VARCHAR2 column should report Oracle's default collation")
+
+	// Hidden/system columns (e.g. the identity sequence's backing column)
+	// must not surface; HIDDEN_COLUMN='NO' filter keeps only the 4 declared.
+	require.Len(t, md.Columns, 4, "only the declared, non-hidden columns")
+}
+
+// TestInspectCheckConstraint_Oracle verifies real CHECK constraints are
+// surfaced from USER_CONSTRAINTS while Oracle's auto-generated NOT NULL
+// check constraints are filtered out.
+func TestInspectCheckConstraint_Oracle(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+	src := th.Source(sakila.Ora)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("chk")
+	// age has a real CHECK; name is NOT NULL, which Oracle models as a
+	// system-generated CHECK ("NAME" IS NOT NULL) that must NOT surface.
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+tbl+" ("+
+			"id NUMBER NOT NULL PRIMARY KEY, "+
+			"name VARCHAR2(50) NOT NULL, "+
+			"age NUMBER CONSTRAINT "+tbl+"_age_ck CHECK (age >= 0))")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, strings.ToUpper(tbl))
+	require.NoError(t, err)
+
+	require.Len(t, md.CheckConstraints, 1,
+		"exactly one real CHECK; NOT NULL system checks must be filtered")
+	cc := md.CheckConstraints[0]
+	require.Equal(t, strings.ToUpper(tbl), cc.Table)
+	require.Contains(t, strings.ToUpper(cc.Clause), "AGE >= 0")
+	for _, c := range md.CheckConstraints {
+		require.NotContains(t, strings.ToUpper(c.Clause), "IS NOT NULL",
+			"NOT NULL system checks must be filtered out")
+	}
+}
+
+// TestInspectTrigger_Oracle pins trigger metadata parsed from USER_TRIGGERS:
+// TRIGGER_TYPE→Timing, TRIGGERING_EVENT→Events, STATUS→Enabled, and the
+// best-effort TRIGGER_BODY→Definition (a LONG column).
+func TestInspectTrigger_Oracle(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+	src := th.Source(sakila.Ora)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("trg_tbl")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+tbl+" (id NUMBER NOT NULL PRIMARY KEY, n NUMBER)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	trg := strings.ToUpper(tbl) + "_TRG"
+	_, err = db.ExecContext(th.Context,
+		"CREATE OR REPLACE TRIGGER "+trg+" BEFORE INSERT OR UPDATE ON "+tbl+
+			" FOR EACH ROW BEGIN NULL; END;")
+	require.NoError(t, err)
+	// Trigger is dropped with the table (DROP TABLE drops dependent triggers).
+
+	md, err := th.Open(src).TableMetadata(th.Context, strings.ToUpper(tbl))
+	require.NoError(t, err)
+
+	require.Len(t, md.Triggers, 1)
+	tr := md.Triggers[0]
+	require.Equal(t, "BEFORE", tr.Timing)
+	require.Equal(t, []string{"INSERT", "UPDATE"}, tr.Events)
+	require.NotNil(t, tr.Enabled)
+	require.True(t, *tr.Enabled)
+	require.NotEmpty(t, tr.Definition, "TRIGGER_BODY (LONG) should be readable")
+}
+
+// TestInspectViewDefinition_Oracle pins that a view's defining SQL
+// (USER_VIEWS.TEXT, a LONG column) is captured into ViewDefinition.
+func TestInspectViewDefinition_Oracle(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+	src := th.Source(sakila.Ora)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("vdef_base")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+tbl+" (id NUMBER NOT NULL PRIMARY KEY, name VARCHAR2(50))")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	vw := strings.ToUpper(tbl) + "_V"
+	_, err = db.ExecContext(th.Context,
+		"CREATE VIEW "+vw+" AS SELECT id, name FROM "+tbl+" WHERE id > 0")
+	require.NoError(t, err)
+	// View cleanup registered AFTER base-table cleanup so LIFO drops the
+	// view first (th.DropTable does not drop views).
+	t.Cleanup(func() { _, _ = db.ExecContext(th.Context, "DROP VIEW "+vw) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, vw)
+	require.NoError(t, err)
+	require.Equal(t, sqlz.TableTypeView, md.TableType)
+	require.NotEmpty(t, md.ViewDefinition, "USER_VIEWS.TEXT (LONG) should be readable")
+	require.Contains(t, strings.ToUpper(md.ViewDefinition), "SELECT")
+}
+
+// TestInspectMaterializedViewType_Oracle pins that a materialized view is
+// classified with the canonical TableTypeMaterializedView (not Table),
+// retains DBTableType "MATERIALIZED VIEW", and carries its defining query
+// (USER_MVIEWS.QUERY, a LONG column) in ViewDefinition.
+func TestInspectMaterializedViewType_Oracle(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+	src := th.Source(sakila.Ora)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("mv_base")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+tbl+" (id NUMBER NOT NULL PRIMARY KEY, name VARCHAR2(50))")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	mv := strings.ToUpper(tbl) + "_MV"
+	_, err = db.ExecContext(th.Context,
+		"CREATE MATERIALIZED VIEW "+mv+" AS SELECT id, name FROM "+tbl)
+	require.NoError(t, err)
+	// Matview cleanup registered AFTER base-table cleanup so LIFO drops the
+	// matview first (th.DropTable does not drop materialized views).
+	t.Cleanup(func() { _, _ = db.ExecContext(th.Context, "DROP MATERIALIZED VIEW "+mv) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, mv)
+	require.NoError(t, err)
+	require.Equal(t, sqlz.TableTypeMaterializedView, md.TableType,
+		"materialized view must use the canonical materialized_view type")
+	require.Equal(t, "MATERIALIZED VIEW", md.DBTableType)
+	require.NotEmpty(t, md.ViewDefinition, "USER_MVIEWS.QUERY (LONG) should be readable")
 }
