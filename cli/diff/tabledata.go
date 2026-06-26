@@ -419,14 +419,14 @@ LOOP:
 		// situation where directly adjacent hunks duplicate the last line of the
 		// earlier hunk as the first line of the later hunk, e.g.
 		//
-		//  -34        AUDREY      OLIVIER    2020-06-11T02:50:54Z
-		//  +34        AUDREY      SWIFT      2020-06-11T02:50:54Z
-		//   35        JUDY        DEAN       2020-06-11T02:50:54Z
-		//   36        BURT        DUKAKIS    2020-06-11T02:50:54Z
+		//  -34        AUDREY      OLIVIER    2006-02-15T04:34:33Z
+		//  +34        AUDREY      SWIFT      2006-02-15T04:34:33Z
+		//   35        JUDY        DEAN       2006-02-15T04:34:33Z
+		//   36        BURT        DUKAKIS    2006-02-15T04:34:33Z
 		//  @@ -36,6 +36,6 @@
-		//   36        BURT        DUKAKIS    2020-06-11T02:50:54Z
-		//   37        VAL         BOLGER     2020-06-11T02:50:54Z
-		//  -38        TOM         MCKELLEN   2020-06-11T02:50:54Z
+		//   36        BURT        DUKAKIS    2006-02-15T04:34:33Z
+		//   37        VAL         BOLGER     2006-02-15T04:34:33Z
+		//  -38        TOM         MCKELLEN   2006-02-15T04:34:33Z
 		//
 		// The cfg.HunkMaxSize limit exists to prevent unbounded growth of the hunk,
 		// which could eventually lead to an OOM situation if the diff is huge. If

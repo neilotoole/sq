@@ -20,9 +20,9 @@ func TestRecordWriter(t *testing.T) {
 `
 		want3 = `| actor_id | first_name | last_name | last_update |
 | --- | --- | --- | --- |
-| 1 | PENELOPE | GUINESS | 2020-06-11T02:50:54Z |
-| 2 | NICK | WAHLBERG | 2020-06-11T02:50:54Z |
-| 3 | ED | CHASE | 2020-06-11T02:50:54Z |
+| 1 | PENELOPE | GUINESS | 2006-02-15T04:34:33Z |
+| 2 | NICK | WAHLBERG | 2006-02-15T04:34:33Z |
+| 3 | ED | CHASE | 2006-02-15T04:34:33Z |
 `
 	)
 
