@@ -354,6 +354,66 @@ func TestPostgres_Triggers(t *testing.T) {
 	require.Contains(t, found.Definition, "CREATE TRIGGER")
 }
 
+// TestPostgres_ViewInsteadOfTrigger verifies that an INSTEAD OF trigger on a
+// view is returned by the per-table inspect path (Grip.TableMetadata), matching
+// the behaviour of source-wide inspect.
+func TestPostgres_ViewInsteadOfTrigger(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	baseTbl := stringz.UniqTableName("viot_base")
+	viewName := stringz.UniqTableName("viot_view")
+	fnName := viewName + "_fn"
+	trigName := viewName + "_trig"
+
+	// Register base-table cleanup FIRST (LIFO: view + trigger cleaned up first).
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+baseTbl+` (id INT)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE VIEW `+viewName+` AS SELECT id FROM `+baseTbl)
+	require.NoError(t, err)
+	// Register view cleanup SECOND (LIFO → runs before base-table cleanup).
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP VIEW IF EXISTS `+viewName)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE FUNCTION `+fnName+`() RETURNS trigger LANGUAGE plpgsql AS $$`+
+			` BEGIN RETURN NEW; END; $$`)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP FUNCTION IF EXISTS `+fnName+`()`)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE TRIGGER `+trigName+` INSTEAD OF INSERT ON `+viewName+
+			` FOR EACH ROW EXECUTE FUNCTION `+fnName+`()`)
+	require.NoError(t, err)
+	// Dropping the view removes its triggers; no separate trigger DROP needed.
+
+	md, err := th.Open(src).TableMetadata(th.Context, viewName)
+	require.NoError(t, err)
+	require.Equal(t, sqlz.TableTypeView, md.TableType)
+	require.NotEmpty(t, md.Triggers, "INSTEAD OF trigger must appear in per-table view inspect")
+
+	var found *metadata.Trigger
+	for _, tr := range md.Triggers {
+		if tr.Name == trigName {
+			found = tr
+			break
+		}
+	}
+	require.NotNil(t, found, "trigger %q not found in view Triggers", trigName)
+	require.Equal(t, "INSTEAD OF", found.Timing)
+	require.Contains(t, found.Events, "INSERT")
+}
+
 // TestPostgres_Matview verifies that materialized views (which live only in
 // pg_catalog, not information_schema) are surfaced by sq inspect via both the
 // per-table and source-wide metadata paths, with real columns, view

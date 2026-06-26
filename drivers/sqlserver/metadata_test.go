@@ -148,6 +148,56 @@ END`)
 	}
 }
 
+// TestInspect_ViewInsteadOfTrigger_SQLServer verifies that an INSTEAD OF
+// trigger on a view is returned by the per-table inspect path
+// (Grip.TableMetadata), matching the behaviour of source-wide inspect.
+func TestInspect_ViewInsteadOfTrigger_SQLServer(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	for _, handle := range sakila.MSAll() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			src := th.Source(handle)
+			db := th.OpenDB(src)
+
+			baseTbl := stringz.UniqTableName("viot_base")
+			viewName := stringz.UniqTableName("viot_view")
+			trigName := viewName + "_trig"
+
+			// Register base-table cleanup FIRST (LIFO: view cleaned up first).
+			_, err := db.ExecContext(th.Context,
+				`CREATE TABLE `+baseTbl+` (id INT NOT NULL PRIMARY KEY)`)
+			require.NoError(t, err)
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
+
+			_, err = db.ExecContext(th.Context,
+				`CREATE VIEW `+viewName+` AS SELECT id FROM `+baseTbl)
+			require.NoError(t, err)
+			// Register view cleanup SECOND (LIFO → runs before base-table cleanup).
+			t.Cleanup(func() {
+				_, _ = db.ExecContext(th.Context, `DROP VIEW `+viewName)
+			})
+
+			_, err = db.ExecContext(th.Context, `CREATE TRIGGER `+trigName+
+				` ON `+viewName+` INSTEAD OF INSERT AS BEGIN SET NOCOUNT ON; END`)
+			require.NoError(t, err)
+			// Dropping the view drops its INSTEAD OF triggers automatically.
+
+			md, err := th.Open(src).TableMetadata(th.Context, viewName)
+			require.NoError(t, err)
+			require.NotEmpty(t, md.Triggers,
+				"INSTEAD OF trigger must appear in per-table view inspect")
+			tr := md.Triggers[0]
+			require.Equal(t, trigName, tr.Name)
+			require.Equal(t, "INSTEAD OF", tr.Timing)
+			require.Contains(t, tr.Events, "INSERT")
+		})
+	}
+}
+
 // TestInspect_ViewDefinition_SQLServer verifies that view-typed tables carry
 // a non-empty ViewDefinition loaded from sys.sql_modules (which does not
 // truncate at 4000 chars unlike INFORMATION_SCHEMA.VIEWS.VIEW_DEFINITION).

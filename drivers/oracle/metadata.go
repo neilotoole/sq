@@ -929,6 +929,13 @@ WHERE v.view_name = :1`
 		return nil, err
 	}
 
+	// INSTEAD OF triggers are stored in USER_TRIGGERS with TABLE_NAME equal
+	// to the view name, so getOracleTriggers returns them when called for a view.
+	tblMeta.Triggers, err = getOracleTriggers(ctx, db, viewName)
+	if err != nil {
+		return nil, err
+	}
+
 	return tblMeta, nil
 }
 

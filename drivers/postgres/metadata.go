@@ -657,7 +657,10 @@ func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Tabl
 			return err
 		}
 		tblMeta.ViewDefinition = defs[tblMeta.Name]
-		return nil
+		// INSTEAD OF triggers can be attached to views; load them so that
+		// per-table inspect is consistent with source-wide inspect.
+		tblMeta.Triggers, err = getPgTriggers(ctx, db, tblMeta.Name)
+		return err
 	}
 	if tblMeta.TableType == sqlz.TableTypeMaterializedView {
 		// Matviews have no FK/PK/unique/check/triggers, only indexes.

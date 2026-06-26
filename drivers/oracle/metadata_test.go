@@ -249,6 +249,64 @@ func TestInspectTrigger_Oracle(t *testing.T) {
 	require.NotEmpty(t, tr.Definition, "TRIGGER_BODY (LONG) should be readable")
 }
 
+// TestInspectViewInsteadOfTrigger_Oracle verifies that an INSTEAD OF trigger
+// on a view is returned by the per-table inspect path (Grip.TableMetadata),
+// matching the behaviour of source-wide inspect.
+func TestInspectViewInsteadOfTrigger_Oracle(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+	src := th.Source(sakila.Ora)
+	db := th.OpenDB(src)
+
+	baseTbl := strings.ToUpper(stringz.UniqTableName("viot_base"))
+	viewName := strings.ToUpper(stringz.UniqTableName("viot_view"))
+	trigName := viewName + "_TRG"
+
+	// Register base-table cleanup FIRST (LIFO: view cleaned up before table).
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+baseTbl+" (id NUMBER NOT NULL PRIMARY KEY)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
+
+	_, err = db.ExecContext(th.Context,
+		"CREATE VIEW "+viewName+" AS SELECT id FROM "+baseTbl)
+	require.NoError(t, err)
+	// Register view cleanup SECOND (LIFO → runs before base-table cleanup).
+	// Dropping the view automatically drops its INSTEAD OF triggers in Oracle,
+	// but we drop explicitly for clarity.
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, "DROP VIEW "+viewName)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		"CREATE TRIGGER "+trigName+" INSTEAD OF INSERT ON "+viewName+
+			" FOR EACH ROW BEGIN NULL; END;")
+	require.NoError(t, err)
+	// INSTEAD OF triggers are dropped with the view; no separate DROP needed.
+
+	md, err := th.Open(src).TableMetadata(th.Context, viewName)
+	require.NoError(t, err)
+	require.Equal(t, sqlz.TableTypeView, md.TableType)
+	require.NotEmpty(t, md.Triggers,
+		"INSTEAD OF trigger must appear in per-table view inspect")
+
+	var found *metadata.Trigger
+	for _, tr := range md.Triggers {
+		if tr.Name == trigName {
+			found = tr
+			break
+		}
+	}
+	require.NotNil(t, found, "trigger %q not found in view Triggers", trigName)
+	require.Equal(t, "INSTEAD OF", found.Timing)
+	require.Contains(t, found.Events, "INSERT")
+}
+
 // TestInspectViewDefinition_Oracle pins that a view's defining SQL
 // (USER_VIEWS.TEXT, a LONG column) is captured into ViewDefinition.
 func TestInspectViewDefinition_Oracle(t *testing.T) {
