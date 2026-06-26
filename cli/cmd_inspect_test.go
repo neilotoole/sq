@@ -119,7 +119,8 @@ func TestCmdInspect_EnrichmentMetadata_JSON(t *testing.T) {
 	require.NotNil(t, doubledCol, "doubled column must appear in enrich_tbl columns")
 	require.True(t, idCol.AutoIncrement, "id column must have AutoIncrement == true")
 	require.True(t, doubledCol.Generated, "doubled column must have Generated == true")
-	require.NotEmpty(t, doubledCol.GeneratedExpr, "doubled column must have a non-empty GeneratedExpr")
+	require.Contains(t, doubledCol.GeneratedExpr, "amount",
+		"GeneratedExpr must reference the source column")
 
 	// CHECK constraint: the clause must reference the constrained column.
 	require.NotEmpty(t, tblMeta.CheckConstraints,
@@ -143,9 +144,9 @@ func TestCmdInspect_EnrichmentMetadata_JSON(t *testing.T) {
 	require.Contains(t, trig.Events, "INSERT",
 		"trigger must fire on INSERT")
 
-	// View definition.
-	require.NotEmpty(t, viewMeta.ViewDefinition,
-		"enrich_view must carry a non-empty ViewDefinition")
+	// View definition: must name the base table.
+	require.Contains(t, viewMeta.ViewDefinition, "enrich_tbl",
+		"ViewDefinition must name the base table")
 }
 
 // TestCmdInspect_FKMetadata_JSON pins the end-to-end JSON shape of the
