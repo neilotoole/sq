@@ -242,29 +242,66 @@ func TestInspect_GeneratedColumn(t *testing.T) {
 	)`)
 	require.NoError(t, err)
 
-	md, err := grip.TableMetadata(ctx, "t")
+	// A second plain table ensures the schema-wide map build in
+	// getSchemaGeneratedColumns iterates over more than one table.
+	_, err = db.ExecContext(ctx, `CREATE TABLE plain (id INTEGER, name VARCHAR)`)
 	require.NoError(t, err)
 
-	colByName := make(map[string]*metadata.Column, len(md.Columns))
-	for _, col := range md.Columns {
-		colByName[col.Name] = col
-	}
+	t.Run("per_table", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "t")
+		require.NoError(t, err)
 
-	idCol := colByName["id"]
-	require.NotNil(t, idCol)
-	require.False(t, idCol.Generated, "plain column should not be marked generated")
-	require.Empty(t, idCol.DefaultValue)
+		colByName := make(map[string]*metadata.Column, len(md.Columns))
+		for _, col := range md.Columns {
+			colByName[col.Name] = col
+		}
 
-	priceCol := colByName["price"]
-	require.NotNil(t, priceCol)
-	require.False(t, priceCol.Generated, "DEFAULT column should not be marked generated")
-	require.NotEmpty(t, priceCol.DefaultValue, "regular default should be preserved")
+		idCol := colByName["id"]
+		require.NotNil(t, idCol)
+		require.False(t, idCol.Generated, "plain column should not be marked generated")
+		require.Empty(t, idCol.DefaultValue)
 
-	taxCol := colByName["tax"]
-	require.NotNil(t, taxCol)
-	require.True(t, taxCol.Generated, "GENERATED ALWAYS AS column must be marked generated")
-	require.NotEmpty(t, taxCol.GeneratedExpr, "GeneratedExpr must be populated")
-	require.Empty(t, taxCol.DefaultValue, "generated expr must not appear as DefaultValue")
+		priceCol := colByName["price"]
+		require.NotNil(t, priceCol)
+		require.False(t, priceCol.Generated, "DEFAULT column should not be marked generated")
+		require.NotEmpty(t, priceCol.DefaultValue, "regular default should be preserved")
+
+		taxCol := colByName["tax"]
+		require.NotNil(t, taxCol)
+		require.True(t, taxCol.Generated, "GENERATED ALWAYS AS column must be marked generated")
+		require.NotEmpty(t, taxCol.GeneratedExpr, "GeneratedExpr must be populated")
+		require.Empty(t, taxCol.DefaultValue, "generated expr must not appear as DefaultValue")
+	})
+
+	t.Run("source_level", func(t *testing.T) {
+		srcMd, err := grip.SourceMetadata(ctx, false)
+		require.NoError(t, err)
+
+		var tbl *metadata.Table
+		for _, tb := range srcMd.Tables {
+			if tb.Name == "t" {
+				tbl = tb
+				break
+			}
+		}
+		require.NotNil(t, tbl, "generated-column table must appear in source metadata")
+
+		colByName := make(map[string]*metadata.Column, len(tbl.Columns))
+		for _, col := range tbl.Columns {
+			colByName[col.Name] = col
+		}
+
+		idCol := colByName["id"]
+		require.NotNil(t, idCol)
+		require.False(t, idCol.Generated, "plain column should not be marked generated")
+
+		taxCol := colByName["tax"]
+		require.NotNil(t, taxCol)
+		require.True(t, taxCol.Generated,
+			"GENERATED ALWAYS AS column must be marked generated in source-wide path")
+		require.NotEmpty(t, taxCol.GeneratedExpr, "GeneratedExpr must be populated in source-wide path")
+		require.Empty(t, taxCol.DefaultValue, "generated expr must not appear as DefaultValue")
+	})
 }
 
 // TestInspect_CheckConstraint verifies that CHECK constraints are returned for
