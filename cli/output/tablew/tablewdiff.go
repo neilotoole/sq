@@ -155,7 +155,17 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 		// We've found a difference. We need to print all consecutive "deletion"
 		// lines; and when those are done, we do the consecutive "insertion" lines.
 
-		for j = i; ctx.Err() == nil && j < len(pairs) && !pairs[j].Equal() && sc1.Scan(); j++ {
+		for j = i; ctx.Err() == nil && j < len(pairs) && !pairs[j].Equal(); j++ {
+			// Skip single-sided "added" pairs: they have no left-side record, so
+			// there's no deletion line for them in sc1. Without this guard, sc1
+			// would consume the line belonging to a later pair, mislabeling an
+			// unchanged neighbor as a deletion (issue #947).
+			if pairs[j].Rec1() == nil {
+				break
+			}
+			if !sc1.Scan() {
+				break
+			}
 			line = sc1.Bytes()
 			_, _ = dest.Write(dw.deletePrefix)
 			_, _ = dest.Write(line)
@@ -166,7 +176,15 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 			return
 		}
 
-		for k = i; ctx.Err() == nil && k < len(pairs) && !pairs[k].Equal() && sc2.Scan(); k++ {
+		for k = i; ctx.Err() == nil && k < len(pairs) && !pairs[k].Equal(); k++ {
+			// Skip single-sided "removed" pairs: they have no right-side record,
+			// so there's no insertion line for them in sc2 (issue #947).
+			if pairs[k].Rec2() == nil {
+				break
+			}
+			if !sc2.Scan() {
+				break
+			}
 			line = sc2.Bytes()
 			_, _ = dest.Write(dw.insertPrefix)
 			_, _ = dest.Write(line)
@@ -300,7 +318,17 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 		// We've found a difference. We need to print all consecutive "deletion"
 		// lines; and when those are done, we do the consecutive "insertion" lines.
 
-		for j = i; ctx.Err() == nil && j < len(pairs) && !pairs[j].Equal() && sc1.Scan(); j++ {
+		for j = i; ctx.Err() == nil && j < len(pairs) && !pairs[j].Equal(); j++ {
+			// Skip single-sided "added" pairs: they have no left-side record, so
+			// there's no deletion line for them in sc1. Without this guard, sc1
+			// would consume the line belonging to a later pair, mislabeling an
+			// unchanged neighbor as a deletion (issue #947).
+			if pairs[j].Rec1() == nil {
+				break
+			}
+			if !sc1.Scan() {
+				break
+			}
 			line = sc1.Bytes()
 			_, _ = dest.Write(dw.deletePrefix)
 			_, _ = dest.Write(line)
@@ -311,7 +339,15 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 			return
 		}
 
-		for k = i; ctx.Err() == nil && k < len(pairs) && !pairs[k].Equal() && sc2.Scan(); k++ {
+		for k = i; ctx.Err() == nil && k < len(pairs) && !pairs[k].Equal(); k++ {
+			// Skip single-sided "removed" pairs: they have no right-side record,
+			// so there's no insertion line for them in sc2 (issue #947).
+			if pairs[k].Rec2() == nil {
+				break
+			}
+			if !sc2.Scan() {
+				break
+			}
 			line = sc2.Bytes()
 			_, _ = dest.Write(dw.insertPrefix)
 			_, _ = dest.Write(line)

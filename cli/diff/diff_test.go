@@ -179,3 +179,128 @@ func TestDiff_Data_PKAlignScatteredInserts(t *testing.T) {
 	require.Zero(t, removed,
 		"no rows were removed from the right table; zero removed lines expected")
 }
+
+// TestDiff_Data_PKAlignDefaultContext is the default-context (3 lines) gate for
+// issue #947. Unlike TestDiff_Data_PKAlignScatteredInserts, which pins
+// --unified 0 (hiding the writer's mid-stream single-sided cascade behind the
+// absence of context lines), this test runs with the DEFAULT context so that
+// the unchanged neighbour rows of each scattered insert/delete are rendered.
+//
+// The bug it guards: the text/csv hunk writers pre-render only the non-nil
+// records into per-side buffers, then walk the pairs scanning one line per
+// non-equal pair WITHOUT checking which side is nil. A single-sided pair
+// (added: Rec1()==nil, removed: Rec2()==nil) made the scanner consume the line
+// belonging to a later pair, mislabeling an unchanged neighbour as a deletion
+// or insertion and cascading down the hunk.
+//
+// We assert, for both the text and csv formats:
+//   - ADDED scenario  (right has scattered rows the left lacks): exactly N "+"
+//     lines, ZERO "-" lines, and unchanged neighbours appear as context lines.
+//   - REMOVED scenario (left has scattered rows the right lacks): exactly N "-"
+//     lines, ZERO "+" lines, neighbours as context.
+func TestDiff_Data_PKAlignDefaultContext(t *testing.T) {
+	// Scattered actor_ids, spaced far apart so each forms its own hunk with a
+	// full 3-line context window on each side (no clamping, no hunk overlap).
+	ids := []int{50, 100, 150}
+	const wantN = 3
+
+	for _, format := range []string{"text", "csv"} {
+		format := format
+		t.Run(format, func(t *testing.T) {
+			t.Run("added", func(t *testing.T) {
+				// Modified copy on the LEFT (missing the rows); intact copy on the
+				// RIGHT. The right rows absent from the left are "added".
+				added, removed, ctxLines := runDiffDefaultContext(t, format, ids, false)
+				t.Logf("added=%d removed=%d context=%d (want added=%d removed=0)",
+					added, removed, ctxLines, wantN)
+				require.Equal(t, wantN, added,
+					"PK-aware diff must report exactly one added line per scattered insert")
+				require.Zero(t, removed,
+					"no rows removed; the writer must not mislabel neighbours as deletions")
+				require.Positive(t, ctxLines,
+					"unchanged neighbours must render as context lines, not diff lines")
+			})
+
+			t.Run("removed", func(t *testing.T) {
+				// Intact copy on the LEFT; modified copy (missing the rows) on the
+				// RIGHT. The left rows absent from the right are "removed".
+				added, removed, ctxLines := runDiffDefaultContext(t, format, ids, true)
+				t.Logf("added=%d removed=%d context=%d (want removed=%d added=0)",
+					added, removed, ctxLines, wantN)
+				require.Equal(t, wantN, removed,
+					"PK-aware diff must report exactly one removed line per scattered delete")
+				require.Zero(t, added,
+					"no rows added; the writer must not mislabel neighbours as insertions")
+				require.Positive(t, ctxLines,
+					"unchanged neighbours must render as context lines, not diff lines")
+			})
+		})
+	}
+}
+
+// runDiffDefaultContext sets up an intact Sakila actor table and a modified
+// copy with the given actor_ids deleted, then runs sq diff --data at the
+// default context with the given output format. If intactLeft is true the
+// intact copy is the left diff operand (so the deleted rows surface as
+// removals); otherwise the modified copy is on the left (deleted rows surface
+// as additions). It returns the count of "+" (added), "-" (removed), and " "
+// (context) data lines, excluding the ---/+++ file headers and @@ hunk headers.
+func runDiffDefaultContext(t *testing.T, format string, ids []int, intactLeft bool,
+) (added, removed, ctxLines int) {
+	t.Helper()
+	th := testh.New(t)
+
+	// modified: writable temp copy of sakila with the scattered rows deleted.
+	srcMod := th.Source(sakila.SL3)
+	idStrs := make([]string, len(ids))
+	for i, id := range ids {
+		idStrs[i] = fmt.Sprintf("%d", id)
+	}
+	th.ExecSQL(srcMod, "DELETE FROM actor WHERE actor_id IN ("+strings.Join(idStrs, ", ")+")")
+	require.Equal(t, int64(sakila.TblActorCount-len(ids)), th.RowCount(srcMod, sakila.TblActor))
+
+	// intact: fresh untouched copy of the sakila fixture (all 200 actor rows).
+	origPath := proj.Abs(sakila.PathSL3)
+	dstPath := filepath.Join(tu.TempDir(t), "sakila_intact.db")
+	require.NoError(t, ioz.CopyFile(dstPath, origPath, true))
+	srcIntact := source.Source{
+		Handle:   "@test_intact",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + dstPath,
+	}
+
+	left, right := srcMod.Handle, srcIntact.Handle
+	if intactLeft {
+		left, right = srcIntact.Handle, srcMod.Handle
+	}
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*srcMod).Add(srcIntact)
+	args := []string{"diff", "--data", "--stop", "0"}
+	if format != "text" {
+		args = append(args, "-f", format)
+	}
+	args = append(args, left+"."+sakila.TblActor, right+"."+sakila.TblActor)
+
+	err := tr.Exec(args...)
+	require.Error(t, err, "diff must report differences (exit code 1)")
+	require.Equal(t, 1, errz.ExitCode(err), "sq diff exits 1 when differences exist")
+
+	got := tr.Out.String()
+	t.Log("diff output:\n" + got)
+
+	for _, line := range strings.Split(got, "\n") {
+		switch {
+		case strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---"):
+			// file header line, not a data row
+		case strings.HasPrefix(line, "@@"):
+			// hunk header line, not a data row
+		case strings.HasPrefix(line, "+"):
+			added++
+		case strings.HasPrefix(line, "-"):
+			removed++
+		case strings.HasPrefix(line, " "):
+			ctxLines++
+		}
+	}
+	return added, removed, ctxLines
+}
