@@ -123,6 +123,56 @@ func TestExtractClickHouseCheckConstraints(t *testing.T) {
 				{"chk_id", "id != 0"},
 			},
 		},
+		{
+			// Backtick-quoted constraint name (space in name requires quoting).
+			// H1: (\w+) would not match; broadened regex must capture the quoted
+			// form and unquoteCHIdent must strip the backticks.
+			name: "backtick-quoted constraint name",
+			ddl: "CREATE TABLE t (`id` Int64, `age` Int32," +
+				" CONSTRAINT `chk one` CHECK (age > 0)) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"chk one", "age > 0"},
+			},
+		},
+		{
+			// Double-quoted constraint name. H1: must be captured and unquoted.
+			name: "double-quoted constraint name",
+			ddl: "CREATE TABLE t (`id` Int64, `price` Decimal(10, 2)," +
+				` CONSTRAINT "chk_two" CHECK (price >= 0)) ENGINE = MergeTree ORDER BY id`,
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"chk_two", "price >= 0"},
+			},
+		},
+		{
+			// Non-ASCII (Cyrillic) constraint name requires backtick quoting in
+			// ClickHouse. H1: unquoted \w+ misses it; quoted form must be captured.
+			name: "non-ASCII backtick-quoted constraint name",
+			ddl: "CREATE TABLE t (`id` Int64, `qty` Int32," +
+				" CONSTRAINT `проверка` CHECK (qty <> 0)) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"проверка", "qty <> 0"},
+			},
+		},
+		{
+			// A closing paren inside a double-quoted identifier must not
+			// prematurely close the CHECK expression. H2: balancedParenContents
+			// lacked inDoubleQuote state; the ')' inside "weird)col" would drop
+			// depth to 0, truncating the clause.
+			name: "paren inside double-quoted identifier in clause",
+			ddl: "CREATE TABLE t (`id` Int64," +
+				` CONSTRAINT c CHECK ("weird)col" > 0)) ENGINE = MergeTree ORDER BY id`,
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"c", `"weird)col" > 0`},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

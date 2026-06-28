@@ -374,12 +374,35 @@ func tableTypeFromEngine(engine string) string {
 	}
 }
 
-// checkConstraintRe matches the start of a ClickHouse CONSTRAINT … CHECK
+// checkConstraintRe matches the start of a ClickHouse CONSTRAINT ... CHECK
 // declaration inside a CREATE TABLE DDL string. The first capture group is
-// the constraint name (an unquoted identifier). The match ends immediately
-// after the opening parenthesis of the CHECK expression, so the caller can
-// walk forward from that position to extract the balanced-paren clause.
-var checkConstraintRe = regexp.MustCompile(`CONSTRAINT\s+(\w+)\s+CHECK\s+\(`)
+// the constraint name in one of three ClickHouse identifier forms:
+//   - backtick-quoted:  `my ident`
+//   - double-quoted:    "my ident"
+//   - unquoted ASCII:   plain_name
+//
+// The match ends immediately after the opening parenthesis of the CHECK
+// expression; the caller walks forward from that position to extract the
+// balanced-paren clause. \s* before the opening paren (rather than \s+)
+// handles the rare CHECK(...) form with no space.
+var checkConstraintRe = regexp.MustCompile(
+	"CONSTRAINT\\s+(`[^`]*`|\"[^\"]*\"|\\w+)\\s+CHECK\\s*\\(",
+)
+
+// unquoteCHIdent strips surrounding backtick or double-quote delimiters from a
+// ClickHouse identifier captured by checkConstraintRe, unescaping any doubled
+// inner quotes (“ -> `, "" -> "). Unquoted identifiers are returned as-is.
+func unquoteCHIdent(s string) string {
+	if len(s) >= 2 {
+		switch {
+		case s[0] == '`' && s[len(s)-1] == '`':
+			return strings.ReplaceAll(s[1:len(s)-1], "``", "`")
+		case s[0] == '"' && s[len(s)-1] == '"':
+			return strings.ReplaceAll(s[1:len(s)-1], `""`, `"`)
+		}
+	}
+	return s
+}
 
 // getClickHouseCheckConstraints returns the CHECK constraints declared on
 // ClickHouse tables in dbName. If tblName is non-empty, only constraints for
@@ -437,8 +460,8 @@ func extractClickHouseCheckConstraints(ddl, tblName string) []*metadata.CheckCon
 	}
 	checks := make([]*metadata.CheckConstraint, 0, len(matches))
 	for _, m := range matches {
-		// m[2]:m[3] is the name capture group.
-		name := ddl[m[2]:m[3]]
+		// m[2]:m[3] is the name capture group (may be backtick/double-quoted).
+		name := unquoteCHIdent(ddl[m[2]:m[3]])
 		// m[1] is the byte position just after the opening '(' of the CHECK
 		// expression, i.e. ddl[m[1]-1] == '('. Walk forward to find the
 		// matching closing paren.
@@ -457,10 +480,12 @@ func extractClickHouseCheckConstraints(ddl, tblName string) []*metadata.CheckCon
 // empty string if start is out of range, ddl[start] != '(', or the parens are
 // unbalanced.
 //
-// The scanner is string-literal-aware: parentheses inside single-quoted strings
-// and backtick-quoted identifiers are not counted toward the depth. Both
+// The scanner is string-literal- and identifier-quote-aware: parentheses inside
+// single-quoted strings ('...'), backtick-quoted identifiers (`...`), and
+// double-quoted identifiers ("...") are not counted toward the depth. Both
 // SQL-standard doubled-quote escapes and backslash-escaped quotes are handled
-// inside single-quoted strings.
+// inside single-quoted strings; doubled “ and "" are handled inside their
+// respective identifier forms.
 func balancedParenContents(ddl string, start int) string {
 	if start < 0 || start >= len(ddl) || ddl[start] != '(' {
 		return ""
@@ -468,6 +493,7 @@ func balancedParenContents(ddl string, start int) string {
 	depth := 0
 	inSingleQuote := false
 	inBacktick := false
+	inDoubleQuote := false
 	for i := start; i < len(ddl); i++ {
 		ch := ddl[i]
 		if inSingleQuote {
@@ -486,7 +512,23 @@ func balancedParenContents(ddl string, start int) string {
 		}
 		if inBacktick {
 			if ch == '`' {
-				inBacktick = false
+				// `` doubled-quote escape: two consecutive backticks stay inside.
+				if i+1 < len(ddl) && ddl[i+1] == '`' {
+					i++ // skip second backtick; remain inside identifier
+				} else {
+					inBacktick = false
+				}
+			}
+			continue
+		}
+		if inDoubleQuote {
+			if ch == '"' {
+				// "" doubled-quote escape: two consecutive double-quotes stay inside.
+				if i+1 < len(ddl) && ddl[i+1] == '"' {
+					i++ // skip second double-quote; remain inside identifier
+				} else {
+					inDoubleQuote = false
+				}
 			}
 			continue
 		}
@@ -495,6 +537,8 @@ func balancedParenContents(ddl string, start int) string {
 			inSingleQuote = true
 		case '`':
 			inBacktick = true
+		case '"':
+			inDoubleQuote = true
 		case '(':
 			depth++
 		case ')':
