@@ -1686,7 +1686,8 @@ func TestAllExpressionKeys(t *testing.T) {
 
 func TestSource_RecomputeTableCounts(t *testing.T) {
 	s := &metadata.Source{Tables: []*metadata.Table{
-		{TableType: sqlz.TableTypeTable}, {TableType: sqlz.TableTypeTable},
+		{TableType: sqlz.TableTypeTable},
+		{TableType: sqlz.TableTypeTable},
 		{TableType: sqlz.TableTypeView},
 		{TableType: sqlz.TableTypeMaterializedView},
 		{TableType: sqlz.TableTypeVirtual},

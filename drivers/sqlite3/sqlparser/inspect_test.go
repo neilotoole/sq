@@ -115,7 +115,8 @@ func TestExtractTriggerTimingEvents_Malformed(t *testing.T) {
 func TestExtractColumnDDLInfo(t *testing.T) {
 	t.Run("autoincrement", func(t *testing.T) {
 		got, err := sqlparser.ExtractColumnDDLInfo(
-			`CREATE TABLE t (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)`)
+			`CREATE TABLE t (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)`,
+		)
 		require.NoError(t, err)
 		require.True(t, got["id"].AutoIncrement)
 		require.Empty(t, got["id"].GeneratedExpr)
@@ -125,7 +126,8 @@ func TestExtractColumnDDLInfo(t *testing.T) {
 
 	t.Run("generated_stored", func(t *testing.T) {
 		got, err := sqlparser.ExtractColumnDDLInfo(
-			`CREATE TABLE t (a INTEGER, b INTEGER GENERATED ALWAYS AS (a * 2) STORED)`)
+			`CREATE TABLE t (a INTEGER, b INTEGER GENERATED ALWAYS AS (a * 2) STORED)`,
+		)
 		require.NoError(t, err)
 		require.Equal(t, "a * 2", got["b"].GeneratedExpr)
 		require.False(t, got["b"].AutoIncrement)
@@ -133,7 +135,8 @@ func TestExtractColumnDDLInfo(t *testing.T) {
 
 	t.Run("generated_virtual_short_form", func(t *testing.T) {
 		got, err := sqlparser.ExtractColumnDDLInfo(
-			`CREATE TABLE t (a INTEGER, b INTEGER AS (a + 1) VIRTUAL)`)
+			`CREATE TABLE t (a INTEGER, b INTEGER AS (a + 1) VIRTUAL)`,
+		)
 		require.NoError(t, err)
 		require.Equal(t, "a + 1", got["b"].GeneratedExpr)
 	})
@@ -142,7 +145,8 @@ func TestExtractColumnDDLInfo(t *testing.T) {
 		// A bare INTEGER PRIMARY KEY is a rowid alias, NOT an explicit
 		// AUTOINCREMENT column; it must not be flagged AutoIncrement.
 		got, err := sqlparser.ExtractColumnDDLInfo(
-			`CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)`)
+			`CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)`,
+		)
 		require.NoError(t, err)
 		require.False(t, got["id"].AutoIncrement, "bare INTEGER PRIMARY KEY is not AUTOINCREMENT")
 		_, hasID := got["id"]
