@@ -284,6 +284,36 @@ type UCRow struct {
 	Columns string
 }
 
+// ColumnAutoLabel returns the auto-population label for col: "identity" for SQL
+// IDENTITY columns, "auto_inc" for AUTO_INCREMENT columns (MySQL/SQLite), or
+// "generated" for computed/generated columns (GENERATED ALWAYS AS expr).
+// Returns "" when none of the flags are set. Priority order: identity >
+// auto_inc > generated.
+func ColumnAutoLabel(col *metadata.Column) string {
+	switch {
+	case col.Identity:
+		return "identity"
+	case col.AutoIncrement:
+		return "auto_inc"
+	case col.Generated:
+		return "generated"
+	default:
+		return ""
+	}
+}
+
+// TriggerEnabledMark returns "✓" when enabled is true, "✗" when false, and
+// "" when nil (engine has no enabled/disabled concept).
+func TriggerEnabledMark(enabled *bool) string {
+	if enabled == nil {
+		return ""
+	}
+	if *enabled {
+		return "✓"
+	}
+	return "✗"
+}
+
 // UCRows flattens tbl's unique constraints into rows for tabular rendering,
 // sorted by name then columns. Returns nil when tbl has none.
 func UCRows(tbl *metadata.Table) []UCRow {

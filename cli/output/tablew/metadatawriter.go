@@ -12,6 +12,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -175,22 +176,14 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 		return w.tbl.pr.Bool.Sprint("pk")
 	}
 
-	// getAuto returns a compact marker for auto-population semantics:
-	// "identity" for SQL IDENTITY/GENERATED ALWAYS AS IDENTITY columns,
-	// "auto_inc" for AUTO_INCREMENT columns (MySQL/SQLite), and
-	// "generated" for computed/generated columns (GENERATED ALWAYS AS expr).
-	// Priority: identity > auto_inc > generated. Returns "" for plain columns.
+	// getAuto returns a color-styled auto-population label for col, delegating
+	// label selection to commonw.ColumnAutoLabel and applying pr.Bool styling.
+	// Returns "" for plain columns.
 	getAuto := func(col *metadata.Column) string {
-		switch {
-		case col.Identity:
-			return w.tbl.pr.Bool.Sprint("identity")
-		case col.AutoIncrement:
-			return w.tbl.pr.Bool.Sprint("auto_inc")
-		case col.Generated:
-			return w.tbl.pr.Bool.Sprint("generated")
-		default:
-			return ""
+		if s := commonw.ColumnAutoLabel(col); s != "" {
+			return w.tbl.pr.Bool.Sprint(s)
 		}
+		return ""
 	}
 
 	// formatIdxCell turns the per-column index entries into a single

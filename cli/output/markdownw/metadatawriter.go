@@ -307,7 +307,7 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 			checkMark(fkCols[col.Name]),
 		}
 		if hasAuto {
-			cells = append(cells, columnAutoLabel(col))
+			cells = append(cells, commonw.ColumnAutoLabel(col))
 		}
 		if hasGeneratedExpr {
 			cells = append(cells, mdCodeCell(col.GeneratedExpr))
@@ -322,21 +322,6 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 			cells = append(cells, escapeMarkdown(col.Comment))
 		}
 		writeTableRow(buf, cells...)
-	}
-}
-
-// columnAutoLabel returns the auto-population label for a column
-// ("identity", "auto_inc", or "generated"), or "" if none applies.
-func columnAutoLabel(col *metadata.Column) string {
-	switch {
-	case col.Identity:
-		return "identity"
-	case col.AutoIncrement:
-		return "auto_inc"
-	case col.Generated:
-		return "generated"
-	default:
-		return ""
 	}
 }
 
@@ -460,25 +445,13 @@ func (w *metadataWriter) writeTriggers(buf *bytes.Buffer, tbl *metadata.Table) {
 			escapeMarkdown(strings.Join(tr.Events, ", ")),
 		}
 		if hasEnabled {
-			cells = append(cells, triggerEnabledMark(tr.Enabled))
+			cells = append(cells, commonw.TriggerEnabledMark(tr.Enabled))
 		}
 		if hasDefinition {
 			cells = append(cells, mdCodeCell(tr.Definition))
 		}
 		writeTableRow(buf, cells...)
 	}
-}
-
-// triggerEnabledMark returns "✓" when enabled is true, "✗" when false, and
-// "" when nil (engine has no enabled/disabled concept).
-func triggerEnabledMark(enabled *bool) string {
-	if enabled == nil {
-		return ""
-	}
-	if *enabled {
-		return "✓"
-	}
-	return "✗"
 }
 
 func compareTables(a, b *metadata.Table) int {

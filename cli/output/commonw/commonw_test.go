@@ -10,6 +10,39 @@ import (
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
+func TestColumnAutoLabel(t *testing.T) {
+	col := &metadata.Column{}
+	require.Equal(t, "", commonw.ColumnAutoLabel(col), "plain column: no label")
+
+	col.Generated = true
+	require.Equal(t, "generated", commonw.ColumnAutoLabel(col))
+
+	// auto_inc beats generated
+	col.AutoIncrement = true
+	require.Equal(t, "auto_inc", commonw.ColumnAutoLabel(col))
+
+	// identity beats everything
+	col.Identity = true
+	require.Equal(t, "identity", commonw.ColumnAutoLabel(col))
+
+	// only identity
+	require.Equal(t, "identity", commonw.ColumnAutoLabel(&metadata.Column{Identity: true}))
+	// only auto_inc
+	require.Equal(t, "auto_inc", commonw.ColumnAutoLabel(&metadata.Column{AutoIncrement: true}))
+	// only generated
+	require.Equal(t, "generated", commonw.ColumnAutoLabel(&metadata.Column{Generated: true}))
+}
+
+func TestTriggerEnabledMark(t *testing.T) {
+	require.Equal(t, "", commonw.TriggerEnabledMark(nil), "nil: no concept of enabled")
+
+	tr := true
+	require.Equal(t, "✓", commonw.TriggerEnabledMark(&tr))
+
+	fa := false
+	require.Equal(t, "✗", commonw.TriggerEnabledMark(&fa))
+}
+
 func TestFKColumnSet(t *testing.T) {
 	tbl := &metadata.Table{
 		Name: "t",
