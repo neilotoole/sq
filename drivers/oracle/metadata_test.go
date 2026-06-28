@@ -295,7 +295,7 @@ func TestInspectTriggerUpdateOf_Oracle(t *testing.T) {
 
 // TestInspectViewInsteadOfTrigger_Oracle verifies that an INSTEAD OF trigger
 // on a view is returned by the per-table inspect path (Grip.TableMetadata),
-// matching the behaviour of source-wide inspect.
+// matching the behavior of source-wide inspect.
 func TestInspectViewInsteadOfTrigger_Oracle(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()

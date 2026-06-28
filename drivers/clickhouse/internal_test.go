@@ -115,12 +115,14 @@ func TestExtractClickHouseCheckConstraints(t *testing.T) {
 		{
 			// Escaped quote (SQL-standard '' pair) inside a string that also
 			// contains a closing paren must not prematurely end the expression.
+			// Without '' awareness, balancedParenContents exits at the ')' inside
+			// 'it''s)', truncating the clause to "name != 'it'".
 			name:    "escaped quote and paren inside string literal",
-			ddl:     "CREATE TABLE t (`id` Int64, CONSTRAINT chk_id CHECK (id != 0)) ENGINE = MergeTree ORDER BY id",
+			ddl:     "CREATE TABLE t (`id` Int64, CONSTRAINT chk_name CHECK (name != 'it''s)')) ENGINE = MergeTree ORDER BY id",
 			tblName: "t",
 			wantLen: 1,
 			wantCons: []wantConstraint{
-				{"chk_id", "id != 0"},
+				{"chk_name", "name != 'it''s)'"},
 			},
 		},
 		{
@@ -171,6 +173,36 @@ func TestExtractClickHouseCheckConstraints(t *testing.T) {
 			wantLen: 1,
 			wantCons: []wantConstraint{
 				{"c", `"weird)col" > 0`},
+			},
+		},
+		{
+			// Doubled double-quote in constraint name: "chk""two" encodes the name
+			// chk"two. Fix B: the broadened checkConstraintRe must match through the
+			// doubled inner quote; unquoteCHIdent then collapses "" -> ".
+			// RED before fix B, GREEN after.
+			name: "doubled double-quote in constraint name",
+			ddl: "CREATE TABLE t (`id` Int64," +
+				` CONSTRAINT "chk""two" CHECK (id > 0)) ENGINE = MergeTree ORDER BY id`,
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{`chk"two`, "id > 0"},
+			},
+		},
+		{
+			// Backslash-escaped double-quote inside a double-quoted identifier
+			// followed by a closing paren: "a\")b" must not end the identifier at
+			// the escaped ", so the ) inside is not counted as a depth change.
+			// Fix C: without the backslash-skip in balancedParenContents, the
+			// clause is truncated to "a\".
+			// RED before fix C, GREEN after.
+			name: "backslash-escaped quote inside double-quoted identifier",
+			ddl: "CREATE TABLE t (`id` Int64," +
+				" CONSTRAINT c CHECK (\"a\\\")b\" > 0)) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"c", "\"a\\\")b\" > 0"},
 			},
 		},
 	}

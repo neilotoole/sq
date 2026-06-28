@@ -11,6 +11,9 @@ import (
 )
 
 func TestColumnAutoLabel(t *testing.T) {
+	// nil must not panic
+	require.Equal(t, "", commonw.ColumnAutoLabel(nil), "nil column: no label")
+
 	col := &metadata.Column{}
 	require.Equal(t, "", commonw.ColumnAutoLabel(col), "plain column: no label")
 

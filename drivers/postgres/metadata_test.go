@@ -356,7 +356,7 @@ func TestPostgres_Triggers(t *testing.T) {
 
 // TestPostgres_ViewInsteadOfTrigger verifies that an INSTEAD OF trigger on a
 // view is returned by the per-table inspect path (Grip.TableMetadata), matching
-// the behaviour of source-wide inspect.
+// the behavior of source-wide inspect.
 func TestPostgres_ViewInsteadOfTrigger(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()

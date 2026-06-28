@@ -290,6 +290,9 @@ type UCRow struct {
 // Returns "" when none of the flags are set. Priority order: identity >
 // auto_inc > generated.
 func ColumnAutoLabel(col *metadata.Column) string {
+	if col == nil {
+		return ""
+	}
 	switch {
 	case col.Identity:
 		return "identity"

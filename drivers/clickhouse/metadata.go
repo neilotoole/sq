@@ -386,12 +386,13 @@ func tableTypeFromEngine(engine string) string {
 // balanced-paren clause. \s* before the opening paren (rather than \s+)
 // handles the rare CHECK(...) form with no space.
 var checkConstraintRe = regexp.MustCompile(
-	"CONSTRAINT\\s+(`[^`]*`|\"[^\"]*\"|\\w+)\\s+CHECK\\s*\\(",
+	"CONSTRAINT\\s+(`(?:[^`]|``)*`|\"(?:[^\"]|\"\")*\"|\\w+)\\s+CHECK\\s*\\(",
 )
 
 // unquoteCHIdent strips surrounding backtick or double-quote delimiters from a
 // ClickHouse identifier captured by checkConstraintRe, unescaping any doubled
-// inner quotes (“ -> `, "" -> "). Unquoted identifiers are returned as-is.
+// inner quote (a doubled backtick becomes a single backtick; "" becomes ").
+// Unquoted identifiers are returned as-is.
 func unquoteCHIdent(s string) string {
 	if len(s) >= 2 {
 		switch {
@@ -446,7 +447,7 @@ func getClickHouseCheckConstraints(
 // string and extracts any CONSTRAINT <name> CHECK (<expr>) declarations. The
 // returned constraints have their Table field set to tblName.
 //
-// The extractor uses a two-step approach: a regexp locates each CONSTRAINT …
+// The extractor uses a two-step approach: a regexp locates each CONSTRAINT ...
 // CHECK ( header and captures the constraint name; a parenthesis-depth walk
 // then extracts the balanced-paren expression. This avoids trying to match
 // nested parens with a single regex.
@@ -484,8 +485,8 @@ func extractClickHouseCheckConstraints(ddl, tblName string) []*metadata.CheckCon
 // single-quoted strings ('...'), backtick-quoted identifiers (`...`), and
 // double-quoted identifiers ("...") are not counted toward the depth. Both
 // SQL-standard doubled-quote escapes and backslash-escaped quotes are handled
-// inside single-quoted strings; doubled “ and "" are handled inside their
-// respective identifier forms.
+// inside single-quoted strings; doubled backticks and "" (plus backslash
+// escapes) are handled inside their respective identifier forms.
 func balancedParenContents(ddl string, start int) string {
 	if start < 0 || start >= len(ddl) || ddl[start] != '(' {
 		return ""
@@ -511,7 +512,10 @@ func balancedParenContents(ddl string, start int) string {
 			continue
 		}
 		if inBacktick {
-			if ch == '`' {
+			switch ch {
+			case '\\':
+				i++ // skip backslash-escaped char (e.g. \`)
+			case '`':
 				// `` doubled-quote escape: two consecutive backticks stay inside.
 				if i+1 < len(ddl) && ddl[i+1] == '`' {
 					i++ // skip second backtick; remain inside identifier
@@ -522,7 +526,10 @@ func balancedParenContents(ddl string, start int) string {
 			continue
 		}
 		if inDoubleQuote {
-			if ch == '"' {
+			switch ch {
+			case '\\':
+				i++ // skip backslash-escaped char (e.g. \")
+			case '"':
 				// "" doubled-quote escape: two consecutive double-quotes stay inside.
 				if i+1 < len(ddl) && ddl[i+1] == '"' {
 					i++ // skip second double-quote; remain inside identifier
@@ -551,7 +558,7 @@ func balancedParenContents(ddl string, start int) string {
 	return "" // unbalanced / malformed DDL
 }
 
-// getClickHouseViewDefinitions returns a map of view name → defining SELECT
+// getClickHouseViewDefinitions returns a map of view name -> defining SELECT
 // for views in dbName. ClickHouse exposes the SELECT text directly in
 // system.tables.as_select; create_table_query is used as a fallback when
 // as_select is empty.
@@ -615,7 +622,7 @@ var reCHViewAs = regexp.MustCompile(`(?i) AS `)
 //
 // The match is performed with a regexp on the original ddl string rather than
 // on strings.ToUpper(ddl), because strings.ToUpper can change the byte length
-// of non-ASCII runes (e.g. the Unicode fi-ligature ﬁ expands from 3 bytes to
+// of non-ASCII runes (e.g. the Unicode fi-ligature U+FB01 expands from 3 bytes to
 // 2-byte "FI"), making an index from the uppercased copy invalid when applied
 // to the original, a source of corrupted output or an out-of-range slice panic.
 func extractViewSelectFromCHDDL(ddl string) string {
@@ -623,7 +630,7 @@ func extractViewSelectFromCHDDL(ddl string) string {
 	// earlier " AS " (e.g. a column alias or a TO clause).
 	if loc := reCHViewAsSelect.FindStringIndex(ddl); loc != nil {
 		// loc[0] is the byte offset of the leading space before "AS SELECT".
-		// Skip " AS " (4 ASCII bytes) to land at "SELECT …".
+		// Skip " AS " (4 ASCII bytes) to land at "SELECT ...".
 		return strings.TrimSpace(ddl[loc[0]+4:])
 	}
 	// Fallback: first " AS " (handles unusual formatting or non-SELECT views).

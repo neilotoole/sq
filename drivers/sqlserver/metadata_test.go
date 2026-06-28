@@ -150,7 +150,7 @@ END`)
 
 // TestInspect_ViewInsteadOfTrigger_SQLServer verifies that an INSTEAD OF
 // trigger on a view is returned by the per-table inspect path
-// (Grip.TableMetadata), matching the behaviour of source-wide inspect.
+// (Grip.TableMetadata), matching the behavior of source-wide inspect.
 func TestInspect_ViewInsteadOfTrigger_SQLServer(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
