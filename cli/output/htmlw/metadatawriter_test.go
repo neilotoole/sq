@@ -251,3 +251,108 @@ func TestMetadataWriter_embed(t *testing.T) {
 	require.Contains(t, got, "sq-erd-overlay")
 	require.NotContains(t, got, "panzoom@9/+esm")
 }
+
+// TestMetadataWriter_InspectEnrichment verifies that the HTML writer renders
+// the new inspect metadata: Auto/GeneratedExpr/Collation columns in the
+// column table, check-constraint section, trigger section, and view-definition
+// block, each conditional on data presence.
+func TestMetadataWriter_InspectEnrichment(t *testing.T) {
+	enabled := true
+
+	enriched := &metadata.Table{
+		Name:      "enriched",
+		TableType: "table",
+		RowCount:  42,
+		Columns: []*metadata.Column{
+			{Name: "id", Position: 1, PrimaryKey: true, ColumnType: "INTEGER", Identity: true},
+			{Name: "name", Position: 2, ColumnType: "TEXT", Collation: "utf8_bin"},
+			{Name: "full_name", Position: 3, ColumnType: "TEXT", Generated: true, GeneratedExpr: "first || last"},
+		},
+		CheckConstraints: []*metadata.CheckConstraint{
+			{Name: "chk_name_len", Table: "enriched", Clause: "length(name) > 0"},
+		},
+		Triggers: []*metadata.Trigger{
+			{
+				Name: "trg_audit", Table: "enriched",
+				Timing: "AFTER", Events: []string{"INSERT", "UPDATE"},
+				Enabled:    &enabled,
+				Definition: "CREATE TRIGGER trg_audit ...",
+			},
+		},
+	}
+
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.TableMetadata(enriched))
+	got := buf.String()
+
+	// Auto column present and labels correct.
+	require.Contains(t, got, "<th>Auto</th>")
+	require.Contains(t, got, "identity")  // id column
+	require.Contains(t, got, "generated") // full_name column
+
+	// Generated Expr column present with SQL expression.
+	require.Contains(t, got, "<th>Generated Expr</th>")
+	require.Contains(t, got, "<code>first || last</code>")
+
+	// Collation column present.
+	require.Contains(t, got, "<th>Collation</th>")
+	require.Contains(t, got, "utf8_bin")
+
+	// Check constraints table with Clause HTML-escaped.
+	require.Contains(t, got, "Check constraints")
+	require.Contains(t, got, "<th>Constraint</th>")
+	require.Contains(t, got, "<th>Clause</th>")
+	require.Contains(t, got, "<code>chk_name_len</code>")
+	require.Contains(t, got, "length(name) &gt; 0") // '>' is HTML-escaped
+
+	// Triggers table with conditional Enabled and Definition columns.
+	require.Contains(t, got, "Triggers")
+	require.Contains(t, got, "<th>Trigger</th>")
+	require.Contains(t, got, "<th>Timing</th>")
+	require.Contains(t, got, "<th>Events</th>")
+	require.Contains(t, got, "<th>Enabled</th>")
+	require.Contains(t, got, "<th>Definition</th>")
+	require.Contains(t, got, "<code>trg_audit</code>")
+	require.Contains(t, got, "AFTER")
+	require.Contains(t, got, "INSERT, UPDATE")
+
+	// View definition renders as <pre><code> with HTML-escaped SQL.
+	view := &metadata.Table{
+		Name:           "v_enriched",
+		TableType:      "view",
+		RowCount:       0,
+		ViewDefinition: "SELECT id, name FROM enriched WHERE id > 0",
+		Columns: []*metadata.Column{
+			{Name: "id", Position: 1, ColumnType: "INTEGER"},
+		},
+	}
+	viewBuf := &bytes.Buffer{}
+	vw := htmlw.NewMetadataWriter(viewBuf, output.NewPrinting(), false)
+	require.NoError(t, vw.TableMetadata(view))
+	viewGot := viewBuf.String()
+	require.Contains(t, viewGot, "View definition")
+	require.Contains(t, viewGot, "<pre><code>")
+	require.Contains(t, viewGot, "SELECT id, name FROM enriched WHERE id &gt; 0") // '>' escaped
+
+	// Plain table must NOT emit any of those sections.
+	plain := &metadata.Table{
+		Name:      "plain",
+		TableType: "table",
+		RowCount:  1,
+		Columns: []*metadata.Column{
+			{Name: "id", ColumnType: "INTEGER", PrimaryKey: true},
+		},
+	}
+	plainBuf := &bytes.Buffer{}
+	pw := htmlw.NewMetadataWriter(plainBuf, output.NewPrinting(), false)
+	require.NoError(t, pw.TableMetadata(plain))
+	plainGot := plainBuf.String()
+	require.NotContains(t, plainGot, "<th>Auto</th>")
+	require.NotContains(t, plainGot, "<th>Generated Expr</th>")
+	require.NotContains(t, plainGot, "<th>Collation</th>")
+	require.NotContains(t, plainGot, "Check constraints")
+	require.NotContains(t, plainGot, "Triggers")
+	require.NotContains(t, plainGot, "View definition")
+	require.NotContains(t, plainGot, "<pre><code>")
+}

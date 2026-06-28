@@ -154,10 +154,13 @@ func (w *metadataWriter) writeTableSection(
 		w.writeProvenance(buf)
 	}
 	writeMermaidBlock(buf, mermaid.TableDiagram(tbl, cardIndex), tableSlug(tbl.Name)+"-erd", level+1)
+	w.writeViewDefinition(buf, tbl)
 	w.writeColumns(buf, tbl)
 	w.writeForeignKeys(buf, tbl)
 	w.writeUniqueConstraints(buf, tbl)
 	w.writeIndexes(buf, tbl)
+	w.writeCheckConstraints(buf, tbl)
+	w.writeTriggers(buf, tbl)
 }
 
 func (w *metadataWriter) writeTableHeading(buf *bytes.Buffer, tbl *metadata.Table, level int) {
@@ -195,12 +198,27 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 	}
 	fkCols := commonw.FKColumnSet(tbl)
 
+	// Only include optional columns when at least one column populates them,
+	// keeping the common case clean.
 	var hasDefault, hasComment bool
+	var hasAuto, hasGeneratedExpr, hasCollation bool
 	for _, col := range tbl.Columns {
 		hasDefault = hasDefault || col.DefaultValue != ""
 		hasComment = hasComment || col.Comment != ""
+		hasAuto = hasAuto || col.Identity || col.AutoIncrement || col.Generated
+		hasGeneratedExpr = hasGeneratedExpr || col.GeneratedExpr != ""
+		hasCollation = hasCollation || col.Collation != ""
 	}
 	headers := []string{"Column", "Type", "Nullable", "PK", "FK"}
+	if hasAuto {
+		headers = append(headers, "Auto")
+	}
+	if hasGeneratedExpr {
+		headers = append(headers, "Generated Expr")
+	}
+	if hasCollation {
+		headers = append(headers, "Collation")
+	}
 	if hasDefault {
 		headers = append(headers, "Default")
 	}
@@ -216,6 +234,15 @@ func (w *metadataWriter) writeColumns(buf *bytes.Buffer, tbl *metadata.Table) {
 			checkMark(col.Nullable),
 			checkMark(col.PrimaryKey),
 			checkMark(fkCols[col.Name]),
+		}
+		if hasAuto {
+			row = append(row, commonw.ColumnAutoLabel(col))
+		}
+		if hasGeneratedExpr {
+			row = append(row, htmlCode(col.GeneratedExpr))
+		}
+		if hasCollation {
+			row = append(row, html.EscapeString(col.Collation))
 		}
 		if hasDefault {
 			row = append(row, htmlCode(col.DefaultValue))
@@ -285,6 +312,71 @@ func (w *metadataWriter) writeIndexes(buf *bytes.Buffer, tbl *metadata.Table) {
 		})
 	}
 	writeTableEl(buf, "Indexes", tableSlug(tbl.Name)+"-indexes", headers, cells)
+}
+
+// writeViewDefinition renders the raw view DDL as a <pre><code> block with
+// a "View definition:" heading when tbl has a non-empty ViewDefinition. All
+// content is HTML-escaped.
+func (w *metadataWriter) writeViewDefinition(buf *bytes.Buffer, tbl *metadata.Table) {
+	if tbl.ViewDefinition == "" {
+		return
+	}
+	buf.WriteString("<p><strong>View definition:</strong></p>\n")
+	buf.WriteString("<pre><code>")
+	buf.WriteString(html.EscapeString(tbl.ViewDefinition))
+	buf.WriteString("</code></pre>\n")
+}
+
+// writeCheckConstraints renders a "Check constraints" table (Constraint/Clause
+// columns) when tbl.CheckConstraints is non-empty.
+func (w *metadataWriter) writeCheckConstraints(buf *bytes.Buffer, tbl *metadata.Table) {
+	if len(tbl.CheckConstraints) == 0 {
+		return
+	}
+	cells := make([][]string, 0, len(tbl.CheckConstraints))
+	for _, cc := range tbl.CheckConstraints {
+		cells = append(cells, []string{htmlCode(cc.Name), html.EscapeString(cc.Clause)})
+	}
+	writeTableEl(buf, "Check constraints", tableSlug(tbl.Name)+"-check-constraints",
+		[]string{"Constraint", "Clause"}, cells)
+}
+
+// writeTriggers renders a "Triggers" table (Trigger/Timing/Events, with
+// optional Enabled and Definition columns) when tbl.Triggers is non-empty.
+// Enabled is included only when at least one trigger carries a non-nil value;
+// Definition only when at least one trigger has a non-empty Definition.
+func (w *metadataWriter) writeTriggers(buf *bytes.Buffer, tbl *metadata.Table) {
+	if len(tbl.Triggers) == 0 {
+		return
+	}
+	var hasEnabled, hasDefinition bool
+	for _, tr := range tbl.Triggers {
+		hasEnabled = hasEnabled || tr.Enabled != nil
+		hasDefinition = hasDefinition || tr.Definition != ""
+	}
+	headers := []string{"Trigger", "Timing", "Events"}
+	if hasEnabled {
+		headers = append(headers, "Enabled")
+	}
+	if hasDefinition {
+		headers = append(headers, "Definition")
+	}
+	cells := make([][]string, 0, len(tbl.Triggers))
+	for _, tr := range tbl.Triggers {
+		row := []string{
+			htmlCode(tr.Name),
+			html.EscapeString(tr.Timing),
+			html.EscapeString(strings.Join(tr.Events, ", ")),
+		}
+		if hasEnabled {
+			row = append(row, commonw.TriggerEnabledMark(tr.Enabled))
+		}
+		if hasDefinition {
+			row = append(row, htmlCode(tr.Definition))
+		}
+		cells = append(cells, row)
+	}
+	writeTableEl(buf, "Triggers", tableSlug(tbl.Name)+"-triggers", headers, cells)
 }
 
 func compareTables(a, b *metadata.Table) int {

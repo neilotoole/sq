@@ -3,6 +3,7 @@ package rqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/shopspring/decimal"
 
+	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -486,9 +488,13 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 
 	tblMeta.FQName = schemaName + "." + tblName
 
+	// pragma_table_xinfo is used (rather than table_info) because it also
+	// reports generated columns, which table_info omits; its hidden field
+	// is 0 for an ordinary column, 1 for a virtual-table hidden column
+	// (skipped), 2 for a VIRTUAL generated column, and 3 for a STORED one.
 	// The table-valued pragma function takes the table name as a bound
 	// parameter, eliminating an interpolated quoting site (gh777).
-	query = `SELECT cid, name, type, "notnull", dflt_value, pk FROM pragma_table_info(?)`
+	query = `SELECT cid, name, type, "notnull", dflt_value, pk, hidden FROM pragma_table_xinfo(?)`
 	rows, err := db.QueryContext(ctx, query, tblMeta.Name)
 	if err != nil {
 		return nil, errw(err)
@@ -497,14 +503,20 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 
 	for rows.Next() {
 		col := &metadata.Column{}
-		var notnull int64
+		var notnull, hidden int64
 		defaultValue := &sql.NullString{}
 		pkValue := &sql.NullInt64{}
 		if err = rows.Scan(
-			&col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue,
+			&col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue, &hidden,
 		); err != nil {
 			return nil, errw(err)
 		}
+		if hidden == 1 {
+			// Virtual-table hidden column: excluded to match the
+			// user-visible column set pragma_table_info reports.
+			continue
+		}
+		col.Generated = hidden == 2 || hidden == 3
 		col.PrimaryKey = pkValue.Int64 > 0
 		col.ColumnType = col.BaseType
 		col.Nullable = notnull == 0
@@ -517,9 +529,28 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 		return nil, errw(err)
 	}
 
+	// The CREATE DDL in sqlite_master drives the metadata that SQLite
+	// exposes nowhere else: view definitions, CHECK constraints,
+	// AUTOINCREMENT, and generated-column expressions.
+	ddl, err := getTableDDL(ctx, db, tblMeta.Name)
+	if err != nil {
+		return nil, err
+	}
+	if tblMeta.TableType == sqlz.TableTypeView {
+		tblMeta.ViewDefinition = ddl
+	}
+
+	// Triggers attach to both tables and views (INSTEAD OF triggers).
+	tblMeta.Triggers, err = getTableTriggers(ctx, db, tblMeta.Name)
+	if err != nil {
+		return nil, err
+	}
+
 	if tblMeta.TableType != sqlz.TableTypeTable {
 		return tblMeta, nil
 	}
+
+	applyTableDDLMetadata(ctx, ddl, tblMeta)
 
 	outgoing, fkErr := getTableForeignKeys(ctx, db, tblName)
 	if fkErr != nil {
@@ -593,18 +624,27 @@ ORDER BY id, seq`
 func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 
+	// pragma_table_xinfo (rather than table_info) is joined so generated
+	// columns are reported; p.hidden distinguishes them (2/3) and flags
+	// virtual-table hidden columns (1) for exclusion below.
+	// m.sql (the CREATE DDL) repeats for every column row in the join; it is
+	// captured once per table during the scan via tblDDLs, eliminating a
+	// per-table getTableDDL round-trip in the post-scan loop.
 	const query = `
-SELECT m.name as table_name, m.type, p.cid, p.name, p.type, p.'notnull' as 'notnull', p.dflt_value, p.pk,
-(substr(m.sql, 0, 21) == 'CREATE VIRTUAL TABLE') AS is_virtual
-FROM sqlite_master AS m JOIN pragma_table_info(m.name) AS p
+SELECT m.name as table_name, m.type, p.cid, p.name, p.type, p.'notnull' as 'notnull', p.dflt_value, p.pk, p.hidden,
+(substr(m.sql, 0, 21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
+COALESCE(m.sql, '') AS table_ddl
+FROM sqlite_master AS m JOIN pragma_table_xinfo(m.name) AS p
 ORDER BY m.name, p.cid
 `
 
 	var (
 		tblMetas []*metadata.Table
 		tblNames []string
+		tblDDLs  = make(map[string]string)
 		curTblName,
-		curTblType string
+		curTblType,
+		curTblDDL string
 		// is_virtual is a CASE expression, not a typed column. rqlite
 		// returns it as a JSON number so we read it as float64 and
 		// treat any non-zero value as virtual.
@@ -624,13 +664,13 @@ ORDER BY m.name, p.cid
 		}
 
 		col := &metadata.Column{}
-		var notnull int64
+		var notnull, hidden int64
 		colDefault := &sql.NullString{}
 		pkValue := &sql.NullInt64{}
 
 		if err = rows.Scan(
 			&curTblName, &curTblType, &col.Position, &col.Name, &col.BaseType,
-			&notnull, colDefault, pkValue, &curTblIsVirtual,
+			&notnull, colDefault, pkValue, &hidden, &curTblIsVirtual, &curTblDDL,
 		); err != nil {
 			return nil, errw(err)
 		}
@@ -641,6 +681,8 @@ ORDER BY m.name, p.cid
 		}
 
 		if curTblMeta == nil || curTblMeta.Name != curTblName {
+			// Capture the DDL from m.sql (same for all rows of this table).
+			tblDDLs[curTblName] = curTblDDL
 			curTblMeta = &metadata.Table{
 				Name:        curTblName,
 				FQName:      schemaName + "." + curTblName,
@@ -659,6 +701,13 @@ ORDER BY m.name, p.cid
 			tblMetas = append(tblMetas, curTblMeta)
 		}
 
+		if hidden == 1 {
+			// Virtual-table hidden column: excluded to match the
+			// user-visible column set pragma_table_info reports. The
+			// owning table is still registered above.
+			continue
+		}
+		col.Generated = hidden == 2 || hidden == 3
 		col.PrimaryKey = pkValue.Int64 > 0
 		col.ColumnType = col.BaseType
 		col.Nullable = notnull == 0
@@ -677,6 +726,35 @@ ORDER BY m.name, p.cid
 	}
 	for i := range rowCounts {
 		tblMetas[i].RowCount = rowCounts[i]
+	}
+
+	// Batch-fetch all triggers in a single round-trip (replaces N per-table
+	// getTableTriggers calls).
+	allTriggers, err := getAllTableTriggers(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enrich each table/view with the DDL-derived metadata SQLite exposes
+	// nowhere else (view definitions, CHECK constraints, AUTOINCREMENT,
+	// generated-column expressions) plus its triggers. The DDL was captured
+	// from m.sql during the bulk scan above, so no additional round-trip is
+	// needed here. Like the sqlite3 driver's bulk path, FK details are still
+	// left to a re-fetch via getTableMetadata.
+	for _, tblMeta := range tblMetas {
+		ddl := tblDDLs[tblMeta.Name]
+		if tblMeta.TableType == sqlz.TableTypeView {
+			tblMeta.ViewDefinition = ddl
+		}
+
+		// Triggers attach to both tables and views (INSTEAD OF triggers).
+		tblMeta.Triggers = allTriggers[tblMeta.Name]
+
+		if tblMeta.TableType != sqlz.TableTypeTable {
+			continue
+		}
+
+		applyTableDDLMetadata(ctx, ddl, tblMeta)
 	}
 
 	return tblMetas, nil
@@ -811,14 +889,140 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	if err != nil {
 		return nil, err
 	}
-	for _, tbl := range md.Tables {
-		switch tbl.TableType {
-		case sqlz.TableTypeTable:
-			md.TableCount++
-		case sqlz.TableTypeView:
-			md.ViewCount++
+	md.RecomputeTableCounts()
+
+	return md, nil
+}
+
+// getTableDDL returns the CREATE statement text recorded in
+// sqlite_master for the named table or view, or empty string if no such
+// row exists (or its sql is NULL). The shape mirrors the sqlite3 driver's
+// helper; the DDL semantics are identical (rqlite is SQLite-over-HTTP).
+func getTableDDL(ctx context.Context, db sqlz.DB, tblName string) (string, error) {
+	const q = `SELECT COALESCE(sql, '') FROM sqlite_master
+WHERE name = ? AND type IN ('table','view') LIMIT 1`
+	var ddl string
+	err := db.QueryRowContext(ctx, q, tblName).Scan(&ddl)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", errw(err)
+	}
+	return ddl, nil
+}
+
+// applyTableDDLMetadata parses a table's CREATE DDL to populate the
+// metadata SQLite exposes nowhere else: CHECK constraints, the
+// AUTOINCREMENT column flag, and generated-column expressions. Parse
+// failures are logged at debug level and swallowed so inspect never
+// fails on un-parseable DDL.
+func applyTableDDLMetadata(ctx context.Context, ddl string, tblMeta *metadata.Table) {
+	if ddl == "" {
+		return
+	}
+	log := lg.FromContext(ctx)
+
+	if checks, err := sqlparser.ExtractCheckConstraints(ddl); err != nil {
+		log.Debug("rqlite: failed to parse CHECK constraints from DDL; skipping",
+			lga.Table, tblMeta.Name, lga.Err, err)
+	} else {
+		for _, c := range checks {
+			tblMeta.CheckConstraints = append(tblMeta.CheckConstraints, &metadata.CheckConstraint{
+				Name:   c.Name,
+				Table:  tblMeta.Name,
+				Clause: c.Clause,
+			})
 		}
 	}
 
-	return md, nil
+	colInfo, err := sqlparser.ExtractColumnDDLInfo(ddl)
+	if err != nil {
+		log.Debug("rqlite: failed to parse column DDL info; skipping",
+			lga.Table, tblMeta.Name, lga.Err, err)
+		return
+	}
+	for _, col := range tblMeta.Columns {
+		info, ok := colInfo[col.Name]
+		if !ok {
+			continue
+		}
+		col.AutoIncrement = info.AutoIncrement
+		if col.Generated && info.GeneratedExpr != "" {
+			col.GeneratedExpr = info.GeneratedExpr
+		}
+	}
+}
+
+// buildRqliteTrigger constructs a *metadata.Trigger from its raw parts via
+// the shared sqlparser.BuildTrigger, logging a parse failure with the
+// rqlite driver prefix. The graceful fallback (raw Definition kept,
+// structured fields left empty) and Trigger.Enabled staying nil live in
+// sqlparser.BuildTrigger, shared with the sqlite3 driver.
+func buildRqliteTrigger(ctx context.Context, name, tblName, ddl string) *metadata.Trigger {
+	trg, parseErr := sqlparser.BuildTrigger(name, tblName, ddl)
+	if parseErr != nil {
+		lg.FromContext(ctx).Debug("rqlite: failed to parse trigger DDL; keeping raw definition",
+			lga.Name, name, lga.Err, parseErr)
+	}
+	return trg
+}
+
+// getAllTableTriggers fetches all triggers for the database in a single
+// round-trip and returns them grouped by table name. It is the bulk
+// counterpart of getTableTriggers; per-trigger construction is shared
+// via buildRqliteTrigger.
+func getAllTableTriggers(ctx context.Context, db sqlz.DB) (map[string][]*metadata.Trigger, error) {
+	log := lg.FromContext(ctx)
+	const q = `SELECT name, tbl_name, COALESCE(sql, '') FROM sqlite_master
+WHERE type = 'trigger' ORDER BY tbl_name, name`
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	byTable := make(map[string][]*metadata.Trigger)
+	for rows.Next() {
+		var name, tblName, ddl string
+		if err = rows.Scan(&name, &tblName, &ddl); err != nil {
+			return nil, errw(err)
+		}
+		byTable[tblName] = append(byTable[tblName], buildRqliteTrigger(ctx, name, tblName, ddl))
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return byTable, nil
+}
+
+// getTableTriggers returns the triggers attached to tblName, reading them
+// from sqlite_master (type='trigger') and parsing each trigger's DDL for
+// its timing and firing events. A parse failure keeps the raw Definition
+// and leaves the structured fields empty. Trigger.Enabled stays nil;
+// SQLite has no enabled/disabled concept.
+// This per-table function is used by the single-table path (getTableMetadata);
+// the bulk path (getAllTableMetadata) uses getAllTableTriggers instead.
+func getTableTriggers(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Trigger, error) {
+	log := lg.FromContext(ctx)
+	const q = `SELECT name, COALESCE(sql, '') FROM sqlite_master
+WHERE type = 'trigger' AND tbl_name = ? ORDER BY name`
+	rows, err := db.QueryContext(ctx, q, tblName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var triggers []*metadata.Trigger
+	for rows.Next() {
+		var name, ddl string
+		if err = rows.Scan(&name, &ddl); err != nil {
+			return nil, errw(err)
+		}
+		triggers = append(triggers, buildRqliteTrigger(ctx, name, tblName, ddl))
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return triggers, nil
 }

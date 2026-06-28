@@ -376,6 +376,144 @@ func TestMetadataWriter_empty(t *testing.T) {
 	require.Empty(t, buf.String())
 }
 
+// TestMetadataWriter_InspectEnrichment verifies that the new inspect-metadata
+// fields (Identity/AutoIncrement/Generated, GeneratedExpr, Collation,
+// CheckConstraints, Triggers, ViewDefinition) render correctly. No DB is
+// required: the fixture is hand-constructed.
+func TestMetadataWriter_InspectEnrichment(t *testing.T) {
+	enabled := true
+
+	richTable := &metadata.Table{
+		Name:      "orders",
+		TableType: "table",
+		RowCount:  1000,
+		Columns: []*metadata.Column{
+			{
+				Name:       "id",
+				Position:   1,
+				PrimaryKey: true,
+				ColumnType: "BIGINT",
+				Kind:       kind.Int,
+				Identity:   true,
+			},
+			{
+				Name:          "total",
+				Position:      2,
+				ColumnType:    "NUMERIC",
+				Kind:          kind.Decimal,
+				Generated:     true,
+				GeneratedExpr: "qty * price",
+			},
+			{
+				Name:       "note",
+				Position:   3,
+				ColumnType: "TEXT",
+				Kind:       kind.Text,
+				Collation:  "en_US.utf8",
+			},
+			{
+				Name:          "qty",
+				Position:      4,
+				ColumnType:    "INT",
+				Kind:          kind.Int,
+				AutoIncrement: true,
+			},
+		},
+		CheckConstraints: []*metadata.CheckConstraint{
+			{Name: "orders_total_pos", Table: "orders", Clause: "total >= 0"},
+			{Name: "orders_qty_pos", Table: "orders", Clause: "qty > 0"},
+		},
+		Triggers: []*metadata.Trigger{
+			{
+				Name:    "trg_orders_audit",
+				Table:   "orders",
+				Timing:  "AFTER",
+				Events:  []string{"INSERT", "UPDATE"},
+				Enabled: &enabled,
+				Definition: "CREATE TRIGGER trg_orders_audit AFTER INSERT OR UPDATE ON orders" +
+					" FOR EACH ROW EXECUTE FUNCTION audit_log();",
+			},
+		},
+	}
+
+	viewTable := &metadata.Table{
+		Name:           "v_order_summary",
+		TableType:      "view",
+		RowCount:       0,
+		ViewDefinition: "SELECT id, total FROM orders WHERE total > 0",
+		Columns: []*metadata.Column{
+			{Name: "id", Position: 1, ColumnType: "BIGINT", Kind: kind.Int},
+			{Name: "total", Position: 2, ColumnType: "NUMERIC", Kind: kind.Decimal},
+		},
+	}
+
+	t.Run("rich_table", func(t *testing.T) {
+		buf := &bytes.Buffer{}
+		w := markdownw.NewMetadataWriter(buf, output.NewPrinting())
+		require.NoError(t, w.TableMetadata(richTable))
+		out := buf.String()
+
+		// Auto column: header and values for all three auto types.
+		require.Contains(t, out, "| Auto |", "Auto column header")
+		require.Contains(t, out, "identity", "identity auto label")
+		require.Contains(t, out, "generated", "generated auto label")
+		require.Contains(t, out, "auto_inc", "auto_inc auto label")
+
+		// Generated Expr column.
+		require.Contains(t, out, "| Generated Expr |", "Generated Expr column header")
+		require.Contains(t, out, "qty * price", "generated expr value")
+
+		// Collation column.
+		require.Contains(t, out, "| Collation |", "Collation column header")
+		require.Contains(t, out, "en_US.utf8", "collation value")
+
+		// Check constraints section.
+		require.Contains(t, out, "**Check constraints:**", "check constraints heading")
+		require.Contains(t, out, "orders_total_pos", "check constraint name")
+		require.Contains(t, out, "total &gt;= 0", "check clause (HTML-escaped '>')")
+		require.Contains(t, out, "orders_qty_pos", "second check constraint name")
+
+		// Triggers section.
+		require.Contains(t, out, "**Triggers:**", "triggers heading")
+		require.Contains(t, out, "trg_orders_audit", "trigger name")
+		require.Contains(t, out, "AFTER", "trigger timing")
+		require.Contains(t, out, "INSERT, UPDATE", "trigger events")
+		require.Contains(t, out, "✓", "trigger enabled mark")
+		require.Contains(t, out, "trg_orders_audit AFTER INSERT OR UPDATE", "trigger definition snippet")
+	})
+
+	t.Run("view_definition", func(t *testing.T) {
+		buf := &bytes.Buffer{}
+		w := markdownw.NewMetadataWriter(buf, output.NewPrinting())
+		require.NoError(t, w.TableMetadata(viewTable))
+		out := buf.String()
+
+		require.Contains(t, out, "**View definition:**", "view definition heading")
+		require.Contains(t, out, "```sql", "sql fenced block")
+		require.Contains(t, out, "SELECT id, total FROM orders WHERE total > 0", "view definition body")
+	})
+
+	t.Run("plain_table_unchanged", func(t *testing.T) {
+		// A plain table with none of the new fields should NOT render
+		// any new sections or columns.
+		plain := &metadata.Table{
+			Name: "plain", TableType: "table", RowCount: 1,
+			Columns: []*metadata.Column{{Name: "id", ColumnType: "int"}},
+		}
+		buf := &bytes.Buffer{}
+		w := markdownw.NewMetadataWriter(buf, output.NewPrinting())
+		require.NoError(t, w.TableMetadata(plain))
+		out := buf.String()
+
+		require.NotContains(t, out, "| Auto |", "no Auto column for plain table")
+		require.NotContains(t, out, "| Generated Expr |", "no Generated Expr for plain table")
+		require.NotContains(t, out, "| Collation |", "no Collation for plain table")
+		require.NotContains(t, out, "**Check constraints:**", "no check constraints for plain table")
+		require.NotContains(t, out, "**Triggers:**", "no triggers for plain table")
+		require.NotContains(t, out, "**View definition:**", "no view definition for plain table")
+	})
+}
+
 // TestMetadataWriter_mermaidQuoting verifies that names which aren't
 // bare-identifier-safe are handled correctly in the Mermaid diagram:
 // entity (table) names are double-quoted (Mermaid supports that), but

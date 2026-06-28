@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"database/sql"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -91,14 +92,25 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		return nil, err
 	}
 
+	log := lg.FromContext(ctx)
+
+	allChecks, err := getClickHouseCheckConstraints(ctx, db, database, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignCheckConstraints(log, md.Tables, allChecks)
+
+	allViewDefs, err := getClickHouseViewDefinitions(ctx, db, database, "")
+	if err != nil {
+		return nil, err
+	}
 	for _, tbl := range md.Tables {
-		switch tbl.TableType {
-		case sqlz.TableTypeTable:
-			md.TableCount++
-		case sqlz.TableTypeView:
-			md.ViewCount++
+		if tbl.TableType == sqlz.TableTypeView {
+			tbl.ViewDefinition = allViewDefs[tbl.Name]
 		}
 	}
+
+	md.RecomputeTableCounts()
 
 	return md, nil
 }
@@ -224,12 +236,27 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, dbName, tblName string) (
 		tblMeta.Size = &bytes
 	}
 
-	// Get column metadata
+	// Get column metadata.
 	cols, err := getColumnsMetadata(ctx, db, dbName, tblName)
 	if err != nil {
 		return nil, err
 	}
 	tblMeta.Columns = cols
+
+	// Enrich with view definition or check constraints.
+	if tblMeta.TableType == sqlz.TableTypeView {
+		defs, defErr := getClickHouseViewDefinitions(ctx, db, dbName, tblName)
+		if defErr != nil {
+			return nil, defErr
+		}
+		tblMeta.ViewDefinition = defs[tblName]
+	} else {
+		checks, chkErr := getClickHouseCheckConstraints(ctx, db, dbName, tblName)
+		if chkErr != nil {
+			return nil, chkErr
+		}
+		tblMeta.CheckConstraints = checks
+	}
 
 	return tblMeta, nil
 }
@@ -345,6 +372,282 @@ func tableTypeFromEngine(engine string) string {
 	default:
 		return sqlz.TableTypeTable
 	}
+}
+
+// checkConstraintRe matches the start of a ClickHouse CONSTRAINT ... CHECK
+// declaration inside a CREATE TABLE DDL string. The first capture group is
+// the constraint name in one of three ClickHouse identifier forms:
+//   - backtick-quoted:  `my ident`
+//   - double-quoted:    "my ident"
+//   - unquoted ASCII:   plain_name
+//
+// The match ends immediately after the opening parenthesis of the CHECK
+// expression; the caller walks forward from that position to extract the
+// balanced-paren clause. \s* before the opening paren (rather than \s+)
+// handles the rare CHECK(...) form with no space.
+var checkConstraintRe = regexp.MustCompile(
+	"CONSTRAINT\\s+(`(?:[^`]|``)*`|\"(?:[^\"]|\"\")*\"|\\w+)\\s+CHECK\\s*\\(",
+)
+
+// unquoteCHIdent strips surrounding backtick or double-quote delimiters from a
+// ClickHouse identifier captured by checkConstraintRe, unescaping any doubled
+// inner quote (a doubled backtick becomes a single backtick; "" becomes ").
+// Unquoted identifiers are returned as-is.
+func unquoteCHIdent(s string) string {
+	if len(s) >= 2 {
+		switch {
+		case s[0] == '`' && s[len(s)-1] == '`':
+			return strings.ReplaceAll(s[1:len(s)-1], "``", "`")
+		case s[0] == '"' && s[len(s)-1] == '"':
+			return strings.ReplaceAll(s[1:len(s)-1], `""`, `"`)
+		}
+	}
+	return s
+}
+
+// getClickHouseCheckConstraints returns the CHECK constraints declared on
+// ClickHouse tables in dbName. If tblName is non-empty, only constraints for
+// that table are returned; passing an empty tblName returns all tables.
+//
+// ClickHouse has no dedicated catalog table for CHECK constraints; they are
+// extracted by parsing system.tables.create_table_query with a bounded regex
+// followed by a parenthesis-depth walk. Graceful: if none are found or parsing
+// fails, an empty slice is returned without error.
+func getClickHouseCheckConstraints(
+	ctx context.Context, db sqlz.DB, dbName, tblName string,
+) ([]*metadata.CheckConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	query := "SELECT name, create_table_query FROM system.tables" +
+		" WHERE database = ? AND engine NOT IN ('View', 'MaterializedView')"
+	args := []any{dbName}
+	if tblName != "" {
+		query += ` AND name = ?`
+		args = append(args, tblName)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var checks []*metadata.CheckConstraint
+	for rows.Next() {
+		var name, createQuery string
+		if err = rows.Scan(&name, &createQuery); err != nil {
+			return nil, errw(err)
+		}
+		checks = append(checks, extractClickHouseCheckConstraints(createQuery, name)...)
+	}
+	return checks, errw(rows.Err())
+}
+
+// extractClickHouseCheckConstraints parses a ClickHouse CREATE TABLE DDL
+// string and extracts any CONSTRAINT <name> CHECK (<expr>) declarations. The
+// returned constraints have their Table field set to tblName.
+//
+// The extractor uses a two-step approach: a regexp locates each CONSTRAINT ...
+// CHECK ( header and captures the constraint name; a parenthesis-depth walk
+// then extracts the balanced-paren expression. This avoids trying to match
+// nested parens with a single regex.
+//
+// Graceful: unbalanced parentheses (malformed DDL) yield an empty clause; the
+// constraint is still appended so the name is surfaced.
+func extractClickHouseCheckConstraints(ddl, tblName string) []*metadata.CheckConstraint {
+	matches := checkConstraintRe.FindAllStringSubmatchIndex(ddl, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	checks := make([]*metadata.CheckConstraint, 0, len(matches))
+	for _, m := range matches {
+		// m[2]:m[3] is the name capture group (may be backtick/double-quoted).
+		name := unquoteCHIdent(ddl[m[2]:m[3]])
+		// m[1] is the byte position just after the opening '(' of the CHECK
+		// expression, i.e. ddl[m[1]-1] == '('. Walk forward to find the
+		// matching closing paren.
+		openPos := m[1] - 1
+		checks = append(checks, &metadata.CheckConstraint{
+			Table:  tblName,
+			Name:   name,
+			Clause: balancedParenContents(ddl, openPos),
+		})
+	}
+	return checks
+}
+
+// balancedParenContents returns the text between the opening paren at position
+// start and its matching closing paren, exclusive of both parens. Returns an
+// empty string if start is out of range, ddl[start] != '(', or the parens are
+// unbalanced.
+//
+// The scanner is string-literal- and identifier-quote-aware: parentheses inside
+// single-quoted strings ('...'), backtick-quoted identifiers (`...`), and
+// double-quoted identifiers ("...") are not counted toward the depth. Both
+// SQL-standard doubled-quote escapes and backslash-escaped quotes are handled
+// inside single-quoted strings; doubled backticks and "" (plus backslash
+// escapes) are handled inside their respective identifier forms.
+func balancedParenContents(ddl string, start int) string {
+	if start < 0 || start >= len(ddl) || ddl[start] != '(' {
+		return ""
+	}
+	depth := 0
+	inSingleQuote := false
+	inBacktick := false
+	inDoubleQuote := false
+	for i := start; i < len(ddl); i++ {
+		ch := ddl[i]
+		if inSingleQuote {
+			switch ch {
+			case '\\':
+				i++ // skip backslash-escaped char (e.g. \')
+			case '\'':
+				// SQL-standard '' escape: two consecutive quotes stay inside string.
+				if i+1 < len(ddl) && ddl[i+1] == '\'' {
+					i++ // skip second quote; remain inside string
+				} else {
+					inSingleQuote = false
+				}
+			}
+			continue
+		}
+		if inBacktick {
+			switch ch {
+			case '\\':
+				i++ // skip backslash-escaped char (e.g. \`)
+			case '`':
+				// `` doubled-quote escape: two consecutive backticks stay inside.
+				if i+1 < len(ddl) && ddl[i+1] == '`' {
+					i++ // skip second backtick; remain inside identifier
+				} else {
+					inBacktick = false
+				}
+			}
+			continue
+		}
+		if inDoubleQuote {
+			switch ch {
+			case '\\':
+				i++ // skip backslash-escaped char (e.g. \")
+			case '"':
+				// "" doubled-quote escape: two consecutive double-quotes stay inside.
+				if i+1 < len(ddl) && ddl[i+1] == '"' {
+					i++ // skip second double-quote; remain inside identifier
+				} else {
+					inDoubleQuote = false
+				}
+			}
+			continue
+		}
+		switch ch {
+		case '\'':
+			inSingleQuote = true
+		case '`':
+			inBacktick = true
+		case '"':
+			inDoubleQuote = true
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return ddl[start+1 : i]
+			}
+		}
+	}
+	return "" // unbalanced / malformed DDL
+}
+
+// getClickHouseViewDefinitions returns a map of view name -> defining SELECT
+// for views in dbName. ClickHouse exposes the SELECT text directly in
+// system.tables.as_select; create_table_query is used as a fallback when
+// as_select is empty.
+//
+// If tblName is non-empty, only that view is returned. Passing an empty
+// tblName returns all views and materialized views.
+func getClickHouseViewDefinitions(ctx context.Context, db sqlz.DB, dbName, tblName string) (map[string]string, error) {
+	log := lg.FromContext(ctx)
+
+	query := "SELECT name, as_select, create_table_query FROM system.tables" +
+		" WHERE database = ? AND engine IN ('View', 'MaterializedView')"
+	args := []any{dbName}
+	if tblName != "" {
+		query += ` AND name = ?`
+		args = append(args, tblName)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	defs := make(map[string]string)
+	for rows.Next() {
+		var name, asSelect, createQuery string
+		if err = rows.Scan(&name, &asSelect, &createQuery); err != nil {
+			return nil, errw(err)
+		}
+		def := asSelect
+		if def == "" {
+			// Fallback: extract the SELECT from the full CREATE VIEW DDL.
+			def = extractViewSelectFromCHDDL(createQuery)
+		}
+		defs[name] = def
+	}
+	return defs, errw(rows.Err())
+}
+
+// reCHViewAsSelect matches the "AS SELECT" separator case-insensitively in a
+// ClickHouse DDL string. The whitespace around AS is matched flexibly (one or
+// more spaces, tabs, or newlines) so a DDL rendered with non-single-space
+// separators is still recognized. The SELECT keyword is a capture group so
+// callers slice from its start, keeping "SELECT ..." in the result. The regex
+// operates on the original bytes, so the match index is a valid byte offset
+// into the original string regardless of any non-ASCII characters before it.
+var reCHViewAsSelect = regexp.MustCompile(`(?i)\sAS\s+(SELECT\b)`)
+
+// reCHViewAs matches the first whitespace-delimited "AS" separator
+// case-insensitively (whitespace-flexible, like reCHViewAsSelect). Used as a
+// fallback when reCHViewAsSelect finds no match.
+var reCHViewAs = regexp.MustCompile(`(?i)\sAS\s+`)
+
+// extractViewSelectFromCHDDL extracts the SELECT portion from a ClickHouse
+// CREATE [MATERIALIZED] VIEW DDL string. ClickHouse stores the full DDL in
+// create_table_query as "CREATE [MATERIALIZED] VIEW db.name AS SELECT ...".
+//
+// The function first searches for the more-specific "AS SELECT" marker
+// (case-insensitive) to avoid splitting on an "AS" that appears before the
+// defining SELECT (e.g. a column alias or TO clause). It falls back to the
+// first case-insensitive "AS" separator if "AS SELECT" is not found, which
+// also handles views whose body opens with a WITH clause rather than SELECT.
+//
+// Whitespace around the AS separator is matched flexibly, so DDL rendered with
+// multiple spaces, tabs, or newlines between AS and SELECT is still parsed.
+//
+// Returns "" if neither pattern is present; returning the raw DDL blob when
+// no SELECT is found is unhelpful and incorrect.
+//
+// The match is performed with a regexp on the original ddl string rather than
+// on strings.ToUpper(ddl), because strings.ToUpper can change the byte length
+// of non-ASCII runes (e.g. the Unicode fi-ligature U+FB01 expands from 3 bytes to
+// 2-byte "FI"), making an index from the uppercased copy invalid when applied
+// to the original, a source of corrupted output or an out-of-range slice panic.
+func extractViewSelectFromCHDDL(ddl string) string {
+	// Prefer the specific "AS SELECT" pattern to avoid false splits on an
+	// earlier "AS" (e.g. a column alias or a TO clause). loc[2] is the byte
+	// offset of the SELECT capture group, so the result begins at "SELECT".
+	if loc := reCHViewAsSelect.FindStringSubmatchIndex(ddl); loc != nil {
+		return strings.TrimSpace(ddl[loc[2]:])
+	}
+	// Fallback: first "AS" separator (handles unusual formatting, a WITH-clause
+	// body, or non-SELECT views). loc[1] is the byte offset just past the
+	// matched separator, robust to however much whitespace it spanned.
+	if loc := reCHViewAs.FindStringIndex(ddl); loc != nil {
+		return strings.TrimSpace(ddl[loc[1]:])
+	}
+	// No recognizable AS separator: do not return the raw DDL blob.
+	return ""
 }
 
 // Type prefix lengths for ClickHouse wrapper types.
