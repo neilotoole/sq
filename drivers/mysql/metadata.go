@@ -207,7 +207,8 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 
 	// For views, load only the view definition.
 	if tblMeta.TableType == sqlz.TableTypeView {
-		viewDefs, err := getMySQLViewDefinitions(ctx, db, tblMeta.Name)
+		var viewDefs map[string]string
+		viewDefs, err = getMySQLViewDefinitions(ctx, db, tblMeta.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -922,7 +923,11 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		default:
 		}
 
-		var colName, colDefault, colNullable, colKey, colBaseType, colColumnType, colComment, colExtra, colGenExpr, colCollation sql.NullString
+		var (
+			colName, colDefault, colNullable, colKey         sql.NullString
+			colBaseType, colColumnType, colComment, colExtra sql.NullString
+			colGenExpr, colCollation                         sql.NullString
+		)
 		var colPosition sql.NullInt64
 
 		if hasGenExpr {

@@ -1708,7 +1708,7 @@ func TestColumn_Clone_AllFieldsCovered(t *testing.T) {
 		if !f.CanSet() {
 			continue
 		}
-		switch f.Kind() {
+		switch f.Kind() { //nolint:exhaustive // test helper, only sets kinds present in Column fields
 		case reflect.String:
 			f.SetString("x")
 		case reflect.Bool:
@@ -1717,6 +1717,8 @@ func TestColumn_Clone_AllFieldsCovered(t *testing.T) {
 			f.SetInt(7)
 		case reflect.Int: // kind.Kind is int
 			f.SetInt(7)
+		default:
+			// other kinds not exercised by this guard
 		}
 	}
 	require.Equal(t, orig, orig.Clone(), "Column.Clone missing a field")

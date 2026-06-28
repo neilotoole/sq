@@ -1119,12 +1119,12 @@ func getTableGeneratedColumnNames(ctx context.Context, db sqlz.DB, schemaName, t
 	err := db.QueryRowContext(ctx, stmtTableDDLTable, schemaName, tblName).Scan(&ddl)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return map[string]bool{}, nil
 		}
 		return nil, errw(err)
 	}
 	if !ddl.Valid || ddl.String == "" {
-		return nil, nil
+		return map[string]bool{}, nil
 	}
 	return parseDuckDBGeneratedColumnNames(ddl.String), nil
 }
@@ -1319,14 +1319,13 @@ func duckdbFirstIdentifier(s string) string {
 		var buf strings.Builder
 		for i := 1; i < len(s); i++ {
 			if s[i] == '"' {
-				if i+1 < len(s) && s[i+1] == '"' {
-					// Escaped inner double-quote.
-					buf.WriteByte('"')
-					i++
-				} else {
+				if i+1 >= len(s) || s[i+1] != '"' {
 					// Closing quote.
 					break
 				}
+				// Escaped inner double-quote.
+				buf.WriteByte('"')
+				i++
 			} else {
 				buf.WriteByte(s[i])
 			}
@@ -1336,8 +1335,8 @@ func duckdbFirstIdentifier(s string) string {
 	// Bare identifier: take until the first non-identifier character.
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-			(c >= '0' && c <= '9') || c == '_') {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') &&
+			(c < '0' || c > '9') && c != '_' {
 			return s[:i]
 		}
 	}

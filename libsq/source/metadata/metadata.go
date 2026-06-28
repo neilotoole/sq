@@ -651,7 +651,7 @@ func (c *CheckConstraint) Clone() *CheckConstraint {
 }
 
 // Trigger models a database trigger attached to a table.
-type Trigger struct {
+type Trigger struct { //nolint:govet // field alignment
 	Name  string `json:"name" yaml:"name"`
 	Table string `json:"table" yaml:"table"`
 	// Timing is BEFORE | AFTER | INSTEAD OF; empty if unknown.

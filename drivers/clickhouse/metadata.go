@@ -389,10 +389,13 @@ var checkConstraintRe = regexp.MustCompile(`CONSTRAINT\s+(\w+)\s+CHECK\s+\(`)
 // extracted by parsing system.tables.create_table_query with a bounded regex
 // followed by a parenthesis-depth walk. Graceful: if none are found or parsing
 // fails, an empty slice is returned without error.
-func getClickHouseCheckConstraints(ctx context.Context, db sqlz.DB, dbName, tblName string) ([]*metadata.CheckConstraint, error) {
+func getClickHouseCheckConstraints(
+	ctx context.Context, db sqlz.DB, dbName, tblName string,
+) ([]*metadata.CheckConstraint, error) {
 	log := lg.FromContext(ctx)
 
-	query := `SELECT name, create_table_query FROM system.tables WHERE database = ? AND engine NOT IN ('View', 'MaterializedView')`
+	query := "SELECT name, create_table_query FROM system.tables" +
+		" WHERE database = ? AND engine NOT IN ('View', 'MaterializedView')"
 	args := []any{dbName}
 	if tblName != "" {
 		query += ` AND name = ?`
@@ -514,7 +517,8 @@ func balancedParenContents(ddl string, start int) string {
 func getClickHouseViewDefinitions(ctx context.Context, db sqlz.DB, dbName, tblName string) (map[string]string, error) {
 	log := lg.FromContext(ctx)
 
-	query := `SELECT name, as_select, create_table_query FROM system.tables WHERE database = ? AND engine IN ('View', 'MaterializedView')`
+	query := "SELECT name, as_select, create_table_query FROM system.tables" +
+		" WHERE database = ? AND engine IN ('View', 'MaterializedView')"
 	args := []any{dbName}
 	if tblName != "" {
 		query += ` AND name = ?`

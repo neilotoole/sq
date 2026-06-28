@@ -51,6 +51,9 @@ var (
 	ResolveQualifiedColNames   = resolveQualifiedColNames
 )
 
+// wantConstraint holds the expected name and clause for a CHECK constraint.
+type wantConstraint struct{ name, clause string }
+
 // TestExtractClickHouseCheckConstraints tests the pure DDL parser used to
 // extract CHECK constraints from system.tables.create_table_query.
 func TestExtractClickHouseCheckConstraints(t *testing.T) {
@@ -59,7 +62,7 @@ func TestExtractClickHouseCheckConstraints(t *testing.T) {
 		ddl      string
 		tblName  string
 		wantLen  int
-		wantCons []struct{ name, clause string }
+		wantCons []wantConstraint
 	}{
 		{
 			name:    "no constraints",
@@ -68,20 +71,24 @@ func TestExtractClickHouseCheckConstraints(t *testing.T) {
 			wantLen: 0,
 		},
 		{
-			name:    "single simple constraint",
-			ddl:     "CREATE TABLE t (`id` Int64, `price` Decimal(10, 2), CONSTRAINT chk_price CHECK (price > 0)) ENGINE = MergeTree ORDER BY id",
+			name: "single simple constraint",
+			ddl: "CREATE TABLE t (`id` Int64, `price` Decimal(10, 2)," +
+				" CONSTRAINT chk_price CHECK (price > 0)) ENGINE = MergeTree ORDER BY id",
 			tblName: "t",
 			wantLen: 1,
-			wantCons: []struct{ name, clause string }{
+			wantCons: []wantConstraint{
 				{"chk_price", "price > 0"},
 			},
 		},
 		{
-			name:    "multiple constraints with nested parens",
-			ddl:     "CREATE TABLE t (`id` Int64, `age` Int32, CONSTRAINT chk_price CHECK (price > 0), CONSTRAINT chk_age CHECK ((age >= 0) AND (age <= 150))) ENGINE = MergeTree ORDER BY id",
+			name: "multiple constraints with nested parens",
+			ddl: "CREATE TABLE t (`id` Int64, `age` Int32," +
+				" CONSTRAINT chk_price CHECK (price > 0)," +
+				" CONSTRAINT chk_age CHECK ((age >= 0) AND (age <= 150)))" +
+				" ENGINE = MergeTree ORDER BY id",
 			tblName: "t",
 			wantLen: 2,
-			wantCons: []struct{ name, clause string }{
+			wantCons: []wantConstraint{
 				{"chk_price", "price > 0"},
 				{"chk_age", "(age >= 0) AND (age <= 150)"},
 			},
@@ -96,11 +103,12 @@ func TestExtractClickHouseCheckConstraints(t *testing.T) {
 			// A closing paren inside a string literal must not close the CHECK
 			// expression. Without string-literal awareness, balancedParenContents
 			// exits at the ')' inside ')', truncating the clause to "name != '".
-			name:    "paren inside single-quoted string literal",
-			ddl:     "CREATE TABLE t (`id` Int64, `name` String, CONSTRAINT chk_name CHECK (name != ')')) ENGINE = MergeTree ORDER BY id",
+			name: "paren inside single-quoted string literal",
+			ddl: "CREATE TABLE t (`id` Int64, `name` String," +
+				" CONSTRAINT chk_name CHECK (name != ')')) ENGINE = MergeTree ORDER BY id",
 			tblName: "t",
 			wantLen: 1,
-			wantCons: []struct{ name, clause string }{
+			wantCons: []wantConstraint{
 				{"chk_name", "name != ')'"},
 			},
 		},
@@ -111,7 +119,7 @@ func TestExtractClickHouseCheckConstraints(t *testing.T) {
 			ddl:     "CREATE TABLE t (`id` Int64, CONSTRAINT chk_id CHECK (id != 0)) ENGINE = MergeTree ORDER BY id",
 			tblName: "t",
 			wantLen: 1,
-			wantCons: []struct{ name, clause string }{
+			wantCons: []wantConstraint{
 				{"chk_id", "id != 0"},
 			},
 		},

@@ -425,12 +425,13 @@ func TestMetadataWriter_InspectEnrichment(t *testing.T) {
 		},
 		Triggers: []*metadata.Trigger{
 			{
-				Name:       "trg_orders_audit",
-				Table:      "orders",
-				Timing:     "AFTER",
-				Events:     []string{"INSERT", "UPDATE"},
-				Enabled:    &enabled,
-				Definition: "CREATE TRIGGER trg_orders_audit AFTER INSERT OR UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION audit_log();",
+				Name:    "trg_orders_audit",
+				Table:   "orders",
+				Timing:  "AFTER",
+				Events:  []string{"INSERT", "UPDATE"},
+				Enabled: &enabled,
+				Definition: "CREATE TRIGGER trg_orders_audit AFTER INSERT OR UPDATE ON orders" +
+					" FOR EACH ROW EXECUTE FUNCTION audit_log();",
 			},
 		},
 	}
