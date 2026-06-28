@@ -697,9 +697,13 @@ func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]
 	// pragma_table_xinfo (rather than table_info) is joined so generated
 	// columns are reported; p.hidden distinguishes them (2/3) and flags
 	// virtual-table hidden columns (1) for exclusion below.
+	// m.sql (the CREATE DDL) repeats for every column row in the join; it is
+	// captured once per table during the scan via tblDDLs, eliminating a
+	// per-table getTableDDL round-trip in the post-scan loop.
 	const query = `
 SELECT m.name as table_name, m.type, p.cid, p.name, p.type, p.'notnull' as 'notnull', p.dflt_value, p.pk, p.hidden,
-(substr(m.sql, 0, 21) == 'CREATE VIRTUAL TABLE') AS is_virtual
+(substr(m.sql, 0, 21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
+COALESCE(m.sql, '') AS table_ddl
 FROM sqlite_master AS m JOIN pragma_table_xinfo(m.name) AS p
 ORDER BY m.name, p.cid
 `
@@ -707,8 +711,10 @@ ORDER BY m.name, p.cid
 	var (
 		tblMetas        []*metadata.Table
 		tblNames        []string
+		tblDDLs         = make(map[string]string)
 		curTblName      string
 		curTblType      string
+		curTblDDL       string
 		curTblIsVirtual bool
 		curTblMeta      *metadata.Table
 	)
@@ -744,6 +750,7 @@ ORDER BY m.name, p.cid
 			pkValue,
 			&hidden,
 			&curTblIsVirtual,
+			&curTblDDL,
 		)
 		if err != nil {
 			return nil, errw(err)
@@ -755,7 +762,9 @@ ORDER BY m.name, p.cid
 		}
 
 		if curTblMeta == nil || curTblMeta.Name != curTblName {
-			// On our first time encountering a new table name, we create a new Table
+			// On our first time encountering a new table name, we create a new Table.
+			// Capture the DDL from m.sql (same for all rows of this table).
+			tblDDLs[curTblName] = curTblDDL
 			curTblMeta = &metadata.Table{
 				Name:        curTblName,
 				FQName:      schemaName + "." + curTblName,
@@ -821,25 +830,26 @@ ORDER BY m.name, p.cid
 		tblMetas[i].RowCount = rowCounts[i]
 	}
 
+	// Batch-fetch all triggers in a single round-trip (replaces N per-table
+	// getTableTriggers calls).
+	allTriggers, err := getAllTableTriggers(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
 	// Populate outgoing foreign keys, unique constraints, and indexes
 	// per table. Cross-table linking (FK.Incoming) is handled at the
 	// Source level by metadata.LinkForeignKeys.
 	for _, tblMeta := range tblMetas {
-		// The CREATE DDL drives view definitions, CHECK constraints,
-		// AUTOINCREMENT, and generated-column expressions.
-		ddl, err := getTableDDL(ctx, db, tblMeta.Name)
-		if err != nil {
-			return nil, err
-		}
+		// The DDL was captured from m.sql during the bulk scan above,
+		// so no additional round-trip is needed here.
+		ddl := tblDDLs[tblMeta.Name]
 		if tblMeta.TableType == sqlz.TableTypeView {
 			tblMeta.ViewDefinition = ddl
 		}
 
 		// Triggers attach to both tables and views (INSTEAD OF triggers).
-		tblMeta.Triggers, err = getTableTriggers(ctx, db, tblMeta.Name)
-		if err != nil {
-			return nil, err
-		}
+		tblMeta.Triggers = allTriggers[tblMeta.Name]
 
 		// pragma_foreign_key_list / index_list are only meaningful for
 		// tables, not views.
@@ -1009,12 +1019,65 @@ func applyTableDDLMetadata(ctx context.Context, ddl string, tblMeta *metadata.Ta
 	}
 }
 
+// buildSQLiteTrigger constructs a *metadata.Trigger from its raw parts.
+// ddl is parsed for timing (BEFORE/AFTER/INSTEAD OF) and firing events
+// (INSERT/UPDATE/DELETE); on parse failure the structured fields are left
+// empty and the raw Definition is kept. Trigger.Enabled stays nil; SQLite
+// has no enabled/disabled concept.
+func buildSQLiteTrigger(ctx context.Context, name, tblName, ddl string) *metadata.Trigger {
+	log := lg.FromContext(ctx)
+	trg := &metadata.Trigger{Name: name, Table: tblName, Definition: ddl}
+	if ddl != "" {
+		timing, events, parseErr := sqlparser.ExtractTriggerTimingEvents(ddl)
+		if parseErr != nil {
+			log.Debug("sqlite3: failed to parse trigger DDL; keeping raw definition",
+				lga.Name, name, lga.Err, parseErr)
+		} else {
+			trg.Timing = timing
+			trg.Events = events
+		}
+	}
+	return trg
+}
+
+// getAllTableTriggers fetches all triggers for the database in a single
+// round-trip and returns them grouped by table name. It is the bulk
+// counterpart of getTableTriggers; per-trigger construction is shared
+// via buildSQLiteTrigger.
+func getAllTableTriggers(ctx context.Context, db sqlz.DB) (map[string][]*metadata.Trigger, error) {
+	log := lg.FromContext(ctx)
+	const q = `SELECT name, tbl_name, COALESCE(sql, '') FROM sqlite_master
+WHERE type = 'trigger' ORDER BY tbl_name, name`
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	byTable := make(map[string][]*metadata.Trigger)
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+		var name, tblName, ddl string
+		if err = rows.Scan(&name, &tblName, &ddl); err != nil {
+			return nil, errw(err)
+		}
+		byTable[tblName] = append(byTable[tblName], buildSQLiteTrigger(ctx, name, tblName, ddl))
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return byTable, nil
+}
+
 // getTableTriggers returns the triggers attached to tblName, reading them
 // from sqlite_master (type='trigger'). Each trigger's raw DDL is parsed
 // for its timing (BEFORE/AFTER/INSTEAD OF) and firing events
 // (INSERT/UPDATE/DELETE); a parse failure keeps the raw Definition and
 // leaves the structured fields empty rather than failing inspect.
 // Trigger.Enabled stays nil; SQLite has no enabled/disabled concept.
+// This per-table function is used by the single-table path (getTableMetadata);
+// the bulk path (getAllTableMetadata) uses getAllTableTriggers instead.
 func getTableTriggers(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Trigger, error) {
 	log := lg.FromContext(ctx)
 	const q = `SELECT name, COALESCE(sql, '') FROM sqlite_master
@@ -1032,18 +1095,7 @@ WHERE type = 'trigger' AND tbl_name = ? ORDER BY name`
 		if err = rows.Scan(&name, &ddl); err != nil {
 			return nil, errw(err)
 		}
-		trg := &metadata.Trigger{Name: name, Table: tblName, Definition: ddl}
-		if ddl != "" {
-			timing, events, parseErr := sqlparser.ExtractTriggerTimingEvents(ddl)
-			if parseErr != nil {
-				log.Debug("sqlite3: failed to parse trigger DDL; keeping raw definition",
-					lga.Name, name, lga.Err, parseErr)
-			} else {
-				trg.Timing = timing
-				trg.Events = events
-			}
-		}
-		triggers = append(triggers, trg)
+		triggers = append(triggers, buildSQLiteTrigger(ctx, name, tblName, ddl))
 	}
 	if err = rows.Err(); err != nil {
 		return nil, errw(err)
