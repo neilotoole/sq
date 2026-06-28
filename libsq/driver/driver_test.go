@@ -40,12 +40,14 @@ func TestDriver_DropTable(t *testing.T) {
 
 			tblName := stringz.UniqTableName(sakila.TblActor)
 
-			// Copy a table that we can play with
-			tblName = th.CopyTable(false, src, tablefq.From(sakila.TblActor), tablefq.From(tblName), false)
+			// Copy a table that we can play with. dropAfter=true registers
+			// a safety-net ifExists drop at creation time, so the table is
+			// reaped even if a drop assertion below fails.
+			tblName = th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.From(tblName), false)
 			require.NoError(t, drvr.DropTable(th.Context, db, tablefq.From(tblName), true))
 
 			// Copy the table again so we can drop it again
-			tblName = th.CopyTable(false, src, tablefq.From(sakila.TblActor), tablefq.From(tblName), false)
+			tblName = th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.From(tblName), false)
 
 			// test with ifExists = false
 			require.NoError(t, drvr.DropTable(th.Context, db, tablefq.From(tblName), false))
@@ -840,14 +842,18 @@ func TestSQLDriver_AlterTableRename(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			th, src, drvr, grip, db := testh.NewWith(t, handle)
 
-			// Make a copy of the table to play with
+			// Make a copy of the table to play with. dropAfter=true registers
+			// an ifExists drop for the original name, which is a no-op after
+			// the rename succeeds.
 			tbl := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
-			defer th.DropTable(src, tablefq.From(tbl))
 
+			// Register the drop of the new name before the rename: if an
+			// assertion below fails, the renamed table must still be reaped
+			// from the shared container.
 			newName := stringz.UniqSuffix("actor_copy_")
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(newName)) })
 			err := drvr.AlterTableRename(th.Context, db, tbl, newName)
 			require.NoError(t, err)
-			defer th.DropTable(src, tablefq.From(newName))
 
 			md, err := grip.TableMetadata(th.Context, newName)
 			require.NoError(t, err)
