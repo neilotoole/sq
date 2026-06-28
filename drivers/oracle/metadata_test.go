@@ -169,6 +169,13 @@ func TestInspectColumnFlags_Oracle(t *testing.T) {
 	// Hidden/system columns (e.g. the identity sequence's backing column)
 	// must not surface; HIDDEN_COLUMN='NO' filter keeps only the 4 declared.
 	require.Len(t, md.Columns, 4, "only the declared, non-hidden columns")
+
+	// Negative path: a plain base table has no view definition and no
+	// triggers, so both must be empty (not errored). CheckConstraints is not
+	// asserted here because Oracle auto-generates NOT NULL check constraints
+	// whose filtering is covered by TestInspectCheckConstraint_Oracle.
+	require.Empty(t, md.ViewDefinition, "base table must have no view definition")
+	require.Empty(t, md.Triggers, "base table with no triggers must yield empty Triggers")
 }
 
 // TestInspectCheckConstraint_Oracle verifies real CHECK constraints are
@@ -235,7 +242,7 @@ func TestInspectTrigger_Oracle(t *testing.T) {
 		"CREATE OR REPLACE TRIGGER "+trg+" BEFORE INSERT OR UPDATE ON "+tbl+
 			" FOR EACH ROW BEGIN NULL; END;")
 	require.NoError(t, err)
-	// Trigger is dropped with the table (DROP TABLE drops dependent triggers).
+	// The trigger drops with the table; no separate cleanup needed.
 
 	md, err := th.Open(src).TableMetadata(th.Context, strings.ToUpper(tbl))
 	require.NoError(t, err)

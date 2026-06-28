@@ -598,24 +598,32 @@ func getClickHouseViewDefinitions(ctx context.Context, db sqlz.DB, dbName, tblNa
 	return defs, errw(rows.Err())
 }
 
-// reCHViewAsSelect matches " AS SELECT " case-insensitively in a ClickHouse
-// DDL string.  The regex operates on the original bytes, so the match index
-// is a valid byte offset into the original string regardless of any non-ASCII
-// characters that appear before the match.
-var reCHViewAsSelect = regexp.MustCompile(`(?i) AS SELECT `)
+// reCHViewAsSelect matches the "AS SELECT" separator case-insensitively in a
+// ClickHouse DDL string. The whitespace around AS is matched flexibly (one or
+// more spaces, tabs, or newlines) so a DDL rendered with non-single-space
+// separators is still recognized. The SELECT keyword is a capture group so
+// callers slice from its start, keeping "SELECT ..." in the result. The regex
+// operates on the original bytes, so the match index is a valid byte offset
+// into the original string regardless of any non-ASCII characters before it.
+var reCHViewAsSelect = regexp.MustCompile(`(?i)\sAS\s+(SELECT\b)`)
 
-// reCHViewAs matches " AS " case-insensitively.  Used as a fallback when
-// reCHViewAsSelect finds no match.
-var reCHViewAs = regexp.MustCompile(`(?i) AS `)
+// reCHViewAs matches the first whitespace-delimited "AS" separator
+// case-insensitively (whitespace-flexible, like reCHViewAsSelect). Used as a
+// fallback when reCHViewAsSelect finds no match.
+var reCHViewAs = regexp.MustCompile(`(?i)\sAS\s+`)
 
 // extractViewSelectFromCHDDL extracts the SELECT portion from a ClickHouse
 // CREATE [MATERIALIZED] VIEW DDL string. ClickHouse stores the full DDL in
 // create_table_query as "CREATE [MATERIALIZED] VIEW db.name AS SELECT ...".
 //
-// The function first searches for the more-specific " AS SELECT " marker
-// (case-insensitive) to avoid splitting on an " AS " that appears before the
+// The function first searches for the more-specific "AS SELECT" marker
+// (case-insensitive) to avoid splitting on an "AS" that appears before the
 // defining SELECT (e.g. a column alias or TO clause). It falls back to the
-// first case-insensitive " AS " if " AS SELECT " is not found.
+// first case-insensitive "AS" separator if "AS SELECT" is not found, which
+// also handles views whose body opens with a WITH clause rather than SELECT.
+//
+// Whitespace around the AS separator is matched flexibly, so DDL rendered with
+// multiple spaces, tabs, or newlines between AS and SELECT is still parsed.
 //
 // Returns "" if neither pattern is present; returning the raw DDL blob when
 // no SELECT is found is unhelpful and incorrect.
@@ -626,16 +634,17 @@ var reCHViewAs = regexp.MustCompile(`(?i) AS `)
 // 2-byte "FI"), making an index from the uppercased copy invalid when applied
 // to the original, a source of corrupted output or an out-of-range slice panic.
 func extractViewSelectFromCHDDL(ddl string) string {
-	// Prefer the specific " AS SELECT " pattern to avoid false splits on an
-	// earlier " AS " (e.g. a column alias or a TO clause).
-	if loc := reCHViewAsSelect.FindStringIndex(ddl); loc != nil {
-		// loc[0] is the byte offset of the leading space before "AS SELECT".
-		// Skip " AS " (4 ASCII bytes) to land at "SELECT ...".
-		return strings.TrimSpace(ddl[loc[0]+4:])
+	// Prefer the specific "AS SELECT" pattern to avoid false splits on an
+	// earlier "AS" (e.g. a column alias or a TO clause). loc[2] is the byte
+	// offset of the SELECT capture group, so the result begins at "SELECT".
+	if loc := reCHViewAsSelect.FindStringSubmatchIndex(ddl); loc != nil {
+		return strings.TrimSpace(ddl[loc[2]:])
 	}
-	// Fallback: first " AS " (handles unusual formatting or non-SELECT views).
+	// Fallback: first "AS" separator (handles unusual formatting, a WITH-clause
+	// body, or non-SELECT views). loc[1] is the byte offset just past the
+	// matched separator, robust to however much whitespace it spanned.
 	if loc := reCHViewAs.FindStringIndex(ddl); loc != nil {
-		return strings.TrimSpace(ddl[loc[0]+4:])
+		return strings.TrimSpace(ddl[loc[1]:])
 	}
 	// No recognizable AS separator: do not return the raw DDL blob.
 	return ""

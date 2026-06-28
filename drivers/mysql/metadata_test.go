@@ -251,6 +251,13 @@ func TestMySQL_ColumnFlags(t *testing.T) {
 	require.False(t, colTS.Generated, "ts has an expression default, not a generated column")
 	require.Empty(t, colTS.GeneratedExpr, "GeneratedExpr should be empty for expression-default column")
 
+	// Negative path: this plain base table has no view definition, triggers,
+	// or CHECK constraints. The enrichment collections must be empty (not a
+	// spurious entry, and no error), since omitempty depends on them being so.
+	require.Empty(t, md.ViewDefinition, "base table must have no view definition")
+	require.Empty(t, md.Triggers, "base table with no triggers must yield empty Triggers")
+	require.Empty(t, md.CheckConstraints, "base table with no CHECK must yield empty CheckConstraints")
+
 	// Source-wide path: verify the same table's columns are also mapped.
 	srcMd, err := th.Open(src).SourceMetadata(th.Context, false)
 	require.NoError(t, err)

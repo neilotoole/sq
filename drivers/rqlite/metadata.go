@@ -954,23 +954,16 @@ func applyTableDDLMetadata(ctx context.Context, ddl string, tblMeta *metadata.Ta
 	}
 }
 
-// buildRqliteTrigger constructs a *metadata.Trigger from its raw parts.
-// ddl is parsed for timing (BEFORE/AFTER/INSTEAD OF) and firing events
-// (INSERT/UPDATE/DELETE); on parse failure the structured fields are left
-// empty and the raw Definition is kept. Trigger.Enabled stays nil; SQLite
-// has no enabled/disabled concept.
+// buildRqliteTrigger constructs a *metadata.Trigger from its raw parts via
+// the shared sqlparser.BuildTrigger, logging a parse failure with the
+// rqlite driver prefix. The graceful fallback (raw Definition kept,
+// structured fields left empty) and Trigger.Enabled staying nil live in
+// sqlparser.BuildTrigger, shared with the sqlite3 driver.
 func buildRqliteTrigger(ctx context.Context, name, tblName, ddl string) *metadata.Trigger {
-	log := lg.FromContext(ctx)
-	trg := &metadata.Trigger{Name: name, Table: tblName, Definition: ddl}
-	if ddl != "" {
-		timing, events, parseErr := sqlparser.ExtractTriggerTimingEvents(ddl)
-		if parseErr != nil {
-			log.Debug("rqlite: failed to parse trigger DDL; keeping raw definition",
-				lga.Name, name, lga.Err, parseErr)
-		} else {
-			trg.Timing = timing
-			trg.Events = events
-		}
+	trg, parseErr := sqlparser.BuildTrigger(name, tblName, ddl)
+	if parseErr != nil {
+		lg.FromContext(ctx).Debug("rqlite: failed to parse trigger DDL; keeping raw definition",
+			lga.Name, name, lga.Err, parseErr)
 	}
 	return trg
 }

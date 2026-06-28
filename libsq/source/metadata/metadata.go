@@ -763,6 +763,54 @@ func AllExpressionKeys(cols []string) bool {
 	return true
 }
 
+// assignByTable groups items by their owning-table name (via tableOf)
+// and assigns each group to the matching entry in tables (via set),
+// warning on orphans. It is the shared engine behind the public
+// Assign* helpers: each fetches all of one metadata kind in a single
+// source-wide query, then distributes the rows to the per-table model
+// without repeating this grouping loop.
+//
+// Nil items are skipped (T is always a pointer type at the call sites,
+// so the zero value is nil). Any item whose owning-table name does not
+// match a table in tables is dropped; when log is non-nil, the dropped
+// names are reported at warn level (see [warnOrphans]) so a driver
+// case-folding mismatch or a table filtered out after the bulk loader
+// ran doesn't silently lose data.
+func assignByTable[T comparable](
+	log *slog.Logger,
+	tables []*Table,
+	items []T,
+	tableOf func(T) string,
+	set func(tbl *Table, items []T),
+	label string,
+) {
+	if len(items) == 0 {
+		return
+	}
+
+	var zero T
+	byTable := make(map[string][]T, len(items))
+	for _, item := range items {
+		if item == zero {
+			continue
+		}
+		tblName := tableOf(item)
+		byTable[tblName] = append(byTable[tblName], item)
+	}
+
+	for _, tbl := range tables {
+		if tbl == nil {
+			continue
+		}
+		if got, ok := byTable[tbl.Name]; ok {
+			set(tbl, got)
+			delete(byTable, tbl.Name)
+		}
+	}
+
+	warnOrphans(log, label, byTable)
+}
+
 // AssignForeignKeys groups fks by their referencing-table name (the
 // [ForeignKey.Table] field) and assigns each group to the matching
 // entry's [Table.FK].Outgoing slice, replacing any previously-assigned
@@ -780,32 +828,17 @@ func AllExpressionKeys(cols []string) bool {
 // table that was filtered out after the bulk loader ran doesn't
 // silently lose FK data.
 func AssignForeignKeys(log *slog.Logger, tables []*Table, fks []*ForeignKey) {
-	if len(fks) == 0 {
-		return
-	}
-
-	byTable := make(map[string][]*ForeignKey, len(fks))
-	for _, fk := range fks {
-		if fk == nil {
-			continue
-		}
-		byTable[fk.Table] = append(byTable[fk.Table], fk)
-	}
-
-	for _, tbl := range tables {
-		if tbl == nil {
-			continue
-		}
-		if tblFKs, ok := byTable[tbl.Name]; ok {
+	assignByTable(
+		log, tables, fks,
+		func(fk *ForeignKey) string { return fk.Table },
+		func(tbl *Table, got []*ForeignKey) {
 			if tbl.FK == nil {
 				tbl.FK = &FKGroup{}
 			}
-			tbl.FK.Outgoing = tblFKs
-			delete(byTable, tbl.Name)
-		}
-	}
-
-	warnOrphans(log, "foreign key", byTable)
+			tbl.FK.Outgoing = got
+		},
+		"foreign key",
+	)
 }
 
 // AssignUniqueConstraints groups ucs by their owning-table name and
@@ -813,79 +846,34 @@ func AssignForeignKeys(log *slog.Logger, tables []*Table, fks []*ForeignKey) {
 // [AssignForeignKeys] for unique-constraint slices, including the
 // warn-on-orphan behavior.
 func AssignUniqueConstraints(log *slog.Logger, tables []*Table, ucs []*UniqueConstraint) {
-	if len(ucs) == 0 {
-		return
-	}
-
-	byTable := make(map[string][]*UniqueConstraint, len(ucs))
-	for _, uc := range ucs {
-		if uc == nil {
-			continue
-		}
-		byTable[uc.Table] = append(byTable[uc.Table], uc)
-	}
-
-	for _, tbl := range tables {
-		if tbl == nil {
-			continue
-		}
-		if tblUCs, ok := byTable[tbl.Name]; ok {
-			tbl.UniqueConstraints = tblUCs
-			delete(byTable, tbl.Name)
-		}
-	}
-
-	warnOrphans(log, "unique constraint", byTable)
+	assignByTable(
+		log, tables, ucs,
+		func(uc *UniqueConstraint) string { return uc.Table },
+		func(tbl *Table, got []*UniqueConstraint) { tbl.UniqueConstraints = got },
+		"unique constraint",
+	)
 }
 
 // AssignCheckConstraints groups checks by owning-table name and assigns
 // each group to the matching entry in tables, warning on orphans.
 func AssignCheckConstraints(log *slog.Logger, tables []*Table, checks []*CheckConstraint) {
-	if len(checks) == 0 {
-		return
-	}
-	byTable := make(map[string][]*CheckConstraint, len(checks))
-	for _, cc := range checks {
-		if cc == nil {
-			continue
-		}
-		byTable[cc.Table] = append(byTable[cc.Table], cc)
-	}
-	for _, tbl := range tables {
-		if tbl == nil {
-			continue
-		}
-		if got, ok := byTable[tbl.Name]; ok {
-			tbl.CheckConstraints = got
-			delete(byTable, tbl.Name)
-		}
-	}
-	warnOrphans(log, "check constraint", byTable)
+	assignByTable(
+		log, tables, checks,
+		func(cc *CheckConstraint) string { return cc.Table },
+		func(tbl *Table, got []*CheckConstraint) { tbl.CheckConstraints = got },
+		"check constraint",
+	)
 }
 
 // AssignTriggers groups triggers by owning-table name and assigns
 // each group to the matching entry in tables, warning on orphans.
 func AssignTriggers(log *slog.Logger, tables []*Table, triggers []*Trigger) {
-	if len(triggers) == 0 {
-		return
-	}
-	byTable := make(map[string][]*Trigger, len(triggers))
-	for _, tr := range triggers {
-		if tr == nil {
-			continue
-		}
-		byTable[tr.Table] = append(byTable[tr.Table], tr)
-	}
-	for _, tbl := range tables {
-		if tbl == nil {
-			continue
-		}
-		if got, ok := byTable[tbl.Name]; ok {
-			tbl.Triggers = got
-			delete(byTable, tbl.Name)
-		}
-	}
-	warnOrphans(log, "trigger", byTable)
+	assignByTable(
+		log, tables, triggers,
+		func(tr *Trigger) string { return tr.Table },
+		func(tbl *Table, got []*Trigger) { tbl.Triggers = got },
+		"trigger",
+	)
 }
 
 // AssignIndexes groups idxs by their owning-table name and assigns
@@ -893,29 +881,12 @@ func AssignTriggers(log *slog.Logger, tables []*Table, triggers []*Trigger) {
 // [AssignForeignKeys] for index slices, including the warn-on-orphan
 // behavior.
 func AssignIndexes(log *slog.Logger, tables []*Table, idxs []*Index) {
-	if len(idxs) == 0 {
-		return
-	}
-
-	byTable := make(map[string][]*Index, len(idxs))
-	for _, idx := range idxs {
-		if idx == nil {
-			continue
-		}
-		byTable[idx.Table] = append(byTable[idx.Table], idx)
-	}
-
-	for _, tbl := range tables {
-		if tbl == nil {
-			continue
-		}
-		if tblIdxs, ok := byTable[tbl.Name]; ok {
-			tbl.Indexes = tblIdxs
-			delete(byTable, tbl.Name)
-		}
-	}
-
-	warnOrphans(log, "index", byTable)
+	assignByTable(
+		log, tables, idxs,
+		func(idx *Index) string { return idx.Table },
+		func(tbl *Table, got []*Index) { tbl.Indexes = got },
+		"index",
+	)
 }
 
 // warnOrphans emits one log.Warn per owning-table name in orphans;

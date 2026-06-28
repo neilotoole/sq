@@ -7,6 +7,7 @@ import (
 
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser/sqlite"
 	"github.com/neilotoole/sq/libsq/ast/antlrz"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
 // This file implements DDL extraction used by the sqlite3 (and rqlite)
@@ -129,6 +130,31 @@ func ExtractTriggerTimingEvents(stmt string) (timing string, events []string, er
 	}
 
 	return timing, events, nil
+}
+
+// BuildTrigger constructs a [metadata.Trigger] from its raw parts, shared
+// by the sqlite3 and rqlite drivers (rqlite mirrors the sqlite3 inspect
+// path). ddl is parsed via [ExtractTriggerTimingEvents] for timing
+// (BEFORE/AFTER/INSTEAD OF) and firing events (INSERT/UPDATE/DELETE).
+//
+// The returned trigger is always populated with the raw ddl as its
+// Definition, even on parse failure: a non-nil error means the structured
+// Timing/Events could not be derived and were left empty, but the caller
+// should still surface the trigger (with its raw definition) rather than
+// drop it. Trigger.Enabled stays nil; SQLite has no enabled/disabled
+// concept. Callers log the error at debug with their own driver prefix.
+func BuildTrigger(name, tblName, ddl string) (*metadata.Trigger, error) {
+	trg := &metadata.Trigger{Name: name, Table: tblName, Definition: ddl}
+	if ddl == "" {
+		return trg, nil
+	}
+	timing, events, err := ExtractTriggerTimingEvents(ddl)
+	if err != nil {
+		return trg, err
+	}
+	trg.Timing = timing
+	trg.Events = events
+	return trg, nil
 }
 
 // ColumnDDLInfo carries the best-effort, DDL-only column attributes that

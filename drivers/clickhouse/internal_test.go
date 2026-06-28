@@ -278,6 +278,29 @@ func TestExtractViewSelectFromCHDDL(t *testing.T) {
 			ddl:  "CREATE VIEW dbﬁﬁ.v AS SELECT id FROM t",
 			want: "SELECT id FROM t",
 		},
+		{
+			// Newline between AS and SELECT: the separator is matched
+			// whitespace-flexibly, so a pretty-printed DDL is still parsed.
+			// The old single-literal-space regex returned "" here.
+			name: "newline between AS and SELECT",
+			ddl:  "CREATE VIEW db.v AS\nSELECT id FROM t",
+			want: "SELECT id FROM t",
+		},
+		{
+			// Multiple spaces / tab around the separator.
+			name: "multiple whitespace around AS SELECT",
+			ddl:  "CREATE VIEW db.v AS  \tSELECT id FROM t",
+			want: "SELECT id FROM t",
+		},
+		{
+			// View body opening with a WITH (CTE) clause rather than SELECT:
+			// "AS SELECT" does not match (the CTE's "AS (" and the trailing
+			// SELECT are not adjacent), so the fallback returns the full body
+			// from the first "AS" separator, preserving the WITH clause.
+			name: "WITH-clause body via AS fallback",
+			ddl:  "CREATE VIEW db.v AS WITH c AS (SELECT 1 AS n) SELECT n FROM c",
+			want: "WITH c AS (SELECT 1 AS n) SELECT n FROM c",
+		},
 	}
 
 	for _, tc := range testCases {
