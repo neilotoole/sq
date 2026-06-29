@@ -3,7 +3,12 @@
 #
 # Usage: build-db-matrix.sh <full|narrow> <selection-json>
 #   selection-json: {"postgres":["12","latest"],"mysql":["8"]}
-# Emits a JSON array of {engine,tag,port,env,dsn,packages} on stdout.
+# Emits a JSON array of {engine,tag,port,env,packages} on stdout.
+#
+# Note: the DSN is deliberately NOT included. It contains credentials that
+# GitHub masks as a secret, and a job output containing a masked value is
+# dropped (not passed to downstream jobs) — which would silently empty the
+# matrix. The test job looks up the DSN from .github/sakila-db.json at runtime.
 set -euo pipefail
 
 scope="${1:?usage: build-db-matrix.sh <full|narrow> <selection-json>}"
@@ -24,7 +29,6 @@ jq -cn \
           tag:      .,
           port:     $e.port,
           env:      $e.env,
-          dsn:      $e.dsn,
           packages: (if $scope == "narrow" then $e.packages else "./..." end)
         } ]
 '

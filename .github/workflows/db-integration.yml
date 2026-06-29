@@ -117,7 +117,13 @@ jobs:
 
       - name: Integration tests (${{ matrix.engine }}:${{ matrix.tag }})
         shell: bash
+        env:
+          ENGINE: ${{ matrix.engine }}
+          ENV_NAME: ${{ matrix.env }}
         run: |
           set -euo pipefail
-          export ${{ matrix.env }}='${{ matrix.dsn }}'
+          # Look up the DSN from the manifest at runtime — it carries credentials
+          # that GitHub masks, so it must not travel through the job-output matrix.
+          dsn=$(jq -r --arg e "$ENGINE" '.[$e].dsn' .github/sakila-db.json)
+          export "$ENV_NAME=$dsn"
           go test -tags '${{ env.BUILD_TAGS }}' -timeout 25m -v ${{ matrix.packages }}
