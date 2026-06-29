@@ -67,6 +67,13 @@ jobs:
           matrix="{\"include\":$inc}"
           echo "::notice::scope=$scope selection=$sel"
           echo "::notice::matrix=$matrix"
+          # Fail loudly rather than silently skipping the test job: an empty
+          # selection means nothing would run, which otherwise reports a false
+          # green (a skipped matrix job is not a failure).
+          if [ "$(jq 'length' <<<"$inc")" -eq 0 ]; then
+            echo "::error::Empty engine selection — nothing to test. Provide at least one engine tag (dispatch) or a non-empty selection (call)."
+            exit 1
+          fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   test:
