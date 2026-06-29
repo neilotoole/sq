@@ -404,9 +404,10 @@ func TestDatabaseTypeJSON(t *testing.T) {
 			// (e.g. the 5.6 image in the weekly version sweep).
 			md, err := th.SourceMetadata(src)
 			require.NoError(t, err)
-			var maj, min int
-			_, _ = fmt.Sscanf(md.DBVersion, "%d.%d", &maj, &min)
-			if maj < 5 || (maj == 5 && min < 7) {
+			var major, minor int
+			// Ignore the parse error: zero values cause a safe skip.
+			_, _ = fmt.Sscanf(md.DBVersion, "%d.%d", &major, &minor)
+			if major < 5 || (major == 5 && minor < 7) {
 				t.Skipf("MySQL %s does not support the JSON type", md.DBVersion)
 			}
 
