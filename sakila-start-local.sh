@@ -1,46 +1,57 @@
 #!/usr/bin/env bash
 
-# This script starts local Postgres, MySQL, SQL Server, ClickHouse,
-# Oracle, and rqlite (via the corresponding sakiladb/* docker images)
-# for repo-wide integration tests.
+# Starts local Postgres, MySQL, SQL Server, ClickHouse, Oracle, and rqlite
+# (via the sakiladb/* docker images) for repo-wide integration tests.
 #
-# Each `docker run` uses `--pull always` so a republished image (same tag, new
-# digest) is fetched before the container starts. Without it, a locally-cached
-# image can be silently stale, e.g. an old sakiladb/sqlserver:2019 with 5 views
-# instead of the current 7, which makes the sakila count tests fail confusingly.
-# NOTE: This script has only been tested on MacOS on Apple Silicon.
+# Image tags, ports, DSNs, and env-var names come from .github/sakila-db.json
+# (single source of truth, shared with CI). Each engine uses its first tag
+# (tags[0], normally "latest"). `--pull always` avoids a silently-stale image.
+#
+# NOTE: tested on macOS / Apple Silicon. SQL Server is amd64-only.
 
-set +e
-# First, kill any already running services.
-./sakila-stop-local.sh &>/dev/null
+set -euo pipefail
 
-set -e
+here="$(cd "$(dirname "$0")" && pwd)"
+config="$here/.github/sakila-db.json"
 
-docker run -d --pull always -p 5432:5432 --name sakiladb-pg sakiladb/postgres:12 &>/dev/null
-docker run -d --pull always -p 3306:3306 --name sakiladb-my sakiladb/mysql:8 &>/dev/null
-docker run -d --pull always -p 9000:9000 --name sakiladb-ch sakiladb/clickhouse:25 &>/dev/null
-docker run -d --pull always -p 1521:1521 --name sakiladb-or sakiladb/oracle:23 &>/dev/null
-docker run -d --pull always -p 1433:1433 --name sakiladb-ms --platform=linux/amd64 sakiladb/sqlserver:2019 &>/dev/null
-docker run -d --pull always -p 4001:4001 --name sakiladb-rq sakiladb/rqlite:10 &>/dev/null
+# Stop anything already running.
+"$here/sakila-stop-local.sh" &>/dev/null || true
 
-sleep 5
+declare -A cname=(
+  [postgres]=sakiladb-pg [mysql]=sakiladb-my [sqlserver]=sakiladb-ms
+  [clickhouse]=sakiladb-ch [oracle]=sakiladb-or [rqlite]=sakiladb-rq
+)
+declare -A platform=( [sqlserver]="--platform=linux/amd64" )
 
-# Print the envars that need to be exported for the sq e2e tests to work
-# correctly.
+engines=(postgres mysql sqlserver clickhouse oracle rqlite)
+exports=()
 
+for engine in "${engines[@]}"; do
+  tag=$(jq -r --arg e "$engine" '.[$e].tags[0]' "$config")
+  port=$(jq -r --arg e "$engine" '.[$e].port' "$config")
+  env=$(jq -r --arg e "$engine" '.[$e].env' "$config")
+  dsn=$(jq -r --arg e "$engine" '.[$e].dsn' "$config")
+  # shellcheck disable=SC2086
+  docker run -d --pull always ${platform[$engine]:-} \
+    -p "$port:$port" --name "${cname[$engine]}" "sakiladb/$engine:$tag" &>/dev/null
+  exports+=("export $env=\"$dsn\"")
+done
+
+# Wait for every container to report healthy (images ship a HEALTHCHECK).
+echo "Waiting for containers to become healthy..."
+for engine in "${engines[@]}"; do
+  c="${cname[$engine]}"
+  for _ in $(seq 1 60); do
+    status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$c" 2>/dev/null || echo missing)
+    [ "$status" = healthy ] && break
+    [ "$status" = none ] && break   # no healthcheck: don't block
+    sleep 5
+  done
+  echo "  $c: $(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$c" 2>/dev/null || echo '?')"
+done
+
+echo
 echo "Export these envars (and source them) to run the tests with these sources enabled"
-
-cat << EOF
-export SQ_TEST_SRC__SAKILA_PG12="postgres://sakila:p_ssW0rd@localhost:5432/sakila"
-export SQ_TEST_SRC__SAKILA_MS19="sqlserver://sakila:p_ssW0rd@localhost:1433?database=sakila"
-export SQ_TEST_SRC__SAKILA_MY8="mysql://sakila:p_ssW0rd@localhost:3306/sakila"
-export SQ_TEST_SRC__SAKILA_CH25="clickhouse://sakila:p_ssW0rd@localhost:9000?database=sakila"
-export SQ_TEST_SRC__SAKILA_OR23="oracle://sakila:p_ssW0rd@localhost:1521/SAKILA"
-export SQ_TEST_SRC__SAKILA_RQ10="rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true"
-EOF
-export SQ_TEST_SRC__SAKILA_PG12="postgres://sakila:p_ssW0rd@localhost:5432/sakila"
-export SQ_TEST_SRC__SAKILA_MS19="sqlserver://sakila:p_ssW0rd@localhost:1433?database=sakila"
-export SQ_TEST_SRC__SAKILA_MY8="mysql://sakila:p_ssW0rd@localhost:3306/sakila"
-export SQ_TEST_SRC__SAKILA_CH25="clickhouse://sakila:p_ssW0rd@localhost:9000?database=sakila"
-export SQ_TEST_SRC__SAKILA_OR23="oracle://sakila:p_ssW0rd@localhost:1521/SAKILA"
-export SQ_TEST_SRC__SAKILA_RQ10="rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true"
+printf '%s\n' "${exports[@]}"
+# Also export into the current shell when sourced.
+for line in "${exports[@]}"; do eval "$line"; done
