@@ -35,14 +35,14 @@ jobs:
       - id: build
         shell: bash
         env:
-          INPUT_POSTGRES:   ${{ inputs.postgres }}
-          INPUT_MYSQL:      ${{ inputs.mysql }}
-          INPUT_SQLSERVER:  ${{ inputs.sqlserver }}
-          INPUT_CLICKHOUSE: ${{ inputs.clickhouse }}
-          INPUT_ORACLE:     ${{ inputs.oracle }}
-          INPUT_RQLITE:     ${{ inputs.rqlite }}
+          INPUT_POSTGRES:   ${{ inputs.postgres   || github.event.inputs.postgres }}
+          INPUT_MYSQL:      ${{ inputs.mysql      || github.event.inputs.mysql }}
+          INPUT_SQLSERVER:  ${{ inputs.sqlserver  || github.event.inputs.sqlserver }}
+          INPUT_CLICKHOUSE: ${{ inputs.clickhouse || github.event.inputs.clickhouse }}
+          INPUT_ORACLE:     ${{ inputs.oracle     || github.event.inputs.oracle }}
+          INPUT_RQLITE:     ${{ inputs.rqlite     || github.event.inputs.rqlite }}
           INPUT_SELECTION:  ${{ inputs.selection }}
-          INPUT_SCOPE:      ${{ inputs.scope }}
+          INPUT_SCOPE:      ${{ inputs.scope || github.event.inputs.scope || 'full' }}
         run: |
           set -euo pipefail
           if [ -n "$INPUT_SELECTION" ]; then
@@ -64,7 +64,17 @@ jobs:
           fi
           scope="$INPUT_SCOPE"
           inc=$(scripts/build-db-matrix.sh "$scope" "$sel")
-          echo "matrix={\"include\":$inc}" >> "$GITHUB_OUTPUT"
+          matrix="{\"include\":$inc}"
+          echo "::notice::scope=$scope selection=$sel"
+          echo "::notice::matrix=$matrix"
+          # Fail loudly rather than silently skipping the test job: an empty
+          # selection means nothing would run, which otherwise reports a false
+          # green (a skipped matrix job is not a failure).
+          if [ "$(jq 'length' <<<"$inc")" -eq 0 ]; then
+            echo "::error::Empty engine selection — nothing to test. Provide at least one engine tag (dispatch) or a non-empty selection (call)."
+            exit 1
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   test:
     needs: setup
