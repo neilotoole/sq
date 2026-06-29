@@ -35,7 +35,6 @@ jobs:
       - id: build
         shell: bash
         env:
-          EVENT_NAME:       ${{ github.event_name }}
           INPUT_POSTGRES:   ${{ inputs.postgres }}
           INPUT_MYSQL:      ${{ inputs.mysql }}
           INPUT_SQLSERVER:  ${{ inputs.sqlserver }}
@@ -46,7 +45,11 @@ jobs:
           INPUT_SCOPE:      ${{ inputs.scope }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+          if [ -n "$INPUT_SELECTION" ]; then
+            # Invoked via workflow_call (e.g. db-scheduled.yml): use the selection JSON.
+            sel="$INPUT_SELECTION"
+          else
+            # Direct workflow_dispatch: build the selection from per-engine tag inputs.
             sel=$(jq -cn \
               --arg postgres   "$INPUT_POSTGRES" \
               --arg mysql      "$INPUT_MYSQL" \
@@ -58,11 +61,8 @@ jobs:
                clickhouse:$clickhouse, oracle:$oracle, rqlite:$rqlite}
               | to_entries | map(select(.value != ""))
               | map({key:.key, value:(.value | split(","))}) | from_entries')
-            scope="$INPUT_SCOPE"
-          else
-            sel="$INPUT_SELECTION"
-            scope="$INPUT_SCOPE"
           fi
+          scope="$INPUT_SCOPE"
           inc=$(scripts/build-db-matrix.sh "$scope" "$sel")
           echo "matrix={\"include\":$inc}" >> "$GITHUB_OUTPUT"
 
