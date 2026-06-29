@@ -34,24 +34,34 @@ jobs:
       - uses: actions/checkout@v7
       - id: build
         shell: bash
+        env:
+          EVENT_NAME:       ${{ github.event_name }}
+          INPUT_POSTGRES:   ${{ inputs.postgres }}
+          INPUT_MYSQL:      ${{ inputs.mysql }}
+          INPUT_SQLSERVER:  ${{ inputs.sqlserver }}
+          INPUT_CLICKHOUSE: ${{ inputs.clickhouse }}
+          INPUT_ORACLE:     ${{ inputs.oracle }}
+          INPUT_RQLITE:     ${{ inputs.rqlite }}
+          INPUT_SELECTION:  ${{ inputs.selection }}
+          INPUT_SCOPE:      ${{ inputs.scope }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             sel=$(jq -cn \
-              --arg postgres   '${{ inputs.postgres }}' \
-              --arg mysql      '${{ inputs.mysql }}' \
-              --arg sqlserver  '${{ inputs.sqlserver }}' \
-              --arg clickhouse '${{ inputs.clickhouse }}' \
-              --arg oracle     '${{ inputs.oracle }}' \
-              --arg rqlite     '${{ inputs.rqlite }}' '
+              --arg postgres   "$INPUT_POSTGRES" \
+              --arg mysql      "$INPUT_MYSQL" \
+              --arg sqlserver  "$INPUT_SQLSERVER" \
+              --arg clickhouse "$INPUT_CLICKHOUSE" \
+              --arg oracle     "$INPUT_ORACLE" \
+              --arg rqlite     "$INPUT_RQLITE" '
               {postgres:$postgres, mysql:$mysql, sqlserver:$sqlserver,
                clickhouse:$clickhouse, oracle:$oracle, rqlite:$rqlite}
               | to_entries | map(select(.value != ""))
               | map({key:.key, value:(.value | split(","))}) | from_entries')
-            scope='${{ inputs.scope }}'
+            scope="$INPUT_SCOPE"
           else
-            sel='${{ inputs.selection }}'
-            scope='${{ inputs.scope }}'
+            sel="$INPUT_SELECTION"
+            scope="$INPUT_SCOPE"
           fi
           inc=$(scripts/build-db-matrix.sh "$scope" "$sel")
           echo "matrix={\"include\":$inc}" >> "$GITHUB_OUTPUT"
@@ -98,6 +108,6 @@ jobs:
       - name: Integration tests (${{ matrix.engine }}:${{ matrix.tag }})
         shell: bash
         run: |
-          set -eo pipefail
+          set -euo pipefail
           export ${{ matrix.env }}='${{ matrix.dsn }}'
           go test -tags '${{ env.BUILD_TAGS }}' -timeout 25m -v ${{ matrix.packages }}
