@@ -27,7 +27,7 @@ import (
 
 // TestSmoke exercises Open/Ping plus a basic SELECT against the
 // sakiladb/rqlite container. The test is skipped under `go test -short`
-// or when SQ_TEST_SRC__SAKILA_RQ10 is unset (the standard pattern for
+// or when SQ_TEST_SRC__SAKILA_RQ is unset (the standard pattern for
 // network-backed sakila sources).
 func TestSmoke(t *testing.T) {
 	tu.SkipShort(t, true)

@@ -314,9 +314,9 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 // has its location supplied by an envar. The envar holds the complete DSN for
 // the source: host, port, credentials, database name, and any parameters.
 // test.sq.yml references it as the entire location via ${env:SQ_TEST_SRC__<HANDLE>}.
-// For example, @sakila_pg12 reads its location from SQ_TEST_SRC__SAKILA_PG12,
+// For example, @sakila_pg reads its location from SQ_TEST_SRC__SAKILA_PG,
 // which should be set to a value like postgres://sakila:p_ssW0rd@localhost:5432/sakila.
-// Similarly, @sakila_or23 reads from SQ_TEST_SRC__SAKILA_OR23, set to a value
+// Similarly, @sakila_or reads from SQ_TEST_SRC__SAKILA_OR, set to a value
 // like oracle://sakila:p_ssW0rd@localhost:1521/SAKILA.
 // If the envar is not set, the test calling this method will be skipped.
 //
@@ -416,8 +416,8 @@ func (h *Helper) Source(handle string) *source.Source {
 // SourceConfigured returns true if the source is configured. Note
 // that Helper.Source skips the test if the source is not configured: that
 // is to say, if the source location requires population via an envar, and
-// the envar is not set. For example, for the PostgreSQL source @sakila_pg12,
-// the envar SQ_TEST_SRC__SAKILA_PG12 is required. SourceConfigured tests
+// the envar is not set. For example, for the PostgreSQL source @sakila_pg,
+// the envar SQ_TEST_SRC__SAKILA_PG is required. SourceConfigured tests
 // if that envar is set.
 func (h *Helper) SourceConfigured(handle string) bool {
 	h.mu.Lock()

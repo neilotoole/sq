@@ -394,7 +394,7 @@ func TestDatabaseTypeJSON(t *testing.T) {
 	}
 
 	// MySQL 5.6 doesn't support JSON type
-	testCases := []string{sakila.My57, sakila.My8}
+	testCases := []string{sakila.My}
 	for _, handle := range testCases {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
