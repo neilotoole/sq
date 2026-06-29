@@ -582,7 +582,8 @@ INNER JOIN city AS c ON a.city_id = c.city_id
 INNER JOIN country AS cy ON c.country_id = cy.country_id
 INNER JOIN staff AS m ON s.manager_staff_id = m.staff_id
 GROUP BY  
-  c.city||','||cy.country
+  s.store_id
+, c.city||','||cy.country
 , m.first_name||' '||m.last_name
 ;
 --
