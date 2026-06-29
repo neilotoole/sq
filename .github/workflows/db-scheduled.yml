@@ -1,0 +1,36 @@
+name: DB integration (scheduled)
+
+on:
+  schedule:
+    - cron: '0 4 * * *'   # nightly: every engine @ :latest, full scope
+    - cron: '0 5 * * 1'   # weekly (Mon): full version sweep, narrow scope
+  workflow_dispatch: {}    # manual: behaves like the nightly run
+
+jobs:
+  select:
+    runs-on: ubuntu-24.04
+    outputs:
+      selection: ${{ steps.sel.outputs.selection }}
+      scope: ${{ steps.sel.outputs.scope }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: sel
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.schedule }}" = '0 5 * * 1' ]; then
+            selection=$(jq -c 'to_entries | map({key:.key, value:.value.tags}) | from_entries' .github/sakila-db.json)
+            scope=narrow
+          else
+            selection=$(jq -c 'to_entries | map({key:.key, value:["latest"]}) | from_entries' .github/sakila-db.json)
+            scope=full
+          fi
+          echo "selection=$selection" >> "$GITHUB_OUTPUT"
+          echo "scope=$scope" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: select
+    uses: ./.github/workflows/db-integration.yml
+    with:
+      selection: ${{ needs.select.outputs.selection }}
+      scope: ${{ needs.select.outputs.scope }}
