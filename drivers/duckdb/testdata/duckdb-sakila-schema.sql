@@ -396,7 +396,7 @@ AS
 SELECT cu.customer_id AS ID,
        cu.first_name||' '||cu.last_name AS name,
        a.address AS address,
-       a.postal_code AS zip_code,
+       a.postal_code AS "zip code",
        a.phone AS phone,
        city.city AS city,
        country.country AS country,
@@ -434,7 +434,7 @@ AS
 SELECT s.staff_id AS ID,
        s.first_name||' '||s.last_name AS name,
        a.address AS address,
-       a.postal_code AS zip_code,
+       a.postal_code AS "zip code",
        a.phone AS phone,
        city.city AS city,
        country.country AS country,
@@ -449,8 +449,7 @@ FROM staff AS s JOIN address AS a ON s.address_id = a.address_id JOIN city ON a.
 CREATE VIEW sales_by_store
 AS
 SELECT
-  s.store_id
- ,c.city||','||cy.country AS store
+  c.city||','||cy.country AS store
  ,m.first_name||' '||m.last_name AS manager
  ,SUM(p.amount) AS total_sales
 FROM payment AS p
@@ -462,8 +461,7 @@ INNER JOIN city AS c ON a.city_id = c.city_id
 INNER JOIN country AS cy ON c.country_id = cy.country_id
 INNER JOIN staff AS m ON s.manager_staff_id = m.staff_id
 GROUP BY  
-  s.store_id
-, c.city||','||cy.country
+  c.city||','||cy.country
 , m.first_name||' '||m.last_name
 ;
 --

@@ -17,6 +17,16 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## [Unreleased]
+
+### Fixed
+
+- [#968]: Aligned the SQLite and DuckDB Sakila test fixtures with the canonical
+  schema used by the other drivers: the `sales_by_store` view no longer carries a
+  stray leading `store_id` column (it is now `store, manager, total_sales`), and
+  the `customer_list` / `staff_list` views use the canonical `zip code` alias
+  instead of `zip_code`.
+
 ## [v0.54.1] - 2026-06-23
 
 ### Fixed
@@ -1735,6 +1745,7 @@ make working with lots of sources much easier.
 [#920]: https://github.com/neilotoole/sq/pull/920
 [#923]: https://github.com/neilotoole/sq/pull/923
 [#926]: https://github.com/neilotoole/sq/pull/926
+[#968]: https://github.com/neilotoole/sq/issues/968
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
