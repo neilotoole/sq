@@ -696,10 +696,10 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 		wantTables int
 		wantViews  int
 	}{
-		{handle: sakila.Pg12, schema: "public", wantTables: 16, wantViews: 7},
-		{handle: sakila.MS19, schema: "dbo", wantTables: 16, wantViews: 7},
+		{handle: sakila.Pg, schema: "public", wantTables: 16, wantViews: 7},
+		{handle: sakila.MS, schema: "dbo", wantTables: 16, wantViews: 7},
 		{handle: sakila.SL3, schema: "main", wantTables: 16, wantViews: 7},
-		{handle: sakila.My8, schema: "sakila", wantTables: 16, wantViews: 7},
+		{handle: sakila.My, schema: "sakila", wantTables: 16, wantViews: 7},
 		// Oracle schemas are users; schema lookup is owner-scoped and case-insensitive.
 		// The SAKILA Oracle image is now at the full 16 tables + 7 views (film_text
 		// included as a plain table); see sakiladb/oracle schema notes.

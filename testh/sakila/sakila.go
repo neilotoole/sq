@@ -19,132 +19,60 @@ const (
 	SL3              = "@sakila_sl3"
 	SL3Whitespace    = "@sakila_sl3_whitespace"
 
-	RQ10 = "@sakila_rq10"
-	RQ   = RQ10 // rqlite
+	RQ = "@sakila_rq" // rqlite
 
 	// Duck is the handle for the DuckDB sakila DB.
 	Duck = "@sakila_duck"
 	// DuckWhitespace is the handle for the DuckDB sakila DB
 	// with whitespace-containing identifiers.
 	DuckWhitespace = "@sakila_duck_whitespace"
-	Pg9            = "@sakila_pg9"
-	Pg10           = "@sakila_pg10"
-	Pg11           = "@sakila_pg11"
-	Pg12           = "@sakila_pg12"
-	Pg             = Pg12
-	My56           = "@sakila_my56"
-	My57           = "@sakila_my57"
-	My8            = "@sakila_my8"
-	My             = My8
-	MS17           = "@sakila_ms17"
-	MS19           = "@sakila_ms19"
-	MS             = MS19
 
-	CH25 = "@sakila_ch25"
-	// CH is the handle for the latest ClickHouse.
-	CH = CH25
-
-	// Ora23 is the handle for Oracle Database (Sakila), when configured via
-	// SQ_TEST_SRC__SAKILA_OR23 in the test sources config.
-	Ora23 = "@sakila_or23"
-	// Ora is the handle for the latest Oracle.
-	Ora = Ora23
+	// Pg is the handle for the Postgres sakila DB. The engine version is
+	// determined by the image the source DSN points at, not by the handle.
+	Pg = "@sakila_pg"
+	// My is the handle for the MySQL sakila DB.
+	My = "@sakila_my"
+	// MS is the handle for the SQL Server sakila DB.
+	MS = "@sakila_ms"
+	// CH is the handle for the ClickHouse sakila DB.
+	CH = "@sakila_ch"
+	// Ora is the handle for the Oracle sakila DB.
+	Ora = "@sakila_or"
 )
 
 // AllHandles returns all the typical sakila handles. It does not
 // include monotable handles such as @sakila_csv_actor.
 func AllHandles() []string {
-	return []string{
-		SL3,
-		Duck,
-		Pg9,
-		// Pg10,
-		// Pg11,
-		Pg12,
-		My56,
-		My57,
-		My8,
-		// MS17,
-		MS19,
-		CH25,
-		Ora23,
-		RQ,
-		XLSX,
-	}
+	return []string{SL3, Duck, Pg, My, MS, CH, Ora, RQ, XLSX}
 }
 
 // SQLAll returns all the sakila SQL handles.
 func SQLAll() []string {
-	return []string{
-		SL3,
-		Duck,
-		Pg9,
-		// Pg10,
-		// Pg11,
-		Pg12,
-		My56,
-		My57,
-		My8,
-		// MS17,
-		MS19,
-		CH25,
-		Ora23,
-		RQ,
-	}
+	return []string{SL3, Duck, Pg, My, MS, CH, Ora, RQ}
 }
 
 // SQLAllExternal is the same as SQLAll, but only includes
-// external (non-embedded) sources. That is, it excludes SL3.
+// external (non-embedded) sources. That is, it excludes SL3 and Duck.
 func SQLAllExternal() []string {
-	return []string{
-		Pg9,
-		// Pg10,
-		// Pg11,
-		Pg12,
-		My56,
-		My57,
-		My8,
-		// MS17,
-		MS19,
-		CH25,
-		Ora23,
-		RQ,
-	}
+	return []string{Pg, My, MS, CH, Ora, RQ}
 }
 
-// SQLLatest returns the handles for the latest
-// version of each supported SQL database. This is provided
-// in addition to SQLAll to enable quicker iterative testing
-// during development. DuckDB is included: it is embedded (runs without
-// Docker under -short) and, being the only driver that honors read-only
-// access mode with an exclusive file lock, it exercises grip-cache and
-// access-mode paths that the other drivers don't (gh #779).
+// SQLLatest returns the canonical per-engine handles. Retained alongside
+// SQLAll for quicker iterative testing; DuckDB is included because it is
+// embedded and exercises read-only/access-mode paths the others don't (gh #779).
 func SQLLatest() []string {
 	return []string{SL3, Duck, Pg, My, MS, CH, Ora}
 }
 
-// PgAll returns the handles for all postgres versions.
-func PgAll() []string {
-	return []string{
-		Pg9,
-		// Pg10,
-		// Pg11,
-		Pg12,
-	}
-}
+// PgAll returns the postgres handles. Version coverage is a CI matrix
+// dimension now, so this is a single handle.
+func PgAll() []string { return []string{Pg} }
 
-// MyAll returns the handles for all MySQL versions.
-func MyAll() []string {
-	return []string{My56, My57, My8}
-}
+// MyAll returns the MySQL handles.
+func MyAll() []string { return []string{My} }
 
-// MSAll returns the handles for all SQL Server versions.
-func MSAll() []string {
-	return []string{
-		// MS17,
-		MS19,
-	}
-}
+// MSAll returns the SQL Server handles.
+func MSAll() []string { return []string{MS} }
 
 // Facts regarding the sakila database.
 const (

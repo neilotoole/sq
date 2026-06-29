@@ -1,0 +1,113 @@
+name: DB integration
+
+on:
+  workflow_call:
+    inputs:
+      selection:
+        description: 'JSON object {engine:[tags]} of engines/tags to test'
+        required: true
+        type: string
+      scope:
+        description: 'full (go test ./...) or narrow (per-engine packages)'
+        required: false
+        default: 'full'
+        type: string
+  workflow_dispatch:
+    inputs:
+      postgres:   { description: 'postgres tags (comma-sep; blank=skip)',   type: string, default: 'latest' }
+      mysql:      { description: 'mysql tags (comma-sep; blank=skip)',      type: string, default: 'latest' }
+      sqlserver:  { description: 'sqlserver tags (comma-sep; blank=skip)',  type: string, default: 'latest' }
+      clickhouse: { description: 'clickhouse tags (comma-sep; blank=skip)', type: string, default: 'latest' }
+      oracle:     { description: 'oracle tags (comma-sep; blank=skip)',     type: string, default: 'latest' }
+      rqlite:     { description: 'rqlite tags (comma-sep; blank=skip)',     type: string, default: 'latest' }
+      scope:      { description: 'full or narrow', type: choice, options: [full, narrow], default: full }
+
+env:
+  BUILD_TAGS: "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions"
+
+jobs:
+  setup:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: build
+        shell: bash
+        env:
+          INPUT_POSTGRES:   ${{ inputs.postgres }}
+          INPUT_MYSQL:      ${{ inputs.mysql }}
+          INPUT_SQLSERVER:  ${{ inputs.sqlserver }}
+          INPUT_CLICKHOUSE: ${{ inputs.clickhouse }}
+          INPUT_ORACLE:     ${{ inputs.oracle }}
+          INPUT_RQLITE:     ${{ inputs.rqlite }}
+          INPUT_SELECTION:  ${{ inputs.selection }}
+          INPUT_SCOPE:      ${{ inputs.scope }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_SELECTION" ]; then
+            # Invoked via workflow_call (e.g. db-scheduled.yml): use the selection JSON.
+            sel="$INPUT_SELECTION"
+          else
+            # Direct workflow_dispatch: build the selection from per-engine tag inputs.
+            sel=$(jq -cn \
+              --arg postgres   "$INPUT_POSTGRES" \
+              --arg mysql      "$INPUT_MYSQL" \
+              --arg sqlserver  "$INPUT_SQLSERVER" \
+              --arg clickhouse "$INPUT_CLICKHOUSE" \
+              --arg oracle     "$INPUT_ORACLE" \
+              --arg rqlite     "$INPUT_RQLITE" '
+              {postgres:$postgres, mysql:$mysql, sqlserver:$sqlserver,
+               clickhouse:$clickhouse, oracle:$oracle, rqlite:$rqlite}
+              | to_entries | map(select(.value != ""))
+              | map({key:.key, value:(.value | split(","))}) | from_entries')
+          fi
+          scope="$INPUT_SCOPE"
+          inc=$(scripts/build-db-matrix.sh "$scope" "$sel")
+          echo "matrix={\"include\":$inc}" >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: setup
+    if: ${{ fromJSON(needs.setup.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+    services:
+      db:
+        image: sakiladb/${{ matrix.engine }}:${{ matrix.tag }}
+        ports:
+          - ${{ matrix.port }}:${{ matrix.port }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Wait for DB healthy
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid='${{ job.services.db.id }}'
+          for i in $(seq 1 60); do
+            status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cid")
+            echo "attempt $i: $status"
+            if [ "$status" = healthy ]; then exit 0; fi
+            if [ "$status" = none ]; then echo "image has no HEALTHCHECK; proceeding"; exit 0; fi
+            sleep 5
+          done
+          echo "::error::DB ${{ matrix.engine }}:${{ matrix.tag }} did not become healthy"
+          docker logs "$cid" | tail -100 || true
+          exit 1
+
+      - name: Build
+        run: go build -tags '${{ env.BUILD_TAGS }}' ./...
+
+      - name: Integration tests (${{ matrix.engine }}:${{ matrix.tag }})
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ${{ matrix.env }}='${{ matrix.dsn }}'
+          go test -tags '${{ env.BUILD_TAGS }}' -timeout 25m -v ${{ matrix.packages }}

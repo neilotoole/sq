@@ -393,20 +393,30 @@ func TestDatabaseTypeJSON(t *testing.T) {
 		},
 	}
 
-	// MySQL 5.6 doesn't support JSON type
-	testCases := []string{sakila.My57, sakila.My8}
+	testCases := []string{sakila.My}
 	for _, handle := range testCases {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
 			th, src, _, _, db := testh.NewWith(t, handle)
 
+			// MySQL added the JSON type in 5.7; skip on older servers
+			// (e.g. the 5.6 image in the weekly version sweep).
+			md, err := th.SourceMetadata(src)
+			require.NoError(t, err)
+			var major, minor int
+			// Ignore the parse error: zero values cause a safe skip.
+			_, _ = fmt.Sscanf(md.DBVersion, "%d.%d", &major, &minor)
+			if major < 5 || (major == 5 && minor < 7) {
+				t.Skipf("MySQL %s does not support the JSON type", md.DBVersion)
+			}
+
 			// replace the canonical table name
 			actualTblName := stringz.UniqTableName(canonicalTblName)
 			createStmt := strings.Replace(createStmtTpl, canonicalTblName, actualTblName, 1)
 			// Create the table
 
-			_, err := db.ExecContext(th.Context, createStmt)
+			_, err = db.ExecContext(th.Context, createStmt)
 			require.NoError(t, err)
 			t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
 

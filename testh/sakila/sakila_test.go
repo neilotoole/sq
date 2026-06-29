@@ -13,9 +13,12 @@ import (
 // TestSakila_SQL is a sanity check for Sakila SQL test sources.
 func TestSakila_SQL(t *testing.T) { //nolint:tparallel
 	// Verify that the latest-version aliases are as expected
-	require.Equal(t, sakila.Pg, sakila.Pg12)
-	require.Equal(t, sakila.My, sakila.My8)
-	require.Equal(t, sakila.MS, sakila.MS19)
+	require.Equal(t, "@sakila_pg", sakila.Pg)
+	require.Equal(t, "@sakila_my", sakila.My)
+	require.Equal(t, "@sakila_ms", sakila.MS)
+	require.Equal(t, "@sakila_ch", sakila.CH)
+	require.Equal(t, "@sakila_or", sakila.Ora)
+	require.Equal(t, "@sakila_rq", sakila.RQ)
 
 	handles := sakila.SQLAll()
 	for _, handle := range handles {
