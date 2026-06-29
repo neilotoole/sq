@@ -429,8 +429,7 @@ there:
 
 ```go
 const (
-    CH25 = "@sakila_ch25"
-    CH   = CH25  // Alias for latest version
+    CH = "@sakila_ch"
 )
 ```
 
@@ -450,7 +449,7 @@ func TestSmoke(t *testing.T) {
 #### Oracle (optional)
 
 Some packages (for example [`libsq/driver`](libsq/driver)) run extra checks when
-an Oracle Sakila source is configured. Set `SQ_TEST_SRC__SAKILA_OR23` to the
+an Oracle Sakila source is configured. Set `SQ_TEST_SRC__SAKILA_OR` to the
 full DSN for the source, as described in
 [`testh/testdata/test.sq.yml`](testh/testdata/test.sq.yml) and
 [`drivers/oracle/README.md`](drivers/oracle/README.md).
@@ -459,7 +458,7 @@ For local Oracle with Sakila sample data, run
 [`sakiladb/oracle`](https://github.com/sakiladb/oracle) (see Docker Hub
 `sakiladb/oracle`) or start the compose stack in
 [`drivers/oracle/testutils/docker-compose.yml`](drivers/oracle/testutils/docker-compose.yml).
-Then set `SQ_TEST_SRC__SAKILA_OR23` to the full DSN, for example
+Then set `SQ_TEST_SRC__SAKILA_OR` to the full DSN, for example
 `oracle://sakila:p_ssW0rd@localhost:1521/SAKILA`. The Go driver is pure Go
 ([go-ora](https://github.com/sijms/go-ora));
 no Instant Client is required. When Oracle is reachable, you can narrow
