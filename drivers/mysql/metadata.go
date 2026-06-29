@@ -1272,7 +1272,8 @@ WHERE tc.CONSTRAINT_TYPE = 'CHECK'
 	if err != nil {
 		// CHECK_CONSTRAINTS is absent in MySQL < 8.0.16 and some MariaDB
 		// variants. Return empty slice rather than failing the inspect.
-		if hasErrCode(err, errNumTableNotExist) {
+		// (MySQL 8.0 reports 1146; MySQL 5.6 reports 1109.)
+		if isMissingInfoSchemaTable(err) {
 			return nil, nil
 		}
 		return nil, errw(err)
