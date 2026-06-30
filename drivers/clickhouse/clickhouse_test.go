@@ -469,6 +469,7 @@ func TestDriver_CopyTable_TargetSchema(t *testing.T) {
 }
 
 func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
 	t.Parallel()
 	th, _, _, grip, _ := testh.NewWith(t, sakila.CH)
 	v, err := grip.DBSemver(th.Context)

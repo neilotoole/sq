@@ -400,7 +400,7 @@ func TestDatabaseTypeJSON(t *testing.T) {
 			// (e.g. the 5.6 image in the weekly version sweep).
 			v, err := grip.DBSemver(th.Context)
 			require.NoError(t, err)
-			if semver.Compare(v, "v5.7") < 0 {
+			if semver.Compare(v, "v5.7.0") < 0 {
 				t.Skipf("MySQL %s does not support the JSON type", v)
 			}
 

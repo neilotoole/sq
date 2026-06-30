@@ -2301,6 +2301,7 @@ func TestCopyTable_CopiesIndexesAndTriggers(t *testing.T) {
 }
 
 func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
 	t.Parallel()
 	th, _, _, grip, _ := testh.NewWith(t, sakila.RQ)
 	v, err := grip.DBSemver(th.Context)

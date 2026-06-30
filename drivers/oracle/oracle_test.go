@@ -29,6 +29,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 const (
@@ -648,6 +649,7 @@ func TestTableMetadata_DispatchByObjectType(t *testing.T) {
 }
 
 func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
 	t.Parallel()
 	th, _, _, grip, _ := testh.NewWith(t, sakila.Ora)
 	v, err := grip.DBSemver(th.Context)

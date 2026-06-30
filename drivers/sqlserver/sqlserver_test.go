@@ -225,6 +225,7 @@ func TestNumericSchema(t *testing.T) {
 }
 
 func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
 	t.Parallel()
 	th, _, _, grip, _ := testh.NewWith(t, sakila.MS)
 	v, err := grip.DBSemver(th.Context)

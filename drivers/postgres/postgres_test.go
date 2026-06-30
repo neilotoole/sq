@@ -21,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestSmoke(t *testing.T) {
@@ -387,6 +388,7 @@ func TestIsErrRelationDoesNotExist(t *testing.T) {
 }
 
 func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
 	t.Parallel()
 	th, _, _, grip, _ := testh.NewWith(t, sakila.Pg)
 	v, err := grip.DBSemver(th.Context)
