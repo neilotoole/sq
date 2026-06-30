@@ -1,4 +1,4 @@
-# Makefile for sq — local developer convenience entry point.
+# Makefile for sq: a local developer convenience entry point.
 #
 # CI does NOT use this Makefile: the GitHub workflows under .github/workflows/
 # invoke go / bun / goreleaser directly. This file is for local development and
@@ -22,7 +22,7 @@ LDFLAGS         := -X $(VERSION_PKG).Version=$(BUILD_VERSION) -X $(VERSION_PKG).
 
 # CGO build tags enabling the SQLite features sq depends on (vtable, FTS5, JSON,
 # math functions, etc.). Note: the CI workflows set their own BUILD_TAGS and do
-# not currently include sqlite_icu — keep that in mind if behavior diverges.
+# not currently include sqlite_icu. Keep that in mind if behavior diverges.
 BUILD_TAGS := sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_icu sqlite_introspect sqlite_json sqlite_math_functions
 
 # On macOS (Xcode 15+), CGO/SQLite pass -lm to the linker more than once, which
@@ -86,7 +86,7 @@ gen: ## Run code generation (go generate + betteralign on generated code).
 	@go generate ./...
 	@# betteralign re-orders struct fields in generated code for optimal memory
 	@# layout. https://github.com/dkorunic/betteralign
-	@go tool -modfile=tools/betteralign/go.mod betteralign -apply ./libsq/ast/internal/slq &> /dev/null | true
+	@go tool -modfile=tools/betteralign/go.mod betteralign -apply ./libsq/ast/internal/slq >/dev/null 2>&1 || true
 
 .PHONY: fmt
 fmt: ## Format the whole repo (Go imports + dprint for everything else).

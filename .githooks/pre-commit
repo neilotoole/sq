@@ -15,7 +15,12 @@
 set -euo pipefail
 
 # Staged files, restricted to Added/Copied/Modified/Renamed (skip deletions).
-mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACMR)
+# Read NUL-delimited paths in a loop rather than `mapfile` (bash 4+ only; macOS
+# ships bash 3.2), which also handles paths containing spaces or newlines.
+staged=()
+while IFS= read -r -d '' file; do
+	staged+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
 [ "${#staged[@]}" -eq 0 ] && exit 0
 
 # dprint runs via bun. On a fresh clone before `make init`/`make deps`, bun or
