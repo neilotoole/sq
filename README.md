@@ -381,7 +381,11 @@ $ cat ./example.xlsx | sq inspect
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md).
+Bug reports, feature requests, and pull requests are welcome. Start with
+[CONTRIBUTING.md](./CONTRIBUTING.md), which links out to the per-area guides:
+[`site/README.md`](./site/README.md) for the website and
+[`drivers/README.md`](./drivers/README.md) for adding a driver, plus
+[AGENTS.md](./AGENTS.md) for coding-agent conventions.
 
 ## CHANGELOG
 
