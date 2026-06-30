@@ -14,7 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-// oracleTestDSN matches the docker-compose default (sakiladb/oracle); override
+// oracleTestDSN is the default DSN for the sakiladb/oracle image; override
 // with SQ_TEST_ORACLE_DSN.
 const oracleTestDSN = "oracle://sakila:p_ssW0rd@localhost:1521/SAKILA"
 
@@ -101,7 +101,7 @@ func TestMetadataHelpers_ErrorPaths(t *testing.T) {
 	_, err = getOracleIndexes(ctx, db, tbl)
 	require.Error(t, err)
 
-	_, err = getViewMetadata(ctx, db, tbl)
+	_, err = getViewMetadata(ctx, db, tbl, true)
 	require.Error(t, err)
 
 	_, err = getMaterializedViewMetadata(ctx, db, tbl)

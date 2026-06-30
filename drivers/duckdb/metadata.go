@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -174,6 +175,60 @@ WHERE database_name = current_database()
   AND schema_name = ?
   AND table_name = ?
 ORDER BY index_name`
+
+	// stmtCheckConstraintsAll returns every CHECK constraint declared in the
+	// given schema. Rows are ordered so constraints on the same table are
+	// contiguous and in declaration order.
+	stmtCheckConstraintsAll = `SELECT table_name, constraint_name, constraint_text
+FROM duckdb_constraints()
+WHERE database_name = current_database()
+  AND schema_name = ?
+  AND constraint_type = 'CHECK'
+ORDER BY table_name, constraint_index`
+
+	// stmtCheckConstraintsTable is the single-table form of stmtCheckConstraintsAll.
+	stmtCheckConstraintsTable = `SELECT constraint_name, constraint_text
+FROM duckdb_constraints()
+WHERE database_name = current_database()
+  AND schema_name = ?
+  AND table_name = ?
+  AND constraint_type = 'CHECK'
+ORDER BY constraint_index`
+
+	// stmtViewDefinitionsAll returns the sql DDL for every non-internal view
+	// in the given schema.
+	stmtViewDefinitionsAll = `SELECT view_name, sql
+FROM duckdb_views()
+WHERE database_name = current_database()
+  AND schema_name = ?
+  AND NOT internal
+ORDER BY view_name`
+
+	// stmtViewDefinitionTable returns the sql DDL for a single named view.
+	stmtViewDefinitionTable = `SELECT sql
+FROM duckdb_views()
+WHERE database_name = current_database()
+  AND schema_name = ?
+  AND view_name = ?
+  AND NOT internal`
+
+	// stmtTableDDLAll returns the CREATE TABLE DDL for every non-internal
+	// table in the given schema. Used to detect GENERATED ALWAYS AS columns,
+	// which duckdb_columns() does not flag separately.
+	stmtTableDDLAll = `SELECT table_name, sql
+FROM duckdb_tables()
+WHERE database_name = current_database()
+  AND schema_name = ?
+  AND NOT internal
+ORDER BY table_name`
+
+	// stmtTableDDLTable is the single-table form of stmtTableDDLAll.
+	stmtTableDDLTable = `SELECT sql
+FROM duckdb_tables()
+WHERE database_name = current_database()
+  AND schema_name = ?
+  AND table_name = ?
+  AND NOT internal`
 )
 
 // reIdxBareCol matches a bare unquoted SQL identifier as it appears in
@@ -242,18 +297,11 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	}
 
 	md.Tables = tblMetas
-	for _, tbl := range md.Tables {
-		switch tbl.TableType {
-		case sqlz.TableTypeTable:
-			md.TableCount++
-		case sqlz.TableTypeView:
-			md.ViewCount++
-		}
-	}
+	md.RecomputeTableCounts()
 
-	// Populate FK / unique-constraint / index metadata at the schema level
-	// in three batched queries, then let LinkForeignKeys derive incoming
-	// edges across tables.
+	// Populate FK / unique-constraint / check-constraint / index metadata at
+	// the schema level in batched queries. LinkForeignKeys derives incoming
+	// edges across tables as the final step.
 	log := lg.FromContext(ctx)
 	fks, err := getSchemaForeignKeys(ctx, db, schema)
 	if err != nil {
@@ -267,11 +315,28 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	}
 	metadata.AssignUniqueConstraints(log, md.Tables, ucs)
 
+	checks, err := getSchemaCheckConstraints(ctx, db, schema)
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignCheckConstraints(log, md.Tables, checks)
+
 	idxs, err := getSchemaIndexes(ctx, db, schema)
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignIndexes(log, md.Tables, idxs)
+
+	// Populate ViewDefinition for each view.
+	viewDefs, err := getSchemaViewDefinitions(ctx, db, schema)
+	if err != nil {
+		return nil, err
+	}
+	for _, tbl := range md.Tables {
+		if tbl.TableType == sqlz.TableTypeView {
+			tbl.ViewDefinition = viewDefs[tbl.Name]
+		}
+	}
 
 	metadata.LinkForeignKeys(log, md)
 
@@ -315,12 +380,21 @@ func getSchemaTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) 
 		return nil, errw(err)
 	}
 
+	// Fetch generated-column info for all tables in the schema in one query.
+	// duckdb_columns() doesn't flag generated columns separately, so we detect
+	// them by parsing the canonical DDL from duckdb_tables().sql.
+	generatedCols, err := getSchemaGeneratedColumns(ctx, db, schemaName)
+	if err != nil {
+		return nil, err
+	}
+
 	// Fetch columns for each table. Row counts are obtained in batch below.
 	for _, tbl := range tables {
 		tbl.Columns, err = getColumnMetadata(ctx, db, schemaName, tbl.Name)
 		if err != nil {
 			return nil, err
 		}
+		applyGeneratedColumns(tbl.Columns, generatedCols[tbl.Name])
 	}
 
 	rowCounts, err := getTableRowCounts(ctx, db, schemaName, tables)
@@ -373,7 +447,7 @@ LIMIT 1`
 	// Fetch row count. Schema-qualify the table reference so the count is
 	// correct even if the connection's current schema differs from schemaName.
 	if err := db.QueryRowContext(ctx,
-		fmt.Sprintf(`SELECT COUNT(*) FROM %q.%q`, schemaName, tblName)).
+		"SELECT COUNT(*) FROM "+stringz.DoubleQuote(schemaName)+"."+stringz.DoubleQuote(tblName)).
 		Scan(&tbl.RowCount); err != nil {
 		return nil, errw(err)
 	}
@@ -384,11 +458,29 @@ LIMIT 1`
 		return nil, err
 	}
 
+	// Load view definition for views; constraint/index introspection is
+	// table-only.
+	if tbl.TableType == sqlz.TableTypeView {
+		tbl.ViewDefinition, err = getTableViewDefinition(ctx, db, schemaName, tblName)
+		if err != nil {
+			return nil, err
+		}
+		return tbl, nil
+	}
+
 	// Tables only — duckdb_constraints() / duckdb_indexes() don't apply
 	// to views and would return no rows anyway, so skip the round-trips.
 	if tbl.TableType != sqlz.TableTypeTable {
 		return tbl, nil
 	}
+
+	// Detect generated columns by parsing the CREATE TABLE DDL.
+	// duckdb_columns() does not expose an is_generated flag.
+	genCols, err := getTableGeneratedColumnNames(ctx, db, schemaName, tblName)
+	if err != nil {
+		return nil, err
+	}
+	applyGeneratedColumns(tbl.Columns, genCols)
 
 	outgoing, err := getTableForeignKeys(ctx, db, schemaName, tblName)
 	if err != nil {
@@ -401,6 +493,11 @@ LIMIT 1`
 	tbl.FK = metadata.NewFKGroup(outgoing, incoming)
 
 	tbl.UniqueConstraints, err = getTableUniqueConstraints(ctx, db, schemaName, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tbl.CheckConstraints, err = getTableCheckConstraints(ctx, db, schemaName, tblName)
 	if err != nil {
 		return nil, err
 	}
@@ -870,7 +967,7 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, schemaName string,
 	log := lg.FromContext(ctx)
 	counts := make([]int64, len(tables))
 	for i, tbl := range tables {
-		q := fmt.Sprintf(`SELECT COUNT(*) FROM %q.%q`, schemaName, tbl.Name)
+		q := "SELECT COUNT(*) FROM " + stringz.DoubleQuote(schemaName) + "." + stringz.DoubleQuote(tbl.Name)
 		err := db.QueryRowContext(ctx, q).Scan(&counts[i])
 		if err == nil {
 			continue
@@ -886,6 +983,380 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, schemaName string,
 		return nil, wrapped
 	}
 	return counts, nil
+}
+
+// reDuckDBGeneratedAlways matches the GENERATED ALWAYS AS marker in a
+// DuckDB CREATE TABLE DDL string (case-insensitive).
+var reDuckDBGeneratedAlways = regexp.MustCompile(`(?i)\bGENERATED\s+ALWAYS\s+AS\b`)
+
+// getSchemaCheckConstraints returns all CHECK constraints declared in
+// schemaName, as one *metadata.CheckConstraint per constraint row.
+func getSchemaCheckConstraints(ctx context.Context, db sqlz.DB, schemaName string,
+) ([]*metadata.CheckConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	rows, err := db.QueryContext(ctx, stmtCheckConstraintsAll, schemaName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var checks []*metadata.CheckConstraint
+	for rows.Next() {
+		var tblName, name, clause string
+		if err = rows.Scan(&tblName, &name, &clause); err != nil {
+			return nil, errw(err)
+		}
+		checks = append(checks, &metadata.CheckConstraint{
+			Name:   name,
+			Table:  tblName,
+			Clause: clause,
+		})
+	}
+	return checks, errw(rows.Err())
+}
+
+// getTableCheckConstraints is the per-table analog of [getSchemaCheckConstraints].
+func getTableCheckConstraints(ctx context.Context, db sqlz.DB, schemaName, tblName string,
+) ([]*metadata.CheckConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	rows, err := db.QueryContext(ctx, stmtCheckConstraintsTable, schemaName, tblName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var checks []*metadata.CheckConstraint
+	for rows.Next() {
+		var name, clause string
+		if err = rows.Scan(&name, &clause); err != nil {
+			return nil, errw(err)
+		}
+		checks = append(checks, &metadata.CheckConstraint{
+			Name:   name,
+			Table:  tblName,
+			Clause: clause,
+		})
+	}
+	return checks, errw(rows.Err())
+}
+
+// getSchemaViewDefinitions returns a map of view_name -> DDL for all
+// non-internal views in schemaName.
+func getSchemaViewDefinitions(ctx context.Context, db sqlz.DB, schemaName string,
+) (map[string]string, error) {
+	log := lg.FromContext(ctx)
+
+	rows, err := db.QueryContext(ctx, stmtViewDefinitionsAll, schemaName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	defs := make(map[string]string)
+	for rows.Next() {
+		var viewName string
+		var sqlDef sql.NullString
+		if err = rows.Scan(&viewName, &sqlDef); err != nil {
+			return nil, errw(err)
+		}
+		defs[viewName] = sqlDef.String
+	}
+	return defs, errw(rows.Err())
+}
+
+// getTableViewDefinition returns the CREATE VIEW DDL for a single named view.
+// Returns an empty string when the view is not found.
+func getTableViewDefinition(ctx context.Context, db sqlz.DB, schemaName, viewName string,
+) (string, error) {
+	var sqlDef sql.NullString
+	err := db.QueryRowContext(ctx, stmtViewDefinitionTable, schemaName, viewName).Scan(&sqlDef)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", errw(err)
+	}
+	return sqlDef.String, nil
+}
+
+// getSchemaGeneratedColumns returns a map of table_name -> (set of column
+// names that are declared GENERATED ALWAYS AS) for all non-internal tables
+// in schemaName. The detection is based on parsing the CREATE TABLE DDL
+// returned by duckdb_tables().sql, because duckdb_columns() does not expose
+// a separate is_generated flag.
+func getSchemaGeneratedColumns(ctx context.Context, db sqlz.DB, schemaName string,
+) (map[string]map[string]bool, error) {
+	log := lg.FromContext(ctx)
+
+	rows, err := db.QueryContext(ctx, stmtTableDDLAll, schemaName)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	result := make(map[string]map[string]bool)
+	for rows.Next() {
+		var tblName string
+		var ddl sql.NullString
+		if err = rows.Scan(&tblName, &ddl); err != nil {
+			return nil, errw(err)
+		}
+		if ddl.Valid && ddl.String != "" {
+			if genCols := parseDuckDBGeneratedColumnNames(ddl.String); len(genCols) > 0 {
+				result[tblName] = genCols
+			}
+		}
+	}
+	return result, errw(rows.Err())
+}
+
+// getTableGeneratedColumnNames returns the set of column names (for tblName)
+// that are declared GENERATED ALWAYS AS. Returns nil when none are found.
+func getTableGeneratedColumnNames(ctx context.Context, db sqlz.DB, schemaName, tblName string,
+) (map[string]bool, error) {
+	var ddl sql.NullString
+	err := db.QueryRowContext(ctx, stmtTableDDLTable, schemaName, tblName).Scan(&ddl)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return map[string]bool{}, nil
+		}
+		return nil, errw(err)
+	}
+	if !ddl.Valid || ddl.String == "" {
+		return map[string]bool{}, nil
+	}
+	return parseDuckDBGeneratedColumnNames(ddl.String), nil
+}
+
+// parseDuckDBGeneratedColumnNames parses a DuckDB CREATE TABLE DDL string and
+// returns the set of column names declared as GENERATED ALWAYS AS.
+//
+// DuckDB's duckdb_columns() catalog does not expose a separate is_generated
+// flag; the generated expression appears in column_default alongside ordinary
+// DEFAULT values. The canonical DDL from duckdb_tables().sql is the only
+// reliable source to distinguish the two. The DDL format produced by DuckDB
+// is regular enough for this targeted parse.
+func parseDuckDBGeneratedColumnNames(ddl string) map[string]bool {
+	// Locate the outer ( ... ) that wraps the column/constraint list.
+	start := strings.Index(ddl, "(")
+	if start < 0 {
+		return nil
+	}
+	// Scan for the matching close-paren, tracking string literals so that
+	// an unbalanced paren inside a quoted value (e.g. DEFAULT ':)') does not
+	// terminate the search early.  The logic mirrors duckdbSplitTopLevel.
+	depth := 0
+	end := -1
+	inSingle := false
+	inDouble := false
+	for i := start; i < len(ddl); i++ {
+		c := ddl[i]
+		switch {
+		case inSingle:
+			if c == '\'' {
+				// SQL escaped quote '': skip the second quote.
+				if i+1 < len(ddl) && ddl[i+1] == '\'' {
+					i++
+				} else {
+					inSingle = false
+				}
+			}
+		case inDouble:
+			if c == '"' {
+				inDouble = false
+			}
+		case c == '\'':
+			inSingle = true
+		case c == '"':
+			inDouble = true
+		case c == '(':
+			depth++
+		case c == ')':
+			depth--
+			if depth == 0 {
+				end = i
+			}
+		}
+		if end >= 0 {
+			break
+		}
+	}
+	if end < 0 {
+		return nil
+	}
+
+	// Split the column-list at top-level commas.
+	defs := duckdbSplitTopLevel(ddl[start+1:end], ',')
+
+	result := make(map[string]bool)
+	for _, def := range defs {
+		def = strings.TrimSpace(def)
+		// Strip string-literal contents before the regex match so that a
+		// DEFAULT value containing the text "GENERATED ALWAYS AS" (e.g.
+		// DEFAULT 'GENERATED ALWAYS AS legacy') does not produce a false
+		// positive.
+		if !reDuckDBGeneratedAlways.MatchString(duckdbStripStringLiterals(def)) {
+			continue
+		}
+		// Skip table-level constraint clauses (CHECK, PRIMARY KEY, etc.) which
+		// would never contain a column-name as their first token.
+		upper := strings.ToUpper(strings.TrimLeft(def, " \t"))
+		switch {
+		case strings.HasPrefix(upper, "CHECK"),
+			strings.HasPrefix(upper, "CONSTRAINT"),
+			strings.HasPrefix(upper, "PRIMARY"),
+			strings.HasPrefix(upper, "FOREIGN"),
+			strings.HasPrefix(upper, "UNIQUE"):
+			continue
+		}
+		if colName := duckdbFirstIdentifier(def); colName != "" {
+			result[colName] = true
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+// duckdbSplitTopLevel splits s at each occurrence of sep that is at nesting
+// depth 0 (i.e. not inside paired parentheses or single/double quotes).
+func duckdbSplitTopLevel(s string, sep rune) []string {
+	var (
+		parts    []string
+		buf      strings.Builder
+		depth    int
+		inSingle bool
+		inDouble bool
+	)
+	for _, r := range s {
+		switch {
+		case inSingle:
+			buf.WriteRune(r)
+			if r == '\'' {
+				inSingle = false
+			}
+		case inDouble:
+			buf.WriteRune(r)
+			if r == '"' {
+				inDouble = false
+			}
+		case r == '\'':
+			buf.WriteRune(r)
+			inSingle = true
+		case r == '"':
+			buf.WriteRune(r)
+			inDouble = true
+		case r == '(':
+			buf.WriteRune(r)
+			depth++
+		case r == ')':
+			buf.WriteRune(r)
+			depth--
+		case r == sep && depth == 0:
+			parts = append(parts, buf.String())
+			buf.Reset()
+		default:
+			buf.WriteRune(r)
+		}
+	}
+	if buf.Len() > 0 {
+		parts = append(parts, buf.String())
+	}
+	return parts
+}
+
+// duckdbStripStringLiterals returns s with the contents of single-quoted SQL
+// string literals replaced by space characters, so that subsequent text scans
+// (e.g. a regex looking for GENERATED ALWAYS AS) cannot match keywords that
+// appear only inside a literal value. The surrounding quote characters are
+// preserved to keep the string length stable; only the interior bytes are
+// blanked. Double-quoted identifiers are left untouched because their contents
+// are SQL names, not data values.
+func duckdbStripStringLiterals(s string) string {
+	// Fast path: if there are no single quotes, nothing to do.
+	if !strings.Contains(s, "'") {
+		return s
+	}
+	buf := []byte(s)
+	inSingle := false
+	for i := 0; i < len(buf); i++ {
+		c := buf[i]
+		if inSingle {
+			if c == '\'' {
+				// Check for escaped quote ('').
+				if i+1 < len(buf) && buf[i+1] == '\'' {
+					buf[i] = ' '
+					buf[i+1] = ' '
+					i++ // skip the second quote too
+				} else {
+					inSingle = false
+					// Leave the closing quote as-is.
+				}
+			} else {
+				buf[i] = ' '
+			}
+		} else if c == '\'' {
+			inSingle = true
+			// Leave the opening quote as-is.
+		}
+	}
+	return string(buf)
+}
+
+// duckdbFirstIdentifier returns the first SQL identifier (bare or
+// double-quoted) from the beginning of s after leading whitespace.
+// For a double-quoted identifier, embedded doubled-quotes ("") are unescaped
+// to recover the original name.
+func duckdbFirstIdentifier(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return ""
+	}
+	if s[0] == '"' {
+		// Double-quoted identifier; walk past opening quote.
+		var buf strings.Builder
+		for i := 1; i < len(s); i++ {
+			if s[i] == '"' {
+				if i+1 >= len(s) || s[i+1] != '"' {
+					// Closing quote.
+					break
+				}
+				// Escaped inner double-quote.
+				buf.WriteByte('"')
+				i++
+			} else {
+				buf.WriteByte(s[i])
+			}
+		}
+		return buf.String()
+	}
+	// Bare identifier: take until the first non-identifier character.
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') &&
+			(c < '0' || c > '9') && c != '_' {
+			return s[:i]
+		}
+	}
+	return s
+}
+
+// applyGeneratedColumns marks columns in cols as generated if their name
+// appears in genSet. The DefaultValue is moved to GeneratedExpr and cleared.
+func applyGeneratedColumns(cols []*metadata.Column, genSet map[string]bool) {
+	if len(genSet) == 0 {
+		return
+	}
+	for _, col := range cols {
+		if genSet[col.Name] {
+			col.Generated = true
+			col.GeneratedExpr = col.DefaultValue
+			col.DefaultValue = ""
+		}
+	}
 }
 
 // listSchemas returns schema names visible in the current catalog.

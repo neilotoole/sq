@@ -137,6 +137,15 @@ Nullable columns are wrapped with `Nullable(T)` (e.g.,
 `Nullable(String)`, `Nullable(Int64)`). ClickHouse columns are
 non-nullable by default.
 
+ClickHouse has no dedicated binary or `BLOB` type: `String` holds
+arbitrary bytes and stands in for `BLOB`/`VARCHAR`/`CLOB`/`TEXT`. A column
+cannot be marked binary versus text, so `sq` maps `String` and
+`FixedString` to `kind.Text`, and a `kind.Bytes` value reads back as
+`kind.Text`. This is intentional upstream
+([ClickHouse/ClickHouse#53482](https://github.com/ClickHouse/ClickHouse/issues/53482)),
+not a gap awaiting a fix. See
+[#544](https://github.com/neilotoole/sq/issues/544).
+
 ### Metadata
 
 - `CurrentCatalog()` / `CurrentSchema()` via `currentDatabase()`
@@ -370,13 +379,18 @@ these via `ExecContext()` directly, with no special handling needed.
 ```bash
 cd drivers/clickhouse
 
-go test -v -short                    # Unit tests (no DB required)
-./testutils/test-integration.sh      # Integration tests (requires Docker)
-./testutils/test-sq-cli.sh           # CLI end-to-end tests
+# Unit tests only (no database)
+go test -v -short
+
+# Integration tests: start sakiladb/clickhouse, then point the harness at it
+docker run -d -p 9000:9000 sakiladb/clickhouse:latest
+export SQ_TEST_SRC__SAKILA_CH='clickhouse://sakila:p_ssW0rd@localhost:9000/sakila'
+go test -v
 ```
 
-See **[testutils/Testing.md](./testutils/Testing.md)** for detailed
-instructions.
+The ClickHouse integration tests run against the shared `@sakila_ch` test
+handle; see [`../README.md`](../README.md#test-handles) for the test-handle
+setup used across drivers.
 
 ## Deferred Features (Post-MVP)
 

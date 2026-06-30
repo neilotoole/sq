@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
@@ -182,6 +183,25 @@ func (s *Source) TableNames() []string {
 	return names
 }
 
+// RecomputeTableCounts derives TableCount and ViewCount from s.Tables.
+// This is the single classification point for canonical table types;
+// new types (external, snapshot, ...) extend the switch here rather
+// than in every driver. Materialized views count as views.
+func (s *Source) RecomputeTableCounts() {
+	s.TableCount, s.ViewCount = 0, 0
+	for _, tbl := range s.Tables {
+		if tbl == nil {
+			continue
+		}
+		switch tbl.TableType {
+		case sqlz.TableTypeTable:
+			s.TableCount++
+		case sqlz.TableTypeView, sqlz.TableTypeMaterializedView:
+			s.ViewCount++
+		}
+	}
+}
+
 // String returns a log/debug friendly representation.
 func (s *Source) String() string {
 	bytes, _ := json.Marshal(s)
@@ -204,6 +224,10 @@ type Table struct { //nolint:govet // field alignment
 	// DBTableType indicates if this is a table or view, etc.
 	// The value is driver-dependent, e.g. "BASE TABLE" or "VIEW" for postgres.
 	DBTableType string `json:"table_type_db,omitempty" yaml:"table_type_db,omitempty"`
+
+	// ViewDefinition is the raw/reconstructed view DDL; opaque and not
+	// comparable across engines. Empty for tables.
+	ViewDefinition string `json:"view_definition,omitempty" yaml:"view_definition,omitempty"`
 
 	// RowCount is the number of rows in the table.
 	RowCount int64 `json:"row_count" yaml:"row_count"`
@@ -232,6 +256,12 @@ type Table struct { //nolint:govet // field alignment
 	// an entry with [Index.Primary]=true. Composite unique constraints
 	// are returned with their columns in declaration order.
 	UniqueConstraints []*UniqueConstraint `json:"unique_constraints,omitempty" yaml:"unique_constraints,omitempty"`
+
+	// CheckConstraints are the CHECK constraint declarations on this table.
+	CheckConstraints []*CheckConstraint `json:"check_constraints,omitempty" yaml:"check_constraints,omitempty"`
+
+	// Triggers are the trigger declarations attached to this table.
+	Triggers []*Trigger `json:"triggers,omitempty" yaml:"triggers,omitempty"`
 
 	// Indexes are the physical indexes that back this table. Use
 	// [Index.Unique] / [Index.Primary] to distinguish kinds. Non-unique
@@ -270,14 +300,15 @@ func (t *Table) Clone() *Table {
 	}
 
 	c := &Table{
-		Name:        t.Name,
-		FQName:      t.FQName,
-		TableType:   t.TableType,
-		DBTableType: t.DBTableType,
-		RowCount:    t.RowCount,
-		Size:        clonePtr(t.Size),
-		Comment:     t.Comment,
-		Columns:     nil,
+		Name:           t.Name,
+		FQName:         t.FQName,
+		TableType:      t.TableType,
+		DBTableType:    t.DBTableType,
+		ViewDefinition: t.ViewDefinition,
+		RowCount:       t.RowCount,
+		Size:           clonePtr(t.Size),
+		Comment:        t.Comment,
+		Columns:        nil,
 	}
 
 	if t.Columns != nil {
@@ -297,6 +328,20 @@ func (t *Table) Clone() *Table {
 		c.UniqueConstraints = make([]*UniqueConstraint, len(t.UniqueConstraints))
 		for i := range t.UniqueConstraints {
 			c.UniqueConstraints[i] = t.UniqueConstraints[i].Clone()
+		}
+	}
+
+	if t.CheckConstraints != nil {
+		c.CheckConstraints = make([]*CheckConstraint, len(t.CheckConstraints))
+		for i, cc := range t.CheckConstraints {
+			c.CheckConstraints[i] = cc.Clone()
+		}
+	}
+
+	if t.Triggers != nil {
+		c.Triggers = make([]*Trigger, len(t.Triggers))
+		for i, tr := range t.Triggers {
+			c.Triggers[i] = tr.Clone()
 		}
 	}
 
@@ -369,6 +414,12 @@ type Column struct { //nolint:govet // field alignment
 	Nullable     bool      `json:"nullable" yaml:"nullable"`
 	DefaultValue string    `json:"default_value,omitempty" yaml:"default_value,omitempty"`
 	Comment      string    `json:"comment,omitempty" yaml:"comment,omitempty"`
+
+	Identity      bool   `json:"identity,omitempty" yaml:"identity,omitempty"`
+	AutoIncrement bool   `json:"auto_increment,omitempty" yaml:"auto_increment,omitempty"`
+	Generated     bool   `json:"generated,omitempty" yaml:"generated,omitempty"`
+	GeneratedExpr string `json:"generated_expr,omitempty" yaml:"generated_expr,omitempty"`
+	Collation     string `json:"collation,omitempty" yaml:"collation,omitempty"`
 }
 
 // Clone returns a deep copy of c. If c is nil, nil is returned.
@@ -378,15 +429,20 @@ func (c *Column) Clone() *Column {
 	}
 
 	return &Column{
-		Name:         c.Name,
-		Position:     c.Position,
-		PrimaryKey:   c.PrimaryKey,
-		BaseType:     c.BaseType,
-		ColumnType:   c.ColumnType,
-		Kind:         c.Kind,
-		Nullable:     c.Nullable,
-		DefaultValue: c.DefaultValue,
-		Comment:      c.Comment,
+		Name:          c.Name,
+		Position:      c.Position,
+		PrimaryKey:    c.PrimaryKey,
+		BaseType:      c.BaseType,
+		ColumnType:    c.ColumnType,
+		Kind:          c.Kind,
+		Nullable:      c.Nullable,
+		DefaultValue:  c.DefaultValue,
+		Comment:       c.Comment,
+		Identity:      c.Identity,
+		AutoIncrement: c.AutoIncrement,
+		Generated:     c.Generated,
+		GeneratedExpr: c.GeneratedExpr,
+		Collation:     c.Collation,
 	}
 }
 
@@ -573,6 +629,61 @@ func (uc *UniqueConstraint) String() string {
 	return string(bytes)
 }
 
+// CheckConstraint models a CHECK constraint on a table.
+type CheckConstraint struct {
+	Name  string `json:"name,omitempty" yaml:"name,omitempty"`
+	Table string `json:"table" yaml:"table"`
+	// Clause is the raw, engine-specific CHECK expression text. It is
+	// not comparable across engines.
+	Clause string `json:"clause" yaml:"clause"`
+	// TODO(inspect-gaps): capture participating Columns []string where the
+	// engine exposes them cheaply (pg via pg_attribute, sqlserver, oracle).
+	// Deferred in phase 1 for a uniform clause-only model across drivers.
+}
+
+func (c *CheckConstraint) String() string { return c.Name }
+
+func (c *CheckConstraint) Clone() *CheckConstraint {
+	if c == nil {
+		return nil
+	}
+	return &CheckConstraint{Name: c.Name, Table: c.Table, Clause: c.Clause}
+}
+
+// Trigger models a database trigger attached to a table.
+type Trigger struct { //nolint:govet // field alignment
+	Name  string `json:"name" yaml:"name"`
+	Table string `json:"table" yaml:"table"`
+	// Timing is BEFORE | AFTER | INSTEAD OF; empty if unknown.
+	Timing string `json:"timing,omitempty" yaml:"timing,omitempty"`
+	// Events are the firing events (INSERT, UPDATE, DELETE); a single
+	// trigger may fire on several (pg/oracle/sqlite).
+	Events []string `json:"events,omitempty" yaml:"events,omitempty"`
+	// Enabled is nil where the engine has no enabled/disabled concept
+	// (MySQL, SQLite).
+	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	// Definition is the raw/reconstructed trigger DDL; opaque and not
+	// comparable across engines.
+	Definition string `json:"definition,omitempty" yaml:"definition,omitempty"`
+}
+
+func (t *Trigger) String() string { return t.Name }
+
+func (t *Trigger) Clone() *Trigger {
+	if t == nil {
+		return nil
+	}
+	c := &Trigger{Name: t.Name, Table: t.Table, Timing: t.Timing, Definition: t.Definition}
+	if t.Events != nil {
+		c.Events = append([]string(nil), t.Events...)
+	}
+	if t.Enabled != nil {
+		v := *t.Enabled
+		c.Enabled = &v
+	}
+	return c
+}
+
 // Index models a physical index defined on a table. Indexes include the
 // implicit ones that back primary keys and unique constraints — use the
 // [Index.Primary] and [Index.Unique] flags to distinguish. Drivers that
@@ -652,6 +763,54 @@ func AllExpressionKeys(cols []string) bool {
 	return true
 }
 
+// assignByTable groups items by their owning-table name (via tableOf)
+// and assigns each group to the matching entry in tables (via set),
+// warning on orphans. It is the shared engine behind the public
+// Assign* helpers: each fetches all of one metadata kind in a single
+// source-wide query, then distributes the rows to the per-table model
+// without repeating this grouping loop.
+//
+// Nil items are skipped (T is always a pointer type at the call sites,
+// so the zero value is nil). Any item whose owning-table name does not
+// match a table in tables is dropped; when log is non-nil, the dropped
+// names are reported at warn level (see [warnOrphans]) so a driver
+// case-folding mismatch or a table filtered out after the bulk loader
+// ran doesn't silently lose data.
+func assignByTable[T comparable](
+	log *slog.Logger,
+	tables []*Table,
+	items []T,
+	tableOf func(T) string,
+	set func(tbl *Table, items []T),
+	label string,
+) {
+	if len(items) == 0 {
+		return
+	}
+
+	var zero T
+	byTable := make(map[string][]T, len(items))
+	for _, item := range items {
+		if item == zero {
+			continue
+		}
+		tblName := tableOf(item)
+		byTable[tblName] = append(byTable[tblName], item)
+	}
+
+	for _, tbl := range tables {
+		if tbl == nil {
+			continue
+		}
+		if got, ok := byTable[tbl.Name]; ok {
+			set(tbl, got)
+			delete(byTable, tbl.Name)
+		}
+	}
+
+	warnOrphans(log, label, byTable)
+}
+
 // AssignForeignKeys groups fks by their referencing-table name (the
 // [ForeignKey.Table] field) and assigns each group to the matching
 // entry's [Table.FK].Outgoing slice, replacing any previously-assigned
@@ -669,32 +828,17 @@ func AllExpressionKeys(cols []string) bool {
 // table that was filtered out after the bulk loader ran doesn't
 // silently lose FK data.
 func AssignForeignKeys(log *slog.Logger, tables []*Table, fks []*ForeignKey) {
-	if len(fks) == 0 {
-		return
-	}
-
-	byTable := make(map[string][]*ForeignKey, len(fks))
-	for _, fk := range fks {
-		if fk == nil {
-			continue
-		}
-		byTable[fk.Table] = append(byTable[fk.Table], fk)
-	}
-
-	for _, tbl := range tables {
-		if tbl == nil {
-			continue
-		}
-		if tblFKs, ok := byTable[tbl.Name]; ok {
+	assignByTable(
+		log, tables, fks,
+		func(fk *ForeignKey) string { return fk.Table },
+		func(tbl *Table, got []*ForeignKey) {
 			if tbl.FK == nil {
 				tbl.FK = &FKGroup{}
 			}
-			tbl.FK.Outgoing = tblFKs
-			delete(byTable, tbl.Name)
-		}
-	}
-
-	warnOrphans(log, "foreign key", byTable)
+			tbl.FK.Outgoing = got
+		},
+		"foreign key",
+	)
 }
 
 // AssignUniqueConstraints groups ucs by their owning-table name and
@@ -702,29 +846,34 @@ func AssignForeignKeys(log *slog.Logger, tables []*Table, fks []*ForeignKey) {
 // [AssignForeignKeys] for unique-constraint slices, including the
 // warn-on-orphan behavior.
 func AssignUniqueConstraints(log *slog.Logger, tables []*Table, ucs []*UniqueConstraint) {
-	if len(ucs) == 0 {
-		return
-	}
+	assignByTable(
+		log, tables, ucs,
+		func(uc *UniqueConstraint) string { return uc.Table },
+		func(tbl *Table, got []*UniqueConstraint) { tbl.UniqueConstraints = got },
+		"unique constraint",
+	)
+}
 
-	byTable := make(map[string][]*UniqueConstraint, len(ucs))
-	for _, uc := range ucs {
-		if uc == nil {
-			continue
-		}
-		byTable[uc.Table] = append(byTable[uc.Table], uc)
-	}
+// AssignCheckConstraints groups checks by owning-table name and assigns
+// each group to the matching entry in tables, warning on orphans.
+func AssignCheckConstraints(log *slog.Logger, tables []*Table, checks []*CheckConstraint) {
+	assignByTable(
+		log, tables, checks,
+		func(cc *CheckConstraint) string { return cc.Table },
+		func(tbl *Table, got []*CheckConstraint) { tbl.CheckConstraints = got },
+		"check constraint",
+	)
+}
 
-	for _, tbl := range tables {
-		if tbl == nil {
-			continue
-		}
-		if tblUCs, ok := byTable[tbl.Name]; ok {
-			tbl.UniqueConstraints = tblUCs
-			delete(byTable, tbl.Name)
-		}
-	}
-
-	warnOrphans(log, "unique constraint", byTable)
+// AssignTriggers groups triggers by owning-table name and assigns
+// each group to the matching entry in tables, warning on orphans.
+func AssignTriggers(log *slog.Logger, tables []*Table, triggers []*Trigger) {
+	assignByTable(
+		log, tables, triggers,
+		func(tr *Trigger) string { return tr.Table },
+		func(tbl *Table, got []*Trigger) { tbl.Triggers = got },
+		"trigger",
+	)
 }
 
 // AssignIndexes groups idxs by their owning-table name and assigns
@@ -732,29 +881,12 @@ func AssignUniqueConstraints(log *slog.Logger, tables []*Table, ucs []*UniqueCon
 // [AssignForeignKeys] for index slices, including the warn-on-orphan
 // behavior.
 func AssignIndexes(log *slog.Logger, tables []*Table, idxs []*Index) {
-	if len(idxs) == 0 {
-		return
-	}
-
-	byTable := make(map[string][]*Index, len(idxs))
-	for _, idx := range idxs {
-		if idx == nil {
-			continue
-		}
-		byTable[idx.Table] = append(byTable[idx.Table], idx)
-	}
-
-	for _, tbl := range tables {
-		if tbl == nil {
-			continue
-		}
-		if tblIdxs, ok := byTable[tbl.Name]; ok {
-			tbl.Indexes = tblIdxs
-			delete(byTable, tbl.Name)
-		}
-	}
-
-	warnOrphans(log, "index", byTable)
+	assignByTable(
+		log, tables, idxs,
+		func(idx *Index) string { return idx.Table },
+		func(tbl *Table, got []*Index) { tbl.Indexes = got },
+		"index",
+	)
 }
 
 // warnOrphans emits one log.Warn per owning-table name in orphans;

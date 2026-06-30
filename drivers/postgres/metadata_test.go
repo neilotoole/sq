@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -189,4 +190,297 @@ func TestForeignKey_ReservedWordColumn_Postgres(t *testing.T) {
 	require.Equal(t, []string{"from"}, fk.Columns,
 		`quoted reserved-word column "from" must round-trip unquoted in Columns`)
 	require.Equal(t, []string{"id"}, fk.RefColumns)
+}
+
+// TestPostgres_CheckConstraints verifies that CHECK constraints are
+// populated from the Postgres catalog via pg_constraint.
+func TestPostgres_CheckConstraints(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("chk_widget")
+	conName := tbl + "_price_positive"
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+tbl+` (id INT, price NUMERIC, CONSTRAINT `+conName+` CHECK (price > 0))`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.CheckConstraints, "CheckConstraints should not be empty")
+
+	var found bool
+	for _, cc := range md.CheckConstraints {
+		if cc.Name == conName {
+			found = true
+			require.Contains(t, cc.Clause, "price",
+				"CHECK clause should contain 'price'")
+			break
+		}
+	}
+	require.True(t, found, "CHECK constraint %q not found in CheckConstraints", conName)
+}
+
+// TestPostgres_ColumnFlags verifies that identity, generated, and collation
+// column metadata fields are correctly populated from the Postgres catalog.
+func TestPostgres_ColumnFlags(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("col_flags")
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+tbl+` (
+			id         bigint GENERATED ALWAYS AS IDENTITY,
+			first_name text,
+			last_name  text,
+			full_name  text GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
+			country    text COLLATE "C"
+		)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+
+	idCol := md.Column("id")
+	require.NotNil(t, idCol)
+	require.True(t, idCol.Identity, "id: Identity should be true")
+
+	fullNameCol := md.Column("full_name")
+	require.NotNil(t, fullNameCol)
+	require.True(t, fullNameCol.Generated, "full_name: Generated should be true")
+	require.Contains(t, fullNameCol.GeneratedExpr, "first_name",
+		"full_name: GeneratedExpr should contain 'first_name'")
+
+	countryCol := md.Column("country")
+	require.NotNil(t, countryCol)
+	require.Equal(t, "C", countryCol.Collation, "country: Collation should be 'C'")
+}
+
+// TestPostgres_ViewDefinition verifies that ViewDefinition is populated for
+// views and is empty for base tables.
+func TestPostgres_ViewDefinition(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("vdef_base")
+	view := stringz.UniqTableName("vdef_view")
+
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+tbl+` (id INT, price NUMERIC)`)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE VIEW `+view+` AS SELECT id, price FROM `+tbl+` WHERE price > 0`)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP VIEW IF EXISTS `+view)
+		th.DropTable(src, tablefq.From(tbl))
+	})
+
+	viewMd, err := th.Open(src).TableMetadata(th.Context, view)
+	require.NoError(t, err)
+	require.Equal(t, sqlz.TableTypeView, viewMd.TableType, "TableType should be 'view'")
+	require.NotEmpty(t, viewMd.ViewDefinition, "ViewDefinition should not be empty for a view")
+	require.Contains(t, viewMd.ViewDefinition, "WHERE",
+		"ViewDefinition should contain 'WHERE'")
+
+	// Base table must have empty ViewDefinition.
+	tblMd, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.Empty(t, tblMd.ViewDefinition, "ViewDefinition should be empty for a base table")
+}
+
+// TestPostgres_Triggers verifies that trigger metadata is populated from the
+// Postgres catalog via pg_trigger.
+func TestPostgres_Triggers(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("trig_widget")
+	fnName := tbl + "_fn"
+	trigName := tbl + "_audit"
+
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tbl+` (id INT)`)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		th.DropTable(src, tablefq.From(tbl))
+		_, _ = db.ExecContext(th.Context, `DROP FUNCTION IF EXISTS `+fnName+`()`)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE FUNCTION `+fnName+`() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$`)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE TRIGGER `+trigName+` AFTER INSERT OR UPDATE ON `+tbl+
+			` FOR EACH ROW EXECUTE FUNCTION `+fnName+`()`)
+	require.NoError(t, err)
+
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.Triggers, "Triggers should not be empty")
+
+	var found *metadata.Trigger
+	for _, tr := range md.Triggers {
+		if tr.Name == trigName {
+			found = tr
+			break
+		}
+	}
+	require.NotNil(t, found, "trigger %q not found in Triggers", trigName)
+	require.Equal(t, "AFTER", found.Timing)
+	require.Contains(t, found.Events, "INSERT")
+	require.Contains(t, found.Events, "UPDATE")
+	require.NotNil(t, found.Enabled)
+	require.True(t, *found.Enabled)
+	require.Contains(t, found.Definition, "CREATE TRIGGER")
+}
+
+// TestPostgres_ViewInsteadOfTrigger verifies that an INSTEAD OF trigger on a
+// view is returned by the per-table inspect path (Grip.TableMetadata), matching
+// the behavior of source-wide inspect.
+func TestPostgres_ViewInsteadOfTrigger(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	baseTbl := stringz.UniqTableName("viot_base")
+	viewName := stringz.UniqTableName("viot_view")
+	fnName := viewName + "_fn"
+	trigName := viewName + "_trig"
+
+	// Register base-table cleanup FIRST (LIFO: view + trigger cleaned up first).
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+baseTbl+` (id INT)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE VIEW `+viewName+` AS SELECT id FROM `+baseTbl)
+	require.NoError(t, err)
+	// Register view cleanup SECOND (LIFO → runs before base-table cleanup).
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP VIEW IF EXISTS `+viewName)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE FUNCTION `+fnName+`() RETURNS trigger LANGUAGE plpgsql AS $$`+
+			` BEGIN RETURN NEW; END; $$`)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP FUNCTION IF EXISTS `+fnName+`()`)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE TRIGGER `+trigName+` INSTEAD OF INSERT ON `+viewName+
+			` FOR EACH ROW EXECUTE FUNCTION `+fnName+`()`)
+	require.NoError(t, err)
+	// Dropping the view removes its triggers; no separate trigger DROP needed.
+
+	md, err := th.Open(src).TableMetadata(th.Context, viewName)
+	require.NoError(t, err)
+	require.Equal(t, sqlz.TableTypeView, md.TableType)
+	require.NotEmpty(t, md.Triggers, "INSTEAD OF trigger must appear in per-table view inspect")
+
+	var found *metadata.Trigger
+	for _, tr := range md.Triggers {
+		if tr.Name == trigName {
+			found = tr
+			break
+		}
+	}
+	require.NotNil(t, found, "trigger %q not found in view Triggers", trigName)
+	require.Equal(t, "INSTEAD OF", found.Timing)
+	require.Contains(t, found.Events, "INSERT")
+}
+
+// TestPostgres_Matview verifies that materialized views (which live only in
+// pg_catalog, not information_schema) are surfaced by sq inspect via both the
+// per-table and source-wide metadata paths, with real columns, view
+// definition, row count, and indexes.
+func TestPostgres_Matview(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("mv_base")
+	mv := stringz.UniqTableName("mv_view")
+	ix := stringz.UniqTableName("mv_idx")
+
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+tbl+` (id INT, label TEXT)`)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		`INSERT INTO `+tbl+` (id, label) VALUES (1, 'alpha'), (2, 'beta'), (3, 'gamma')`)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE MATERIALIZED VIEW `+mv+` AS SELECT id, label FROM `+tbl+` WHERE id > 0`)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context,
+		`CREATE INDEX `+ix+` ON `+mv+` (id)`)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP MATERIALIZED VIEW IF EXISTS `+mv)
+		th.DropTable(src, tablefq.From(tbl))
+	})
+
+	// Per-table path.
+	mvMd, err := th.Open(src).TableMetadata(th.Context, mv)
+	require.NoError(t, err)
+	require.Equal(t, sqlz.TableTypeMaterializedView, mvMd.TableType,
+		"TableType should be materialized_view")
+	require.Equal(t, "MATERIALIZED VIEW", mvMd.DBTableType)
+	require.NotEmpty(t, mvMd.Columns, "matview columns must be populated")
+	require.NotNil(t, mvMd.Column("id"))
+	require.NotNil(t, mvMd.Column("label"))
+	require.NotEmpty(t, mvMd.ViewDefinition, "ViewDefinition should not be empty")
+	require.Contains(t, mvMd.ViewDefinition, "label",
+		"ViewDefinition should contain a recognizable column fragment")
+	require.NotNil(t, pgIndexByName(mvMd.Indexes, ix),
+		"index %q should appear in matview indexes", ix)
+	require.Equal(t, int64(3), mvMd.RowCount, "RowCount should match inserted rows")
+
+	// Source-wide path.
+	srcMd, err := th.Open(src).SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+
+	var mvFromSrc *metadata.Table
+	for _, tm := range srcMd.Tables {
+		if tm.Name == mv {
+			mvFromSrc = tm
+			break
+		}
+	}
+	require.NotNil(t, mvFromSrc, "matview %q should be present in SourceMetadata", mv)
+	require.Equal(t, sqlz.TableTypeMaterializedView, mvFromSrc.TableType)
+	require.NotEmpty(t, mvFromSrc.Columns, "matview columns must be populated in source-wide path")
+	require.NotNil(t, pgIndexByName(mvFromSrc.Indexes, ix),
+		"index %q should be attached in source-wide path", ix)
 }

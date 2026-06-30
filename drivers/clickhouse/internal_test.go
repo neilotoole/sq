@@ -51,6 +51,266 @@ var (
 	ResolveQualifiedColNames   = resolveQualifiedColNames
 )
 
+// wantConstraint holds the expected name and clause for a CHECK constraint.
+type wantConstraint struct{ name, clause string }
+
+// TestExtractClickHouseCheckConstraints tests the pure DDL parser used to
+// extract CHECK constraints from system.tables.create_table_query.
+func TestExtractClickHouseCheckConstraints(t *testing.T) {
+	testCases := []struct {
+		name     string
+		ddl      string
+		tblName  string
+		wantLen  int
+		wantCons []wantConstraint
+	}{
+		{
+			name:    "no constraints",
+			ddl:     "CREATE TABLE t (`id` Int64, `name` String) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 0,
+		},
+		{
+			name: "single simple constraint",
+			ddl: "CREATE TABLE t (`id` Int64, `price` Decimal(10, 2)," +
+				" CONSTRAINT chk_price CHECK (price > 0)) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"chk_price", "price > 0"},
+			},
+		},
+		{
+			name: "multiple constraints with nested parens",
+			ddl: "CREATE TABLE t (`id` Int64, `age` Int32," +
+				" CONSTRAINT chk_price CHECK (price > 0)," +
+				" CONSTRAINT chk_age CHECK ((age >= 0) AND (age <= 150)))" +
+				" ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 2,
+			wantCons: []wantConstraint{
+				{"chk_price", "price > 0"},
+				{"chk_age", "(age >= 0) AND (age <= 150)"},
+			},
+		},
+		{
+			name:    "empty DDL",
+			ddl:     "",
+			tblName: "t",
+			wantLen: 0,
+		},
+		{
+			// A closing paren inside a string literal must not close the CHECK
+			// expression. Without string-literal awareness, balancedParenContents
+			// exits at the ')' inside ')', truncating the clause to "name != '".
+			name: "paren inside single-quoted string literal",
+			ddl: "CREATE TABLE t (`id` Int64, `name` String," +
+				" CONSTRAINT chk_name CHECK (name != ')')) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"chk_name", "name != ')'"},
+			},
+		},
+		{
+			// Escaped quote (SQL-standard '' pair) inside a string that also
+			// contains a closing paren must not prematurely end the expression.
+			// Without '' awareness, balancedParenContents exits at the ')' inside
+			// 'it''s)', truncating the clause to "name != 'it'".
+			name:    "escaped quote and paren inside string literal",
+			ddl:     "CREATE TABLE t (`id` Int64, CONSTRAINT chk_name CHECK (name != 'it''s)')) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"chk_name", "name != 'it''s)'"},
+			},
+		},
+		{
+			// Backtick-quoted constraint name (space in name requires quoting).
+			// H1: (\w+) would not match; broadened regex must capture the quoted
+			// form and unquoteCHIdent must strip the backticks.
+			name: "backtick-quoted constraint name",
+			ddl: "CREATE TABLE t (`id` Int64, `age` Int32," +
+				" CONSTRAINT `chk one` CHECK (age > 0)) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"chk one", "age > 0"},
+			},
+		},
+		{
+			// Double-quoted constraint name. H1: must be captured and unquoted.
+			name: "double-quoted constraint name",
+			ddl: "CREATE TABLE t (`id` Int64, `price` Decimal(10, 2)," +
+				` CONSTRAINT "chk_two" CHECK (price >= 0)) ENGINE = MergeTree ORDER BY id`,
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"chk_two", "price >= 0"},
+			},
+		},
+		{
+			// Non-ASCII (Cyrillic) constraint name requires backtick quoting in
+			// ClickHouse. H1: unquoted \w+ misses it; quoted form must be captured.
+			name: "non-ASCII backtick-quoted constraint name",
+			ddl: "CREATE TABLE t (`id` Int64, `qty` Int32," +
+				" CONSTRAINT `проверка` CHECK (qty <> 0)) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"проверка", "qty <> 0"},
+			},
+		},
+		{
+			// A closing paren inside a double-quoted identifier must not
+			// prematurely close the CHECK expression. H2: balancedParenContents
+			// lacked inDoubleQuote state; the ')' inside "weird)col" would drop
+			// depth to 0, truncating the clause.
+			name: "paren inside double-quoted identifier in clause",
+			ddl: "CREATE TABLE t (`id` Int64," +
+				` CONSTRAINT c CHECK ("weird)col" > 0)) ENGINE = MergeTree ORDER BY id`,
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"c", `"weird)col" > 0`},
+			},
+		},
+		{
+			// Doubled double-quote in constraint name: "chk""two" encodes the name
+			// chk"two. Fix B: the broadened checkConstraintRe must match through the
+			// doubled inner quote; unquoteCHIdent then collapses "" -> ".
+			// RED before fix B, GREEN after.
+			name: "doubled double-quote in constraint name",
+			ddl: "CREATE TABLE t (`id` Int64," +
+				` CONSTRAINT "chk""two" CHECK (id > 0)) ENGINE = MergeTree ORDER BY id`,
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{`chk"two`, "id > 0"},
+			},
+		},
+		{
+			// Backslash-escaped double-quote inside a double-quoted identifier
+			// followed by a closing paren: "a\")b" must not end the identifier at
+			// the escaped ", so the ) inside is not counted as a depth change.
+			// Fix C: without the backslash-skip in balancedParenContents, the
+			// clause is truncated to "a\".
+			// RED before fix C, GREEN after.
+			name: "backslash-escaped quote inside double-quoted identifier",
+			ddl: "CREATE TABLE t (`id` Int64," +
+				" CONSTRAINT c CHECK (\"a\\\")b\" > 0)) ENGINE = MergeTree ORDER BY id",
+			tblName: "t",
+			wantLen: 1,
+			wantCons: []wantConstraint{
+				{"c", "\"a\\\")b\" > 0"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := extractClickHouseCheckConstraints(tc.ddl, tc.tblName)
+			require.Len(t, got, tc.wantLen)
+			for i, want := range tc.wantCons {
+				require.Equal(t, tc.tblName, got[i].Table)
+				require.Equal(t, want.name, got[i].Name)
+				require.Equal(t, want.clause, got[i].Clause)
+			}
+		})
+	}
+}
+
+// TestExtractViewSelectFromCHDDL tests the pure-function DDL parser used to
+// extract the SELECT text from a CREATE [MATERIALIZED] VIEW DDL string.
+func TestExtractViewSelectFromCHDDL(t *testing.T) {
+	testCases := []struct {
+		name string
+		ddl  string
+		want string
+	}{
+		{
+			// Standard view DDL: the common case.
+			name: "standard view",
+			ddl:  "CREATE VIEW sakila.actor_info AS SELECT id, name FROM actor",
+			want: "SELECT id, name FROM actor",
+		},
+		{
+			// Materialized view with TO target: " AS " appears once, before SELECT.
+			name: "materialized view with TO target",
+			ddl:  "CREATE MATERIALIZED VIEW sakila.mv TO sakila.mv_target AS SELECT id FROM actor",
+			want: "SELECT id FROM actor",
+		},
+		{
+			// " AS SELECT " match is preferred when the DDL has an earlier " AS "
+			// (e.g. a column alias in the header), avoiding a false split.
+			name: "AS SELECT preferred over earlier AS",
+			ddl:  "CREATE VIEW db.v AS SELECT id AS alias_id FROM t",
+			want: "SELECT id AS alias_id FROM t",
+		},
+		{
+			// No " AS " in the DDL: must return "" rather than the raw DDL blob.
+			// The old code returned the full string unchanged, which is wrong.
+			name: "no AS returns empty string",
+			ddl:  "CREATE TABLE t (id Int64) ENGINE = MergeTree ORDER BY id",
+			want: "",
+		},
+		{
+			// Empty input.
+			name: "empty DDL",
+			ddl:  "",
+			want: "",
+		},
+		{
+			// Lowercase keywords: case-insensitive matching.
+			name: "lowercase as select",
+			ddl:  "create view db.v as select id from t",
+			want: "select id from t",
+		},
+		{
+			// Non-ASCII runes before AS SELECT: the Unicode fi-ligature ﬁ
+			// (U+FB01, 3 UTF-8 bytes) uppercases to "FI" (2 bytes), so two
+			// occurrences create a 2-byte cumulative shift.  The old
+			// strings.ToUpper+strings.Index approach applied the shifted index
+			// to the original string, landing mid-word and returning
+			// "S SELECT id FROM t" instead of "SELECT id FROM t".  The
+			// regexp-based fix operates directly on the original bytes.
+			name: "unicode byte-length-changing rune before AS SELECT",
+			ddl:  "CREATE VIEW dbﬁﬁ.v AS SELECT id FROM t",
+			want: "SELECT id FROM t",
+		},
+		{
+			// Newline between AS and SELECT: the separator is matched
+			// whitespace-flexibly, so a pretty-printed DDL is still parsed.
+			// The old single-literal-space regex returned "" here.
+			name: "newline between AS and SELECT",
+			ddl:  "CREATE VIEW db.v AS\nSELECT id FROM t",
+			want: "SELECT id FROM t",
+		},
+		{
+			// Multiple spaces / tab around the separator.
+			name: "multiple whitespace around AS SELECT",
+			ddl:  "CREATE VIEW db.v AS  \tSELECT id FROM t",
+			want: "SELECT id FROM t",
+		},
+		{
+			// View body opening with a WITH (CTE) clause rather than SELECT:
+			// "AS SELECT" does not match (the CTE's "AS (" and the trailing
+			// SELECT are not adjacent), so the fallback returns the full body
+			// from the first "AS" separator, preserving the WITH clause.
+			name: "WITH-clause body via AS fallback",
+			ddl:  "CREATE VIEW db.v AS WITH c AS (SELECT 1 AS n) SELECT n FROM c",
+			want: "WITH c AS (SELECT 1 AS n) SELECT n FROM c",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := extractViewSelectFromCHDDL(tc.ddl)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
 // clickhouse.go exports.
 var LocationWithDefaultPort = locationWithDefaultPort
 

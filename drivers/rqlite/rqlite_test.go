@@ -27,7 +27,7 @@ import (
 
 // TestSmoke exercises Open/Ping plus a basic SELECT against the
 // sakiladb/rqlite container. The test is skipped under `go test -short`
-// or when SQ_TEST_SRC__SAKILA_RQ10 is unset (the standard pattern for
+// or when SQ_TEST_SRC__SAKILA_RQ is unset (the standard pattern for
 // network-backed sakila sources).
 func TestSmoke(t *testing.T) {
 	tu.SkipShort(t, true)
@@ -59,15 +59,96 @@ func TestSourceMetadata(t *testing.T) {
 	require.Equal(t, "main", md.Schema)
 	require.Equal(t, "default", md.Catalog)
 	require.NotEmpty(t, md.DBVersion, "expected SQLite version from rqlite")
-	// The strict baseline is 16 tables; parallel write-path tests
-	// create extra transient tables that may still be live when the
-	// metadata query runs. Assert the lower bound rather than equality.
+	// The strict baseline is 16 tables and 7 views; parallel write-path
+	// tests create extra transient tables and views (e.g. the inspect
+	// DDL-metadata test) that may still be live when the metadata query
+	// runs. Assert the lower bound rather than equality.
 	require.GreaterOrEqual(t, md.TableCount, int64(16))
-	require.Equal(t, int64(7), md.ViewCount)
+	require.GreaterOrEqual(t, md.ViewCount, int64(7))
 	// rqlite's HTTP API doesn't expose a database file size, so the
 	// driver leaves Source.Size as nil (gh744). Asserting nil prevents a
 	// regression to the int64 zero value, which would render as "0.0B".
 	require.Nil(t, md.Size, "rqlite source size should not be reported")
+}
+
+// TestInspect_DDLMetadata exercises the DDL-derived inspect metadata that
+// SQLite/rqlite exposes only in the CREATE statements in sqlite_master:
+// generated columns, AUTOINCREMENT, CHECK constraints, triggers (timing +
+// events), and view definitions. It creates uniquely-named objects in the
+// shared rqlite container and drops them on cleanup (views/triggers need
+// explicit DROP; the table goes via DropTable).
+func TestInspect_DDLMetadata(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.RQ)
+	grip := th.Open(src)
+	ctx := th.Context
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	suffix := stringz.Uniq8()
+	tblName := "widget_" + suffix
+	trgName := "widget_ai_" + suffix
+	viewName := "widget_view_" + suffix
+
+	stmts := []string{
+		fmt.Sprintf(`CREATE TABLE %q (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	price INTEGER NOT NULL CHECK (price > 0),
+	discount INTEGER NOT NULL DEFAULT 0,
+	net INTEGER GENERATED ALWAYS AS (price - discount) STORED,
+	CONSTRAINT chk_discount CHECK (discount < price)
+)`, tblName),
+		fmt.Sprintf(`CREATE TRIGGER %q AFTER INSERT ON %q BEGIN SELECT 1; END`, trgName, tblName),
+		fmt.Sprintf(`CREATE VIEW %q AS SELECT id, price FROM %q WHERE price > 10`, viewName, tblName),
+	}
+	for _, stmt := range stmts {
+		_, err = db.ExecContext(ctx, stmt)
+		require.NoError(t, err)
+	}
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(ctx, fmt.Sprintf("DROP VIEW IF EXISTS %q", viewName))
+		_, _ = db.ExecContext(ctx, fmt.Sprintf("DROP TRIGGER IF EXISTS %q", trgName))
+		_ = grip.SQLDriver().DropTable(ctx, db, tablefq.T{Table: tblName}, true)
+	})
+
+	md, err := grip.TableMetadata(ctx, tblName)
+	require.NoError(t, err)
+
+	colByName := make(map[string]*metadata.Column, len(md.Columns))
+	for _, col := range md.Columns {
+		colByName[col.Name] = col
+	}
+	require.True(t, colByName["id"].AutoIncrement, "id should be AUTOINCREMENT")
+	require.True(t, colByName["net"].Generated, "net should be a generated column")
+	require.Equal(t, "price - discount", colByName["net"].GeneratedExpr)
+
+	require.Len(t, md.CheckConstraints, 2)
+	var foundNamed bool
+	for _, cc := range md.CheckConstraints {
+		require.Equal(t, tblName, cc.Table)
+		require.NotEmpty(t, cc.Clause)
+		if cc.Name == "chk_discount" {
+			foundNamed = true
+		}
+	}
+	require.True(t, foundNamed, "named CHECK constraint chk_discount not found")
+
+	require.Len(t, md.Triggers, 1)
+	trg := md.Triggers[0]
+	require.Equal(t, trgName, trg.Name)
+	require.Equal(t, "AFTER", trg.Timing)
+	require.Equal(t, []string{"INSERT"}, trg.Events)
+	require.NotEmpty(t, trg.Definition)
+	require.Nil(t, trg.Enabled)
+
+	viewMd, err := grip.TableMetadata(ctx, viewName)
+	require.NoError(t, err)
+	require.Equal(t, sqlz.TableTypeView, viewMd.TableType)
+	require.NotEmpty(t, viewMd.ViewDefinition)
+	require.Contains(t, viewMd.ViewDefinition, "SELECT")
 }
 
 // TestTableMetadata_Actor verifies the per-table metadata path:

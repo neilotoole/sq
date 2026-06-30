@@ -20,17 +20,11 @@ import (
 func TestSmoke(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.MSAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
-
-			th, src, _, _, _ := testh.NewWith(t, handle)
-			sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
-			require.NoError(t, err)
-			require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
-			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
-		})
-	}
+	th, src, _, _, _ := testh.NewWith(t, sakila.MS)
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
+	require.NoError(t, err)
+	require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
+	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
 
 func TestDriverBehavior(t *testing.T) {

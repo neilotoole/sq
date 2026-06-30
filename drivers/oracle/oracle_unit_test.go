@@ -51,6 +51,7 @@ func TestDriveri_DriverMetadata(t *testing.T) {
 	md := (&driveri{}).DriverMetadata()
 	require.Equal(t, drivertype.Oracle, md.Type)
 	require.True(t, md.IsSQL)
+	require.False(t, md.IsEmbeddedSQL)
 	require.Equal(t, 1521, md.DefaultPort)
 	require.NotEmpty(t, md.Description)
 }

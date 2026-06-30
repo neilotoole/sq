@@ -16,77 +16,59 @@ import (
 func TestSmoke(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.MyAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
-
-			th, src, _, _, _ := testh.NewWith(t, handle)
-			sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
-			require.NoError(t, err)
-			require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
-			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
-		})
-	}
+	th, src, _, _, _ := testh.NewWith(t, sakila.My)
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
+	require.NoError(t, err)
+	require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
+	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
 
 func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	t.Parallel()
 
-	testCases := sakila.MyAll()
-	for _, handle := range testCases {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th, src, drvr, _, db := testh.NewWith(t, sakila.My)
 
-			th, src, drvr, _, db := testh.NewWith(t, handle)
+	tblName := stringz.UniqTableName(t.Name())
+	colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
 
-			tblName := stringz.UniqTableName(t.Name())
-			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
+	tblDef := schema.NewTable(tblName, colNames, colKinds)
+	for _, colDef := range tblDef.Cols {
+		colDef.NotNull = true
+		colDef.HasDefault = true
+	}
 
-			tblDef := schema.NewTable(tblName, colNames, colKinds)
-			for _, colDef := range tblDef.Cols {
-				colDef.NotNull = true
-				colDef.HasDefault = true
-			}
+	err := drvr.CreateTable(th.Context, db, tblDef)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
-			err := drvr.CreateTable(th.Context, db, tblDef)
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+	// MySQL doesn't support default values for TEXT or BLOB
+	// See: https://bugs.mysql.com/bug.php?id=21532
+	// So, instead of "INSERT INTO tblName () VALUES ()" we
+	// need to provide explicit values for col_text and col_bytes.
+	insertDefaultStmt := "INSERT INTO " + tblName + " (col_text, col_bytes) VALUES (?, ?)"
+	affected := th.ExecSQL(src, insertDefaultStmt, "", []byte{})
+	require.Equal(t, int64(1), affected)
 
-			// MySQL doesn't support default values for TEXT or BLOB
-			// See: https://bugs.mysql.com/bug.php?id=21532
-			// So, instead of "INSERT INTO tblName () VALUES ()" we
-			// need to provide explicit values for col_text and col_bytes.
-			insertDefaultStmt := "INSERT INTO " + tblName + " (col_text, col_bytes) VALUES (?, ?)"
-			affected := th.ExecSQL(src, insertDefaultStmt, "", []byte{})
-			require.Equal(t, int64(1), affected)
-
-			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
-			require.NoError(t, err)
-			require.Equal(t, 1, len(sink.Recs))
-			require.Equal(t, len(colNames), len(sink.RecMeta))
-			for i := range colNames {
-				require.NotNil(t, sink.Recs[0][i])
-				nullable, ok := sink.RecMeta[i].Nullable()
-				require.True(t, ok)
-				require.False(t, nullable)
-			}
-		})
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(sink.Recs))
+	require.Equal(t, len(colNames), len(sink.RecMeta))
+	for i := range colNames {
+		require.NotNil(t, sink.Recs[0][i])
+		nullable, ok := sink.RecMeta[i].Nullable()
+		require.True(t, ok)
+		require.False(t, nullable)
 	}
 }
 
 // TestBug252_ShowCollation_uint64 tests the
 // bug https://github.com/neilotoole/sq/issues/252.
 func TestBug252_ShowCollation_uint64(t *testing.T) {
-	testCases := sakila.MyAll()
-	for _, handle := range testCases {
-		t.Run(handle, func(t *testing.T) {
-			th, src, _, _, _ := testh.NewWith(t, handle)
+	th, src, _, _, _ := testh.NewWith(t, sakila.My)
 
-			sink, err := th.QuerySQL(src, nil, "SHOW COLLATION")
-			require.NoError(t, err)
-			require.NotNil(t, sink)
-		})
-	}
+	sink, err := th.QuerySQL(src, nil, "SHOW COLLATION")
+	require.NoError(t, err)
+	require.NotNil(t, sink)
 }
 
 // TestNumericSchema tests that numeric and numeric-prefixed database names

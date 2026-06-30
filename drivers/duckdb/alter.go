@@ -7,11 +7,13 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // alterTableRename renames a table.
 func alterTableRename(ctx context.Context, db sqlz.DB, oldName, newName string) error {
-	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, oldName, newName)
+	q := fmt.Sprintf(`ALTER TABLE %s RENAME TO %s`,
+		stringz.DoubleQuote(oldName), stringz.DoubleQuote(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err),
 		"duckdb: alter table: failed to rename table {%s} to {%s}", oldName, newName)
@@ -20,7 +22,8 @@ func alterTableRename(ctx context.Context, db sqlz.DB, oldName, newName string) 
 // alterTableAddColumn adds a column of the given kind to an existing table.
 func alterTableAddColumn(ctx context.Context, db sqlz.DB, tblName, colName string, k kind.Kind) error {
 	dbType := dbTypeNameFromKind(k)
-	q := fmt.Sprintf(`ALTER TABLE %q ADD COLUMN %q %s`, tblName, colName, dbType)
+	q := fmt.Sprintf(`ALTER TABLE %s ADD COLUMN %s %s`,
+		stringz.DoubleQuote(tblName), stringz.DoubleQuote(colName), dbType)
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err),
 		"duckdb: alter table: failed to add column {%s} to table {%s}", colName, tblName)
@@ -28,7 +31,8 @@ func alterTableAddColumn(ctx context.Context, db sqlz.DB, tblName, colName strin
 
 // alterTableRenameColumn renames a column in an existing table.
 func alterTableRenameColumn(ctx context.Context, db sqlz.DB, tblName, oldCol, newCol string) error {
-	q := fmt.Sprintf(`ALTER TABLE %q RENAME COLUMN %q TO %q`, tblName, oldCol, newCol)
+	q := fmt.Sprintf(`ALTER TABLE %s RENAME COLUMN %s TO %s`,
+		stringz.DoubleQuote(tblName), stringz.DoubleQuote(oldCol), stringz.DoubleQuote(newCol))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err),
 		"duckdb: alter table: failed to rename column {%s.%s} to {%s}", tblName, oldCol, newCol)
@@ -48,7 +52,8 @@ func alterTableColumnKinds(
 	}
 	for i, col := range colNames {
 		dbType := dbTypeNameFromKind(kinds[i])
-		q := fmt.Sprintf(`ALTER TABLE %q ALTER COLUMN %q SET DATA TYPE %s`, tblName, col, dbType)
+		q := fmt.Sprintf(`ALTER TABLE %s ALTER COLUMN %s SET DATA TYPE %s`,
+			stringz.DoubleQuote(tblName), stringz.DoubleQuote(col), dbType)
 		if _, err := db.ExecContext(ctx, q); err != nil {
 			return errz.Wrapf(errw(err),
 				"duckdb: alter table: failed to set data type of column {%s.%s} to {%s}",

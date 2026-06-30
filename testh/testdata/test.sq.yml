@@ -13,42 +13,24 @@ collection:
     - handle: '@sakila_duck_whitespace'
       driver: duckdb
       location: duckdb://${env:SQ_ROOT}/drivers/duckdb/testdata/sakila-whitespace.duckdb
-    - handle: '@sakila_pg9'
+    - handle: '@sakila_pg'
       driver: postgres
-      location: ${env:SQ_TEST_SRC__SAKILA_PG9}
-    - handle: '@sakila_pg10'
-      driver: postgres
-      location: ${env:SQ_TEST_SRC__SAKILA_PG10}
-    - handle: '@sakila_pg11'
-      driver: postgres
-      location: ${env:SQ_TEST_SRC__SAKILA_PG11}
-    - handle: '@sakila_pg12'
-      driver: postgres
-      location: ${env:SQ_TEST_SRC__SAKILA_PG12}
-    - handle: '@sakila_my56'
+      location: ${env:SQ_TEST_SRC__SAKILA_PG}
+    - handle: '@sakila_my'
       driver: mysql
-      location: ${env:SQ_TEST_SRC__SAKILA_MY56}
-    - handle: '@sakila_my57'
-      driver: mysql
-      location: ${env:SQ_TEST_SRC__SAKILA_MY57}
-    - handle: '@sakila_my8'
-      driver: mysql
-      location: ${env:SQ_TEST_SRC__SAKILA_MY8}
-    - handle: '@sakila_ms17'
+      location: ${env:SQ_TEST_SRC__SAKILA_MY}
+    - handle: '@sakila_ms'
       driver: sqlserver
-      location: ${env:SQ_TEST_SRC__SAKILA_MS17}
-    - handle: '@sakila_ms19'
-      driver: sqlserver
-      location: ${env:SQ_TEST_SRC__SAKILA_MS19}
-    - handle: '@sakila_ch25'
+      location: ${env:SQ_TEST_SRC__SAKILA_MS}
+    - handle: '@sakila_ch'
       driver: clickhouse
-      location: ${env:SQ_TEST_SRC__SAKILA_CH25}
-    - handle: '@sakila_or23'
+      location: ${env:SQ_TEST_SRC__SAKILA_CH}
+    - handle: '@sakila_or'
       driver: oracle
-      location: ${env:SQ_TEST_SRC__SAKILA_OR23}
-    - handle: '@sakila_rq10'
+      location: ${env:SQ_TEST_SRC__SAKILA_OR}
+    - handle: '@sakila_rq'
       driver: rqlite
-      location: ${env:SQ_TEST_SRC__SAKILA_RQ10}
+      location: ${env:SQ_TEST_SRC__SAKILA_RQ}
     - handle: '@sakila_xlsx'
       driver: xlsx
       location: '${env:SQ_ROOT}/drivers/xlsx/testdata/sakila.xlsx'

@@ -129,13 +129,11 @@ FROM DUAL`
 		} else {
 			tbl.FQName = md.Schema + "." + tbl.Name
 		}
-		switch tbl.TableType {
-		case sqlz.TableTypeTable:
-			md.TableCount++
-		case sqlz.TableTypeView:
-			md.ViewCount++
-		}
 	}
+
+	// Single classification point for TableCount / ViewCount; materialized
+	// views are counted as views inside RecomputeTableCounts.
+	md.RecomputeTableCounts()
 
 	// Fetch FKs / unique constraints / indexes in three bulk queries
 	// instead of 3N per-table calls inside loadUserSchemaObjectsMetadata.
@@ -158,6 +156,22 @@ FROM DUAL`
 		return nil, err
 	}
 	metadata.AssignIndexes(log, md.Tables, allIdxs)
+
+	allChecks, err := getOracleCheckConstraints(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignCheckConstraints(log, md.Tables, allChecks)
+
+	allTriggers, err := getOracleTriggers(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignTriggers(log, md.Tables, allTriggers)
+
+	// View / materialized-view definitions are populated inline by
+	// getViewMetadata / getMaterializedViewMetadata, so no source-wide
+	// view-definition loader is needed here.
 
 	metadata.LinkForeignKeys(log, md)
 
@@ -231,7 +245,7 @@ ORDER BY t.table_name`)
 	}
 
 	for _, viewName := range viewNames {
-		tblMeta, err := getViewMetadata(ctx, db, viewName)
+		tblMeta, err := getViewMetadata(ctx, db, viewName, false)
 		if err != nil {
 			log.Warn(
 				"oracle metadata: skipped view (continuing)",
@@ -306,7 +320,7 @@ FETCH FIRST 1 ROW ONLY`
 	case "MATERIALIZED VIEW":
 		return getMaterializedViewMetadata(ctx, db, canonical)
 	case "VIEW":
-		return getViewMetadata(ctx, db, canonical)
+		return getViewMetadata(ctx, db, canonical, true)
 	case "TABLE":
 		return getTableMetadata(ctx, db, canonical, true)
 	default:
@@ -414,6 +428,16 @@ WHERE t.table_name = :1`
 	}
 
 	tblMeta.Indexes, err = getOracleIndexes(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.CheckConstraints, err = getOracleCheckConstraints(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.Triggers, err = getOracleTriggers(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
@@ -713,8 +737,174 @@ ORDER BY c.table_name, c.constraint_name, fkc.position`
 	return fks, errw(rows.Err())
 }
 
+// getOracleCheckConstraints returns the CHECK constraints declared on
+// tables in the current Oracle schema. If tblName is empty, checks for
+// every base table are returned; otherwise only checks on tblName.
+//
+// SEARCH_CONDITION_VC (a VARCHAR2 mirror of the LONG SEARCH_CONDITION,
+// available since 12.1) supplies the clause, sidestepping LONG entirely.
+//
+// Oracle models a NOT NULL column constraint as a system-generated CHECK
+// of the form "COL" IS NOT NULL. Those are not user-authored CHECKs, so
+// they are filtered out via the SEARCH_CONDITION_VC NOT LIKE '%IS NOT
+// NULL' predicate. A genuine user CHECK whose clause happens to end in
+// "IS NOT NULL" would also be excluded; that ambiguity is inherent to
+// Oracle's dictionary (NOT NULL and a CHECK(... IS NOT NULL) are stored
+// identically) and is an accepted limitation.
+func getOracleCheckConstraints(ctx context.Context, db *sql.DB, tblName string,
+) ([]*metadata.CheckConstraint, error) {
+	log := lg.FromContext(ctx)
+	query := `SELECT
+    c.table_name,
+    c.constraint_name,
+    c.search_condition_vc
+FROM user_constraints c
+WHERE c.constraint_type = 'C'
+  AND c.search_condition_vc IS NOT NULL
+  AND c.search_condition_vc NOT LIKE '%IS NOT NULL'`
+	var args []any
+	if tblName != "" {
+		query += ` AND c.table_name = :1`
+		args = append(args, strings.ToUpper(tblName))
+	}
+	query += ` ORDER BY c.table_name, c.constraint_name`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var checks []*metadata.CheckConstraint
+	for rows.Next() {
+		cc := &metadata.CheckConstraint{}
+		if err = rows.Scan(&cc.Table, &cc.Name, &cc.Clause); err != nil {
+			return nil, errw(err)
+		}
+		checks = append(checks, cc)
+	}
+	return checks, errw(rows.Err())
+}
+
+// getOracleTriggers returns the triggers declared on tables (and views,
+// for INSTEAD OF triggers) in the current Oracle schema. If tblName is
+// empty, triggers for every relation are returned; otherwise only those
+// on tblName.
+//
+// TRIGGER_TYPE (e.g. "BEFORE EACH ROW", "AFTER STATEMENT", "INSTEAD OF")
+// is parsed to a canonical Timing. TRIGGERING_EVENT (e.g. "INSERT OR
+// UPDATE") is split on " OR " into Events. STATUS maps to Enabled.
+// TRIGGER_BODY is a LONG column carrying the trigger PL/SQL; go-ora reads
+// it cleanly, so it is captured into Definition.
+func getOracleTriggers(ctx context.Context, db *sql.DB, tblName string,
+) ([]*metadata.Trigger, error) {
+	log := lg.FromContext(ctx)
+	query := `SELECT
+    table_name,
+    trigger_name,
+    trigger_type,
+    triggering_event,
+    status,
+    trigger_body
+FROM user_triggers`
+	var args []any
+	if tblName != "" {
+		query += ` WHERE table_name = :1`
+		args = append(args, strings.ToUpper(tblName))
+	}
+	query += ` ORDER BY table_name, trigger_name`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var triggers []*metadata.Trigger
+	for rows.Next() {
+		var (
+			tableName, trigName, trigType, trigEvent, status string
+			body                                             sql.NullString
+		)
+		if err = rows.Scan(&tableName, &trigName, &trigType, &trigEvent,
+			&status, &body); err != nil {
+			return nil, errw(err)
+		}
+
+		var timing string
+		switch upper := strings.ToUpper(trigType); {
+		case strings.HasPrefix(upper, "INSTEAD OF"):
+			timing = "INSTEAD OF"
+		case strings.HasPrefix(upper, "BEFORE"):
+			timing = "BEFORE"
+		case strings.HasPrefix(upper, "AFTER"):
+			timing = "AFTER"
+		}
+
+		// TRIGGERING_EVENT is a space-delimited " OR " list, e.g.
+		// "INSERT OR UPDATE OR DELETE". Oracle 23c stores the plain keyword
+		// ("UPDATE") even for column-scoped triggers, but defensively normalize
+		// any "UPDATE OF col1, col2" form to its base keyword by taking only
+		// the leading word. Deduplicate in case normalization produces repeats.
+		var events []string
+		seen := make(map[string]bool)
+		for _, e := range strings.Split(strings.ToUpper(trigEvent), " OR ") {
+			e = strings.TrimSpace(e)
+			if e == "" {
+				continue
+			}
+			// Collapse "UPDATE OF col1, col2" → "UPDATE" (take leading keyword).
+			if i := strings.IndexByte(e, ' '); i > 0 {
+				e = e[:i]
+			}
+			if !seen[e] {
+				seen[e] = true
+				events = append(events, e)
+			}
+		}
+
+		// Allocate a fresh bool per row so each Enabled points to its own
+		// value rather than a shared loop variable.
+		enabled := strings.EqualFold(status, "ENABLED")
+		triggers = append(triggers, &metadata.Trigger{
+			Name:       trigName,
+			Table:      tableName,
+			Timing:     timing,
+			Events:     events,
+			Enabled:    &enabled,
+			Definition: strings.TrimSpace(body.String),
+		})
+	}
+	return triggers, errw(rows.Err())
+}
+
+// getOracleViewDefinition returns the defining SQL text for the named view
+// from USER_VIEWS.TEXT (a LONG column, read cleanly by go-ora). An empty
+// string is returned when the view has no recorded text.
+func getOracleViewDefinition(ctx context.Context, db *sql.DB, viewName string) (string, error) {
+	var text sql.NullString
+	err := db.QueryRowContext(ctx,
+		`SELECT text FROM user_views WHERE view_name = :1`,
+		strings.ToUpper(viewName)).Scan(&text)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", errw(err)
+	}
+	return strings.TrimSpace(text.String), nil
+}
+
 // getViewMetadata returns metadata for a view (USER_VIEWS / USER_TAB_COLUMNS).
-func getViewMetadata(ctx context.Context, db *sql.DB, viewName string) (*metadata.Table, error) {
+//
+// loadTriggers controls whether per-view trigger metadata is fetched:
+//   - Pass true for the per-table path (getObjectMetadata / Grip.TableMetadata)
+//     so that the standalone [metadata.Table] carries its INSTEAD OF triggers.
+//   - Pass false for the source-wide path (loadUserSchemaObjectsMetadata) where
+//     a bulk getOracleTriggers("") + AssignTriggers runs after this function
+//     returns and would overwrite any per-view result; fetching triggers here
+//     would be an unnecessary N extra round-trips.
+func getViewMetadata(ctx context.Context, db *sql.DB, viewName string, loadTriggers bool) (*metadata.Table, error) {
 	const q = `SELECT v.view_name, tc.comments
 FROM user_views v
 LEFT JOIN user_tab_comments tc
@@ -751,6 +941,25 @@ WHERE v.view_name = :1`
 		return nil, err
 	}
 	tblMeta.Columns = cols
+
+	// ViewDefinition is set inline here (rather than via a separate
+	// source-wide loader) so that both single-table inspect and
+	// full-source inspect populate it uniformly; the extra dictionary
+	// round-trip is negligible next to the liveRowCount COUNT(*) above.
+	if tblMeta.ViewDefinition, err = getOracleViewDefinition(ctx, db, viewName); err != nil {
+		return nil, err
+	}
+
+	// INSTEAD OF triggers are stored in USER_TRIGGERS with TABLE_NAME equal
+	// to the view name, so getOracleTriggers returns them when called for a
+	// view.  Only fetch here for the per-table path; the source-wide path
+	// relies on a subsequent bulk AssignTriggers call that overwrites this.
+	if loadTriggers {
+		tblMeta.Triggers, err = getOracleTriggers(ctx, db, viewName)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return tblMeta, nil
 }
@@ -800,7 +1009,7 @@ WHERE m.mview_name = :1`
 
 	tblMeta := &metadata.Table{
 		Name:        mvName,
-		TableType:   sqlz.TableTypeTable,
+		TableType:   sqlz.TableTypeMaterializedView,
 		DBTableType: "MATERIALIZED VIEW",
 		RowCount:    rowCount,
 		Comment:     comment.String,
@@ -814,6 +1023,18 @@ WHERE m.mview_name = :1`
 		return nil, err
 	}
 	tblMeta.Columns = cols
+
+	// USER_MVIEWS.QUERY is a LONG column holding the materialized view's
+	// defining SELECT; go-ora reads it cleanly. Fetched in its own simple
+	// query (rather than joined into the metadata query above) to keep the
+	// LONG read away from the aggregate/segment joins.
+	var query sql.NullString
+	if err = db.QueryRowContext(ctx,
+		`SELECT query FROM user_mviews WHERE mview_name = :1`,
+		strings.ToUpper(mvName)).Scan(&query); err != nil {
+		return nil, errw(err)
+	}
+	tblMeta.ViewDefinition = strings.TrimSpace(query.String)
 
 	return tblMeta, nil
 }
@@ -836,6 +1057,16 @@ func liveRowCount(ctx context.Context, db *sql.DB, tblName string) (int64, error
 
 // getColumnsMetadata returns metadata for all columns in a table.
 func getColumnsMetadata(ctx context.Context, db *sql.DB, tblName string) ([]*metadata.Column, error) {
+	// USER_TAB_COLS (not USER_TAB_COLUMNS) is the dictionary view that
+	// exposes the IDENTITY_COLUMN / VIRTUAL_COLUMN / COLLATION flags. It
+	// also lists hidden/system columns (e.g. the shadow column backing an
+	// identity sequence, or function-based index expression columns), so
+	// HIDDEN_COLUMN = 'NO' restricts the result to the user-declared
+	// columns that USER_TAB_COLUMNS would have returned.
+	//
+	// DATA_DEFAULT is a LONG column; for a virtual column it holds the
+	// generation expression (mapped to GeneratedExpr below). go-ora reads
+	// it cleanly, so no TO_LOB/CLOB cast is needed.
 	const query = `SELECT
     c.column_name,
     c.data_type,
@@ -844,13 +1075,17 @@ func getColumnsMetadata(ctx context.Context, db *sql.DB, tblName string) ([]*met
     c.data_scale,
     c.nullable,
     c.column_id,
+    c.identity_column,
+    c.virtual_column,
+    c.collation,
     c.data_default,
     cc.comments
-FROM user_tab_columns c
+FROM user_tab_cols c
 LEFT JOIN user_col_comments cc
     ON c.table_name = cc.table_name
     AND c.column_name = cc.column_name
 WHERE c.table_name = :1
+  AND c.hidden_column = 'NO'
 ORDER BY c.column_id`
 
 	// Collect the table's primary-key column names up front in one
@@ -874,10 +1109,12 @@ ORDER BY c.column_id`
 		var dataLength sql.NullInt64
 		var dataPrecision, dataScale sql.NullInt64
 		var columnID int
-		var dataDefault, comment sql.NullString
+		var identityCol, virtualCol string
+		var collation, dataDefault, comment sql.NullString
 
 		err = rows.Scan(&colName, &dataType, &dataLength, &dataPrecision,
-			&dataScale, &nullable, &columnID, &dataDefault, &comment)
+			&dataScale, &nullable, &columnID, &identityCol, &virtualCol,
+			&collation, &dataDefault, &comment)
 		if err != nil {
 			return nil, errw(err)
 		}
@@ -902,6 +1139,18 @@ ORDER BY c.column_id`
 			Nullable:   nullable == "Y",
 			Comment:    comment.String,
 			PrimaryKey: pkCols[colName],
+			// Oracle models auto-increment exclusively as IDENTITY, so
+			// AutoIncrement is left false; Identity carries the signal.
+			Identity:  identityCol == "YES",
+			Generated: virtualCol == "YES",
+			Collation: collation.String,
+		}
+		// DATA_DEFAULT holds the generation expression for a virtual
+		// (generated) column; for ordinary columns it is the DEFAULT
+		// clause, which sq does not surface for Oracle, so only capture
+		// it as GeneratedExpr when the column is virtual.
+		if col.Generated {
+			col.GeneratedExpr = strings.TrimSpace(dataDefault.String)
 		}
 
 		cols = append(cols, col)

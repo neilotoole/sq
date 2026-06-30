@@ -25,56 +25,44 @@ import (
 func TestSmoke(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.PgAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
-
-			th, src, _, _, _ := testh.NewWith(t, handle)
-			sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
-			require.NoError(t, err)
-			require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
-			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
-		})
-	}
+	th, src, _, _, _ := testh.NewWith(t, sakila.Pg)
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
+	require.NoError(t, err)
+	require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
+	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
 
 func TestDriverBehavior(t *testing.T) {
 	// This test was created to help understand the behavior of the driver impl.
 	// It can be deleted eventually.
-	testCases := sakila.PgAll()
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
 
-	for _, handle := range testCases {
-		t.Run(handle, func(t *testing.T) {
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
-
-			query := `SELECT
+	query := `SELECT
        (SELECT actor_id FROM actor limit 1) AS actor_id,
        (SELECT first_name FROM actor LIMIT 1) AS first_name,
        (SELECT last_name FROM actor LIMIT 1) AS last_name
 LIMIT 1`
 
-			rows, err := db.QueryContext(th.Context, query)
-			require.NoError(t, err)
-			require.NoError(t, rows.Err())
-			t.Cleanup(func() { assert.NoError(t, rows.Close()) })
+	rows, err := db.QueryContext(th.Context, query)
+	require.NoError(t, err)
+	require.NoError(t, rows.Err())
+	t.Cleanup(func() { assert.NoError(t, rows.Close()) })
 
-			colTypes, err := rows.ColumnTypes()
-			require.NoError(t, err)
+	colTypes, err := rows.ColumnTypes()
+	require.NoError(t, err)
 
-			for i, colType := range colTypes {
-				nullable, ok := colType.Nullable()
-				t.Logf("%d:	%s	%s	%s	nullable,ok={%v,%v}", i, colType.Name(), colType.DatabaseTypeName(),
-					colType.ScanType().Name(), nullable, ok)
+	for i, colType := range colTypes {
+		nullable, ok := colType.Nullable()
+		t.Logf("%d:	%s	%s	%s	nullable,ok={%v,%v}", i, colType.Name(), colType.DatabaseTypeName(),
+			colType.ScanType().Name(), nullable, ok)
 
-				if !nullable {
-					scanType := colType.ScanType()
-					z := reflect.Zero(scanType)
-					t.Logf("zero: %T %v", z, z)
-				}
-			}
-		})
+		if !nullable {
+			scanType := colType.ScanType()
+			z := reflect.Zero(scanType)
+			t.Logf("zero: %T %v", z, z)
+		}
 	}
 }
 
@@ -86,96 +74,76 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 	// When/if the driver is modified to behave as hoped (if
 	// at all possible) then we can simplify the
 	// postgres driver wrapper.
-	testCases := sakila.PgAll()
-	for _, handle := range testCases {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
+	_, actualTblName := createTypeTestTable(th, src, true)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
 
-			_, actualTblName := createTypeTestTable(th, src, true)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
+	rows, err := db.Query("SELECT * FROM " + actualTblName)
+	require.NoError(t, err)
+	require.NoError(t, rows.Err())
+	t.Cleanup(func() { assert.NoError(t, rows.Close()) })
 
-			rows, err := db.Query("SELECT * FROM " + actualTblName)
-			require.NoError(t, err)
-			require.NoError(t, rows.Err())
-			t.Cleanup(func() { assert.NoError(t, rows.Close()) })
+	colTypes, err := rows.ColumnTypes()
+	require.NoError(t, err)
 
-			colTypes, err := rows.ColumnTypes()
-			require.NoError(t, err)
+	for _, colType := range colTypes {
+		colName := colType.Name()
 
-			for _, colType := range colTypes {
-				colName := colType.Name()
+		// The _n suffix indicates a nullable col
+		if !strings.HasSuffix(colName, "_n") {
+			continue
+		}
 
-				// The _n suffix indicates a nullable col
-				if !strings.HasSuffix(colName, "_n") {
-					continue
-				}
+		// The col is indicated as nullable via its name/suffix
+		nullable, hasNullable := colType.Nullable()
+		require.False(t, hasNullable, "ColumnType.hasNullable is unfortunately expected to be false for {%s}",
+			colName)
+		require.False(t, nullable, "ColumnType.nullable is unfortunately expected to be false for {%s}", colName)
+	}
 
-				// The col is indicated as nullable via its name/suffix
-				nullable, hasNullable := colType.Nullable()
-				require.False(t, hasNullable, "ColumnType.hasNullable is unfortunately expected to be false for {%s}",
-					colName)
-				require.False(t, nullable, "ColumnType.nullable is unfortunately expected to be false for {%s}", colName)
-			}
-
-			for rows.Next() {
-				require.NoError(t, rows.Err())
-			}
-		})
+	for rows.Next() {
+		require.NoError(t, rows.Err())
 	}
 }
 
 func TestGetTableColumnNames(t *testing.T) {
-	testCases := sakila.PgAll()
-
-	for _, handle := range testCases {
-		t.Run(handle, func(t *testing.T) {
-			th, _, _, _, db := testh.NewWith(t, handle)
-			colNames, err := postgres.GetTableColumnNames(th.Context, db, sakila.TblActor)
-			require.NoError(t, err)
-			require.Equal(t, sakila.TblActorCols(), colNames)
-		})
-	}
+	th, _, _, _, db := testh.NewWith(t, sakila.Pg)
+	colNames, err := postgres.GetTableColumnNames(th.Context, db, sakila.TblActor)
+	require.NoError(t, err)
+	require.Equal(t, sakila.TblActorCols(), colNames)
 }
 
 func TestDriver_CreateTable_NotNullDefault(t *testing.T) {
 	t.Parallel()
 
-	testCases := sakila.PgAll()
-	for _, handle := range testCases {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th, src, drvr, _, db := testh.NewWith(t, sakila.Pg)
 
-			th, src, drvr, _, db := testh.NewWith(t, handle)
+	tblName := stringz.UniqTableName(t.Name())
+	colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
 
-			tblName := stringz.UniqTableName(t.Name())
-			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
+	tblDef := schema.NewTable(tblName, colNames, colKinds)
+	for _, colDef := range tblDef.Cols {
+		colDef.NotNull = true
+		colDef.HasDefault = true
+	}
 
-			tblDef := schema.NewTable(tblName, colNames, colKinds)
-			for _, colDef := range tblDef.Cols {
-				colDef.NotNull = true
-				colDef.HasDefault = true
-			}
+	err := drvr.CreateTable(th.Context, db, tblDef)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
-			err := drvr.CreateTable(th.Context, db, tblDef)
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+	th.InsertDefaultRow(src, tblName)
 
-			th.InsertDefaultRow(src, tblName)
-
-			sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
-			require.NoError(t, err)
-			require.Equal(t, 1, len(sink.Recs))
-			require.Equal(t, len(colNames), len(sink.RecMeta))
-			for i := range colNames {
-				require.NotNil(t, sink.Recs[0][i])
-				_, ok := sink.RecMeta[i].Nullable()
-				require.False(t, ok, "postgres driver doesn't report nullability")
-			}
-		})
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+tblName)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(sink.Recs))
+	require.Equal(t, len(colNames), len(sink.RecMeta))
+	for i := range colNames {
+		require.NotNil(t, sink.Recs[0][i])
+		_, ok := sink.RecMeta[i].Nullable()
+		require.False(t, ok, "postgres driver doesn't report nullability")
 	}
 }
 
@@ -401,17 +369,13 @@ func TestNumericSchema_CatalogSchema(t *testing.T) {
 }
 
 func BenchmarkDatabase_SourceMetadata(b *testing.B) {
-	for _, handle := range sakila.PgAll() {
-		b.Run(handle, func(b *testing.B) {
-			th := testh.New(b, testh.OptNoLog())
-			grip := th.Open(th.Source(handle))
-			b.ResetTimer()
+	th := testh.New(b, testh.OptNoLog())
+	grip := th.Open(th.Source(sakila.Pg))
+	b.ResetTimer()
 
-			md, err := grip.SourceMetadata(th.Context, false)
-			require.NoError(b, err)
-			require.Equal(b, "sakila", md.Name)
-		})
-	}
+	md, err := grip.SourceMetadata(th.Context, false)
+	require.NoError(b, err)
+	require.Equal(b, "sakila", md.Name)
 }
 
 func TestIsErrRelationDoesNotExist(t *testing.T) {

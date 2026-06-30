@@ -17,6 +17,28 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## [Unreleased]
+
+### Added
+
+- [#986]: [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) with `-j` / `-y` now
+  reports an `is_embedded_sql` field for each driver, `true` for the in-process SQL
+  drivers (SQLite, DuckDB) and `false` for the networked engines (including rqlite,
+  which is SQLite-backed but reached over HTTP) and non-SQL drivers.
+
+### Fixed
+
+- [#976]: The DuckDB driver now SQL-quotes table and column names that contain a
+  double quote (e.g. a `we"ird` table created from a CSV header) in the alter, truncate, and
+  row-count paths. These paths used Go's `%q` verb, which emits backslash escaping (`"we\"ird"`)
+  that DuckDB rejects; they now use `stringz.DoubleQuote` (`"we""ird"`), completing for DuckDB
+  the identifier-quoting fix [#821] applied to SQLite and rqlite.
+- [#968]: Aligned the SQLite and DuckDB Sakila test fixtures with the canonical
+  schema used by the other drivers: the `sales_by_store` view no longer carries a
+  stray leading `store_id` column (it is now `store, manager, total_sales`), and
+  the `customer_list` / `staff_list` views use the canonical `zip code` alias
+  instead of `zip_code`.
+
 ## [v0.54.1] - 2026-06-23
 
 ### Fixed
@@ -1735,6 +1757,9 @@ make working with lots of sources much easier.
 [#920]: https://github.com/neilotoole/sq/pull/920
 [#923]: https://github.com/neilotoole/sq/pull/923
 [#926]: https://github.com/neilotoole/sq/pull/926
+[#968]: https://github.com/neilotoole/sq/issues/968
+[#976]: https://github.com/neilotoole/sq/pull/976
+[#986]: https://github.com/neilotoole/sq/issues/986
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

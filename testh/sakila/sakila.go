@@ -2,6 +2,8 @@
 package sakila
 
 import (
+	"slices"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
@@ -19,131 +21,104 @@ const (
 	SL3              = "@sakila_sl3"
 	SL3Whitespace    = "@sakila_sl3_whitespace"
 
-	RQ10 = "@sakila_rq10"
-	RQ   = RQ10 // rqlite
+	RQ = "@sakila_rq" // rqlite
 
 	// Duck is the handle for the DuckDB sakila DB.
 	Duck = "@sakila_duck"
 	// DuckWhitespace is the handle for the DuckDB sakila DB
 	// with whitespace-containing identifiers.
 	DuckWhitespace = "@sakila_duck_whitespace"
-	Pg9            = "@sakila_pg9"
-	Pg10           = "@sakila_pg10"
-	Pg11           = "@sakila_pg11"
-	Pg12           = "@sakila_pg12"
-	Pg             = Pg12
-	My56           = "@sakila_my56"
-	My57           = "@sakila_my57"
-	My8            = "@sakila_my8"
-	My             = My8
-	MS17           = "@sakila_ms17"
-	MS19           = "@sakila_ms19"
-	MS             = MS19
 
-	CH25 = "@sakila_ch25"
-	// CH is the handle for the latest ClickHouse.
-	CH = CH25
-
-	// Ora23 is the handle for Oracle Database (Sakila), when configured via
-	// SQ_TEST_SRC__SAKILA_OR23 in the test sources config.
-	Ora23 = "@sakila_or23"
-	// Ora is the handle for the latest Oracle.
-	Ora = Ora23
+	// Pg is the handle for the Postgres sakila DB. The engine version is
+	// determined by the image the source DSN points at, not by the handle.
+	Pg = "@sakila_pg"
+	// My is the handle for the MySQL sakila DB.
+	My = "@sakila_my"
+	// MS is the handle for the SQL Server sakila DB.
+	MS = "@sakila_ms"
+	// CH is the handle for the ClickHouse sakila DB.
+	CH = "@sakila_ch"
+	// Ora is the handle for the Oracle sakila DB.
+	Ora = "@sakila_or"
 )
 
 // AllHandles returns all the typical sakila handles. It does not
 // include monotable handles such as @sakila_csv_actor.
 func AllHandles() []string {
-	return []string{
-		SL3,
-		Duck,
-		Pg9,
-		// Pg10,
-		// Pg11,
-		Pg12,
-		My56,
-		My57,
-		My8,
-		// MS17,
-		MS19,
-		CH25,
-		Ora23,
-		RQ,
-		XLSX,
-	}
+	return []string{SL3, Duck, Pg, My, MS, CH, Ora, RQ, XLSX}
 }
 
-// SQLAll returns all the sakila SQL handles.
+// SQLAll returns every sakila SQL handle: the embedded sources (SQLite,
+// DuckDB) and all external engines, including rqlite. It is the union of
+// [SQLEmbedded] and [SQLAllExternal]. See [SQLLatest] for the same set minus
+// rqlite.
 func SQLAll() []string {
-	return []string{
-		SL3,
-		Duck,
-		Pg9,
-		// Pg10,
-		// Pg11,
-		Pg12,
-		My56,
-		My57,
-		My8,
-		// MS17,
-		MS19,
-		CH25,
-		Ora23,
-		RQ,
-	}
+	return []string{SL3, Duck, Pg, My, MS, CH, Ora, RQ}
 }
 
-// SQLAllExternal is the same as SQLAll, but only includes
-// external (non-embedded) sources. That is, it excludes SL3.
+// SQLAllExternal returns the external (non-embedded) SQL handles: every engine
+// that needs a running server, including rqlite. It is [SQLAll] minus the
+// embedded sources, i.e. the complement of [SQLEmbedded]; together the two
+// partition [SQLAll].
 func SQLAllExternal() []string {
-	return []string{
-		Pg9,
-		// Pg10,
-		// Pg11,
-		Pg12,
-		My56,
-		My57,
-		My8,
-		// MS17,
-		MS19,
-		CH25,
-		Ora23,
-		RQ,
-	}
+	return []string{Pg, My, MS, CH, Ora, RQ}
 }
 
-// SQLLatest returns the handles for the latest
-// version of each supported SQL database. This is provided
-// in addition to SQLAll to enable quicker iterative testing
-// during development. DuckDB is included: it is embedded (runs without
-// Docker under -short) and, being the only driver that honors read-only
-// access mode with an exclusive file lock, it exercises grip-cache and
-// access-mode paths that the other drivers don't (gh #779).
+// SQLEmbedded returns the embedded SQL handles: SQLite and DuckDB. These run
+// in-process (no separate server or container) and are always available,
+// unlike the external engines in [SQLAllExternal]. The SQL prefix is
+// deliberate: non-SQL document sources such as CSV and XLSX are also embedded
+// (file-based), but are not SQL drivers and are excluded here. Note that
+// rqlite, though SQLite-backed, is external: it is reached over the network.
+// SQLEmbedded and [SQLAllExternal] partition [SQLAll].
+//
+// This is a deliberately static, handle-level convenience for the test matrix.
+// The production source of truth for the embedded property is the
+// driver.Metadata.IsEmbeddedSQL field, set by each driver impl; the handles
+// here mirror it for SQLite and DuckDB.
+func SQLEmbedded() []string {
+	return []string{SL3, Duck}
+}
+
+// IsSQLEmbedded reports whether handle is an embedded SQL source (SQLite or
+// DuckDB), as opposed to an external engine that needs a running server. It is
+// false for non-SQL embedded sources such as CSV. The embedded set is defined
+// once, by [SQLEmbedded].
+func IsSQLEmbedded(handle string) bool {
+	return slices.Contains(SQLEmbedded(), handle)
+}
+
+// CrossSourceDests returns the destination handles that origin should be
+// paired with in cross-source (origin x dest) tests. Embedded origins
+// (SQLite/DuckDB) pair with every handle in [SQLLatest]; external origins pair
+// only with the embedded sources plus themselves. This yields
+// {embedded} x {target} coverage in both directions, plus same-source
+// self-inserts, while excluding the external x external cross pairs: those need
+// multiple external containers live at once, grow O(N^2) with the number of SQL
+// engines, and can't run under the per-engine CI model. See gh #964.
+func CrossSourceDests(origin string) []string {
+	if IsSQLEmbedded(origin) {
+		return SQLLatest()
+	}
+	// External origin: embedded dests (both directions of {embedded}x{target})
+	// plus origin itself (the single-container same-source insert path).
+	return append(SQLEmbedded(), origin)
+}
+
+// SQLLatest returns one handle per SQL engine for the standard cross-engine
+// test matrix: the embedded sources (SQLite, DuckDB) plus the external engines,
+// but excluding rqlite. It is therefore [SQLAll] without rqlite — that single
+// handle is the only difference between the two. rqlite is omitted here because
+// its driver supports a narrower feature set than the other engines; coverage
+// of rqlite goes through [SQLAll].
+//
+// The name is historical: it dates from when sources were versioned and this
+// returned the latest version of each engine. Versions are now a CI matrix
+// dimension (gh #958), so there is a single handle per engine. DuckDB is
+// included because, being embedded, it exercises read-only/access-mode paths
+// the others don't (gh #779).
 func SQLLatest() []string {
 	return []string{SL3, Duck, Pg, My, MS, CH, Ora}
-}
-
-// PgAll returns the handles for all postgres versions.
-func PgAll() []string {
-	return []string{
-		Pg9,
-		// Pg10,
-		// Pg11,
-		Pg12,
-	}
-}
-
-// MyAll returns the handles for all MySQL versions.
-func MyAll() []string {
-	return []string{My56, My57, My8}
-}
-
-// MSAll returns the handles for all SQL Server versions.
-func MSAll() []string {
-	return []string{
-		// MS17,
-		MS19,
-	}
 }
 
 // Facts regarding the sakila database.
