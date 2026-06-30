@@ -43,6 +43,7 @@ func TestDriver_StaticMetadata(t *testing.T) {
 	md := d.DriverMetadata()
 	require.Equal(t, drivertype.Pg, md.Type)
 	require.True(t, md.IsSQL)
+	require.False(t, md.IsEmbeddedSQL)
 	require.Equal(t, 5432, md.DefaultPort)
 
 	dlct := d.Dialect()
