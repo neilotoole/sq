@@ -101,7 +101,7 @@ func TestExample(t *testing.T) {
 
 Integration tests that need a real database should call `tu.SkipShort(t, true)`
 so they're skipped under `go test -short`. See
-[`CONTRIBUTING.md`](./CONTRIBUTING.md#test-handles) for driver test handle
+[`drivers/README.md`](./drivers/README.md#test-handles) for driver test handle
 conventions.
 
 ### Error handling
