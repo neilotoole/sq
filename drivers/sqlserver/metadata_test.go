@@ -19,50 +19,44 @@ func TestInspect_ColumnFlags_SQLServer(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
-	for _, handle := range sakila.MSAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.MS)
+	db := th.OpenDB(src)
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
+	tblName := stringz.UniqTableName("col_flags")
+	// Computed column expression uses COLLATE DATABASE_DEFAULT to resolve
+	// the collation conflict between Latin1_General_BIN (first_name) and
+	// the server's default collation (last_name and the string literal).
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tblName+` (
+		id         INT          IDENTITY(1,1) NOT NULL PRIMARY KEY,
+		first_name NVARCHAR(50) COLLATE Latin1_General_BIN NOT NULL,
+		last_name  NVARCHAR(50) NOT NULL,
+		full_name  AS (first_name COLLATE DATABASE_DEFAULT + N' ' + last_name)
+	)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
-			tblName := stringz.UniqTableName("col_flags")
-			// Computed column expression uses COLLATE DATABASE_DEFAULT to resolve
-			// the collation conflict between Latin1_General_BIN (first_name) and
-			// the server's default collation (last_name and the string literal).
-			_, err := db.ExecContext(th.Context, `CREATE TABLE `+tblName+` (
-				id         INT          IDENTITY(1,1) NOT NULL PRIMARY KEY,
-				first_name NVARCHAR(50) COLLATE Latin1_General_BIN NOT NULL,
-				last_name  NVARCHAR(50) NOT NULL,
-				full_name  AS (first_name COLLATE DATABASE_DEFAULT + N' ' + last_name)
-			)`)
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+	md, err := th.Open(src).TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 4)
 
-			md, err := th.Open(src).TableMetadata(th.Context, tblName)
-			require.NoError(t, err)
-			require.Len(t, md.Columns, 4)
+	// id → IDENTITY
+	idCol := md.Columns[0]
+	require.Equal(t, "id", idCol.Name)
+	require.True(t, idCol.Identity, "id column must be Identity=true")
+	require.False(t, idCol.Generated, "id column must not be Generated")
 
-			// id → IDENTITY
-			idCol := md.Columns[0]
-			require.Equal(t, "id", idCol.Name)
-			require.True(t, idCol.Identity, "id column must be Identity=true")
-			require.False(t, idCol.Generated, "id column must not be Generated")
+	// first_name → explicit collation
+	fnCol := md.Columns[1]
+	require.Equal(t, "first_name", fnCol.Name)
+	require.Equal(t, "Latin1_General_BIN", fnCol.Collation,
+		"first_name must carry its explicit Latin1_General_BIN collation")
 
-			// first_name → explicit collation
-			fnCol := md.Columns[1]
-			require.Equal(t, "first_name", fnCol.Name)
-			require.Equal(t, "Latin1_General_BIN", fnCol.Collation,
-				"first_name must carry its explicit Latin1_General_BIN collation")
-
-			// full_name → computed/generated
-			fqCol := md.Columns[3]
-			require.Equal(t, "full_name", fqCol.Name)
-			require.True(t, fqCol.Generated, "full_name must be Generated=true")
-			require.NotEmpty(t, fqCol.GeneratedExpr, "full_name must have a non-empty GeneratedExpr")
-		})
-	}
+	// full_name → computed/generated
+	fqCol := md.Columns[3]
+	require.Equal(t, "full_name", fqCol.Name)
+	require.True(t, fqCol.Generated, "full_name must be Generated=true")
+	require.NotEmpty(t, fqCol.GeneratedExpr, "full_name must have a non-empty GeneratedExpr")
 }
 
 // TestInspect_CheckConstraints_SQLServer verifies that CHECK constraints
@@ -71,35 +65,29 @@ func TestInspect_CheckConstraints_SQLServer(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
-	for _, handle := range sakila.MSAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.MS)
+	db := th.OpenDB(src)
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
+	tblName := stringz.UniqTableName("chk_test")
+	// SQL Server constraint names are database-scoped (not table-scoped),
+	// so we use a unique name to avoid conflicts across parallel test runs.
+	checkName := stringz.UniqTableName("chk_age")
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tblName+` (
+		id  INT NOT NULL PRIMARY KEY,
+		age INT NOT NULL,
+		CONSTRAINT `+checkName+` CHECK (age >= 0)
+	)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
-			tblName := stringz.UniqTableName("chk_test")
-			// SQL Server constraint names are database-scoped (not table-scoped),
-			// so we use a unique name to avoid conflicts across parallel test runs.
-			checkName := stringz.UniqTableName("chk_age")
-			_, err := db.ExecContext(th.Context, `CREATE TABLE `+tblName+` (
-				id  INT NOT NULL PRIMARY KEY,
-				age INT NOT NULL,
-				CONSTRAINT `+checkName+` CHECK (age >= 0)
-			)`)
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
-
-			md, err := th.Open(src).TableMetadata(th.Context, tblName)
-			require.NoError(t, err)
-			require.Len(t, md.CheckConstraints, 1,
-				"expected exactly one check constraint")
-			cc := md.CheckConstraints[0]
-			require.Equal(t, checkName, cc.Name)
-			require.NotEmpty(t, cc.Clause, "check constraint clause must be non-empty")
-		})
-	}
+	md, err := th.Open(src).TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Len(t, md.CheckConstraints, 1,
+		"expected exactly one check constraint")
+	cc := md.CheckConstraints[0]
+	require.Equal(t, checkName, cc.Name)
+	require.NotEmpty(t, cc.Clause, "check constraint clause must be non-empty")
 }
 
 // TestInspect_Triggers_SQLServer verifies that DML triggers attached to a
@@ -108,44 +96,38 @@ func TestInspect_Triggers_SQLServer(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
-	for _, handle := range sakila.MSAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.MS)
+	db := th.OpenDB(src)
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
+	tblName := stringz.UniqTableName("trig_test")
+	trigName := tblName + "_trig"
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tblName+` (
+		id  INT NOT NULL PRIMARY KEY,
+		val INT NOT NULL
+	)`)
+	require.NoError(t, err)
+	// Trigger is dropped automatically when its parent table is dropped;
+	// no separate trigger cleanup is needed.
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
 
-			tblName := stringz.UniqTableName("trig_test")
-			trigName := tblName + "_trig"
-			_, err := db.ExecContext(th.Context, `CREATE TABLE `+tblName+` (
-				id  INT NOT NULL PRIMARY KEY,
-				val INT NOT NULL
-			)`)
-			require.NoError(t, err)
-			// Trigger is dropped automatically when its parent table is dropped;
-			// no separate trigger cleanup is needed.
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
-
-			_, err = db.ExecContext(th.Context, `CREATE TRIGGER `+trigName+`
+	_, err = db.ExecContext(th.Context, `CREATE TRIGGER `+trigName+`
 ON `+tblName+` AFTER INSERT
 AS BEGIN
     SELECT 1
 END`)
-			require.NoError(t, err)
+	require.NoError(t, err)
 
-			md, err := th.Open(src).TableMetadata(th.Context, tblName)
-			require.NoError(t, err)
-			require.Len(t, md.Triggers, 1)
-			tr := md.Triggers[0]
-			require.Equal(t, trigName, tr.Name)
-			require.Equal(t, "AFTER", tr.Timing)
-			require.Contains(t, tr.Events, "INSERT")
-			require.NotNil(t, tr.Enabled, "SQL Server triggers have an enabled/disabled state")
-			require.True(t, *tr.Enabled, "newly-created trigger must be enabled")
-			require.NotEmpty(t, tr.Definition)
-		})
-	}
+	md, err := th.Open(src).TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Len(t, md.Triggers, 1)
+	tr := md.Triggers[0]
+	require.Equal(t, trigName, tr.Name)
+	require.Equal(t, "AFTER", tr.Timing)
+	require.Contains(t, tr.Events, "INSERT")
+	require.NotNil(t, tr.Enabled, "SQL Server triggers have an enabled/disabled state")
+	require.True(t, *tr.Enabled, "newly-created trigger must be enabled")
+	require.NotEmpty(t, tr.Definition)
 }
 
 // TestInspect_ViewInsteadOfTrigger_SQLServer verifies that an INSTEAD OF
@@ -155,47 +137,41 @@ func TestInspect_ViewInsteadOfTrigger_SQLServer(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
-	for _, handle := range sakila.MSAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.MS)
+	db := th.OpenDB(src)
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
+	baseTbl := stringz.UniqTableName("viot_base")
+	viewName := stringz.UniqTableName("viot_view")
+	trigName := viewName + "_trig"
 
-			baseTbl := stringz.UniqTableName("viot_base")
-			viewName := stringz.UniqTableName("viot_view")
-			trigName := viewName + "_trig"
+	// Register base-table cleanup FIRST (LIFO: view cleaned up first).
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+baseTbl+` (id INT NOT NULL PRIMARY KEY)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
 
-			// Register base-table cleanup FIRST (LIFO: view cleaned up first).
-			_, err := db.ExecContext(th.Context,
-				`CREATE TABLE `+baseTbl+` (id INT NOT NULL PRIMARY KEY)`)
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
+	_, err = db.ExecContext(th.Context,
+		`CREATE VIEW `+viewName+` AS SELECT id FROM `+baseTbl)
+	require.NoError(t, err)
+	// Register view cleanup SECOND (LIFO → runs before base-table cleanup).
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP VIEW `+viewName)
+	})
 
-			_, err = db.ExecContext(th.Context,
-				`CREATE VIEW `+viewName+` AS SELECT id FROM `+baseTbl)
-			require.NoError(t, err)
-			// Register view cleanup SECOND (LIFO → runs before base-table cleanup).
-			t.Cleanup(func() {
-				_, _ = db.ExecContext(th.Context, `DROP VIEW `+viewName)
-			})
+	_, err = db.ExecContext(th.Context, `CREATE TRIGGER `+trigName+
+		` ON `+viewName+` INSTEAD OF INSERT AS BEGIN SET NOCOUNT ON; END`)
+	require.NoError(t, err)
+	// Dropping the view drops its INSTEAD OF triggers automatically.
 
-			_, err = db.ExecContext(th.Context, `CREATE TRIGGER `+trigName+
-				` ON `+viewName+` INSTEAD OF INSERT AS BEGIN SET NOCOUNT ON; END`)
-			require.NoError(t, err)
-			// Dropping the view drops its INSTEAD OF triggers automatically.
-
-			md, err := th.Open(src).TableMetadata(th.Context, viewName)
-			require.NoError(t, err)
-			require.NotEmpty(t, md.Triggers,
-				"INSTEAD OF trigger must appear in per-table view inspect")
-			tr := md.Triggers[0]
-			require.Equal(t, trigName, tr.Name)
-			require.Equal(t, "INSTEAD OF", tr.Timing)
-			require.Contains(t, tr.Events, "INSERT")
-		})
-	}
+	md, err := th.Open(src).TableMetadata(th.Context, viewName)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.Triggers,
+		"INSTEAD OF trigger must appear in per-table view inspect")
+	tr := md.Triggers[0]
+	require.Equal(t, trigName, tr.Name)
+	require.Equal(t, "INSTEAD OF", tr.Timing)
+	require.Contains(t, tr.Events, "INSERT")
 }
 
 // TestInspect_ViewDefinition_SQLServer verifies that view-typed tables carry
@@ -207,40 +183,34 @@ func TestInspect_ViewDefinition_SQLServer(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
-	for _, handle := range sakila.MSAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.MS)
+	db := th.OpenDB(src)
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
+	baseTbl := stringz.UniqTableName("vd_base")
+	viewName := stringz.UniqTableName("vd_view")
 
-			baseTbl := stringz.UniqTableName("vd_base")
-			viewName := stringz.UniqTableName("vd_view")
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+baseTbl+` (id INT NOT NULL PRIMARY KEY, val INT NOT NULL)`)
+	require.NoError(t, err)
+	// Register base-table cleanup FIRST so that LIFO ordering drops
+	// the view (registered second) before the base table.
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
 
-			_, err := db.ExecContext(th.Context,
-				`CREATE TABLE `+baseTbl+` (id INT NOT NULL PRIMARY KEY, val INT NOT NULL)`)
-			require.NoError(t, err)
-			// Register base-table cleanup FIRST so that LIFO ordering drops
-			// the view (registered second) before the base table.
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
+	_, err = db.ExecContext(th.Context,
+		`CREATE VIEW `+viewName+` AS SELECT id, val FROM `+baseTbl)
+	require.NoError(t, err)
+	// Register view cleanup SECOND (LIFO → runs before the base table).
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP VIEW `+viewName)
+	})
 
-			_, err = db.ExecContext(th.Context,
-				`CREATE VIEW `+viewName+` AS SELECT id, val FROM `+baseTbl)
-			require.NoError(t, err)
-			// Register view cleanup SECOND (LIFO → runs before the base table).
-			t.Cleanup(func() {
-				_, _ = db.ExecContext(th.Context, `DROP VIEW `+viewName)
-			})
-
-			md, err := th.Open(src).TableMetadata(th.Context, viewName)
-			require.NoError(t, err)
-			require.NotEmpty(t, md.ViewDefinition,
-				"view must have a non-empty ViewDefinition")
-			require.Contains(t, md.ViewDefinition, baseTbl,
-				"ViewDefinition should reference the base table name")
-		})
-	}
+	md, err := th.Open(src).TableMetadata(th.Context, viewName)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.ViewDefinition,
+		"view must have a non-empty ViewDefinition")
+	require.Contains(t, md.ViewDefinition, baseTbl,
+		"ViewDefinition should reference the base table name")
 }
 
 // TestForeignKey_CompositeOrdering_SQLServer verifies that a composite
@@ -255,36 +225,30 @@ func TestForeignKey_CompositeOrdering_SQLServer(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
-	for _, handle := range sakila.MSAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.MS)
+	db := th.OpenDB(src)
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
+	parent := stringz.UniqTableName("fk_comp_parent")
+	child := stringz.UniqTableName("fk_comp_child")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+parent+" (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b, a))")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
+	_, err = db.ExecContext(th.Context,
+		"CREATE TABLE "+child+" (x INT NOT NULL, y INT NOT NULL, "+
+			"FOREIGN KEY (x, y) REFERENCES "+parent+" (b, a))")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
 
-			parent := stringz.UniqTableName("fk_comp_parent")
-			child := stringz.UniqTableName("fk_comp_child")
-			_, err := db.ExecContext(th.Context,
-				"CREATE TABLE "+parent+" (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b, a))")
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
-			_, err = db.ExecContext(th.Context,
-				"CREATE TABLE "+child+" (x INT NOT NULL, y INT NOT NULL, "+
-					"FOREIGN KEY (x, y) REFERENCES "+parent+" (b, a))")
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
-
-			md, err := th.Open(src).TableMetadata(th.Context, child)
-			require.NoError(t, err)
-			require.NotNil(t, md.FK)
-			require.Len(t, md.FK.Outgoing, 1)
-			fk := md.FK.Outgoing[0]
-			require.Equal(t, parent, fk.RefTable)
-			require.Equal(t, []string{"x", "y"}, fk.Columns)
-			require.Equal(t, []string{"b", "a"}, fk.RefColumns)
-		})
-	}
+	md, err := th.Open(src).TableMetadata(th.Context, child)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 1)
+	fk := md.FK.Outgoing[0]
+	require.Equal(t, parent, fk.RefTable)
+	require.Equal(t, []string{"x", "y"}, fk.Columns)
+	require.Equal(t, []string{"b", "a"}, fk.RefColumns)
 }
 
 // TestForeignKey_OnDeleteOnUpdate_SQLServer pins that the loader
@@ -297,36 +261,30 @@ func TestForeignKey_OnDeleteOnUpdate_SQLServer(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
-	for _, handle := range sakila.MSAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.MS)
+	db := th.OpenDB(src)
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
+	parent := stringz.UniqTableName("fk_act_parent")
+	child := stringz.UniqTableName("fk_act_child")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+parent+" (id INT NOT NULL PRIMARY KEY)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
+	_, err = db.ExecContext(th.Context,
+		"CREATE TABLE "+child+" (parent_id INT, "+
+			"FOREIGN KEY (parent_id) REFERENCES "+parent+
+			" (id) ON DELETE CASCADE ON UPDATE SET NULL)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
 
-			parent := stringz.UniqTableName("fk_act_parent")
-			child := stringz.UniqTableName("fk_act_child")
-			_, err := db.ExecContext(th.Context,
-				"CREATE TABLE "+parent+" (id INT NOT NULL PRIMARY KEY)")
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
-			_, err = db.ExecContext(th.Context,
-				"CREATE TABLE "+child+" (parent_id INT, "+
-					"FOREIGN KEY (parent_id) REFERENCES "+parent+
-					" (id) ON DELETE CASCADE ON UPDATE SET NULL)")
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
-
-			md, err := th.Open(src).TableMetadata(th.Context, child)
-			require.NoError(t, err)
-			require.Len(t, md.FK.Outgoing, 1)
-			fk := md.FK.Outgoing[0]
-			require.Equal(t, "CASCADE", fk.OnDelete)
-			require.Equal(t, "SET NULL", fk.OnUpdate,
-				"loader must normalize SET_NULL → SET NULL to match the other drivers")
-		})
-	}
+	md, err := th.Open(src).TableMetadata(th.Context, child)
+	require.NoError(t, err)
+	require.Len(t, md.FK.Outgoing, 1)
+	fk := md.FK.Outgoing[0]
+	require.Equal(t, "CASCADE", fk.OnDelete)
+	require.Equal(t, "SET NULL", fk.OnUpdate,
+		"loader must normalize SET_NULL → SET NULL to match the other drivers")
 }
 
 // TestForeignKey_SameCatalog_SQLServer pins the loader's current
@@ -342,34 +300,28 @@ func TestForeignKey_SameCatalog_SQLServer(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
-	for _, handle := range sakila.MSAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.MS)
+	db := th.OpenDB(src)
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
+	parent := stringz.UniqTableName("fk_cat_parent")
+	child := stringz.UniqTableName("fk_cat_child")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+parent+" (id INT NOT NULL PRIMARY KEY)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
+	_, err = db.ExecContext(th.Context,
+		"CREATE TABLE "+child+" (parent_id INT, "+
+			"FOREIGN KEY (parent_id) REFERENCES "+parent+" (id))")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
 
-			parent := stringz.UniqTableName("fk_cat_parent")
-			child := stringz.UniqTableName("fk_cat_child")
-			_, err := db.ExecContext(th.Context,
-				"CREATE TABLE "+parent+" (id INT NOT NULL PRIMARY KEY)")
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
-			_, err = db.ExecContext(th.Context,
-				"CREATE TABLE "+child+" (parent_id INT, "+
-					"FOREIGN KEY (parent_id) REFERENCES "+parent+" (id))")
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
-
-			md, err := th.Open(src).TableMetadata(th.Context, child)
-			require.NoError(t, err)
-			require.Len(t, md.FK.Outgoing, 1)
-			fk := md.FK.Outgoing[0]
-			require.Empty(t, fk.RefCatalog,
-				"same-DB FK must leave RefCatalog empty; populated only by a cross-catalog loader extension")
-			require.Empty(t, fk.RefSchema,
-				"same-schema FK must have RefSchema cleared by the loader's NULLIF")
-		})
-	}
+	md, err := th.Open(src).TableMetadata(th.Context, child)
+	require.NoError(t, err)
+	require.Len(t, md.FK.Outgoing, 1)
+	fk := md.FK.Outgoing[0]
+	require.Empty(t, fk.RefCatalog,
+		"same-DB FK must leave RefCatalog empty; populated only by a cross-catalog loader extension")
+	require.Empty(t, fk.RefSchema,
+		"same-schema FK must have RefSchema cleared by the loader's NULLIF")
 }

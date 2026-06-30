@@ -17,4 +17,20 @@ echo "$out" | jq -e 'length == 2' >/dev/null
 echo "$out" | jq -e 'all(.packages == "./...")' >/dev/null
 echo "$out" | jq -e '[.[].tag] == ["8","9"]' >/dev/null
 
+# the DSN must NOT travel through the matrix: GitHub masks the credential and
+# drops a job output containing it, which silently empties the matrix.
+echo "$out" | jq -e 'all(has("dsn") | not)' >/dev/null
+
+# unknown engine is a hard error, not a silently-empty/null row
+if "$here/build-db-matrix.sh" narrow '{"bogus":["1"]}' 2>/dev/null; then
+  echo "build-db-matrix_test: FAIL (expected error for unknown engine)" >&2
+  exit 1
+fi
+
+# invalid scope is rejected
+if "$here/build-db-matrix.sh" sideways '{"postgres":["12"]}' 2>/dev/null; then
+  echo "build-db-matrix_test: FAIL (expected error for invalid scope)" >&2
+  exit 1
+fi
+
 echo "build-db-matrix_test: PASS"

@@ -19,6 +19,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## [Unreleased]
 
+### Added
+
+- [#986]: [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) with `-j` / `-y` now
+  reports an `is_embedded_sql` field for each driver, `true` for the in-process SQL
+  drivers (SQLite, DuckDB) and `false` for the networked engines (including rqlite,
+  which is SQLite-backed but reached over HTTP) and non-SQL drivers.
+
 ### Fixed
 
 - [#976]: The DuckDB driver now SQL-quotes table and column names that contain a
@@ -1752,6 +1759,7 @@ make working with lots of sources much easier.
 [#926]: https://github.com/neilotoole/sq/pull/926
 [#968]: https://github.com/neilotoole/sq/issues/968
 [#976]: https://github.com/neilotoole/sq/pull/976
+[#986]: https://github.com/neilotoole/sq/issues/986
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

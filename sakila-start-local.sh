@@ -44,7 +44,8 @@ for engine in "${engines[@]}"; do
   for _ in $(seq 1 60); do
     status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$c" 2>/dev/null || echo missing)
     [ "$status" = healthy ] && break
-    [ "$status" = none ] && break   # no healthcheck: don't block
+    [ "$status" = none ] && break    # no healthcheck: don't block
+    [ "$status" = missing ] && break # container gone: stop waiting
     sleep 5
   done
   echo "  $c: $(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$c" 2>/dev/null || echo '?')"

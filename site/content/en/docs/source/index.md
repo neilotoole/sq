@@ -200,8 +200,8 @@ $ sq src
 @sakila_sl3  sqlite3  sakila.db
 
 # Set active source
-$ sq src @sakila_pg12
-@sakila_pg12  postgres  sakila@192.168.50.132/sakila
+$ sq src @sakila_pg
+@sakila_pg  postgres  sakila@192.168.50.132/sakila
 ```
 
 {{< alert icon="👉" >}}

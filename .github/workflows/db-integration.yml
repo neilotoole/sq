@@ -4,23 +4,34 @@ on:
   workflow_call:
     inputs:
       selection:
-        description: 'JSON object {engine:[tags]} of engines/tags to test'
+        description: "JSON object {engine:[tags]} of engines/tags to test"
         required: true
         type: string
       scope:
-        description: 'full (go test ./...) or narrow (per-engine packages)'
+        description: "full (go test ./...) or narrow (per-engine packages)"
         required: false
-        default: 'full'
+        default: "full"
         type: string
   workflow_dispatch:
     inputs:
-      postgres:   { description: 'postgres tags (comma-sep; blank=skip)',   type: string, default: 'latest' }
-      mysql:      { description: 'mysql tags (comma-sep; blank=skip)',      type: string, default: 'latest' }
-      sqlserver:  { description: 'sqlserver tags (comma-sep; blank=skip)',  type: string, default: 'latest' }
-      clickhouse: { description: 'clickhouse tags (comma-sep; blank=skip)', type: string, default: 'latest' }
-      oracle:     { description: 'oracle tags (comma-sep; blank=skip)',     type: string, default: 'latest' }
-      rqlite:     { description: 'rqlite tags (comma-sep; blank=skip)',     type: string, default: 'latest' }
-      scope:      { description: 'full or narrow', type: choice, options: [full, narrow], default: full }
+      # Default "" so a blank engine is skipped (see the select(.value != "")
+      # filter in build-db-matrix.sh). "Run everything at :latest" is the
+      # nightly scheduler's job; a manual dispatch names the engines it wants.
+      postgres: { description: "postgres tags (comma-sep; blank=skip)", type: string, default: "" }
+      mysql: { description: "mysql tags (comma-sep; blank=skip)", type: string, default: "" }
+      sqlserver: {
+        description: "sqlserver tags (comma-sep; blank=skip)",
+        type: string,
+        default: "",
+      }
+      clickhouse: {
+        description: "clickhouse tags (comma-sep; blank=skip)",
+        type: string,
+        default: "",
+      }
+      oracle: { description: "oracle tags (comma-sep; blank=skip)", type: string, default: "" }
+      rqlite: { description: "rqlite tags (comma-sep; blank=skip)", type: string, default: "" }
+      scope: { description: "full or narrow", type: choice, options: [full, narrow], default: full }
 
 env:
   BUILD_TAGS: "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions"
@@ -35,14 +46,14 @@ jobs:
       - id: build
         shell: bash
         env:
-          INPUT_POSTGRES:   ${{ inputs.postgres   || github.event.inputs.postgres }}
-          INPUT_MYSQL:      ${{ inputs.mysql      || github.event.inputs.mysql }}
-          INPUT_SQLSERVER:  ${{ inputs.sqlserver  || github.event.inputs.sqlserver }}
+          INPUT_POSTGRES: ${{ inputs.postgres   || github.event.inputs.postgres }}
+          INPUT_MYSQL: ${{ inputs.mysql      || github.event.inputs.mysql }}
+          INPUT_SQLSERVER: ${{ inputs.sqlserver  || github.event.inputs.sqlserver }}
           INPUT_CLICKHOUSE: ${{ inputs.clickhouse || github.event.inputs.clickhouse }}
-          INPUT_ORACLE:     ${{ inputs.oracle     || github.event.inputs.oracle }}
-          INPUT_RQLITE:     ${{ inputs.rqlite     || github.event.inputs.rqlite }}
-          INPUT_SELECTION:  ${{ inputs.selection }}
-          INPUT_SCOPE:      ${{ inputs.scope || github.event.inputs.scope || 'full' }}
+          INPUT_ORACLE: ${{ inputs.oracle     || github.event.inputs.oracle }}
+          INPUT_RQLITE: ${{ inputs.rqlite     || github.event.inputs.rqlite }}
+          INPUT_SELECTION: ${{ inputs.selection }}
+          INPUT_SCOPE: ${{ inputs.scope || github.event.inputs.scope || 'full' }}
         run: |
           set -euo pipefail
           if [ -n "$INPUT_SELECTION" ]; then

@@ -131,12 +131,12 @@ $ sq add 'oracle://sakila:p_ssW0rd@localhost:1521/SAKILA' --handle @sakila_ora
 > It may take several minutes for docker to download and start the image.
 > Wait until Oracle is accepting connections before running `sq ping` or tests.
 
-Repo-wide tests use handle `@sakila_or23` (the `_or23` suffix versions it
-against the `sakiladb/oracle:23` image). `test.sq.yml` uses `SQ_TEST_SRC__SAKILA_OR23`
-as the entire source location. For the docker command above:
+Repo-wide tests use handle `@sakila_or`. `test.sq.yml` uses `SQ_TEST_SRC__SAKILA_OR`
+as the entire source location; point it at whichever `sakiladb/oracle:<tag>` image you
+want to test against. For the docker command above:
 
 ```shell
-export SQ_TEST_SRC__SAKILA_OR23=oracle://sakila:p_ssW0rd@localhost:1521/SAKILA
+export SQ_TEST_SRC__SAKILA_OR=oracle://sakila:p_ssW0rd@localhost:1521/SAKILA
 ```
 
 See

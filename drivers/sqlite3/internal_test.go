@@ -9,8 +9,19 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/tu"
 )
+
+// TestDriverMetadata verifies the static driver metadata. SQLite is an
+// embedded SQL driver.
+func TestDriverMetadata(t *testing.T) {
+	md := (&driveri{}).DriverMetadata()
+	require.Equal(t, drivertype.SQLite, md.Type)
+	require.True(t, md.IsSQL)
+	require.True(t, md.IsEmbeddedSQL)
+	require.LessOrEqual(t, md.DefaultPort, 0)
+}
 
 var (
 	KindFromDBTypeName = kindFromDBTypeName

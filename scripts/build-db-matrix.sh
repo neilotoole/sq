@@ -15,6 +15,17 @@ scope="${1:?usage: build-db-matrix.sh <full|narrow> <selection-json>}"
 selection="${2:?missing selection json}"
 config="$(cd "$(dirname "$0")/.." && pwd)/.github/sakila-db.json"
 
+# workflow_dispatch constrains scope via type:choice, but the workflow_call
+# input is a free string — reject typos rather than silently treating any
+# non-"narrow" value as "full".
+case "$scope" in
+  full | narrow) ;;
+  *)
+    echo "build-db-matrix.sh: scope must be 'full' or 'narrow', got '$scope'" >&2
+    exit 2
+    ;;
+esac
+
 jq -cn \
   --argjson sel "$selection" \
   --slurpfile cfg "$config" \

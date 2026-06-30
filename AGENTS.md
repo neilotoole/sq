@@ -33,7 +33,13 @@ task:
 This project uses a `Makefile` as its canonical developer entry point (see
 [`CONTRIBUTING.md`](./CONTRIBUTING.md#makefile) for why).
 
+`make help` (the default target) lists every target with a one-line
+description; each target is documented inline in the `Makefile`.
+
 ```bash
+make help        # list all targets with descriptions (default target)
+make init        # one-time clone setup: install deps + activate git hooks
+make deps        # install dev deps (bun packages + Go modules)
 make all         # gen + fmt + lint + test + build + install
 make test        # run all tests (may require Docker for SQL driver tests)
 make test-short  # skip long-running / container-backed tests
@@ -42,6 +48,12 @@ make fmt-check   # dprint check (read-only; verify formatting)
 make lint        # golangci-lint + shellcheck + dprint check + biome (site JS)
 make build       # build binary to dist/sq
 ```
+
+Run `make init` once after cloning: it installs dependencies and activates the
+repo's git hooks (`.githooks`), including a `pre-commit` hook that runs
+`dprint check` on staged files so a formatting slip is caught locally instead
+of failing the `Format` CI job. Bypass the hook for one commit with
+`git commit --no-verify`.
 
 Driver integration tests for Postgres, MySQL, SQL Server, and ClickHouse
 require the `sakiladb/*` Docker images to be reachable. Use `make test-short`
@@ -89,7 +101,7 @@ func TestExample(t *testing.T) {
 
 Integration tests that need a real database should call `tu.SkipShort(t, true)`
 so they're skipped under `go test -short`. See
-[`CONTRIBUTING.md`](./CONTRIBUTING.md#test-handles) for driver test handle
+[`drivers/README.md`](./drivers/README.md#test-handles) for driver test handle
 conventions.
 
 ### Error handling
@@ -186,6 +198,15 @@ This covers all markdown in the repo (root docs, `skills/`, and `site/`) under
 the single root [`dprint.json`](./dprint.json). There is no separate markdown
 linter or per-directory config anymore.
 
+### GitHub Actions workflows
+
+`dprint` also formats workflow YAML (`.github/workflows/*.yml`), JSON, and TOML
+via the same `make fmt` / `make fmt-check` as everything else. The
+`Format` CI job runs `dprint check` repo-wide and fails on any unformatted file.
+`actionlint` validates workflow _syntax_, not dprint _style_, so a workflow can
+pass `actionlint` and still fail `Format`. Run `make fmt` on any workflow (or
+JSON) file you touch before committing.
+
 ### `CHANGELOG.md`
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md#changelogmd) for the full format.
@@ -231,12 +252,13 @@ Do not add AI / Claude attribution text to commits or PRs.
 `sq` is driver-oriented: each supported data source type is implemented as a
 driver under [`drivers/`](./drivers/). When adding or modifying a driver,
 read the
-["New driver implementations"](./CONTRIBUTING.md#new-driver-implementations)
-section of `CONTRIBUTING.md`. It covers package structure, type mapping,
-dialect configuration, test handles, and the SQL-vs-document driver split.
+["New driver implementations"](./drivers/README.md#new-driver-implementations)
+guide in [`drivers/README.md`](./drivers/README.md). It covers package structure,
+type mapping, dialect configuration, test handles, and the SQL-vs-document
+driver split.
 
 **Adding a new driver type:** you must complete the
-[driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist) in the same
+[driver ship checklist](./drivers/README.md#driver-ship-checklist) in the same
 PR, including [`site/content/en/docs/drivers/`](site/content/en/docs/drivers/)
 and [`skills/sq/`](skills/sq/SKILL.md) (`SKILL.md` driver table plus
 `references/{driver}.md`). Do not mark driver work done until those files are
@@ -258,7 +280,7 @@ This repo ships [Agent Skills](https://agentskills.io/specification) for
 
 Adding a new driver type also requires updating
 [`skills/sq/`](skills/sq/SKILL.md); see [Drivers](#drivers) and the
-[driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist).
+[driver ship checklist](./drivers/README.md#driver-ship-checklist).
 
 Claude Code discovers the same tree via [`.claude/skills`](.claude/skills)
 (symlink to `.agents/skills`). Cursor and Codex load `.agents/skills/`
