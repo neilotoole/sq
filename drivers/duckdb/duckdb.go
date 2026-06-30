@@ -569,14 +569,14 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Ta
 
 // CreateSchema implements driver.SQLDriver.
 func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
-	stmt := fmt.Sprintf(`CREATE SCHEMA %q`, schemaName)
+	stmt := "CREATE SCHEMA " + stringz.DoubleQuote(schemaName)
 	_, err := db.ExecContext(ctx, stmt)
 	return errz.Wrapf(errw(err), "duckdb: create schema {%s}", schemaName)
 }
 
 // DropSchema implements driver.SQLDriver.
 func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
-	stmt := fmt.Sprintf(`DROP SCHEMA %q CASCADE`, schemaName)
+	stmt := "DROP SCHEMA " + stringz.DoubleQuote(schemaName) + " CASCADE"
 	_, err := db.ExecContext(ctx, stmt)
 	return errz.Wrapf(errw(err), "duckdb: drop schema {%s}", schemaName)
 }
@@ -611,7 +611,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
-	affected, err := sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err := sqlz.ExecAffected(ctx, db, "DELETE FROM "+stringz.DoubleQuote(tbl))
 	if err != nil {
 		return 0, errw(err)
 	}

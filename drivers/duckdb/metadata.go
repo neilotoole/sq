@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -446,7 +447,7 @@ LIMIT 1`
 	// Fetch row count. Schema-qualify the table reference so the count is
 	// correct even if the connection's current schema differs from schemaName.
 	if err := db.QueryRowContext(ctx,
-		fmt.Sprintf(`SELECT COUNT(*) FROM %q.%q`, schemaName, tblName)).
+		"SELECT COUNT(*) FROM "+stringz.DoubleQuote(schemaName)+"."+stringz.DoubleQuote(tblName)).
 		Scan(&tbl.RowCount); err != nil {
 		return nil, errw(err)
 	}
@@ -966,7 +967,7 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, schemaName string,
 	log := lg.FromContext(ctx)
 	counts := make([]int64, len(tables))
 	for i, tbl := range tables {
-		q := fmt.Sprintf(`SELECT COUNT(*) FROM %q.%q`, schemaName, tbl.Name)
+		q := "SELECT COUNT(*) FROM " + stringz.DoubleQuote(schemaName) + "." + stringz.DoubleQuote(tbl.Name)
 		err := db.QueryRowContext(ctx, q).Scan(&counts[i])
 		if err == nil {
 			continue

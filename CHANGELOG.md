@@ -28,6 +28,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#994]: The DuckDB driver now SQL-quotes schema names that contain a double
+  quote in `CreateSchema` and `DropSchema`, completing the `%q` → `stringz.DoubleQuote`
+  identifier-quoting fix that [#976] applied to the table paths.
+- [#976]: The DuckDB driver now SQL-quotes table and column names that contain a
+  double quote (e.g. a `we"ird` table created from a CSV header) in the alter, truncate, and
+  row-count paths. These paths used Go's `%q` verb, which emits backslash escaping (`"we\"ird"`)
+  that DuckDB rejects; they now use `stringz.DoubleQuote` (`"we""ird"`), completing for DuckDB
+  the identifier-quoting fix [#821] applied to SQLite and rqlite.
 - [#968]: Aligned the SQLite and DuckDB Sakila test fixtures with the canonical
   schema used by the other drivers: the `sales_by_store` view no longer carries a
   stray leading `store_id` column (it is now `store, manager, total_sales`), and
@@ -1753,7 +1761,9 @@ make working with lots of sources much easier.
 [#923]: https://github.com/neilotoole/sq/pull/923
 [#926]: https://github.com/neilotoole/sq/pull/926
 [#968]: https://github.com/neilotoole/sq/issues/968
+[#976]: https://github.com/neilotoole/sq/pull/976
 [#986]: https://github.com/neilotoole/sq/issues/986
+[#994]: https://github.com/neilotoole/sq/pull/994
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
