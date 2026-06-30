@@ -36,7 +36,10 @@ databases have been wrapped up into Docker images in a sister project named `sak
 [GitHub](https://github.com/sakiladb) and [DockerHub](https://hub.docker.com/u/sakiladb) repos.
 
 To run all of the `sq` tests, there must be an available Sakila database instance for each
-database/version. The full set of sources that the test code uses can be found in
+engine. There is one source per engine; the engine _version_ is a deployment detail (which
+`sakiladb/<engine>:<tag>` image the source points at), not part of the handle. Coverage
+across multiple versions of an engine is provided by CI (see [below](#multi-version-coverage)),
+not by multiple handles. The full set of sources that the test code uses can be found in
 
 <!-- markdownlint-disable-next-line MD013 -->
 
@@ -49,30 +52,27 @@ sources:
     - handle: "@sakila_sl3"
       type: sqlite3
       location: sqlite3://${env:SQ_ROOT}/drivers/sqlite3/testdata/sakila.db
-    - handle: "@sakila_pg9"
+    - handle: "@sakila_pg"
       type: postgres
-      location: ${env:SQ_TEST_SRC__SAKILA_PG9}
-    - handle: "@sakila_pg10"
-      type: postgres
-      location: ${env:SQ_TEST_SRC__SAKILA_PG10}
-    - handle: "@sakila_my56"
+      location: ${env:SQ_TEST_SRC__SAKILA_PG}
+    - handle: "@sakila_my"
       type: mysql
-      location: ${env:SQ_TEST_SRC__SAKILA_MY56}
-    - handle: "@sakila_my57"
-      type: mysql
-      location: ${env:SQ_TEST_SRC__SAKILA_MY57}
+      location: ${env:SQ_TEST_SRC__SAKILA_MY}
+    - handle: "@sakila_ms"
+      type: sqlserver
+      location: ${env:SQ_TEST_SRC__SAKILA_MS}
 ```
 
 Each external database has a matching envar holding its full DSN. For example:
 
 ```sh
-SQ_TEST_SRC__SAKILA_PG12=postgres://sakila:p_ssW0rd@localhost:5432/sakila
+SQ_TEST_SRC__SAKILA_PG=postgres://sakila:p_ssW0rd@localhost:5432/sakila
 ```
 
 `test.sq.yml` references the envar as the entire location:
 
 ```yaml
-location: ${env:SQ_TEST_SRC__SAKILA_PG12}
+location: ${env:SQ_TEST_SRC__SAKILA_PG}
 ```
 
 Run `./sakila-start-local.sh` to start the containers and print the exact exports.
@@ -91,21 +91,31 @@ via `${env:SQ_ROOT}`) resolve exactly like the default file.
 Importantly: **When running `sq` tests, if the envar for a source is not populated, any test
 that uses that source is skipped.**
 
-Thus, to run _all_ of the `sq` tests, there must be available instances of all of the Sakila
-database/versions. These databases could be run locally, or on a remote server. For local
-dev/test, it is typical to export these envars in `.bashrc`/`.zshrc` or similar. For example
-(in this case, the Docker containers are running on a remote server):
+Thus, to run _all_ of the `sq` tests, there must be an available instance of each Sakila
+engine. These databases could be run locally, or on a remote server. For local dev/test,
+it is typical to export these envars in `.bashrc`/`.zshrc` or similar. There is one envar
+per engine; point it at whichever `sakiladb/<engine>:<tag>` version you want to test against.
+For example (in this case, the Docker containers are running on a remote server):
 
 ```sh
-# MySQL
-export SQ_TEST_SRC__SAKILA_MY56=mysql://sakila:p_ssW0rd@192.168.30.129/sakila
-export SQ_TEST_SRC__SAKILA_MY57=mysql://sakila:p_ssW0rd@192.168.30.131/sakila
-export SQ_TEST_SRC__SAKILA_MY8=mysql://sakila:p_ssW0rd@192.168.30.132/sakila
-# Postgres
-export SQ_TEST_SRC__SAKILA_PG9=postgres://sakila:p_ssW0rd@192.168.30.133/sakila
-export SQ_TEST_SRC__SAKILA_PG10=postgres://sakila:p_ssW0rd@192.168.30.134/sakila
-export SQ_TEST_SRC__SAKILA_PG11=postgres://sakila:p_ssW0rd@192.168.30.135/sakila
-export SQ_TEST_SRC__SAKILA_PG12=postgres://sakila:p_ssW0rd@192.168.30.136/sakila
-# MSSQL
-export SQ_TEST_SRC__SAKILA_MS17=sqlserver://sakila:p_ssW0rd@192.168.30.137?database=sakila
+export SQ_TEST_SRC__SAKILA_PG=postgres://sakila:p_ssW0rd@192.168.30.133/sakila
+export SQ_TEST_SRC__SAKILA_MY=mysql://sakila:p_ssW0rd@192.168.30.129/sakila
+export SQ_TEST_SRC__SAKILA_MS=sqlserver://sakila:p_ssW0rd@192.168.30.137?database=sakila
+export SQ_TEST_SRC__SAKILA_CH=clickhouse://sakila:p_ssW0rd@192.168.30.138/sakila
+export SQ_TEST_SRC__SAKILA_OR=oracle://sakila:p_ssW0rd@192.168.30.139:1521/SAKILA
+export SQ_TEST_SRC__SAKILA_RQ=http://192.168.30.140:4001
 ```
+
+The easiest way to get these exports is to run `./sakila-start-local.sh`, which starts a
+container for each engine (from [`.github/sakila-db.json`](https://github.com/neilotoole/sq/blob/master/.github/sakila-db.json),
+the single source of truth shared with CI) and prints the exact export lines.
+
+## Multi-version coverage
+
+Because each engine has a single handle, running the test suite locally exercises whatever
+image version each envar points at. Coverage across _multiple_ versions of an engine
+(e.g. Postgres 12 through 17, MySQL 8 and 9) is provided by CI rather than by additional
+handles: the [`DB integration`](https://github.com/neilotoole/sq/blob/master/.github/workflows/db-integration.yml)
+workflow can be dispatched against a chosen set of engines/versions, and the
+[`DB integration (scheduled)`](https://github.com/neilotoole/sq/blob/master/.github/workflows/db-scheduled.yml)
+workflow sweeps the full version matrix on a nightly/weekly cadence.
