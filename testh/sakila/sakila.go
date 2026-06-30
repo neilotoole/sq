@@ -2,6 +2,8 @@
 package sakila
 
 import (
+	"slices"
+
 	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
@@ -57,35 +59,40 @@ func SQLAllExternal() []string {
 	return []string{Pg, My, MS, CH, Ora, RQ}
 }
 
-// Embedded returns the embedded SQL handles: SQLite and DuckDB. These run
+// SQLEmbedded returns the embedded SQL handles: SQLite and DuckDB. These run
 // in-process (no separate server or container) and are always available,
-// unlike the external engines in [SQLAllExternal]. Note that rqlite, though
-// SQLite-backed, is external: it is reached over the network.
-func Embedded() []string {
+// unlike the external engines in [SQLAllExternal]. The SQL prefix is
+// deliberate: non-SQL document sources such as CSV and XLSX are also embedded
+// (file-based), but are not SQL drivers and are excluded here. Note that
+// rqlite, though SQLite-backed, is external: it is reached over the network.
+// SQLEmbedded and [SQLAllExternal] partition [SQLAll].
+func SQLEmbedded() []string {
 	return []string{SL3, Duck}
 }
 
-// IsEmbedded reports whether handle is an embedded SQL source (SQLite or
-// DuckDB), as opposed to an external engine that needs a running server.
-func IsEmbedded(handle string) bool {
-	return handle == SL3 || handle == Duck
+// IsSQLEmbedded reports whether handle is an embedded SQL source (SQLite or
+// DuckDB), as opposed to an external engine that needs a running server. It is
+// false for non-SQL embedded sources such as CSV. The embedded set is defined
+// once, by [SQLEmbedded].
+func IsSQLEmbedded(handle string) bool {
+	return slices.Contains(SQLEmbedded(), handle)
 }
 
 // CrossSourceDests returns the destination handles that origin should be
 // paired with in cross-source (origin x dest) tests. Embedded origins
-// (SQLite/DuckDB) pair with every engine; external origins pair only with the
-// embedded sources plus themselves. This yields {embedded} x {target} coverage
-// in both directions, plus same-source self-inserts, while excluding the
-// external x external cross pairs: those need multiple external containers live
-// at once, grow O(N^2) with the number of SQL engines, and can't run under the
-// per-engine CI model. See gh #964.
+// (SQLite/DuckDB) pair with every handle in [SQLLatest]; external origins pair
+// only with the embedded sources plus themselves. This yields
+// {embedded} x {target} coverage in both directions, plus same-source
+// self-inserts, while excluding the external x external cross pairs: those need
+// multiple external containers live at once, grow O(N^2) with the number of SQL
+// engines, and can't run under the per-engine CI model. See gh #964.
 func CrossSourceDests(origin string) []string {
-	if IsEmbedded(origin) {
+	if IsSQLEmbedded(origin) {
 		return SQLLatest()
 	}
 	// External origin: embedded dests (both directions of {embedded}x{target})
 	// plus origin itself (the single-container same-source insert path).
-	return append(Embedded(), origin)
+	return append(SQLEmbedded(), origin)
 }
 
 // SQLLatest returns the canonical per-engine handles. Retained alongside

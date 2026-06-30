@@ -547,8 +547,6 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 func TestCmdSQL_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
 		t.Run("origin_"+origin, func(t *testing.T) {
-			tu.SkipShort(t, origin == sakila.XLSX)
-
 			for _, dest := range sakila.CrossSourceDests(origin) {
 				t.Run("dest_"+dest, func(t *testing.T) {
 					t.Parallel()

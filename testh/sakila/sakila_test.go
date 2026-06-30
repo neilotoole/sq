@@ -12,22 +12,37 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
-// TestEmbedded verifies that the embedded SQL handles are exactly SQLite and
-// DuckDB, and that IsEmbedded agrees with both Embedded and SQLAllExternal.
-func TestEmbedded(t *testing.T) {
+// TestSQLEmbedded verifies that the embedded SQL handles are exactly SQLite and
+// DuckDB, and that IsSQLEmbedded agrees with both SQLEmbedded and
+// SQLAllExternal.
+func TestSQLEmbedded(t *testing.T) {
 	t.Parallel()
 
-	require.Equal(t, []string{sakila.SL3, sakila.Duck}, sakila.Embedded())
+	require.Equal(t, []string{sakila.SL3, sakila.Duck}, sakila.SQLEmbedded())
 
-	for _, h := range sakila.Embedded() {
-		assert.True(t, sakila.IsEmbedded(h), "%s should be embedded", h)
+	for _, h := range sakila.SQLEmbedded() {
+		assert.True(t, sakila.IsSQLEmbedded(h), "%s should be embedded", h)
 	}
 	// Every external SQL source (including rqlite, which is SQLite-backed but
 	// reached over the network) must NOT be classified as embedded.
 	for _, h := range sakila.SQLAllExternal() {
-		assert.False(t, sakila.IsEmbedded(h), "%s should not be embedded", h)
+		assert.False(t, sakila.IsSQLEmbedded(h), "%s should not be embedded", h)
 	}
-	assert.False(t, sakila.IsEmbedded(sakila.RQ), "rqlite is external, not embedded")
+	assert.False(t, sakila.IsSQLEmbedded(sakila.RQ), "rqlite is external, not embedded")
+	// A non-SQL embedded source (CSV) is file-based but not a SQL driver, so it
+	// is not an embedded SQL source.
+	assert.False(t, sakila.IsSQLEmbedded(sakila.CSVActor), "CSV is not a SQL source")
+}
+
+// TestSQLPartition guards that SQLEmbedded and SQLAllExternal exactly partition
+// SQLAll. Adding an engine to SQLAll without classifying it in one of the two
+// partition lists is then caught here instead of silently misclassifying it.
+func TestSQLPartition(t *testing.T) {
+	t.Parallel()
+
+	partition := append(append([]string{}, sakila.SQLEmbedded()...), sakila.SQLAllExternal()...)
+	require.ElementsMatch(t, sakila.SQLAll(), partition,
+		"SQLEmbedded() + SQLAllExternal() must partition SQLAll()")
 }
 
 // TestCrossSourceDests asserts the cross-source pairing invariants that keep
@@ -36,18 +51,18 @@ func TestCrossSourceDests(t *testing.T) {
 	t.Parallel()
 
 	// Embedded origins pair with every engine.
-	for _, origin := range sakila.Embedded() {
+	for _, origin := range sakila.SQLEmbedded() {
 		assert.Equal(t, sakila.SQLLatest(), sakila.CrossSourceDests(origin),
 			"embedded origin %s should pair with all of SQLLatest", origin)
 	}
 
 	// External origins pair with exactly the embedded sources plus themselves.
 	for _, origin := range sakila.SQLLatest() {
-		if sakila.IsEmbedded(origin) {
+		if sakila.IsSQLEmbedded(origin) {
 			continue
 		}
 		dests := sakila.CrossSourceDests(origin)
-		assert.ElementsMatch(t, append(sakila.Embedded(), origin), dests,
+		assert.ElementsMatch(t, append(sakila.SQLEmbedded(), origin), dests,
 			"external origin %s should pair with embedded sources + itself", origin)
 	}
 
@@ -56,16 +71,16 @@ func TestCrossSourceDests(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
 		for _, dest := range sakila.CrossSourceDests(origin) {
 			// No external x external CROSS pair (the O(N^2) cells #964 drops).
-			if !sakila.IsEmbedded(origin) && !sakila.IsEmbedded(dest) {
+			if !sakila.IsSQLEmbedded(origin) && !sakila.IsSQLEmbedded(dest) {
 				assert.Equal(t, origin, dest,
 					"external pair %s->%s must be a self-insert, not a cross pair", origin, dest)
 			}
 			// Every external engine is exercised against an embedded source in
 			// both directions (origin and dest), preserving per-engine coverage.
-			if !sakila.IsEmbedded(origin) && sakila.IsEmbedded(dest) {
+			if !sakila.IsSQLEmbedded(origin) && sakila.IsSQLEmbedded(dest) {
 				sawExternalAsOrigin = true
 			}
-			if sakila.IsEmbedded(origin) && !sakila.IsEmbedded(dest) {
+			if sakila.IsSQLEmbedded(origin) && !sakila.IsSQLEmbedded(dest) {
 				sawExternalAsDest = true
 			}
 		}
@@ -75,7 +90,7 @@ func TestCrossSourceDests(t *testing.T) {
 
 	// The external self-insert diagonal is retained for every external engine.
 	for _, h := range sakila.SQLLatest() {
-		if sakila.IsEmbedded(h) {
+		if sakila.IsSQLEmbedded(h) {
 			continue
 		}
 		assert.True(t, slices.Contains(sakila.CrossSourceDests(h), h),
