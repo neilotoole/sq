@@ -11,7 +11,7 @@
     "env": "SQ_TEST_SRC__SAKILA_MY",
     "dsn": "mysql://sakila:p_ssW0rd@localhost:3306/sakila",
     "packages": "./drivers/mysql/... ./libsq/... ./cli/... ./testh/...",
-    "tags": ["latest", "9", "8", "5.7", "5.6"]
+    "tags": ["latest", "9", "8"]
   },
   "sqlserver": {
     "port": 1433,
