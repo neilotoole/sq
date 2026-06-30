@@ -11,6 +11,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
@@ -1576,4 +1577,12 @@ func TestDriveri_CopyTable_NoCompanions_StructureOnly(t *testing.T) {
 		`SELECT count(*) FROM sqlite_master WHERE tbl_name='dst'
 			AND type IN ('index','trigger')`).Scan(&companionCount))
 	require.Equal(t, int64(0), companionCount)
+}
+
+func TestDBSemver(t *testing.T) {
+	t.Parallel()
+	th, _, _, grip, _ := testh.NewWith(t, sakila.SL3)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
 }

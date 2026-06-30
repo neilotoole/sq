@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -465,4 +466,12 @@ func TestDriver_CopyTable_TargetSchema(t *testing.T) {
 		"SELECT * FROM "+stringz.BacktickQuote(otherSchema)+"."+stringz.BacktickQuote(tblName))
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+}
+
+func TestDBSemver(t *testing.T) {
+	t.Parallel()
+	th, _, _, grip, _ := testh.NewWith(t, sakila.CH)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
 }

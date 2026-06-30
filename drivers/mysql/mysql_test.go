@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
@@ -137,4 +138,12 @@ func TestNumericSchema(t *testing.T) {
 				"Query should return all rows")
 		})
 	}
+}
+
+func TestDBSemver(t *testing.T) {
+	t.Parallel()
+	th, _, _, grip, _ := testh.NewWith(t, sakila.My)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
 }

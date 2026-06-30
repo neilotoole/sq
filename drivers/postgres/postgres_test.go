@@ -11,6 +11,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -383,4 +384,12 @@ func TestIsErrRelationDoesNotExist(t *testing.T) {
 	_, err := th.QuerySQL(src, nil, "SELECT * FROM tbl_does_not_exist")
 	require.Error(t, err)
 	require.True(t, postgres.IsErrRelationNotExist(err))
+}
+
+func TestDBSemver(t *testing.T) {
+	t.Parallel()
+	th, _, _, grip, _ := testh.NewWith(t, sakila.Pg)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
 }
