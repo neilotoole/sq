@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	// Default test DSN matches docker-compose (sakiladb/oracle).
+	// Default test DSN for the sakiladb/oracle image.
 	testDSN = "oracle://sakila:p_ssW0rd@localhost:1521/SAKILA"
 )
 
