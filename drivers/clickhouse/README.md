@@ -138,10 +138,11 @@ Nullable columns are wrapped with `Nullable(T)` (e.g.,
 non-nullable by default.
 
 ClickHouse has no dedicated binary or `BLOB` type: `String` holds
-arbitrary bytes and stands in for `BLOB`/`VARCHAR`/`CLOB`/`TEXT`. So
-`kind.Bytes` is not faithfully representable; a `kind.Bytes` value
-reads back as `kind.Text`. This is intentional upstream
-([ClickHouse#53482](https://github.com/ClickHouse/ClickHouse/issues/53482)),
+arbitrary bytes and stands in for `BLOB`/`VARCHAR`/`CLOB`/`TEXT`. A column
+cannot be marked binary versus text, so `sq` maps `String` and
+`FixedString` to `kind.Text`, and a `kind.Bytes` value reads back as
+`kind.Text`. This is intentional upstream
+([ClickHouse/ClickHouse#53482](https://github.com/ClickHouse/ClickHouse/issues/53482)),
 not a gap awaiting a fix. See
 [#544](https://github.com/neilotoole/sq/issues/544).
 
