@@ -538,15 +538,18 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 //   - Schema compatibility between different database engines
 //   - The CLI's ability to manage multiple source connections simultaneously
 //
-// The test matrix covers all combinations of supported SQL databases as both
-// origin (data source) and destination (insert target), ensuring the feature
-// works regardless of which databases are involved.
+// The test matrix pairs each engine with an embedded source (SQLite/DuckDB) as
+// both origin (data source) and destination (insert target), plus same-source
+// self-inserts. External x external cross pairs are excluded via
+// sakila.CrossSourceDests: they don't scale (multiple external containers live
+// at once, O(N^2) in the number of engines) and can't run under the per-engine
+// CI model. See gh #964.
 func TestCmdSQL_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
 		t.Run("origin_"+origin, func(t *testing.T) {
 			tu.SkipShort(t, origin == sakila.XLSX)
 
-			for _, dest := range sakila.SQLLatest() {
+			for _, dest := range sakila.CrossSourceDests(origin) {
 				t.Run("dest_"+dest, func(t *testing.T) {
 					t.Parallel()
 
