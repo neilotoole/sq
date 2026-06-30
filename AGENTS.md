@@ -186,6 +186,15 @@ This covers all markdown in the repo (root docs, `skills/`, and `site/`) under
 the single root [`dprint.json`](./dprint.json). There is no separate markdown
 linter or per-directory config anymore.
 
+### GitHub Actions workflows
+
+`dprint` also formats workflow YAML (`.github/workflows/*.yml`), JSON, and TOML
+via the same `make fmt` / `make fmt-check` as everything else. The
+`Format` CI job runs `dprint check` repo-wide and fails on any unformatted file.
+`actionlint` validates workflow _syntax_, not dprint _style_, so a workflow can
+pass `actionlint` and still fail `Format`. Run `make fmt` on any workflow (or
+JSON) file you touch before committing.
+
 ### `CHANGELOG.md`
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md#changelogmd) for the full format.
