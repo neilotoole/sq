@@ -2,9 +2,9 @@ name: DB integration (scheduled)
 
 on:
   schedule:
-    - cron: '0 4 * * *'   # nightly: every engine @ :latest, full scope
-    - cron: '0 5 * * 1'   # weekly (Mon): full version sweep, narrow scope
-  workflow_dispatch: {}    # manual: behaves like the nightly run
+    - cron: "0 4 * * *" # nightly: every engine @ :latest, full scope
+    - cron: "0 5 * * 1" # weekly (Mon): full version sweep, narrow scope
+  workflow_dispatch: {} # manual: behaves like the nightly run
 
 jobs:
   select:
