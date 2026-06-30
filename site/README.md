@@ -167,6 +167,25 @@ through to the deploy preview (e.g.,
 the deploy-preview URL from the PR checks) to verify your changes look
 correct.
 
+### Repository setup (maintainers)
+
+The `site/` tree was imported from the former
+[`sq-web`](https://github.com/neilotoole/sq-web) repository as a flat add; prior
+history remains in the archived `sq-web` repo.
+
+**Netlify:** the production site uses repository **`neilotoole/sq`**, **base
+directory** `site`, and the committed [`netlify.toml`](netlify.toml). Re-link the
+repo in Netlify if needed, and confirm deploy previews and the
+[`/version`](https://sq.io/version) endpoint (redirect to `version.json`) still
+resolve.
+
+**Branch protection:** configure [repository rulesets][rulesets] so that PRs
+touching **`site/**`** require the **Site CI** check (`site-ci.yml`) without
+requiring it on Go-only PRs (path-scoped rules). Plain "required status" lists
+interact badly with workflows that use `paths` filters and do not run on every PR.
+
+[rulesets]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets
+
 ### Build-time data & nightly refresh
 
 The header's **version badge** and **GitHub star count** are computed at build time rather than

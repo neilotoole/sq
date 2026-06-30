@@ -66,11 +66,10 @@ cd drivers/oracle
 # Unit tests only (no database)
 go test -v -short
 
-# Integration tests (Docker; pulls sakiladb/oracle via compose)
-./testutils/test-integration.sh
-
-# Include Postgres for cross-database tests
-./testutils/test-integration.sh --with-pg
+# Integration tests: start sakiladb/oracle, then point the tests at it
+docker run -d -p 1521:1521 sakiladb/oracle:latest
+export SQ_TEST_ORACLE_DSN='oracle://sakila:p_ssW0rd@localhost:1521/SAKILA'
+go test -v
 ```
 
 ### `testh` / repo-wide tests
@@ -81,8 +80,6 @@ Set `SQ_TEST_SRC__SAKILA_OR` to the full DSN (for example
 `@sakila_or`. Recommended database image:
 [`sakiladb/oracle`](https://github.com/sakiladb/oracle) (`docker run -p
 1521:1521 sakiladb/oracle:latest`).
-
-Details: **[Testing.md](./testutils/Testing.md)**
 
 ### Test package layout
 
@@ -139,16 +136,15 @@ kind-roundtrip fidelity, is skipped for Oracle for this reason.
 
 ## Implementation files
 
-| File                           | Purpose                           |
-| ------------------------------ | --------------------------------- |
-| `oracle.go`                    | `SQLDriver`, connection, DDL/DML  |
-| `metadata.go`                  | Data dictionary queries           |
-| `render.go`                    | Type mapping and rendering        |
-| `grip.go`                      | Grip                              |
-| `errors.go`                    | Delegates to `orshared`           |
-| `orshared/wrap.go`             | Shared Oracle error-code wrapping |
-| `internal_test.go`             | Short/unit tests                  |
-| `testutils/docker-compose.yml` | Local Oracle + Postgres           |
+| File               | Purpose                           |
+| ------------------ | --------------------------------- |
+| `oracle.go`        | `SQLDriver`, connection, DDL/DML  |
+| `metadata.go`      | Data dictionary queries           |
+| `render.go`        | Type mapping and rendering        |
+| `grip.go`          | Grip                              |
+| `errors.go`        | Delegates to `orshared`           |
+| `orshared/wrap.go` | Shared Oracle error-code wrapping |
+| `internal_test.go` | Short/unit tests                  |
 
 ## Common Oracle error codes
 
