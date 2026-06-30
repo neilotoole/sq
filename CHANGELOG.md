@@ -21,10 +21,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- [#986]: `sq driver ls -j` / `-y` now reports an `is_embedded_sql` field for each
-  driver, `true` for the in-process SQL drivers (SQLite, DuckDB) and `false` for
-  the networked engines (including rqlite, which is SQLite-backed but reached over
-  HTTP) and non-SQL drivers.
+- [#986]: [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) with `-j` / `-y` now
+  reports an `is_embedded_sql` field for each driver, `true` for the in-process SQL
+  drivers (SQLite, DuckDB) and `false` for the networked engines (including rqlite,
+  which is SQLite-backed but reached over HTTP) and non-SQL drivers.
 
 ### Fixed
 
