@@ -48,13 +48,18 @@ func AllHandles() []string {
 	return []string{SL3, Duck, Pg, My, MS, CH, Ora, RQ, XLSX}
 }
 
-// SQLAll returns all the sakila SQL handles.
+// SQLAll returns every sakila SQL handle: the embedded sources (SQLite,
+// DuckDB) and all external engines, including rqlite. It is the union of
+// [SQLEmbedded] and [SQLAllExternal]. See [SQLLatest] for the same set minus
+// rqlite.
 func SQLAll() []string {
 	return []string{SL3, Duck, Pg, My, MS, CH, Ora, RQ}
 }
 
-// SQLAllExternal is the same as SQLAll, but only includes
-// external (non-embedded) sources. That is, it excludes SL3 and Duck.
+// SQLAllExternal returns the external (non-embedded) SQL handles: every engine
+// that needs a running server, including rqlite. It is [SQLAll] minus the
+// embedded sources, i.e. the complement of [SQLEmbedded]; together the two
+// partition [SQLAll].
 func SQLAllExternal() []string {
 	return []string{Pg, My, MS, CH, Ora, RQ}
 }
@@ -95,9 +100,18 @@ func CrossSourceDests(origin string) []string {
 	return append(SQLEmbedded(), origin)
 }
 
-// SQLLatest returns the canonical per-engine handles. Retained alongside
-// SQLAll for quicker iterative testing; DuckDB is included because it is
-// embedded and exercises read-only/access-mode paths the others don't (gh #779).
+// SQLLatest returns one handle per SQL engine for the standard cross-engine
+// test matrix: the embedded sources (SQLite, DuckDB) plus the external engines,
+// but excluding rqlite. It is therefore [SQLAll] without rqlite — that single
+// handle is the only difference between the two. rqlite is omitted here because
+// its driver supports a narrower feature set than the other engines; coverage
+// of rqlite goes through [SQLAll].
+//
+// The name is historical: it dates from when sources were versioned and this
+// returned the latest version of each engine. Versions are now a CI matrix
+// dimension (gh #958), so there is a single handle per engine. DuckDB is
+// included because, being embedded, it exercises read-only/access-mode paths
+// the others don't (gh #779).
 func SQLLatest() []string {
 	return []string{SL3, Duck, Pg, My, MS, CH, Ora}
 }
