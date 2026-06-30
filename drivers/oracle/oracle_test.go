@@ -63,13 +63,10 @@ func skipIfNoOracle(t *testing.T) {
 			t.Skip(`Oracle database not reachable.
 
 Start a local instance:
-  cd drivers/oracle/testutils && docker compose up -d
-
-If docker pull for sakiladb/oracle is denied in your environment, the test
-scripts auto-build a local image from github.com/sakiladb/oracle.
+  docker run -d -p 1521:1521 sakiladb/oracle:latest
 
 Then set SQ_TEST_ORACLE_DSN if not using the default DSN. See
-drivers/oracle/testutils/Testing.md.`)
+drivers/oracle/README.md.`)
 			return
 		}
 
