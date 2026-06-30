@@ -33,7 +33,13 @@ task:
 This project uses a `Makefile` as its canonical developer entry point (see
 [`CONTRIBUTING.md`](./CONTRIBUTING.md#makefile) for why).
 
+`make help` (the default target) lists every target with a one-line
+description; each target is documented inline in the `Makefile`.
+
 ```bash
+make help        # list all targets with descriptions (default target)
+make init        # one-time clone setup: install deps + activate git hooks
+make deps        # install dev deps (bun packages + Go modules)
 make all         # gen + fmt + lint + test + build + install
 make test        # run all tests (may require Docker for SQL driver tests)
 make test-short  # skip long-running / container-backed tests
@@ -42,6 +48,12 @@ make fmt-check   # dprint check (read-only; verify formatting)
 make lint        # golangci-lint + shellcheck + dprint check + biome (site JS)
 make build       # build binary to dist/sq
 ```
+
+Run `make init` once after cloning: it installs dependencies and activates the
+repo's git hooks (`.githooks`), including a `pre-commit` hook that runs
+`dprint check` on staged files so a formatting slip is caught locally instead
+of failing the `Format` CI job. Bypass the hook for one commit with
+`git commit --no-verify`.
 
 Driver integration tests for Postgres, MySQL, SQL Server, and ClickHouse
 require the `sakiladb/*` Docker images to be reachable. Use `make test-short`

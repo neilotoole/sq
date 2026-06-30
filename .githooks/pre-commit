@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+#
+# Pre-commit formatting gate: runs `dprint check` on staged files, mirroring the
+# `Format` CI job (dprint owns markdown, JSON, YAML, TOML, SCSS/CSS, Go, JS).
+# Catches the common "edited a workflow/JSON file, forgot `make fmt`" mistake
+# before it reaches CI.
+#
+# Activate with `make init` (sets core.hooksPath=.githooks). Bypass a single
+# commit with `git commit --no-verify`.
+#
+# Note: this checks the working-tree copy of staged files, not the staged blob.
+# A partially-staged file (staged hunks plus further unstaged edits) is judged
+# by what's on disk, which may differ from what's committed. The CI `Format`
+# job is the authoritative gate; this hook is a fast local catch.
+set -euo pipefail
+
+# Staged files, restricted to Added/Copied/Modified/Renamed (skip deletions).
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACMR)
+[ "${#staged[@]}" -eq 0 ] && exit 0
+
+# dprint runs via bun. On a fresh clone before `make init`/`make deps`, bun or
+# its packages may be missing; warn and skip rather than block the commit.
+if ! command -v bun >/dev/null 2>&1; then
+	echo "pre-commit: bun not found; skipping format check (run 'make init')." >&2
+	exit 0
+fi
+
+# dprint intersects the given paths with its config includes/excludes, so paths
+# it doesn't manage are ignored; --allow-no-files avoids erroring when none of
+# the staged paths are dprint-managed.
+if ! bunx dprint check --allow-no-files "${staged[@]}"; then
+	{
+		echo
+		echo "pre-commit: formatting check failed. Run 'make fmt', re-stage, and commit again"
+		echo "            (or 'git commit --no-verify' to bypass)."
+	} >&2
+	exit 1
+fi
