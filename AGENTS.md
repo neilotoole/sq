@@ -252,12 +252,13 @@ Do not add AI / Claude attribution text to commits or PRs.
 `sq` is driver-oriented: each supported data source type is implemented as a
 driver under [`drivers/`](./drivers/). When adding or modifying a driver,
 read the
-["New driver implementations"](./CONTRIBUTING.md#new-driver-implementations)
-section of `CONTRIBUTING.md`. It covers package structure, type mapping,
-dialect configuration, test handles, and the SQL-vs-document driver split.
+["New driver implementations"](./drivers/README.md#new-driver-implementations)
+guide in [`drivers/README.md`](./drivers/README.md). It covers package structure,
+type mapping, dialect configuration, test handles, and the SQL-vs-document
+driver split.
 
 **Adding a new driver type:** you must complete the
-[driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist) in the same
+[driver ship checklist](./drivers/README.md#driver-ship-checklist) in the same
 PR, including [`site/content/en/docs/drivers/`](site/content/en/docs/drivers/)
 and [`skills/sq/`](skills/sq/SKILL.md) (`SKILL.md` driver table plus
 `references/{driver}.md`). Do not mark driver work done until those files are
@@ -279,7 +280,7 @@ This repo ships [Agent Skills](https://agentskills.io/specification) for
 
 Adding a new driver type also requires updating
 [`skills/sq/`](skills/sq/SKILL.md); see [Drivers](#drivers) and the
-[driver ship checklist](./CONTRIBUTING.md#driver-ship-checklist).
+[driver ship checklist](./drivers/README.md#driver-ship-checklist).
 
 Claude Code discovers the same tree via [`.claude/skills`](.claude/skills)
 (symlink to `.agents/skills`). Cursor and Codex load `.agents/skills/`
