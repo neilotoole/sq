@@ -311,10 +311,6 @@ type Metadata struct {
 	// effectively has a single table, such as CSV.
 	Monotable bool `json:"monotable" yaml:"monotable"`
 
-	// DefaultPort is the default port that a driver connects on. A
-	// value <= 0 indicates not applicable.
-	DefaultPort int `json:"default_port" yaml:"default_port"`
-
 	// IsEmbeddedSQL is true if this is an embedded (in-process, no separate
 	// server or network endpoint) SQL driver, such as SQLite or DuckDB. It is
 	// false for external SQL engines that connect over the network, including
@@ -322,6 +318,10 @@ type Metadata struct {
 	// drivers. An embedded SQL driver is exactly an [IsSQL] driver with no
 	// network endpoint.
 	IsEmbeddedSQL bool `json:"is_embedded_sql" yaml:"is_embedded_sql"`
+
+	// DefaultPort is the default port that a driver connects on. A
+	// value <= 0 indicates not applicable.
+	DefaultPort int `json:"default_port" yaml:"default_port"`
 }
 
 // OpeningPing is a standardized mechanism to ping db using
