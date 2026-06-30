@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Pre-commit formatting gate: runs `dprint check` on staged files, mirroring the
-# `Format` CI job (dprint owns markdown, JSON, YAML, TOML, SCSS/CSS, Go, JS).
+# Pre-commit formatting gate: runs `dprint check` on staged files. This is the
+# dprint check from the `Format` CI job (which also runs biome lint; this hook
+# covers dprint only). dprint owns markdown, JSON, YAML, TOML, SCSS/CSS, Go, JS.
 # Catches the common "edited a workflow/JSON file, forgot `make fmt`" mistake
 # before it reaches CI.
 #
@@ -32,8 +33,9 @@ fi
 
 # dprint intersects the given paths with its config includes/excludes, so paths
 # it doesn't manage are ignored; --allow-no-files avoids erroring when none of
-# the staged paths are dprint-managed.
-if ! bunx dprint check --allow-no-files "${staged[@]}"; then
+# the staged paths are dprint-managed. `--` ends option parsing so a path that
+# begins with `-` isn't mistaken for a flag.
+if ! bunx dprint check --allow-no-files -- "${staged[@]}"; then
 	{
 		echo
 		echo "pre-commit: formatting check failed. Run 'make fmt', re-stage, and commit again"

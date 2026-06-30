@@ -36,7 +36,7 @@ endif
 
 .PHONY: help
 help: ## Print this help listing (the default target).
-	@awk -F':.*## ' '/^[a-zA-Z0-9_-]+:.*## /{printf "  \033[36m%-26s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk -F':.*## ' '/^[a-zA-Z0-9_-]+:.*## /{printf "  \033[36m%-28s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # ---- Build, test, install -------------------------------------------------
 
@@ -76,6 +76,10 @@ init: deps ## One-time clone setup: install deps and activate the git hooks.
 	@# formatting check runs. core.hooksPath is per-clone local config (git won't
 	@# run cloned hooks until told to), so this is idempotent and run once per
 	@# clone. Bypass a hook for a single commit with `git commit --no-verify`.
+	@cur=$$(git config --get core.hooksPath 2>/dev/null || true); \
+		if [ -n "$$cur" ] && [ "$$cur" != ".githooks" ]; then \
+			echo "warning: replacing existing core.hooksPath ($$cur) with .githooks"; \
+		fi
 	@git config core.hooksPath .githooks
 	@echo "Activated git hooks (.githooks). Bypass a hook with 'git commit --no-verify'."
 
@@ -99,9 +103,10 @@ fmt: ## Format the whole repo (Go imports + dprint for everything else).
 	@bunx dprint fmt
 
 .PHONY: fmt-check
-fmt-check: ## Verify formatting repo-wide (read-only; mirrors the Format CI job).
-	@# Same check as the Format CI job and the .githooks/pre-commit hook. See
-	@# dprint.json for the plugin set and includes/excludes.
+fmt-check: ## Check dprint formatting repo-wide (read-only; does not modify files).
+	@# This is the dprint half of the Format CI job (which also runs biome lint;
+	@# use `make lint` for the full set). The .githooks/pre-commit hook runs this
+	@# same dprint check, but only on staged files. See dprint.json for plugins.
 	@bunx dprint check --list-different
 
 .PHONY: lint

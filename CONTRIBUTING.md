@@ -103,12 +103,16 @@ complex project, with generated code, [CGo](https://go.dev/wiki/cgo)
 (due to embedded SQLite), test containers, related docs [website](https://sq.io), and a bunch of other
 stuff. Therefore, if for no other reason, it is recommended to use the Makefile when developing locally.
 
+Run `make help` (the default target) to list every target with a description.
+Note that a bare `make` now prints that help; it previously ran `make all`.
+
 ## General advice
 
 After cloning, run `make init` once. It installs dependencies (`bun` packages
 and Go modules) and activates the repo's git hooks, including a `pre-commit`
-check that runs `dprint` formatting on staged files (mirroring the `Format` CI
-job; bypass a single commit with `git commit --no-verify`).
+hook that runs a `dprint` formatting check on staged files (it does not modify
+files; it is the dprint check the `Format` CI job runs). Bypass a single commit
+with `git commit --no-verify`.
 
 Then, as a kick-off point, run `make all`. This will generate code, format,
 lint, run tests, build the local binary to `dist/`, and install a local `sq`
