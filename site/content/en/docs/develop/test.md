@@ -101,9 +101,9 @@ For example (in this case, the Docker containers are running on a remote server)
 export SQ_TEST_SRC__SAKILA_PG=postgres://sakila:p_ssW0rd@192.168.30.133/sakila
 export SQ_TEST_SRC__SAKILA_MY=mysql://sakila:p_ssW0rd@192.168.30.129/sakila
 export SQ_TEST_SRC__SAKILA_MS=sqlserver://sakila:p_ssW0rd@192.168.30.137?database=sakila
-export SQ_TEST_SRC__SAKILA_CH=clickhouse://sakila:p_ssW0rd@192.168.30.138/sakila
+export SQ_TEST_SRC__SAKILA_CH=clickhouse://sakila:p_ssW0rd@192.168.30.138:9000?database=sakila
 export SQ_TEST_SRC__SAKILA_OR=oracle://sakila:p_ssW0rd@192.168.30.139:1521/SAKILA
-export SQ_TEST_SRC__SAKILA_RQ=http://192.168.30.140:4001
+export SQ_TEST_SRC__SAKILA_RQ=rqlite://sakila:p_ssW0rd@192.168.30.140:4001?disableClusterDiscovery=true
 ```
 
 The easiest way to get these exports is to run `./sakila-start-local.sh`, which starts a
