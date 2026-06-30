@@ -78,7 +78,7 @@ init: deps ## One-time clone setup: install deps and activate the git hooks.
 	@# clone. Bypass a hook for a single commit with `git commit --no-verify`.
 	@cur=$$(git config --get core.hooksPath 2>/dev/null || true); \
 		if [ -n "$$cur" ] && [ "$$cur" != ".githooks" ]; then \
-			echo "warning: replacing existing core.hooksPath ($$cur) with .githooks"; \
+			echo "warning: replacing existing core.hooksPath ($$cur) with .githooks" >&2; \
 		fi
 	@git config core.hooksPath .githooks
 	@echo "Activated git hooks (.githooks). Bypass a hook with 'git commit --no-verify'."
