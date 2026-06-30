@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq"
@@ -393,17 +394,14 @@ func TestDatabaseTypeJSON(t *testing.T) {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
 
-			th, src, _, _, db := testh.NewWith(t, handle)
+			th, src, _, grip, db := testh.NewWith(t, handle)
 
 			// MySQL added the JSON type in 5.7; skip on older servers
 			// (e.g. the 5.6 image in the weekly version sweep).
-			md, err := th.SourceMetadata(src)
+			v, err := grip.DBSemver(th.Context)
 			require.NoError(t, err)
-			var major, minor int
-			// Ignore the parse error: zero values cause a safe skip.
-			_, _ = fmt.Sscanf(md.DBVersion, "%d.%d", &major, &minor)
-			if major < 5 || (major == 5 && minor < 7) {
-				t.Skipf("MySQL %s does not support the JSON type", md.DBVersion)
+			if semver.Compare(v, "v5.7") < 0 {
+				t.Skipf("MySQL %s does not support the JSON type", v)
 			}
 
 			// replace the canonical table name
