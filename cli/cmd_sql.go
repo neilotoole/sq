@@ -32,13 +32,13 @@ source.`,
   $ sq sql 'SELECT * FROM actor'
 
   # Select from a specified source
-  $ sq sql --src=@sakila_pg12 'SELECT * FROM actor'
+  $ sq sql --src=@sakila_pg 'SELECT * FROM actor'
 
-  # Drop table @sakila_pg12.actor
-  $ sq sql --src=@sakila_pg12 'DROP TABLE actor'
+  # Drop table @sakila_pg.actor
+  $ sq sql --src=@sakila_pg 'DROP TABLE actor'
 
-  # Select from active source and write results to @sakila_ms17.actor
-  $ sq sql 'SELECT * FROM actor' --insert=@sakila_ms17.actor`,
+  # Select from active source and write results to @sakila_ms.actor
+  $ sq sql 'SELECT * FROM actor' --insert=@sakila_ms.actor`,
 	}
 
 	addQueryCmdFlags(cmd)

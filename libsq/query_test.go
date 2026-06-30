@@ -177,7 +177,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) { //nolint:thelper
 // occurrence of the string "@sakila." is replaced with the
 // actual handle of each source. E.g:
 //
-//	"@sakila | .actor"  -->  "@sakila_pg12 | .actor"
+//	"@sakila | .actor"  -->  "@sakila_pg | .actor"
 func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 	t.Helper()
 
