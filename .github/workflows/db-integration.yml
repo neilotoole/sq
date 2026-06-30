@@ -14,32 +14,23 @@ on:
         type: string
   workflow_dispatch:
     inputs:
-      postgres: {
-        description: "postgres tags (comma-sep; blank=skip)",
-        type: string,
-        default: "latest",
-      }
-      mysql: { description: "mysql tags (comma-sep; blank=skip)", type: string, default: "latest" }
+      # Default "" so a blank engine is skipped (see the select(.value != "")
+      # filter in build-db-matrix.sh). "Run everything at :latest" is the
+      # nightly scheduler's job; a manual dispatch names the engines it wants.
+      postgres: { description: "postgres tags (comma-sep; blank=skip)", type: string, default: "" }
+      mysql: { description: "mysql tags (comma-sep; blank=skip)", type: string, default: "" }
       sqlserver: {
         description: "sqlserver tags (comma-sep; blank=skip)",
         type: string,
-        default: "latest",
+        default: "",
       }
       clickhouse: {
         description: "clickhouse tags (comma-sep; blank=skip)",
         type: string,
-        default: "latest",
+        default: "",
       }
-      oracle: {
-        description: "oracle tags (comma-sep; blank=skip)",
-        type: string,
-        default: "latest",
-      }
-      rqlite: {
-        description: "rqlite tags (comma-sep; blank=skip)",
-        type: string,
-        default: "latest",
-      }
+      oracle: { description: "oracle tags (comma-sep; blank=skip)", type: string, default: "" }
+      rqlite: { description: "rqlite tags (comma-sep; blank=skip)", type: string, default: "" }
       scope: { description: "full or narrow", type: choice, options: [full, narrow], default: full }
 
 env:
