@@ -116,16 +116,6 @@ func SQLLatest() []string {
 	return []string{SL3, Duck, Pg, My, MS, CH, Ora}
 }
 
-// PgAll returns the postgres handles. Version coverage is a CI matrix
-// dimension now, so this is a single handle.
-func PgAll() []string { return []string{Pg} }
-
-// MyAll returns the MySQL handles.
-func MyAll() []string { return []string{My} }
-
-// MSAll returns the SQL Server handles.
-func MSAll() []string { return []string{MS} }
-
 // Facts regarding the sakila database.
 const (
 	TblActor          = "actor"
