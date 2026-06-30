@@ -71,6 +71,11 @@ func SQLAllExternal() []string {
 // (file-based), but are not SQL drivers and are excluded here. Note that
 // rqlite, though SQLite-backed, is external: it is reached over the network.
 // SQLEmbedded and [SQLAllExternal] partition [SQLAll].
+//
+// This is a deliberately static, handle-level convenience for the test matrix.
+// The production source of truth for the embedded property is the
+// driver.Metadata.IsEmbeddedSQL field, set by each driver impl; the handles
+// here mirror it for SQLite and DuckDB.
 func SQLEmbedded() []string {
 	return []string{SL3, Duck}
 }

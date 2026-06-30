@@ -128,10 +128,11 @@ func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any,
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        drivertype.SQLite,
-		Description: "SQLite",
-		Doc:         "https://github.com/mattn/go-sqlite3",
-		IsSQL:       true,
+		Type:          drivertype.SQLite,
+		Description:   "SQLite",
+		Doc:           "https://github.com/mattn/go-sqlite3",
+		IsSQL:         true,
+		IsEmbeddedSQL: true,
 	}
 }
 

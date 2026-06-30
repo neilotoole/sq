@@ -17,6 +17,16 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+// TestDriverMetadata verifies the static driver metadata. DuckDB is an
+// embedded SQL driver.
+func TestDriverMetadata(t *testing.T) {
+	md := (&driveri{}).DriverMetadata()
+	require.Equal(t, drivertype.DuckDB, md.Type)
+	require.True(t, md.IsSQL)
+	require.True(t, md.IsEmbeddedSQL)
+	require.LessOrEqual(t, md.DefaultPort, 0)
+}
+
 func TestMungeLocation(t *testing.T) {
 	cwd, err := os.Getwd()
 	require.NoError(t, err)

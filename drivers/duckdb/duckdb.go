@@ -92,10 +92,11 @@ func (d *driveri) LocationShape() driver.LocationShape {
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        drivertype.DuckDB,
-		Description: "DuckDB",
-		Doc:         "https://duckdb.org",
-		IsSQL:       true,
+		Type:          drivertype.DuckDB,
+		Description:   "DuckDB",
+		Doc:           "https://duckdb.org",
+		IsSQL:         true,
+		IsEmbeddedSQL: true,
 	}
 }
 

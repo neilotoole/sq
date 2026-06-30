@@ -52,6 +52,9 @@ func TestDriverMetadata(t *testing.T) {
 	require.Equal(t, "rqlite", md.Description)
 	require.Equal(t, "https://rqlite.io", md.Doc)
 	require.True(t, md.IsSQL)
+	// rqlite is SQLite-backed but reached over HTTP, so it is external, not
+	// embedded.
+	require.False(t, md.IsEmbeddedSQL)
 	require.Equal(t, defaultPort, md.DefaultPort)
 }
 

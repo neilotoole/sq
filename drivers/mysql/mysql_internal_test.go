@@ -73,6 +73,7 @@ func TestDriverMetadata(t *testing.T) {
 	md := d.DriverMetadata()
 	require.Equal(t, drivertype.MySQL, md.Type)
 	require.True(t, md.IsSQL)
+	require.False(t, md.IsEmbeddedSQL)
 	require.Equal(t, 3306, md.DefaultPort)
 }
 
