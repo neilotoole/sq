@@ -230,4 +230,5 @@ func TestDBSemver(t *testing.T) {
 	v, err := grip.DBSemver(th.Context)
 	require.NoError(t, err)
 	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
+	require.NotEqual(t, "v0.0.0", v, "want a real engine version, got degenerate %q", v)
 }
