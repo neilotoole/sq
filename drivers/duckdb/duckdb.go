@@ -764,6 +764,11 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return getSourceMetadata(ctx, g.src, g.db, noSchema)
 }
 
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	return g.drvr.DBSemver(ctx, g.db)
+}
+
 // TableMetadata implements driver.Grip.
 func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	schemaName, err := g.drvr.CurrentSchema(ctx, g.db)

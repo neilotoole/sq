@@ -37,6 +37,10 @@ type Grip interface {
 	// TableMetadata returns metadata for the specified table in the Grip.
 	TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error)
 
+	// DBSemver returns the database server version as a canonical semver
+	// string (e.g. "v8.0.36"). See SQLDriver.DBSemver.
+	DBSemver(ctx context.Context) (string, error)
+
 	// Close is invoked to close and release any underlying resources.
 	Close() error
 }
