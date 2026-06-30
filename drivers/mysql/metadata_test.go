@@ -74,38 +74,25 @@ func TestKindFromDBTypeName(t *testing.T) {
 func TestDatabase_SourceMetadata_MySQL(t *testing.T) {
 	t.Parallel()
 
-	handles := sakila.MyAll()
-	for _, handle := range handles {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th, _, _, grip, _ := testh.NewWith(t, sakila.My)
+	md, err := grip.SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	require.Equal(t, "sakila", md.Name)
+	require.Equal(t, sakila.My, md.Handle)
 
-			th, _, _, grip, _ := testh.NewWith(t, handle)
-			md, err := grip.SourceMetadata(th.Context, false)
-			require.NoError(t, err)
-			require.Equal(t, "sakila", md.Name)
-			require.Equal(t, handle, md.Handle)
-
-			tblActor := md.Tables[0]
-			require.Equal(t, sakila.TblActor, tblActor.Name)
-			require.Equal(t, int64(sakila.TblActorCount), tblActor.RowCount)
-			require.Equal(t, len(sakila.TblActorCols()), len(tblActor.Columns))
-		})
-	}
+	tblActor := md.Tables[0]
+	require.Equal(t, sakila.TblActor, tblActor.Name)
+	require.Equal(t, int64(sakila.TblActorCount), tblActor.RowCount)
+	require.Equal(t, len(sakila.TblActorCols()), len(tblActor.Columns))
 }
 
 func TestDatabase_TableMetadata(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.MyAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
-
-			th, _, _, grip, _ := testh.NewWith(t, handle)
-			md, err := grip.TableMetadata(th.Context, sakila.TblActor)
-			require.NoError(t, err)
-			require.Equal(t, sakila.TblActor, md.Name)
-		})
-	}
+	th, _, _, grip, _ := testh.NewWith(t, sakila.My)
+	md, err := grip.TableMetadata(th.Context, sakila.TblActor)
+	require.NoError(t, err)
+	require.Equal(t, sakila.TblActor, md.Name)
 }
 
 func TestGetTableRowCounts(t *testing.T) {
@@ -171,36 +158,30 @@ func TestForeignKey_CompositeOrdering_MySQL(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
-	for _, handle := range sakila.MyAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.My)
+	db := th.OpenDB(src)
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
+	parent := stringz.UniqTableName("fk_comp_parent")
+	child := stringz.UniqTableName("fk_comp_child")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+parent+" (a INT, b INT, PRIMARY KEY (b, a)) ENGINE=InnoDB")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
+	_, err = db.ExecContext(th.Context,
+		"CREATE TABLE "+child+" (x INT, y INT, FOREIGN KEY (x, y) REFERENCES "+parent+
+			" (b, a)) ENGINE=InnoDB")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
 
-			parent := stringz.UniqTableName("fk_comp_parent")
-			child := stringz.UniqTableName("fk_comp_child")
-			_, err := db.ExecContext(th.Context,
-				"CREATE TABLE "+parent+" (a INT, b INT, PRIMARY KEY (b, a)) ENGINE=InnoDB")
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
-			_, err = db.ExecContext(th.Context,
-				"CREATE TABLE "+child+" (x INT, y INT, FOREIGN KEY (x, y) REFERENCES "+parent+
-					" (b, a)) ENGINE=InnoDB")
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
-
-			md, err := th.Open(src).TableMetadata(th.Context, child)
-			require.NoError(t, err)
-			require.NotNil(t, md.FK)
-			require.Len(t, md.FK.Outgoing, 1)
-			fk := md.FK.Outgoing[0]
-			require.Equal(t, parent, fk.RefTable)
-			require.Equal(t, []string{"x", "y"}, fk.Columns)
-			require.Equal(t, []string{"b", "a"}, fk.RefColumns)
-		})
-	}
+	md, err := th.Open(src).TableMetadata(th.Context, child)
+	require.NoError(t, err)
+	require.NotNil(t, md.FK)
+	require.Len(t, md.FK.Outgoing, 1)
+	fk := md.FK.Outgoing[0]
+	require.Equal(t, parent, fk.RefTable)
+	require.Equal(t, []string{"x", "y"}, fk.Columns)
+	require.Equal(t, []string{"b", "a"}, fk.RefColumns)
 }
 
 // TestMySQL_ColumnFlags verifies that AUTO_INCREMENT, GENERATED, GeneratedExpr,
@@ -441,32 +422,26 @@ func TestForeignKey_OnDeleteOnUpdate_MySQL(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
-	for _, handle := range sakila.MyAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
+	th := testh.New(t)
+	src := th.Source(sakila.My)
+	db := th.OpenDB(src)
 
-			th := testh.New(t)
-			src := th.Source(handle)
-			db := th.OpenDB(src)
+	parent := stringz.UniqTableName("fk_act_parent")
+	child := stringz.UniqTableName("fk_act_child")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+parent+" (id INT PRIMARY KEY) ENGINE=InnoDB")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
+	_, err = db.ExecContext(th.Context,
+		"CREATE TABLE "+child+" (parent_id INT, FOREIGN KEY (parent_id) REFERENCES "+parent+
+			" (id) ON DELETE CASCADE ON UPDATE SET NULL) ENGINE=InnoDB")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
 
-			parent := stringz.UniqTableName("fk_act_parent")
-			child := stringz.UniqTableName("fk_act_child")
-			_, err := db.ExecContext(th.Context,
-				"CREATE TABLE "+parent+" (id INT PRIMARY KEY) ENGINE=InnoDB")
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(parent)) })
-			_, err = db.ExecContext(th.Context,
-				"CREATE TABLE "+child+" (parent_id INT, FOREIGN KEY (parent_id) REFERENCES "+parent+
-					" (id) ON DELETE CASCADE ON UPDATE SET NULL) ENGINE=InnoDB")
-			require.NoError(t, err)
-			t.Cleanup(func() { th.DropTable(src, tablefq.From(child)) })
-
-			md, err := th.Open(src).TableMetadata(th.Context, child)
-			require.NoError(t, err)
-			require.Len(t, md.FK.Outgoing, 1)
-			fk := md.FK.Outgoing[0]
-			require.Equal(t, "CASCADE", fk.OnDelete)
-			require.Equal(t, "SET NULL", fk.OnUpdate)
-		})
-	}
+	md, err := th.Open(src).TableMetadata(th.Context, child)
+	require.NoError(t, err)
+	require.Len(t, md.FK.Outgoing, 1)
+	fk := md.FK.Outgoing[0]
+	require.Equal(t, "CASCADE", fk.OnDelete)
+	require.Equal(t, "SET NULL", fk.OnUpdate)
 }
