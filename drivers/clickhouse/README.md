@@ -370,13 +370,18 @@ these via `ExecContext()` directly, with no special handling needed.
 ```bash
 cd drivers/clickhouse
 
-go test -v -short                    # Unit tests (no DB required)
-./testutils/test-integration.sh      # Integration tests (requires Docker)
-./testutils/test-sq-cli.sh           # CLI end-to-end tests
+# Unit tests only (no database)
+go test -v -short
+
+# Integration tests: start sakiladb/clickhouse, then point the harness at it
+docker run -d -p 9000:9000 sakiladb/clickhouse:latest
+export SQ_TEST_SRC__SAKILA_CH='clickhouse://sakila:p_ssW0rd@localhost:9000/sakila'
+go test -v
 ```
 
-See **[testutils/Testing.md](./testutils/Testing.md)** for detailed
-instructions.
+The ClickHouse integration tests run against the shared `@sakila_ch` test
+handle; see [`../README.md`](../README.md#test-handles) for the test-handle
+setup used across drivers.
 
 ## Deferred Features (Post-MVP)
 
