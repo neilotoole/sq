@@ -333,6 +333,8 @@ func createTypeTestTable(th *testh.Helper, src *source.Source, withData bool) (n
 // the returned data matches the inserted data, including verifying
 // that NULL is handled correctly.
 func TestDatabaseTypes(t *testing.T) {
+	t.Parallel()
+
 	const wantRowCount = 3
 
 	th := testh.New(t)

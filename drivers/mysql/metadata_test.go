@@ -151,9 +151,10 @@ func TestIndexes_ExpressionArity_MySQL(t *testing.T) {
 // (x, y) ascending so any loader bug that sorts either side
 // independently — or pairs by name rather than by position — is
 // caught (an alphabetic-on-both-sides fixture would let such a bug
-// slip past). Looped across MyAll() because INFORMATION_SCHEMA
-// column casing has historically differed between MySQL 5.6/5.7 and
-// 8.0 — a real regression vector for this loader.
+// slip past). INFORMATION_SCHEMA column casing has historically
+// differed between MySQL versions (5.6/5.7 vs 8.0), a real regression
+// vector for this loader; the test runs against whichever MySQL version
+// the CI matrix targets (gh #958).
 func TestForeignKey_CompositeOrdering_MySQL(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -413,11 +414,11 @@ func TestMySQL_ViewDefinition(t *testing.T) {
 // TestForeignKey_OnDeleteOnUpdate_MySQL pins that the loader populates
 // OnDelete / OnUpdate from INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 // with the explicit non-default actions ("CASCADE" / "SET NULL").
-// Looped across MyAll() — MySQL only enforces FKs under InnoDB (the
-// DDL pins ENGINE=InnoDB explicitly) and the REFERENTIAL_CONSTRAINTS
-// view's column casing has shifted between 5.6/5.7 and 8.0, so a
-// per-version regression in the loader's column-name unmarshaling
-// would surface here.
+// MySQL only enforces FKs under InnoDB (the DDL pins ENGINE=InnoDB
+// explicitly), and the REFERENTIAL_CONSTRAINTS view's column casing has
+// shifted between MySQL versions (5.6/5.7 vs 8.0), so a per-version
+// regression in the loader's column-name unmarshaling would surface
+// here, against whichever version the CI matrix runs (gh #958).
 func TestForeignKey_OnDeleteOnUpdate_MySQL(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
