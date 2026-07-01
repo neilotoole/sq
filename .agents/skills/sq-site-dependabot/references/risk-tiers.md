@@ -23,8 +23,6 @@ Classify every open site PR before ordering merges. Read this file during
 
 ## T2 — Medium (review changelog)
 
-- Biome or dprint **minor** updates or new rules that may fail the Format gate
-  (`make lint` / `make fmt-check`)
 - `linkinator` or test-runner bumps
 - Netlify plugin version bumps (`@netlify/plugin-lighthouse`, sitemap submit)
 
@@ -34,9 +32,8 @@ Lighthouse is ambiguous.
 
 ## T3 — High (hold or dedicated migration PR)
 
-- **Major** Biome or dprint migrations (config-schema changes)
 - Hugo/Doks major upgrades, theme swaps, or `bunfig` / build pipeline changes
-- Anything that rewrites `site/config/`, `dprint.json` / `biome.json`, or CI scripts
+- Anything that rewrites `site/config/` or CI scripts
 
 **Action:** Do **not** merge via bulk Dependabot flow. Close or leave open;
 open a focused migration PR with human review and expanded test plan.
