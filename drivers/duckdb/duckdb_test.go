@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -38,4 +39,13 @@ func TestSLQ_BasicSelect(t *testing.T) {
 	sink, err := th.QuerySLQ(`@sakila_duck | .actor | .first_name | .[0:5]`, nil)
 	require.NoError(t, err)
 	require.Len(t, sink.Recs, 5)
+}
+
+func TestDBSemver(t *testing.T) {
+	t.Parallel()
+	th, _, _, grip, _ := testh.NewWith(t, sakila.Duck)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
+	require.NotEqual(t, "v0.0.0", v, "want a real engine version, got degenerate %q", v)
 }

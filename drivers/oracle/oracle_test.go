@@ -14,6 +14,7 @@ import (
 	_ "github.com/sijms/go-ora/v2"     // Registers database/sql driver name "oracle".
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/oracle"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -26,6 +27,9 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 const (
@@ -642,4 +646,14 @@ func TestTableMetadata_DispatchByObjectType(t *testing.T) {
 		assert.Contains(t, err.Error(), "does not exist",
 			"missing-object error should be descriptive, got: %v", err)
 	})
+}
+
+func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+	th, _, _, grip, _ := testh.NewWith(t, sakila.Ora)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
+	require.NotEqual(t, "v0.0.0", v, "want a real engine version, got degenerate %q", v)
 }
