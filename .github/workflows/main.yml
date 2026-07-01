@@ -175,7 +175,9 @@ jobs:
 
       - name: shellcheck
         run: |
-          shellcheck ./install.sh scripts/fmt-go-imports.sh
+          shellcheck ./install.sh scripts/fmt-go-imports.sh scripts/build-db-matrix.sh scripts/dedup-db-matrix.sh scripts/build-db-matrix_test.sh
+          # Hermetic unit test for the shared DB-matrix builder (no network).
+          bash scripts/build-db-matrix_test.sh
 
       - name: Set up Go
         uses: actions/setup-go@v6

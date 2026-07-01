@@ -4,7 +4,13 @@ on:
   schedule:
     - cron: "0 4 * * *" # nightly: every engine @ :latest, full scope
     - cron: "0 5 * * 1" # weekly (Mon): full version sweep, narrow scope
-  workflow_dispatch: {} # manual: behaves like the nightly run
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "latest (every engine @ latest, full scope) or sweep (every published tag, narrow scope)"
+        type: choice
+        options: [latest, sweep]
+        default: latest
 
 jobs:
   select:
@@ -16,9 +22,18 @@ jobs:
       - uses: actions/checkout@v7
       - id: sel
         shell: bash
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          MODE: ${{ github.event.inputs.mode }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event.schedule }}" = '0 5 * * 1' ]; then
+          # The weekly cron and a manual "sweep" dispatch both run the full
+          # version sweep (every published tag, narrow scope). Everything else —
+          # the nightly cron and the default manual dispatch — runs every engine
+          # at :latest, full scope. "latest" is derived here (not stored in the
+          # config's tags), so it never duplicates the newest numbered tag in
+          # the sweep.
+          if [ "$SCHEDULE" = '0 5 * * 1' ] || [ "$MODE" = 'sweep' ]; then
             selection=$(jq -c 'to_entries | map({key:.key, value:.value.tags}) | from_entries' .github/sakila-db.json)
             scope=narrow
           else

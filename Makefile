@@ -113,7 +113,8 @@ fmt-check: ## Check dprint formatting repo-wide (read-only; does not modify file
 lint: deps ## Run linters: golangci-lint, shellcheck, dprint check, biome.
 	go tool -modfile=tools/golangci-lint/go.mod golangci-lint version
 	go tool -modfile=tools/golangci-lint/go.mod golangci-lint run --output.tab.path stdout
-	@shellcheck ./install.sh .githooks/pre-commit
+	@shellcheck ./install.sh .githooks/pre-commit scripts/build-db-matrix.sh scripts/dedup-db-matrix.sh scripts/build-db-matrix_test.sh
+	@bash scripts/build-db-matrix_test.sh
 	@# Repo-wide formatting gate (markdown, JSON, YAML, TOML, SCSS, Go, JS).
 	@bunx dprint check
 	@# Static analysis for site JS (replaces eslint).
