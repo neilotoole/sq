@@ -63,8 +63,7 @@ make fmt      # dprint fmt (plus Go imports)
 make lint     # golangci-lint, shellcheck, dprint check, Biome
 ```
 
-The repo-root [`Format`](../.github/workflows/format.yml) workflow gates this
-and replaced the old ESLint / Stylelint / markdownlint scripts.
+The repo-root [`Format`](../.github/workflows/format.yml) workflow gates this.
 
 ### Content Generation
 
