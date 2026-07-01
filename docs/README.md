@@ -1,4 +1,4 @@
-# sq developer docs
+# sq contributor docs
 
 > [!IMPORTANT]
 > This `docs/` directory documents working **on** `sq` itself (for **contributors
@@ -7,8 +7,9 @@
 > installation) lives on [sq.io](https://sq.io), whose source is under
 > [`site/`](../site); see [`site/README.md`](../site/README.md).
 
-Developer and maintainer documentation for the `sq` codebase. For end-user
-documentation (commands, query syntax, drivers), see [sq.io](https://sq.io).
+Documentation for contributors and maintainers of the `sq` codebase. For
+end-user documentation (commands, query syntax, drivers), see
+[sq.io](https://sq.io).
 
 ## Contents
 

@@ -8,7 +8,7 @@ all shared rules.
 
 > [!IMPORTANT]
 > Before making a significant change, review [`docs/README.md`](./docs/README.md)
-> and the developer docs it links to (architecture, drivers, grammar, workflows,
+> and the contributor docs it links to (architecture, drivers, grammar, workflows,
 > Sakila, releasing). Read the ones relevant to your task before you start, and
 > if your change makes any of them inaccurate, update them in the same change.
 
@@ -29,7 +29,7 @@ task:
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md): full contributor guide (tooling,
   `Makefile` usage, driver implementation patterns, test handles,
   `CHANGELOG.md` format).
-- [`docs/README.md`](./docs/README.md): index of the developer docs under
+- [`docs/README.md`](./docs/README.md): index of the contributor docs under
   [`docs/`](./docs).
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md): Mermaid ERD of core types
   (`Source`, `Driver`, `Grip`, `Registry`, `RecordWriter`, etc.).
