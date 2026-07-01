@@ -6,8 +6,6 @@ draft: false
 images: []
 ---
 
-<!-- markdownlint-disable-next-line MD013 -->
-
 {{< asciicast src="/casts/home-quick.cast" poster="npt:0:25" rows=10 autoPlay=true speed=3 idleTimeLimit=3 >}}
 
 `sq` is a free/libre [open-source](https://github.com/neilotoole/sq) data wrangling swiss-army knife
@@ -24,13 +22,9 @@ sq '@postgres_db | .actor | .first_name, .last_name | .[0:5]'
 {{< tabs name="sq-install" >}}
 {{{< tab name="mac" codelang="shell" >}}brew install sq{{< /tab >}}
 
-<!-- markdownlint-disable-next-line MD013 -->
-
 {{< tab name="linux" codelang="shell" >}}/bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"{{< /tab >}}}
 {{< tab name="win" codelang="shell">}}scoop bucket add sq https://github.com/neilotoole/sq
 scoop install sq{{< /tab >}}}
-
-<!-- markdownlint-disable-next-line MD013 -->
 
 {{% tab name="more" %}}Install options for `apt`, `yum`, `apk`, `pacman`, `yay` on the [install page](/docs/install).{{% /tab %}}}
 {{< /tabs >}}
@@ -92,8 +86,6 @@ extract the table names; pipe the table names
 to `xargs`, invoking `sq` once for each table, outputting a CSV file per table. This snippet
 was tested on macOS.
 
-<!-- markdownlint-disable-next-line MD013 -->
-
 {{< asciicast src="/casts/export-all-tables-to-csv.cast" poster="npt:0:22" idleTimeLimit=0.5 rows=6 speed=2.5 >}}
 
 If you instead wanted to use `sql` mode:
@@ -151,7 +143,5 @@ We can use `sq`'s own [log](/docs/config/#logging) output as an example:
 {"level":"debug","time":"00:07:48.800016","caller":"source/files.go:323:(*Files).Close","msg":"Files.Close invoked: has 1 clean funcs"}
 {"level":"debug","time":"00:07:48.800031","caller":"source/files.go:61:NewFiles.func1","msg":"About to clean fscache from dir: /var/folders/68/qthwmfm93zl4mqdw_7wvsv7w0000gn/T/sq_files_fscache_2273841732"}
 ```
-
-<!-- markdownlint-disable-next-line MD013 -->
 
 {{< asciicast src="/casts/query-jsonl-log-file.cast" poster="npt:0:17" idleTimeLimit=0.5 rows=5 speed=2 >}}

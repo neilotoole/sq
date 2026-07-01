@@ -23,8 +23,7 @@ Classify every open site PR before ordering merges. Read this file during
 
 ## T2 — Medium (review changelog)
 
-- ESLint / Stylelint **minor** updates or new rules that may fail `site-test`
-- `linkinator`, markdownlint, or test-runner bumps
+- `linkinator` or test-runner bumps
 - Netlify plugin version bumps (`@netlify/plugin-lighthouse`, sitemap submit)
 
 **Validation:** Full `make ci`; scan Netlify Lighthouse report on deploy preview
@@ -33,9 +32,8 @@ Lighthouse is ambiguous.
 
 ## T3 — High (hold or dedicated migration PR)
 
-- **Major** ESLint (flat config), Stylelint, or TypeScript-eslint migrations
 - Hugo/Doks major upgrades, theme swaps, or `bunfig` / build pipeline changes
-- Anything that rewrites `site/config/`, `eslint.config.*`, or CI scripts
+- Anything that rewrites `site/config/` or CI scripts
 
 **Action:** Do **not** merge via bulk Dependabot flow. Close or leave open;
 open a focused migration PR with human review and expanded test plan.

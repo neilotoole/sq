@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "sq-markdownlint",
+      "name": "sq-devtools",
       "devDependencies": {
         "@biomejs/biome": "^2.5.1",
         "dprint": "^0.55.0",

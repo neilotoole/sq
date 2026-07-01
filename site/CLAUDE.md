@@ -46,25 +46,24 @@ bun run preview
 
 ### Linting and Testing
 
+The site's own test/lint suite is **link-checking only** (linkinator):
+
 ```bash
-# Run all linters (scripts, styles, markdown, links)
-make site-test
-# or
-bun test
-# or
-bun run lint
-
-# Individual linters
-bun run lint:scripts       # ESLint on assets/js
-bun run lint:styles        # Stylelint on SCSS files
-bun run lint:markdown      # markdownlint on MD files
-bun run lint:links         # Link checker (starts local server)
-
-# Auto-fix
-bun run lint:scripts-fix
-bun run lint:styles-fix
-bun run lint:markdown-fix
+make site-test        # internal link check (bun run test:ci); matches Site CI
+make site-test-full   # + external link crawl (bun run test:full)
+bun run lint:links:internal   # the internal check directly
 ```
+
+Formatting and JS linting are handled **repo-wide**, not by site scripts.
+Markdown, JSON, YAML, TOML, SCSS/CSS, Go, and site JS are formatted by
+**dprint**, and site JS is linted by **Biome**. Run these from the repo root:
+
+```bash
+make fmt      # dprint fmt (plus Go imports)
+make lint     # golangci-lint, shellcheck, dprint check, Biome
+```
+
+The repo-root [`Format`](../.github/workflows/format.yml) workflow gates this.
 
 ### Content Generation
 
