@@ -79,6 +79,11 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return md, nil
 }
 
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	return g.drvr.DBSemver(ctx, g.db)
+}
+
 // SourceMetadata implements driver.Grip.
 func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
@@ -95,6 +100,12 @@ func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.
 	err = g.db.QueryRowContext(ctx, q).Scan(&md.DBVersion, &md.Schema)
 	if err != nil {
 		return nil, errw(err)
+	}
+	if v, semverErr := parseSemver(md.DBVersion); semverErr != nil {
+		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
+			lga.Err, semverErr, lga.Version, md.DBVersion)
+	} else {
+		md.DBSemver = v
 	}
 	progress.Incr(ctx, 1)
 

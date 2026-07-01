@@ -258,6 +258,14 @@ type SQLDriver interface {
 	// is often a scalar such as an int, string, or bool, but can be a nested
 	// map or array.
 	DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error)
+
+	// DBSemver returns the database server version as a canonical semver
+	// string (e.g. "v8.0.36"), comparable via golang.org/x/mod/semver. The
+	// value reflects the running server, parsed from the engine's native
+	// version string; it is distinct from the free-form
+	// metadata.Source.DBVersion display value. An error is returned if the
+	// version cannot be determined or parsed.
+	DBSemver(ctx context.Context, db sqlz.DB) (string, error)
 }
 
 // ReadOnlyConflictDetector is an optional interface implemented by

@@ -74,6 +74,11 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return md, enrichConnError(err, g.src)
 }
 
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	return g.drvr.DBSemver(ctx, g.db)
+}
+
 // Close implements driver.Grip. Subsequent calls to Close are no-op and
 // return the same error.
 func (g *grip) Close() error {

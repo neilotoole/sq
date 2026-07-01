@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -876,6 +878,12 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	if err := db.QueryRowContext(ctx, q).Scan(&md.DBVersion, &md.Schema); err != nil {
 		return nil, errw(err)
 	}
+	if v, semverErr := parseSemver(md.DBVersion); semverErr != nil {
+		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
+			lga.Err, semverErr, lga.Version, md.DBVersion)
+	} else {
+		md.DBSemver = v
+	}
 	md.DBProduct = "rqlite (SQLite " + md.DBVersion + ")"
 	md.Name = md.Schema
 	md.FQName = md.Schema
@@ -1025,4 +1033,30 @@ WHERE type = 'trigger' AND tbl_name = ? ORDER BY name`
 		return nil, errw(err)
 	}
 	return triggers, nil
+}
+
+// semverRx matches a leading dotted-numeric version token (up to three parts).
+var semverRx = regexp.MustCompile(`^v?(\d+(?:\.\d+){0,2})`)
+
+// parseSemver normalizes the SQLite version string rqlite reports to canonical
+// semver (e.g. "v3.45.1").
+func parseSemver(raw string) (string, error) {
+	m := semverRx.FindStringSubmatch(strings.TrimSpace(raw))
+	if m == nil {
+		return "", errz.Errorf("no semver in rqlite version string: %q", raw)
+	}
+	v := semver.Canonical("v" + m[1])
+	if !semver.IsValid(v) {
+		return "", errz.Errorf("invalid rqlite semver %q from %q", v, raw)
+	}
+	return v, nil
+}
+
+// DBSemver implements driver.SQLDriver.
+func (d *driveri) DBSemver(ctx context.Context, db sqlz.DB) (string, error) {
+	var raw string
+	if err := db.QueryRowContext(ctx, "SELECT sqlite_version()").Scan(&raw); err != nil {
+		return "", errw(err)
+	}
+	return parseSemver(raw)
 }

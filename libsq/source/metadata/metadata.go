@@ -49,6 +49,11 @@ type Source struct { //nolint:govet // field alignment
 	// DBVersion is the DB version.
 	DBVersion string `json:"db_version" yaml:"db_version"`
 
+	// DBSemver is the canonical semver form of DBVersion (e.g. "v8.0.36"), when
+	// derivable. It is omitted when DBVersion is not semver-parseable (e.g. an
+	// Oracle version banner). Derived via the driver's parseSemver(DBVersion).
+	DBSemver string `json:"db_semver,omitempty" yaml:"db_semver,omitempty"`
+
 	// User is the username, if applicable.
 	User string `json:"user,omitempty" yaml:"user,omitempty"`
 
@@ -136,6 +141,7 @@ func (s *Source) Clone() *Source {
 		DBDriver:        s.DBDriver,
 		DBProduct:       s.DBProduct,
 		DBVersion:       s.DBVersion,
+		DBSemver:        s.DBSemver,
 		User:            s.User,
 		Size:            clonePtr(s.Size),
 		TableCount:      s.TableCount,

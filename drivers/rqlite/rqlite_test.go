@@ -8,6 +8,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/rqlite"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -2297,4 +2298,18 @@ func TestCopyTable_CopiesIndexesAndTriggers(t *testing.T) {
 		`SELECT count(*) FROM sqlite_master WHERE tbl_name=? AND name IN (?, ?)`,
 		srcName, idxName, trgName).Scan(&srcCompanionCount))
 	require.Equal(t, int64(2), srcCompanionCount)
+}
+
+func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+	th, src, _, grip, _ := testh.NewWith(t, sakila.RQ)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
+	require.NotEqual(t, "v0.0.0", v, "want a real engine version, got degenerate %q", v)
+
+	md, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+	require.Equal(t, v, md.DBSemver, "metadata.Source.DBSemver must match Grip.DBSemver")
 }

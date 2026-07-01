@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
@@ -221,4 +222,18 @@ func TestNumericSchema(t *testing.T) {
 				"Query should return all rows")
 		})
 	}
+}
+
+func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+	th, src, _, grip, _ := testh.NewWith(t, sakila.MS)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
+	require.NotEqual(t, "v0.0.0", v, "want a real engine version, got degenerate %q", v)
+
+	md, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+	require.Equal(t, v, md.DBSemver, "metadata.Source.DBSemver must match Grip.DBSemver")
 }

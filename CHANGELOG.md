@@ -28,6 +28,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#975]: A join across two sources could fail with `database is locked` when
+  the participating tables were copied into the temporary SQLite join database.
+  The copies ran concurrently, but SQLite permits only one writer at a time, so a
+  large table holding the write lock could starve the others past their timeout.
+  The copies into a single-writer join database are now serialized.
+- [#994]: The DuckDB driver now SQL-quotes schema names that contain a double
+  quote in `CreateSchema` and `DropSchema`, completing the `%q` → `stringz.DoubleQuote`
+  identifier-quoting fix that [#976] applied to the table paths.
 - [#976]: The DuckDB driver now SQL-quotes table and column names that contain a
   double quote (e.g. a `we"ird` table created from a CSV header) in the alter, truncate, and
   row-count paths. These paths used Go's `%q` verb, which emits backslash escaping (`"we\"ird"`)
@@ -1758,8 +1766,10 @@ make working with lots of sources much easier.
 [#923]: https://github.com/neilotoole/sq/pull/923
 [#926]: https://github.com/neilotoole/sq/pull/926
 [#968]: https://github.com/neilotoole/sq/issues/968
+[#975]: https://github.com/neilotoole/sq/issues/975
 [#976]: https://github.com/neilotoole/sq/pull/976
 [#986]: https://github.com/neilotoole/sq/issues/986
+[#994]: https://github.com/neilotoole/sq/pull/994
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

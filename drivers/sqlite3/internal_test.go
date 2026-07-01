@@ -23,6 +23,14 @@ func TestDriverMetadata(t *testing.T) {
 	require.LessOrEqual(t, md.DefaultPort, 0)
 }
 
+// TestDialect_SingleWriter verifies that the SQLite dialect is marked
+// single-writer (gh975): its rollback journal serializes writers, so
+// concurrent cross-source join copies otherwise contend on the file lock
+// and fail with "database is locked".
+func TestDialect_SingleWriter(t *testing.T) {
+	require.True(t, (&driveri{}).Dialect().SingleWriter)
+}
+
 var (
 	KindFromDBTypeName = kindFromDBTypeName
 	GetTblRowCounts    = getTblRowCounts
@@ -168,6 +176,31 @@ func TestFilePathFromLocation(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tu.Name(tc.loc), func(t *testing.T) {
 			require.Equal(t, tc.want, filePathFromLocation(tc.loc))
+		})
+	}
+}
+
+func TestParseSemver(t *testing.T) {
+	testCases := []struct {
+		raw     string
+		want    string
+		wantErr bool
+	}{
+		{raw: "3.45.1", want: "v3.45.1"},
+		{raw: "3.46.0", want: "v3.46.0"},
+		{raw: "not-a-version", wantErr: true},
+		{raw: "", wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.raw, func(t *testing.T) {
+			got, err := parseSemver(tc.raw)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }
