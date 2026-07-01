@@ -226,4 +226,4 @@ No Oracle Instant Client is required. The driver speaks Oracle Net in pure Go.
 ## Related
 
 - [Oracle driver README](https://github.com/neilotoole/sq/blob/master/drivers/oracle/README.md)
-- [Sakila test databases](/docs/develop/sakila)
+- [Sakila test databases](https://github.com/neilotoole/sq/blob/master/docs/SAKILA.md)
