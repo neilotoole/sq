@@ -8,8 +8,8 @@ parlance, a "driver" implements a datasource type. See the
 documentation, and [ARCHITECTURE.md](./ARCHITECTURE.md) for a diagram of how
 drivers fit into the overall `sq` architecture.
 
-Some drivers carry their own README with maintainer notes (connection strings,
-local Docker, test envars), e.g. [`oracle/README.md`](../drivers/oracle/README.md) or
+Some drivers carry their own README with maintainer notes (implementation
+quirks, upstream-driver workarounds), e.g.
 [`clickhouse/README.md`](../drivers/clickhouse/README.md).
 
 ## New driver implementations
@@ -175,13 +175,11 @@ func TestSmoke(t *testing.T) {
 Some packages (for example [`libsq/driver`](../libsq/driver)) run extra checks when
 an Oracle Sakila source is configured. Set `SQ_TEST_SRC__SAKILA_OR` to the
 full DSN for the source, as described in
-[`testh/testdata/test.sq.yml`](../testh/testdata/test.sq.yml) and
-[`oracle/README.md`](../drivers/oracle/README.md).
+[`testh/testdata/test.sq.yml`](../testh/testdata/test.sq.yml).
 
 For local Oracle with Sakila sample data, run
 [`sakiladb/oracle`](https://github.com/sakiladb/oracle)
-(`docker run -p 1521:1521 sakiladb/oracle:latest`); see
-[`oracle/README.md`](../drivers/oracle/README.md) for the full local setup.
+(`docker run -p 1521:1521 sakiladb/oracle:latest`).
 Then set `SQ_TEST_SRC__SAKILA_OR` to the full DSN, for example
 `oracle://sakila:p_ssW0rd@localhost:1521/SAKILA`. The Go driver is pure Go
 ([go-ora](https://github.com/sijms/go-ora));
