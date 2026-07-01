@@ -28,6 +28,7 @@ func renderSourceMeta2YAML(sm *metadata.Source) (string, error) {
 		DBDriver   drivertype.Type `json:"db_driver" yaml:"db_driver"`
 		DBProduct  string          `json:"db_product" yaml:"db_product"`
 		DBVersion  string          `json:"db_version" yaml:"db_version"`
+		DBSemver   string          `json:"db_semver,omitempty" yaml:"db_semver,omitempty"`
 		User       string          `json:"user,omitempty" yaml:"user,omitempty"`
 		Size       *int64          `json:"size,omitempty" yaml:"size,omitempty"`
 		TableCount int64           `json:"table_count" yaml:"table_count"`
@@ -44,6 +45,7 @@ func renderSourceMeta2YAML(sm *metadata.Source) (string, error) {
 		DBDriver:   sm.DBDriver,
 		DBProduct:  sm.DBProduct,
 		DBVersion:  sm.DBVersion,
+		DBSemver:   sm.DBSemver,
 		User:       sm.User,
 		Size:       sm.Size,
 		TableCount: sm.TableCount,
