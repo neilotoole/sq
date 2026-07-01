@@ -13,7 +13,7 @@ process (opening issues and PRs).
 The [`Makefile`](../Makefile) is the canonical developer entry point. `make help`
 (the default target) lists every target with a one-line description.
 
-```bash
+```
 make init        # one-time clone setup: install deps + activate git hooks
 make deps        # install dev deps (bun packages: dprint, biome + Go modules)
 make all         # the full local pipeline: gen + fmt + lint + test + build + install
