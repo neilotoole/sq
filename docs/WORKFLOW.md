@@ -84,7 +84,9 @@ can be run on demand from the Actions tab (**Run workflow** →
 doc-only, `site/**`, and `sq.json` (scoop) changes on PRs, but always runs on
 `master` merges and `v*` tags.
 
-**Fast loop** (every PR push and `master` merge; superseded runs are cancelled):
+**Fast loop** (every PR push and `master` merge; on a PR, pushing again cancels
+the superseded run, while `master` merges and release tags always run to
+completion):
 
 - **`lint`**: actionlint (workflow files), shellcheck, Go import-grouping
   check, and golangci-lint.

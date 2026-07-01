@@ -82,7 +82,7 @@ Changing it is a downstream-ripple operation: the parser must be regenerated
 
 ### Public entry points
 
-- [`libsq/ast.Parse(log, input)`](../libsq/ast/parser.go): turn SLQ text
+- [`libsq/ast.Parse(log, input)`](../libsq/ast/ast.go): turn SLQ text
   into an `*ast.AST`. This is what consumers of the language should call.
 - [`libsq.ExecSLQ`](../libsq/libsq.go): the top-level "run a query"
   entry. It calls `ast.Parse` internally.
