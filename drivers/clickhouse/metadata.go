@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/mod/semver"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -16,7 +18,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
-	"golang.org/x/mod/semver"
 )
 
 // getSourceMetadata returns metadata for the ClickHouse source, including

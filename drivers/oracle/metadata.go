@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/mod/semver"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -19,7 +21,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
-	"golang.org/x/mod/semver"
 )
 
 // getSourceMetadata returns metadata for the Oracle source.

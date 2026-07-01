@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 
+	"golang.org/x/mod/semver"
+
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -18,7 +20,6 @@ import (
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
-	"golang.org/x/mod/semver"
 )
 
 // SQL queries for DuckDB system catalog introspection.

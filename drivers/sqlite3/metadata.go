@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 
+	"golang.org/x/mod/semver"
+
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -22,7 +24,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source/metadata"
-	"golang.org/x/mod/semver"
 )
 
 // recordMetaFromColumnTypes returns record.Meta for colTypes.
