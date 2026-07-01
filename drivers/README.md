@@ -14,6 +14,6 @@ The full developer documentation lives under [`docs/`](../docs):
   drivers fit into the overall `sq` architecture.
 - **User docs:** [sq.io drivers section](https://sq.io/docs/drivers).
 
-Some drivers carry their own README with maintainer notes (connection strings,
-local Docker, test env vars), e.g. [`oracle/README.md`](oracle/README.md) or
+Some drivers carry their own README with maintainer notes (implementation
+quirks, upstream-driver workarounds), e.g.
 [`clickhouse/README.md`](clickhouse/README.md).
