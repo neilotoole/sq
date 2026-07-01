@@ -90,6 +90,12 @@ FROM DUAL`
 	default:
 		md.DBVersion = banner
 	}
+	if v, err := parseSemver(md.DBVersion); err != nil {
+		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
+			lga.Err, err, lga.Version, md.DBVersion)
+	} else {
+		md.DBSemver = v
+	}
 
 	// Size: total bytes of segments owned by the connected user (tables,
 	// indexes, LOBs, etc.). USER_SEGMENTS is readable by every user; the

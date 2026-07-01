@@ -137,6 +137,12 @@ GROUP BY database_id) AS total_size_bytes`
 	if err != nil {
 		return nil, errw(err)
 	}
+	if v, err := parseSemver(md.DBVersion); err != nil {
+		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
+			lga.Err, err, lga.Version, md.DBVersion)
+	} else {
+		md.DBSemver = v
+	}
 	progress.Incr(ctx, 1)
 	debugz.DebugSleep(ctx)
 
