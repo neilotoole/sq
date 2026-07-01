@@ -332,8 +332,8 @@ Read more about cross-source joins in the [query guide](https://sq.io/docs/query
 ### Table commands
 
 `sq` provides several handy commands for working with tables:
-[`tbl copy`](/docs/cmd/tbl-copy), [`tbl truncate`](/docs/cmd/tbl-truncate)
-and [`tbl drop`](/docs/cmd/tbl-drop).
+[`tbl copy`](https://sq.io/docs/cmd/tbl-copy), [`tbl truncate`](https://sq.io/docs/cmd/tbl-truncate)
+and [`tbl drop`](https://sq.io/docs/cmd/tbl-drop).
 Note that these commands work directly
 against SQL database sources, using their native SQL commands.
 
