@@ -290,15 +290,16 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 	}
 }
 
-// TestDriver_CreateTable_QuotedIdentifier is a cross-driver regression test for
-// issue #1027: a table or column name containing the dialect's own quote char
-// (e.g. we"ird, or a backtick for MySQL) must be escaped when the write-path
-// builders interpolate it into DDL, and it must still load through the metadata
-// scan path afterward. The builders previously interpolated names raw, so an
-// embedded quote built malformed SQL. This is user-reachable via ingestion,
-// where column names come from file headers (a header like weird"col is
-// untrusted input). Mirrors TestPostgres_QuotedTableName_Metadata (#1025).
-func TestDriver_CreateTable_QuotedIdentifier(t *testing.T) {
+// TestDriver_QuotedIdentifier is a cross-driver regression test for issue
+// #1027: a table or column name containing the dialect's own quote char (e.g.
+// we"ird, or a backtick for MySQL) must be escaped when the write-path builders
+// interpolate it into SQL. It exercises the CreateTable builder, the metadata
+// scan path, and the UPDATE builder in one pass. The builders previously
+// interpolated names raw, so an embedded quote built malformed SQL. This is
+// user-reachable via ingestion, where column names come from file headers (a
+// header like weird"col is untrusted input). Mirrors
+// TestPostgres_QuotedTableName_Metadata (#1025).
+func TestDriver_QuotedIdentifier(t *testing.T) {
 	t.Parallel()
 
 	for _, handle := range sakila.SQLAll() {
@@ -346,6 +347,15 @@ func TestDriver_CreateTable_QuotedIdentifier(t *testing.T) {
 			require.NoError(t, err, "TableMetadata must load for a quoted table name")
 			require.Equal(t, tblName, md.Name)
 			require.Len(t, md.Columns, len(colNames))
+
+			// Exercise the UPDATE write-path builder (buildUpdateStmt) with the
+			// quoted column: insert a row, then update the weird column by id.
+			th.Insert(src, tblName, colNames, []any{int64(1), "before"})
+			execer, err := drvr.PrepareUpdateStmt(th.Context, db, tblName, []string{weird}, "id = ?")
+			require.NoError(t, err, "PrepareUpdateStmt must escape the quoted column %q", weird)
+			require.NoError(t, execer.Munge([]any{"after"}))
+			_, err = execer.Exec(th.Context, "after", int64(1))
+			require.NoError(t, err, "UPDATE must escape the quoted column %q", weird)
 		})
 	}
 }

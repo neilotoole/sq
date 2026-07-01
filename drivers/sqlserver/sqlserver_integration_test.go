@@ -303,6 +303,63 @@ func TestDriver_QuotedView_RowCount_MSSQL(t *testing.T) {
 	require.Equal(t, int64(2), md.RowCount, "row count must load via the COUNT(*) fallback")
 }
 
+// TestDriver_Truncate_QuotedIdentity_MSSQL exercises Truncate's reseed path
+// (DBCC CHECKIDENT) against an identity table whose name contains a double
+// quote. DBCC parses the name out of a string literal, so it must be
+// bracket-quoted before single-quoting (#1027); a raw single-quoted name broke
+// object resolution after the destructive DELETE.
+func TestDriver_Truncate_QuotedIdentity_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	tblName := stringz.UniqTableName(`tr"unc`)
+	// sq's CreateTable does not emit IDENTITY columns, so create the identity
+	// table with raw (properly quoted) DDL.
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+stringz.DoubleQuote(tblName)+` (id INT IDENTITY(1,1) PRIMARY KEY, val NVARCHAR(20))`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+	th.Insert(src, tblName, []string{"val"}, []any{"a"}, []any{"b"})
+
+	affected, err := drvr.Truncate(th.Context, src, tblName, true)
+	require.NoError(t, err, "Truncate+reset must handle a quoted identity table name")
+	require.Equal(t, int64(2), affected)
+}
+
+// TestDriver_AlterTable_QuotedIdentifier_MSSQL exercises the ALTER-family DDL
+// (AlterTableAddColumn, AlterTableRenameColumn, AlterTableRename) against a
+// table and columns whose names contain a double quote (#1027). AddColumn
+// quotes as an identifier; the sp_rename paths bracket-quote the name inside a
+// string literal.
+func TestDriver_AlterTable_QuotedIdentifier_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	tblName := stringz.UniqTableName(`al"ter`)
+	tblDef := schema.NewTable(tblName, []string{`c"1`, "id"}, []kind.Kind{kind.Text, kind.Int})
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tblName, `c"2`, kind.Int),
+		"AlterTableAddColumn must escape quoted table/column names")
+	require.NoError(t, drvr.AlterTableRenameColumn(th.Context, db, tblName, `c"1`, `c"1b`),
+		"AlterTableRenameColumn must escape quoted names")
+
+	newName := stringz.UniqTableName(`al"ter2`)
+	require.NoError(t, drvr.AlterTableRename(th.Context, db, tblName, newName),
+		"AlterTableRename must escape quoted names")
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(newName)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, newName)
+	require.NoError(t, err, "renamed quoted table must load")
+	require.Equal(t, newName, md.Name)
+	require.Len(t, md.Columns, 3, "expected c\"1b, id, c\"2 after the alters")
+}
+
 func TestDriver_PrepareUpdateStmt_MSSQL(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
