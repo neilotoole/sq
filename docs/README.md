@@ -7,10 +7,6 @@
 > installation) lives on [sq.io](https://sq.io), whose source is under
 > [`site/`](../site); see [`site/README.md`](../site/README.md).
 
-Documentation for contributors and maintainers of the `sq` codebase. For
-end-user documentation (commands, query syntax, drivers), see
-[sq.io](https://sq.io).
-
 ## Contents
 
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md): Mermaid ERD of the core types
