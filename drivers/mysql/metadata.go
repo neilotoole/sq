@@ -799,6 +799,12 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *metadata.Source) 
 		md.Size = &size.Int64
 	}
 	md.DBVersion = version
+	if v, semverErr := parseSemver(md.DBVersion); semverErr != nil {
+		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
+			lga.Err, semverErr, lga.Version, md.DBVersion)
+	} else {
+		md.DBSemver = v
+	}
 	md.DBProduct = fmt.Sprintf("%s %s / %s (%s)", versionComment, version, versionOS, versionArch)
 	return nil
 }

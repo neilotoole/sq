@@ -205,6 +205,12 @@ current_setting('server_version'), version(), "current_user"()`
 	if err != nil {
 		return nil, errw(err)
 	}
+	if v, semverErr := parseSemver(md.DBVersion); semverErr != nil {
+		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
+			lga.Err, semverErr, lga.Version, md.DBVersion)
+	} else {
+		md.DBSemver = v
+	}
 	progress.Incr(ctx, 1)
 	debugz.DebugSleep(ctx)
 

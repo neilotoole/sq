@@ -133,6 +133,7 @@ func (w *metadataWriter) writeSourceOverview(buf *bytes.Buffer, md *metadata.Sou
 	addRow("Driver", md.Driver.String())
 	addRow("DB product", md.DBProduct)
 	addRow("DB version", md.DBVersion)
+	addRow("DB semver", md.DBSemver)
 	addRow("Schema", md.Schema)
 	addRow("Catalog", md.Catalog)
 	addRow("Size", stringz.FormatSize(md.Size))

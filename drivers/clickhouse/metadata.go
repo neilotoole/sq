@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -59,6 +60,12 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 	}
 
 	md.DBVersion = version
+	if v, semverErr := parseSemver(md.DBVersion); semverErr != nil {
+		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
+			lga.Err, semverErr, lga.Version, md.DBVersion)
+	} else {
+		md.DBSemver = v
+	}
 	md.DBProduct = "ClickHouse " + version
 	md.Schema = database
 	md.Catalog = database

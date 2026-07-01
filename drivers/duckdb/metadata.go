@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -263,6 +264,12 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		return nil, errw(err)
 	}
 	md.DBVersion = strings.TrimPrefix(ver, "v")
+	if v, semverErr := parseSemver(md.DBVersion); semverErr != nil {
+		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
+			lga.Err, semverErr, lga.Version, md.DBVersion)
+	} else {
+		md.DBSemver = v
+	}
 	md.DBProduct = "DuckDB " + md.DBVersion
 
 	// Fetch current catalog and schema.
