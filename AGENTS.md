@@ -23,8 +23,14 @@ task:
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md): full contributor guide (tooling,
   `Makefile` usage, driver implementation patterns, test handles,
   `CHANGELOG.md` format).
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md): Mermaid ERD of core types
+- [`docs/README.md`](./docs/README.md): index of the developer docs under
+  [`docs/`](./docs).
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md): Mermaid ERD of core types
   (`Source`, `Driver`, `Grip`, `Registry`, `RecordWriter`, etc.).
+- [`docs/DRIVERS.md`](./docs/DRIVERS.md): driver development guide (package
+  structure, type mapping, the driver ship checklist).
+- [`docs/GRAMMAR.md`](./docs/GRAMMAR.md): SLQ query language grammar guide
+  (companion to [`grammar/SLQ.g4`](./grammar/SLQ.g4)).
 - [sq.io](https://sq.io): end-user documentation for commands and query
   syntax.
 
@@ -101,7 +107,7 @@ func TestExample(t *testing.T) {
 
 Integration tests that need a real database should call `tu.SkipShort(t, true)`
 so they're skipped under `go test -short`. See
-[`drivers/README.md`](./drivers/README.md#test-handles) for driver test handle
+[`docs/DRIVERS.md`](./docs/DRIVERS.md#test-handles) for driver test handle
 conventions.
 
 ### Error handling
@@ -252,13 +258,13 @@ Do not add AI / Claude attribution text to commits or PRs.
 `sq` is driver-oriented: each supported data source type is implemented as a
 driver under [`drivers/`](./drivers/). When adding or modifying a driver,
 read the
-["New driver implementations"](./drivers/README.md#new-driver-implementations)
-guide in [`drivers/README.md`](./drivers/README.md). It covers package structure,
+["New driver implementations"](./docs/DRIVERS.md#new-driver-implementations)
+guide in [`docs/DRIVERS.md`](./docs/DRIVERS.md). It covers package structure,
 type mapping, dialect configuration, test handles, and the SQL-vs-document
 driver split.
 
 **Adding a new driver type:** you must complete the
-[driver ship checklist](./drivers/README.md#driver-ship-checklist) in the same
+[driver ship checklist](./docs/DRIVERS.md#driver-ship-checklist) in the same
 PR, including [`site/content/en/docs/drivers/`](site/content/en/docs/drivers/)
 and [`skills/sq/`](skills/sq/SKILL.md) (`SKILL.md` driver table plus
 `references/{driver}.md`). Do not mark driver work done until those files are
@@ -266,7 +272,7 @@ updated; copy an existing `skills/sq/references/*.md` as a template.
 
 For a visual map of the driver interfaces (`driver.Driver`,
 `driver.SQLDriver`, `driver.Grip`, `driver.Registry`) and how they relate to
-the rest of the system, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+the rest of the system, see [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ## Agent skills (contributors)
 
@@ -280,7 +286,7 @@ This repo ships [Agent Skills](https://agentskills.io/specification) for
 
 Adding a new driver type also requires updating
 [`skills/sq/`](skills/sq/SKILL.md); see [Drivers](#drivers) and the
-[driver ship checklist](./drivers/README.md#driver-ship-checklist).
+[driver ship checklist](./docs/DRIVERS.md#driver-ship-checklist).
 
 Claude Code discovers the same tree via [`.claude/skills`](.claude/skills)
 (symlink to `.agents/skills`). Cursor and Codex load `.agents/skills/`

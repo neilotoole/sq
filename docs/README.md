@@ -1,0 +1,29 @@
+# sq developer docs
+
+Developer and maintainer documentation for the `sq` codebase. For end-user
+documentation (commands, query syntax, drivers), see [sq.io](https://sq.io).
+
+## Contents
+
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md): Mermaid ERD of the core types
+  (`Source`, `Driver`, `Grip`, `Registry`, `RecordWriter`, etc.) and how they
+  fit together, plus SQL dialects, the type system, and an extension guide.
+- [`DRIVERS.md`](./DRIVERS.md): driver development guide — package structure,
+  type mapping, dialect configuration, test handles, the
+  [driver ship checklist](./DRIVERS.md#driver-ship-checklist), and the SQL-vs-
+  document driver split.
+- [`GRAMMAR.md`](./GRAMMAR.md): the SLQ query language grammar — how SLQ becomes
+  SQL, the element catalog, the lexical layer, operator precedence, and a
+  grammar-editing checklist. Companion to
+  [`grammar/SLQ.g4`](../grammar/SLQ.g4).
+
+## See also
+
+- [`../README.md`](../README.md): project overview.
+- [`../CONTRIBUTING.md`](../CONTRIBUTING.md): contributor guide (tooling,
+  `Makefile`, CI, `CHANGELOG.md` format).
+- [`../AGENTS.md`](../AGENTS.md): conventions for AI coding assistants.
+- [`../drivers/README.md`](../drivers/README.md): the `drivers/` directory
+  orientation stub.
+- [`../site/README.md`](../site/README.md): the [sq.io](https://sq.io) website
+  source (`site/`) — Hugo/Bun tooling, local dev, and Netlify CI/publish.

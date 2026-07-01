@@ -95,7 +95,7 @@ Use the usual GitHub process to open a PR. Before you do so, please:
 - Merge the latest `master` into your branch: `git merge origin/master`.
 - Run `make all`.
 - If the PR adds a **new driver type**, complete the
-  [driver ship checklist](./drivers/README.md#driver-ship-checklist) (sq.io and `skills/sq/`).
+  [driver ship checklist](./docs/DRIVERS.md#driver-ship-checklist) (sq.io and `skills/sq/`).
 
 ### CI: the fast loop and the slow jobs
 
@@ -180,9 +180,8 @@ Beyond the Keep a Changelog baseline:
 A "driver" implements a datasource type (Postgres, MySQL, CSV, JSON, etc.). The
 full guide — SQL vs document drivers, package structure, type mapping, dialect
 configuration, test handles, and the **driver ship checklist** for adding a new
-driver type — lives in [`drivers/README.md`](./drivers/README.md), next to the
-driver packages it describes.
+driver type — lives in [`docs/DRIVERS.md`](./docs/DRIVERS.md).
 
 When you add a **new driver type**, complete the
-[driver ship checklist](./drivers/README.md#driver-ship-checklist) (code, sq.io
+[driver ship checklist](./docs/DRIVERS.md#driver-ship-checklist) (code, sq.io
 docs, and the end-user agent skill) in the same PR.
