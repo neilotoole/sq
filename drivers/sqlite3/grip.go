@@ -101,9 +101,9 @@ func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.
 	if err != nil {
 		return nil, errw(err)
 	}
-	if v, err := parseSemver(md.DBVersion); err != nil {
+	if v, semverErr := parseSemver(md.DBVersion); semverErr != nil {
 		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
-			lga.Err, err, lga.Version, md.DBVersion)
+			lga.Err, semverErr, lga.Version, md.DBVersion)
 	} else {
 		md.DBSemver = v
 	}
