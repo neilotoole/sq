@@ -21,6 +21,7 @@ type grip struct {
 	src       *source.Source
 	drvr      *driveri
 	drvrw     *enrichingSQLDriver
+	semver    driver.SemverCache
 	closeOnce sync.Once
 }
 
@@ -76,7 +77,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 
 // DBSemver implements driver.Grip.
 func (g *grip) DBSemver(ctx context.Context) (string, error) {
-	return g.drvr.DBSemver(ctx, g.db)
+	return g.semver.Get(func() (string, error) { return g.drvr.DBSemver(ctx, g.db) })
 }
 
 // Close implements driver.Grip. Subsequent calls to Close are no-op and

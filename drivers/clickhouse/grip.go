@@ -36,6 +36,9 @@ type grip struct {
 	// driver-level functionality.
 	drvr *driveri
 
+	// semver memoizes DBSemver.
+	semver driver.SemverCache
+
 	// closeErr stores the error from closing the database connection.
 	closeErr error
 
@@ -71,7 +74,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 
 // DBSemver implements driver.Grip.
 func (g *grip) DBSemver(ctx context.Context) (string, error) {
-	return g.drvr.DBSemver(ctx, g.db)
+	return g.semver.Get(func() (string, error) { return g.drvr.DBSemver(ctx, g.db) })
 }
 
 // TableMetadata implements driver.Grip. It retrieves metadata for a specific
