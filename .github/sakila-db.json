@@ -4,41 +4,41 @@
     "env": "SQ_TEST_SRC__SAKILA_PG",
     "dsn": "postgres://sakila:p_ssW0rd@localhost:5432/sakila",
     "packages": "./drivers/postgres/... ./libsq/... ./cli/... ./testh/...",
-    "tags": ["latest", "17", "12"]
+    "tags": ["18", "17", "16", "15", "14", "13", "12", "11", "10", "9"]
   },
   "mysql": {
     "port": 3306,
     "env": "SQ_TEST_SRC__SAKILA_MY",
     "dsn": "mysql://sakila:p_ssW0rd@localhost:3306/sakila",
     "packages": "./drivers/mysql/... ./libsq/... ./cli/... ./testh/...",
-    "tags": ["latest", "9", "8", "5.7", "5.6"]
+    "tags": ["9", "8", "5.7", "5.6"]
   },
   "sqlserver": {
     "port": 1433,
     "env": "SQ_TEST_SRC__SAKILA_MS",
     "dsn": "sqlserver://sakila:p_ssW0rd@localhost:1433?database=sakila",
     "packages": "./drivers/sqlserver/... ./libsq/... ./cli/... ./testh/...",
-    "tags": ["latest", "2019"]
+    "tags": ["2022", "2019"]
   },
   "clickhouse": {
     "port": 9000,
     "env": "SQ_TEST_SRC__SAKILA_CH",
     "dsn": "clickhouse://sakila:p_ssW0rd@localhost:9000?database=sakila",
     "packages": "./drivers/clickhouse/... ./libsq/... ./cli/... ./testh/...",
-    "tags": ["latest"]
+    "tags": ["25"]
   },
   "oracle": {
     "port": 1521,
     "env": "SQ_TEST_SRC__SAKILA_OR",
     "dsn": "oracle://sakila:p_ssW0rd@localhost:1521/SAKILA",
     "packages": "./drivers/oracle/... ./libsq/... ./cli/... ./testh/...",
-    "tags": ["latest"]
+    "tags": ["23"]
   },
   "rqlite": {
     "port": 4001,
     "env": "SQ_TEST_SRC__SAKILA_RQ",
     "dsn": "rqlite://sakila:p_ssW0rd@localhost:4001?disableClusterDiscovery=true",
     "packages": "./drivers/rqlite/... ./libsq/... ./cli/... ./testh/...",
-    "tags": ["latest"]
+    "tags": ["10"]
   }
 }
