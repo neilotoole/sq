@@ -11,6 +11,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/postgres"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -20,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestSmoke(t *testing.T) {
@@ -383,4 +385,14 @@ func TestIsErrRelationDoesNotExist(t *testing.T) {
 	_, err := th.QuerySQL(src, nil, "SELECT * FROM tbl_does_not_exist")
 	require.Error(t, err)
 	require.True(t, postgres.IsErrRelationNotExist(err))
+}
+
+func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+	th, _, _, grip, _ := testh.NewWith(t, sakila.Pg)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
+	require.NotEqual(t, "v0.0.0", v, "want a real engine version, got degenerate %q", v)
 }

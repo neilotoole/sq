@@ -64,6 +64,11 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return getSourceMetadata(ctx, g.src, g.db, noSchema)
 }
 
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	return g.drvr.DBSemver(ctx, g.db)
+}
+
 // Close implements driver.Grip.
 func (g *grip) Close() error {
 	g.closeOnce.Do(func() {
