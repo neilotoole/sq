@@ -290,6 +290,66 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 	}
 }
 
+// TestDriver_CreateTable_QuotedIdentifier is a cross-driver regression test for
+// issue #1027: a table or column name containing the dialect's own quote char
+// (e.g. we"ird, or a backtick for MySQL) must be escaped when the write-path
+// builders interpolate it into DDL, and it must still load through the metadata
+// scan path afterward. The builders previously interpolated names raw, so an
+// embedded quote built malformed SQL. This is user-reachable via ingestion,
+// where column names come from file headers (a header like weird"col is
+// untrusted input). Mirrors TestPostgres_QuotedTableName_Metadata (#1025).
+func TestDriver_CreateTable_QuotedIdentifier(t *testing.T) {
+	t.Parallel()
+
+	for _, handle := range sakila.SQLAll() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, src, drvr, grip, db := testh.NewWith(t, handle)
+
+			// ClickHouse already escapes identifiers (issue #1027), and its
+			// MergeTree DDL imposes ORDER BY / nullability constraints unrelated
+			// to escaping, so it is skipped here to keep the test focused.
+			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.ClickHouse,
+				"ClickHouse: already escapes; MergeTree DDL constraints are out of scope")
+
+			// Oracle forbids a double-quote char in an identifier outright
+			// (ORA-25716), even when escaped, so its own delimiter can never
+			// appear in a name — there is nothing to escape-test. Oracle's
+			// write-path builders still route through enquoteOracle for hygiene.
+			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.Oracle,
+				"Oracle: ORA-25716 forbids a double-quote char in identifiers")
+
+			// The "weird" char is the dialect's own identifier delimiter (the
+			// first rune Enquote emits) — the exact char that must be doubled:
+			// a double-quote for most dialects, a backtick for MySQL.
+			delim := []rune(drvr.Dialect().Enquote(""))[0]
+			weird := "we" + string(delim) + "ird"
+
+			// An int PK column comes first (some engines order/constrain the
+			// first column); the delimiter appears in both a column name and
+			// the table name. On MySQL, the PK also exercises index-name
+			// escaping (the UNIQUE KEY name embeds the table name).
+			tblName := stringz.UniqTableName(weird + "_tbl")
+			colNames := []string{"id", weird}
+			colKinds := []kind.Kind{kind.Int, kind.Text}
+			tblDef := schema.NewTable(tblName, colNames, colKinds)
+			tblDef.PKColName = "id"
+
+			require.NoError(t, drvr.CreateTable(th.Context, db, tblDef),
+				"CreateTable must escape the delimiter in %q", weird)
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+
+			// The scan path must also load metadata for the quoted name
+			// (SQL Server's sp_spaceused was raw-interpolated).
+			md, err := grip.TableMetadata(th.Context, tblName)
+			require.NoError(t, err, "TableMetadata must load for a quoted table name")
+			require.Equal(t, tblName, md.Name)
+			require.Len(t, md.Columns, len(colNames))
+		})
+	}
+}
+
 func TestDriver_TableColumnTypes(t *testing.T) { //nolint:tparallel
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {

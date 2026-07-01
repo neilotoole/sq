@@ -269,6 +269,40 @@ func TestDriver_Truncate_NoIdentity_MSSQL(t *testing.T) {
 	require.Equal(t, int64(2), affected)
 }
 
+// TestDriver_QuotedView_RowCount_MSSQL exercises the view row-count fallback in
+// getTableMetadata (issue #1027 P1): sp_spaceused returns a NULL row count for a
+// VIEW, so the code falls back to SELECT COUNT(*) FROM <view>. That site
+// previously interpolated the name with %q (Go backslash-quoting, not SQL
+// identifier doubling), so a view whose name contains a double-quote built
+// malformed SQL. Here the view name contains a double-quote, so metadata must
+// still load and report the correct row count.
+func TestDriver_QuotedView_RowCount_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, grip, db := testh.NewWith(t, sakila.MS)
+
+	baseTbl := stringz.UniqTableName(`ba"se`)
+	tblDef := schema.NewTable(baseTbl, []string{"id", "val"}, []kind.Kind{kind.Int, kind.Text})
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
+	th.Insert(src, baseTbl, []string{"id", "val"}, []any{int64(1), "a"}, []any{int64(2), "b"})
+
+	viewName := stringz.UniqTableName(`vi"ew`)
+	qView := stringz.DoubleQuote(viewName)
+	_, err := db.ExecContext(th.Context,
+		`CREATE VIEW `+qView+` AS SELECT id, val FROM `+stringz.DoubleQuote(baseTbl))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP VIEW IF EXISTS `+qView)
+	})
+
+	md, err := grip.TableMetadata(th.Context, viewName)
+	require.NoError(t, err, "view metadata must load for a quoted view name")
+	require.Equal(t, viewName, md.Name)
+	require.Equal(t, int64(2), md.RowCount, "row count must load via the COUNT(*) fallback")
+}
+
 func TestDriver_PrepareUpdateStmt_MSSQL(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()

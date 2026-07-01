@@ -6,6 +6,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // createTblKindDefaults maps kind.Kind to the DEFAULT clause used when
@@ -38,14 +39,14 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive // kind.Nu
 // `sq inspect` (see drivers/duckdb/metadata.go).
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
-	sb.WriteString(`CREATE TABLE "`)
-	sb.WriteString(tblDef.Name)
-	sb.WriteString("\" (\n")
+	sb.WriteString(`CREATE TABLE `)
+	sb.WriteString(stringz.DoubleQuote(tblDef.Name))
+	sb.WriteString(" (\n")
 
 	for i, col := range tblDef.Cols {
-		sb.WriteString(`  "`)
-		sb.WriteString(col.Name)
-		sb.WriteString(`" `)
+		sb.WriteString(`  `)
+		sb.WriteString(stringz.DoubleQuote(col.Name))
+		sb.WriteRune(' ')
 		sb.WriteString(dbTypeNameFromKind(col.Kind))
 
 		if col.Name == tblDef.PKColName {
@@ -83,17 +84,16 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	sb := strings.Builder{}
-	sb.WriteString(`UPDATE "`)
-	sb.WriteString(tbl)
-	sb.WriteString(`" SET `)
+	sb.WriteString(`UPDATE `)
+	sb.WriteString(stringz.DoubleQuote(tbl))
+	sb.WriteString(` SET `)
 
 	for i, col := range cols {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		sb.WriteRune('"')
-		sb.WriteString(col)
-		sb.WriteString(`" = $`)
+		sb.WriteString(stringz.DoubleQuote(col))
+		sb.WriteString(` = $`)
 		// Use 1-based positional placeholders.
 		writeInt(&sb, i+1)
 	}

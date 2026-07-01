@@ -22,6 +22,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -281,7 +282,11 @@ GROUP BY database_id) AS total_size_bytes`
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	tblSchema, tblName, tblType string, loadConstraints bool,
 ) (*metadata.Table, error) {
-	const tplTblUsage = `sp_spaceused '%s'`
+	// sp_spaceused parses @objname as an identifier from a string literal, so
+	// the name is bracket-quoted (so a name like we"ird resolves) and then
+	// single-quoted (SingleQuote doubles any embedded ' so it can't break the
+	// literal). Raw interpolation broke on any name containing a quote char.
+	tplTblUsage := `sp_spaceused ` + stringz.SingleQuote(bracketQuote(tblName))
 
 	tblMeta := &metadata.Table{Name: tblName, DBTableType: tblType}
 	tblMeta.FQName = tblCatalog + "." + tblSchema + "." + tblName
@@ -295,7 +300,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	}
 
 	var rowCount, reserved, data, indexSize, unused sql.NullString
-	row := db.QueryRowContext(ctx, fmt.Sprintf(tplTblUsage, tblName))
+	row := db.QueryRowContext(ctx, tplTblUsage)
 
 	// REVISIT: This error can occur:
 	//
@@ -319,8 +324,9 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 		}
 	} else {
 		// We can't get the "row count" for a VIEW from sp_spaceused,
-		// so we need to select it the old-fashioned way.
-		err = db.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM %q", tblName)).Scan(&tblMeta.RowCount)
+		// so we need to select it the old-fashioned way. DoubleQuote escapes the
+		// identifier (%q applies Go backslash-quoting, not SQL doubling).
+		err = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+stringz.DoubleQuote(tblName)).Scan(&tblMeta.RowCount)
 		if err != nil {
 			return nil, errw(err)
 		}

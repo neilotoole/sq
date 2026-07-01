@@ -269,14 +269,14 @@ func preRenderOracle(_ *render.Context, f *render.Fragments) error {
 // buildCreateTableStmt builds a CREATE TABLE statement for Oracle.
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
-	sb.WriteString(`CREATE TABLE "`)
-	sb.WriteString(strings.ToUpper(tblDef.Name))
-	sb.WriteString(`" (`)
+	sb.WriteString(`CREATE TABLE `)
+	sb.WriteString(enquoteOracle(tblDef.Name))
+	sb.WriteString(` (`)
 
 	for i, colDef := range tblDef.Cols {
-		sb.WriteString("\n  \"")
-		sb.WriteString(strings.ToUpper(colDef.Name))
-		sb.WriteString("\" ")
+		sb.WriteString("\n  ")
+		sb.WriteString(enquoteOracle(colDef.Name))
+		sb.WriteRune(' ')
 		sb.WriteString(dbTypeNameFromKind(colDef.Kind))
 
 		if colDef.NotNull {
