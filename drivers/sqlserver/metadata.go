@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/c2h5oh/datasize"
 	"golang.org/x/mod/semver"
@@ -21,9 +22,11 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/retry"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tuning"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -117,6 +120,35 @@ func setScanType(ct *record.ColumnTypeData, knd kind.Kind) {
 	}
 }
 
+// deadlockRetryBudget bounds the total retry window for doRetryDeadlock. It
+// is deliberately larger than tuning.OptMaxRetryInterval (the general retry
+// budget, 3s by default): a deadlock storm lasts as long as the competing DDL
+// keeps running, and a deadlock-victim error returns instantly, so waiting
+// out a storm is cheap. Observed under parallel test load: a 3s window was
+// exhausted while a storm was still in progress.
+const deadlockRetryBudget = 15 * time.Second
+
+// doRetryDeadlock runs fn, retrying if fn's query is chosen as a deadlock
+// victim (error 1205), which happens when catalog metadata queries lose a
+// lock race against concurrent DDL. The error is still returned if the retry
+// budget is exhausted.
+func doRetryDeadlock(ctx context.Context, fn func() error) error {
+	return retry.Do(ctx, deadlockRetryBudget, fn, isErrDeadlockVictim)
+}
+
+// loadWithRetry runs a metadata loader with deadlock retry (doRetryDeadlock),
+// so a catalog query chosen as a deadlock victim by concurrent DDL doesn't
+// fail the scan.
+func loadWithRetry[T any](ctx context.Context, load func() (T, error)) (T, error) {
+	var result T
+	err := doRetryDeadlock(ctx, func() error {
+		var e error
+		result, e = load()
+		return e
+	})
+	return result, err
+}
+
 func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*metadata.Source, error) {
 	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
@@ -180,13 +212,23 @@ GROUP BY database_id) AS total_size_bytes`
 			default:
 			}
 
-			tblMeta, gErr := getTableMetadata(gCtx, db, catalog, schema, tblNames[i], tblTypes[i], false)
+			tblMeta, gErr := loadWithRetry(gCtx, func() (*metadata.Table, error) {
+				return getTableMetadata(gCtx, db, catalog, schema, tblNames[i], tblTypes[i], false)
+			})
 			if gErr != nil {
-				if hasErrCode(gErr, errCodeObjectNotExist) {
-					// This can happen if the table is dropped while
-					// we're collecting metadata. We log a warning and continue.
+				if isObjectVanishedErr(gErr) {
+					// This can happen if the table or view is dropped while
+					// we're collecting metadata: sp_spaceused raises 15009,
+					// and the view row-count fallback's SELECT COUNT(*)
+					// raises 208 if the view itself is gone. (A view with
+					// binding errors, 4413, is handled inside
+					// getTableMetadata and stays visible; the predicate
+					// retains 4413 so a binding error from any other site
+					// skips that object rather than failing the scan.) We
+					// log a warning and continue rather than failing the
+					// whole source scan.
 					log.Warn(
-						"Table metadata: table not found (continuing regardless)",
+						"Table metadata: object not found (continuing regardless)",
 						lga.Table, tblNames[i],
 						lga.Err, gErr,
 					)
@@ -221,38 +263,52 @@ GROUP BY database_id) AS total_size_bytes`
 	// Fetch FKs / unique constraints / indexes / check constraints / triggers
 	// in bulk queries rather than N per-table calls inside the errgroup above.
 	// The Assign* helpers route each result to its owning table by name,
-	// and LinkForeignKeys derives FK.Incoming across the whole source.
-	allFKs, err := getMSSQLForeignKeys(ctx, db, catalog, schema, "")
+	// and LinkForeignKeys derives FK.Incoming across the whole source. Each
+	// bulk loader is retried if it loses a lock race against concurrent DDL
+	// and is chosen as a deadlock victim (loadWithRetry).
+	allFKs, err := loadWithRetry(ctx, func() ([]*metadata.ForeignKey, error) {
+		return getMSSQLForeignKeys(ctx, db, catalog, schema, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignForeignKeys(log, md.Tables, allFKs)
 
-	allUCs, err := getMSSQLUniqueConstraints(ctx, db, catalog, schema, "")
+	allUCs, err := loadWithRetry(ctx, func() ([]*metadata.UniqueConstraint, error) {
+		return getMSSQLUniqueConstraints(ctx, db, catalog, schema, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
 
-	allChecks, err := getMSSQLCheckConstraints(ctx, db, schema, "")
+	allChecks, err := loadWithRetry(ctx, func() ([]*metadata.CheckConstraint, error) {
+		return getMSSQLCheckConstraints(ctx, db, schema, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignCheckConstraints(log, md.Tables, allChecks)
 
-	allTriggers, err := getMSSQLTriggers(ctx, db, schema, "")
+	allTriggers, err := loadWithRetry(ctx, func() ([]*metadata.Trigger, error) {
+		return getMSSQLTriggers(ctx, db, schema, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignTriggers(log, md.Tables, allTriggers)
 
-	allIdxs, err := getMSSQLIndexes(ctx, db, schema, "")
+	allIdxs, err := loadWithRetry(ctx, func() ([]*metadata.Index, error) {
+		return getMSSQLIndexes(ctx, db, schema, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignIndexes(log, md.Tables, allIdxs)
 
-	allViewDefs, err := getMSSQLViewDefinitions(ctx, db, schema, "")
+	allViewDefs, err := loadWithRetry(ctx, func() (map[string]string, error) {
+		return getMSSQLViewDefinitions(ctx, db, schema, "")
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -299,21 +355,22 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	default:
 	}
 
-	var rowCount, reserved, data, indexSize, unused sql.NullString
+	var spName, rowCount, reserved, data, indexSize, unused sql.NullString
 	row := db.QueryRowContext(ctx, tplTblUsage)
 
-	// REVISIT: This error can occur:
-	//
-	//  sql: Scan error on column index 0, name "name": converting NULL to string is unsupported
-	//
-	// We should probably use sql.NullString? This situation can arise if the table
-	// is deleted while this process is taking place. Maybe wrap the entire thing
-	// in a transaction? Or figure out how to fail more gracefully?
-
-	err := row.Scan(&tblMeta.Name, &rowCount, &reserved, &data, &indexSize, &unused)
+	err := row.Scan(&spName, &rowCount, &reserved, &data, &indexSize, &unused)
 	if err != nil {
 		return nil, errw(err)
 	}
+	if !spName.Valid {
+		// sp_spaceused reports NULL fields when the object is dropped
+		// mid-call by concurrent DDL (previously this surfaced as an opaque
+		// "converting NULL to string" scan error). Return the canonical
+		// vanished error: the source scan skips the object
+		// (isObjectVanishedErr), and the per-table path reports not-found.
+		return nil, driver.NewNotExistError(errz.Errorf("table {%s} not found", tblName))
+	}
+	tblMeta.Name = spName.String
 	progress.Incr(ctx, 1)
 	debugz.DebugSleep(ctx)
 
@@ -327,11 +384,20 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 		// so we need to select it the old-fashioned way. DoubleQuote escapes the
 		// identifier (%q applies Go backslash-quoting, not SQL doubling).
 		err = db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+stringz.DoubleQuote(tblName)).Scan(&tblMeta.RowCount)
-		if err != nil {
+		switch {
+		case err == nil:
+			progress.Incr(ctx, 1)
+			debugz.DebugSleep(ctx)
+		case hasErrCode(err, errCodeViewBindingErr):
+			// Error 4413: the view exists but is unusable because an
+			// underlying object is gone (e.g. its base table was dropped).
+			// Keep the view visible with no row count rather than failing
+			// the scan or omitting the view from the results.
+			lg.FromContext(ctx).Warn("View has binding errors; row count unavailable",
+				lga.Table, tblName, lga.Err, err)
+		default:
 			return nil, errw(err)
 		}
-		progress.Incr(ctx, 1)
-		debugz.DebugSleep(ctx)
 	}
 
 	if reserved.Valid {

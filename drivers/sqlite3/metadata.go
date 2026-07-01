@@ -830,9 +830,21 @@ ORDER BY m.name, p.cid
 		return nil, errw(err)
 	}
 
+	// Assign counts, omitting any table that vanished mid-scan (recorded as -1
+	// by getTblRowCounts): a dropped table must not appear in the results with
+	// a nonsensical count, and the per-table FK/index queries below would be
+	// querying a relation that no longer exists.
+	kept := tblMetas[:0]
 	for i := range rowCounts {
+		if rowCounts[i] < 0 {
+			lg.FromContext(ctx).Warn("Table vanished during metadata scan; omitting",
+				lga.Table, tblMetas[i].Name)
+			continue
+		}
 		tblMetas[i].RowCount = rowCounts[i]
+		kept = append(kept, tblMetas[i])
 	}
+	tblMetas = kept
 
 	// Batch-fetch all triggers in a single round-trip (replaces N per-table
 	// getTableTriggers calls).
@@ -878,7 +890,12 @@ ORDER BY m.name, p.cid
 	return tblMetas, nil
 }
 
-// getTblRowCounts returns the number of rows in each table.
+// getTblRowCounts returns the number of rows in each table. If a table named
+// in tblNames is dropped by concurrent DDL between enumeration and the COUNT
+// batch here, the batch fails with "no such table"; getTblRowCounts then falls
+// back to per-table COUNTs for that batch (countTblsIndividually) and records
+// -1 for any table that has since vanished. The caller (getAllTableMetadata)
+// omits such tables from the results.
 func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error) {
 	log := lg.FromContext(ctx)
 
@@ -928,7 +945,24 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 
 		rows, err := db.QueryContext(ctx, query)
 		if err != nil {
-			return nil, errw(err)
+			wrapped := errw(err)
+			if errz.Has[*driver.NotExistError](wrapped) {
+				// A table enumerated earlier in the scan was dropped by
+				// concurrent DDL before we could COUNT it, which fails the
+				// whole compound statement. Fall back to per-table COUNTs
+				// across the current batch, recording -1 for any name that
+				// has since vanished, so one dropped table doesn't abort the
+				// whole source scan.
+				batchEnd := j + terms
+				if err = countTblsIndividually(ctx, db, tblNames[j:batchEnd], tblCounts[j:batchEnd]); err != nil {
+					return nil, err
+				}
+				j = batchEnd
+				terms = 0
+				sb.Reset()
+				continue
+			}
+			return nil, wrapped
 		}
 
 		for rows.Next() {
@@ -957,6 +991,34 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 	}
 
 	return tblCounts, nil
+}
+
+// countTblsIndividually issues a per-table SELECT COUNT(*) for each name in
+// names, writing the result to the matching slot in counts. Tables that have
+// vanished (NotExistError) are recorded as -1; any other error aborts. This is
+// the fallback path used by getTblRowCounts when the UNION ALL batch fails
+// because of a concurrent DROP TABLE.
+func countTblsIndividually(ctx context.Context, db sqlz.DB, names []string, counts []int64) error {
+	for i, name := range names {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		var count int64
+		err := db.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM "+stringz.DoubleQuote(name)).Scan(&count)
+		if err != nil {
+			wrapped := errw(err)
+			if errz.Has[*driver.NotExistError](wrapped) {
+				counts[i] = -1
+				continue
+			}
+			return wrapped
+		}
+		counts[i] = count
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+	}
+	return nil
 }
 
 // getTableDDL returns the CREATE statement text recorded in

@@ -61,9 +61,11 @@ WHERE TABLE_NAME = @p1`
 	progress.Incr(ctx, 1)
 	debugz.DebugSleep(ctx)
 
-	// TODO: getTableMetadata can cause deadlock in the DB. Needs further investigation.
-	// But a quick hack would be to use retry on a deadlock error.
-	return getTableMetadata(ctx, g.db, catalog, schema, tblName, tblType, true)
+	// The per-table catalog queries can lose a lock race against concurrent
+	// DDL and be chosen as a deadlock victim (error 1205); retry.
+	return loadWithRetry(ctx, func() (*metadata.Table, error) {
+		return getTableMetadata(ctx, g.db, catalog, schema, tblName, tblType, true)
+	})
 }
 
 // SourceMetadata implements driver.Grip.

@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
@@ -301,6 +302,66 @@ func TestDriver_QuotedView_RowCount_MSSQL(t *testing.T) {
 	require.NoError(t, err, "view metadata must load for a quoted view name")
 	require.Equal(t, viewName, md.Name)
 	require.Equal(t, int64(2), md.RowCount, "row count must load via the COUNT(*) fallback")
+}
+
+// TestSourceMetadata_BrokenView_MSSQL pins that a metadata scan tolerates a
+// view whose underlying object has vanished. A base table dropped mid-scan by
+// concurrent DDL leaves its dependent views broken: sp_spaceused still
+// succeeds (a view has no storage, so it reports a NULL row count), and then
+// the SELECT COUNT(*) row-count fallback raises error 4413 ("binding
+// errors"); a view that itself vanishes raises 208 from the same site.
+// Previously only error 15009 was tolerated, so either failed the whole scan;
+// this was the cause of TestDBSemver flakes under parallel test load (issue
+// #1027). A broken view exists in the catalog, so it stays visible in the
+// results, with no row count; an object that is gone (15009/208) is omitted.
+// The dangling view used here reproduces the 4413 shape deterministically,
+// with no race; 208 is pinned by Test_isObjectVanishedErr.
+func TestSourceMetadata_BrokenView_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, grip, db := testh.NewWith(t, sakila.MS)
+
+	baseTbl := stringz.UniqTableName("vanish_base")
+	tblDef := schema.NewTable(baseTbl, []string{"id", "val"}, []kind.Kind{kind.Int, kind.Text})
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
+
+	viewName := stringz.UniqTableName("vanish_view")
+	qView := stringz.DoubleQuote(viewName)
+	_, err := db.ExecContext(th.Context,
+		`CREATE VIEW `+qView+` AS SELECT id, val FROM `+stringz.DoubleQuote(baseTbl))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP VIEW IF EXISTS `+qView)
+	})
+
+	// Drop the base table out from under the view: the view remains
+	// enumerable, but its COUNT(*) now raises error 4413 (binding errors).
+	require.NoError(t, drvr.DropTable(th.Context, db, tablefq.From(baseTbl), false))
+
+	// Source-wide path: the scan succeeds, and the broken view stays visible
+	// with no row count.
+	md, err := grip.SourceMetadata(th.Context, false)
+	require.NoError(t, err,
+		"source scan must tolerate a view with binding errors (error 4413)")
+
+	var foundView *metadata.Table
+	for _, tbl := range md.Tables {
+		if tbl.Name == viewName {
+			foundView = tbl
+			break
+		}
+	}
+	require.NotNil(t, foundView, "the broken view stays visible in the results")
+	require.Equal(t, int64(0), foundView.RowCount, "no row count for a broken view")
+
+	// Per-table path: same behavior.
+	tblMd, err := grip.TableMetadata(th.Context, viewName)
+	require.NoError(t, err,
+		"per-table metadata must tolerate a view with binding errors (error 4413)")
+	require.Equal(t, viewName, tblMd.Name)
+	require.Equal(t, int64(0), tblMd.RowCount, "no row count for a broken view")
 }
 
 // TestDriver_Truncate_QuotedIdentity_MSSQL exercises Truncate's reseed path

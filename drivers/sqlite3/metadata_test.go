@@ -419,6 +419,24 @@ func TestGetTblRowCounts(t *testing.T) {
 	require.Equal(t, len(tblNames), len(counts))
 }
 
+// TestGetTblRowCounts_MissingTableFallback deterministically exercises the
+// concurrent-DROP fallback in getTblRowCounts: when the batched UNION ALL
+// COUNT(*) fails with "no such table", it falls back to per-table COUNTs
+// (countTblsIndividually), recording -1 for any table that has vanished. Here
+// a name that never existed stands in for one dropped mid-flight. Previously,
+// the failed batch aborted the whole source scan (issue #1027).
+func TestGetTblRowCounts_MissingTableFallback(t *testing.T) {
+	th, _, _, _, db := testh.NewWith(t, sakila.SL3)
+
+	counts, err := sqlite3.GetTblRowCounts(th.Context, db,
+		[]string{sakila.TblActor, "no_such_table_zzz", sakila.TblFilm})
+	require.NoError(t, err)
+	require.Len(t, counts, 3)
+	require.Equal(t, int64(sakila.TblActorCount), counts[0])
+	require.Equal(t, int64(-1), counts[1], "vanished table records -1")
+	require.Equal(t, int64(sakila.TblFilmCount), counts[2])
+}
+
 func BenchmarkGetTblRowCounts(b *testing.B) {
 	const numTables = 1300
 
