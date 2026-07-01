@@ -10,15 +10,20 @@ formats (CSV, TSV, Excel).
 
 ## The `sakiladb` project
 
-The external database engines are served by the pre-built Docker images under
-the [`github.com/sakiladb`](https://github.com/sakiladb) organization (published
-to [`hub.docker.com/u/sakiladb`](https://hub.docker.com/u/sakiladb)). There is
-one image per engine (`sakiladb/postgres`, `sakiladb/mysql`,
-`sakiladb/sqlserver`, `sakiladb/clickhouse`, `sakiladb/oracle`,
-`sakiladb/rqlite`), each preloaded with the Sakila dataset and shipping a Docker
-`HEALTHCHECK` so callers can wait for readiness. The image name always matches
-the `sq` driver type string (see
-[`docs/DRIVERS.md`](./DRIVERS.md#driver-type-registration)).
+The external database engines are served by the pre-built Docker images from the
+[`github.com/sakiladb`](https://github.com/sakiladb) organization:
+
+- **Registries:** published to both
+  [Docker Hub](https://hub.docker.com/u/sakiladb) (`sakiladb/*`) and the
+  [GitHub Container Registry](https://github.com/orgs/sakiladb/packages)
+  (`ghcr.io/sakiladb/*`).
+- **One image per engine:** `sakiladb/postgres`, `sakiladb/mysql`,
+  `sakiladb/sqlserver`, `sakiladb/clickhouse`, `sakiladb/oracle`, and
+  `sakiladb/rqlite`.
+- **Preloaded and health-checked:** each image ships the Sakila dataset and a
+  Docker `HEALTHCHECK`, so callers can wait for readiness.
+- **Named after the driver:** the image name always matches the `sq` driver type
+  string (see [`docs/DRIVERS.md`](./DRIVERS.md#driver-type-registration)).
 
 `sq` does **not** vendor these servers; the images are the single source of a
 ready-to-query Sakila instance for each engine.
