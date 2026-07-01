@@ -190,6 +190,12 @@ type copyBuffer struct {
 	// carries a value.
 	errCh chan error
 
+	// cancelFn is the cancel func QuerySQL passes to Open for the context it
+	// derives per read. The RecordWriter contract has Wait invoke it; since the
+	// fan-in signals via finish rather than Wait, finish invokes it too, so the
+	// derived context isn't retained until the errgroup context is cancelled.
+	cancelFn context.CancelFunc
+
 	// readErr is the terminal read error (nil on success), set by finish before
 	// doneCh closes; read by the writer only after doneCh is observed.
 	readErr error
@@ -211,13 +217,13 @@ func newCopyBuffer(bufSize int) *copyBuffer {
 }
 
 // Open implements [RecordWriter]. It allocates the record buffer, records
-// recMeta, and hands QuerySQL the buffer's record channel. cancelFn is unused:
-// this sink is not driven via Wait (see the type doc).
-func (b *copyBuffer) Open(_ context.Context, _ context.CancelFunc, recMeta record.Meta) (
+// recMeta and cancelFn, and hands QuerySQL the buffer's record channel.
+func (b *copyBuffer) Open(_ context.Context, cancelFn context.CancelFunc, recMeta record.Meta) (
 	chan<- record.Record, <-chan error, error,
 ) {
 	b.recCh = make(chan record.Record, b.bufSize)
 	b.meta = recMeta
+	b.cancelFn = cancelFn
 	close(b.metaReady)
 	return b.recCh, b.errCh, nil
 }
@@ -227,6 +233,9 @@ func (b *copyBuffer) Open(_ context.Context, _ context.CancelFunc, recMeta recor
 // this is not part of the normal flow.
 func (b *copyBuffer) Wait() (int64, error) {
 	<-b.doneCh
+	if b.cancelFn != nil {
+		b.cancelFn()
+	}
 	return 0, b.readErr
 }
 
@@ -234,9 +243,14 @@ func (b *copyBuffer) Wait() (int64, error) {
 // writer that the source read is complete. It must be called exactly once,
 // after QuerySQL returns. Closing errCh here (rather than leaving it open)
 // satisfies the RecordWriter contract; QuerySQL has already returned, so it
-// does not affect QuerySQL's select loop.
+// does not affect QuerySQL's select loop. It also invokes cancelFn (the
+// contract delegates that to Wait, which the fan-in bypasses) to release the
+// context QuerySQL derived for the read.
 func (b *copyBuffer) finish(err error) {
 	b.readErr = err
+	if b.cancelFn != nil {
+		b.cancelFn()
+	}
 	close(b.errCh)
 	close(b.doneCh)
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestWriteCopyTable_readFailureRollsBack verifies the commit gate of the join
@@ -20,6 +21,7 @@ import (
 // committing a partial copy. This matters because QuerySQL closes the record
 // channel on failure too, so "channel closed" alone cannot signal success.
 func TestWriteCopyTable_readFailureRollsBack(t *testing.T) {
+	tu.SkipShort(t, true)
 	th := testh.New(t)
 	ctx := th.Context
 	src := th.Source(sakila.SL3)
@@ -77,6 +79,7 @@ func TestWriteCopyTable_readFailureRollsBack(t *testing.T) {
 // the only connection, fill its buffer, and block, starving the reader the
 // writer is waiting on, hanging the query forever.
 func TestExecuteCopyTasksFanIn_sameSourceNoDeadlock(t *testing.T) {
+	tu.SkipShort(t, true)
 	th := testh.New(t)
 	ctx := th.Context
 

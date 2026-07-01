@@ -186,8 +186,8 @@ func (p *pipeline) executeTasks(ctx context.Context) error {
 // context cancellation before each.
 func (p *pipeline) executeTasksSerial(ctx context.Context) error {
 	for _, task := range p.tasks {
-		if err := ctx.Err(); err != nil {
-			return err
+		if ctx.Err() != nil {
+			return context.Cause(ctx)
 		}
 		if err := task.executeTask(ctx); err != nil {
 			return err
