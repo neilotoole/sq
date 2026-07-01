@@ -70,16 +70,14 @@ Note that a bare `make` now prints that help; it previously ran `make all`.
 
 ## General advice
 
-After cloning, run `make init` once. It installs dependencies (`bun` packages
-and Go modules) and activates the repo's git hooks, including a `pre-commit`
-hook that runs a `dprint` formatting check on staged files (it does not modify
-files; it is the dprint check the `Format` CI job runs). Bypass a single commit
-with `git commit --no-verify`.
+After cloning, run `make init` once: it installs dependencies (`bun` packages
+and Go modules) and activates the repo's git hooks, including the `pre-commit`
+`dprint` formatting check (bypass a single commit with `git commit --no-verify`).
+Then run `make all` as a kick-off — it generates code, formats, lints, tests,
+builds, and installs a local `sq`.
 
-Then, as a kick-off point, run `make all`. This will generate code, format,
-lint, run tests, build the local binary to `dist/`, and install a local `sq`
-build. Run `make help` to list all targets with descriptions, or see the
-[Makefile](./Makefile) for the details.
+For the full local development loop — the inner-loop sequence, the Makefile
+targets, and how they map to CI — see [`docs/WORKFLOW.md`](./docs/WORKFLOW.md).
 
 ## Opening issues
 
@@ -97,18 +95,12 @@ Use the usual GitHub process to open a PR. Before you do so, please:
 - If the PR adds a **new driver type**, complete the
   [driver ship checklist](./docs/DRIVERS.md#driver-ship-checklist) (sq.io and `skills/sq/`).
 
-### CI: the fast loop and the slow jobs
+### CI
 
-CI is PR-centric: a branch gets CI once a pull request exists. Every push to a
-PR runs lint, a fast `-short` pass of the Linux/macOS tests, and a **Windows
-smoke** test (`test/smoke/`); the in-progress run for a superseded commit is
-cancelled when you push again. The same fast set runs on merges to master.
-
-The slow jobs are kept off the dev loop and run **nightly** against master and
-on **release tags** (`v*`): the **full Linux/macOS suite** (no `-short`, with
-coverage), the **full Windows suite** (gates `publish`), and **CodeQL**
-(release validation). You can also run any of them on demand from the Actions
-tab via **Run workflow** (`workflow_dispatch`).
+CI is PR-centric: a branch gets CI once a pull request exists. Every push runs a
+fast lint + `-short` test set (plus a Windows smoke test); the full suites run
+nightly against master and on release tags. For the job-by-job breakdown, see
+[`docs/WORKFLOW.md`](./docs/WORKFLOW.md#github-actions).
 
 Mark long-running tests with `tu.SkipShort` so they stay out of the dev loop
 but still run in the nightly/release suites.

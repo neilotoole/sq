@@ -4,9 +4,9 @@ How work flows through this repo: the local development loop (driven by the
 `Makefile`) and the GitHub Actions workflows under
 [`.github/workflows/`](../.github/workflows).
 
-For the contributor-facing summary of the fast-vs-slow CI split, see
-[`CONTRIBUTING.md`](../CONTRIBUTING.md#ci-the-fast-loop-and-the-slow-jobs);
-this document is the fuller map.
+This is the canonical reference for the dev loop and CI.
+[`CONTRIBUTING.md`](../CONTRIBUTING.md) covers the surrounding contributor
+process (opening issues and PRs).
 
 ## Local development
 
