@@ -38,6 +38,11 @@ type Context struct {
 
 	// Dialect is the driver dialect.
 	Dialect dialect.Dialect
+
+	// DBSemver is the canonical semver of the target server (e.g. "v8.0.36"),
+	// or "" if unknown. Lets a FunctionOverride emit version-appropriate SQL.
+	// Populated by the pipeline from the grip's DBSemver.
+	DBSemver string
 }
 
 // Renderer is a set of functions for rendering ast elements into SQL.

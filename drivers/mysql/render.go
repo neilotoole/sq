@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/mod/semver"
+
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -248,6 +250,24 @@ func renderFuncRowNum(rc *render.Context, _ *ast.FuncNode) (string, error) { //n
 
 	// e.g. (@row_number_abcd1234:=@row_number_abcd1234 + 1)
 	return "(" + variable + ":=" + variable + " + 1)", nil
+}
+
+// renderFuncAvg renders avg() as a portable float64. CAST(... AS DOUBLE) was
+// only added to CAST()/CONVERT() in MySQL 8.0.17, so on 5.6/5.7 and
+// 8.0.0-8.0.16 it is a syntax error (ER_PARSE_ERROR 1064). On those servers,
+// fall back to "(inner + 0e0)": the 0e0 double literal promotes the result to
+// DOUBLE on every version. avg() stays float64 across all versions (issue #973;
+// #594 for why avg is float64). An empty rc.DBSemver (version unknown) takes the
+// modern CAST path so a version-fetch failure degrades to current behavior.
+func renderFuncAvg(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	inner, err := render.RenderFuncDefault(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	if rc.DBSemver != "" && semver.Compare(rc.DBSemver, "v8.0.17") < 0 {
+		return "(" + inner + " + 0e0)", nil
+	}
+	return "CAST(" + inner + " AS DOUBLE)", nil
 }
 
 func renderFuncContainsBinary(rc *render.Context, fn *ast.FuncNode) (string, error) {
