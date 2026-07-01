@@ -163,10 +163,51 @@ func (p *pipeline) executeTasks(ctx context.Context) error {
 	default:
 	}
 
-	limit := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
 	if p.tasksSingleWriter {
-		limit = 1
+		// A single-writer joindb (SQLite) permits only one write tx at a time.
+		// Fan the copies in: run the source reads concurrently but funnel them
+		// through a single serialized writer, so the copies don't contend on
+		// the write lock (gh975) yet still overlap their reads (#995). The
+		// copies are always joinCopyTasks; the serial fallback only guards the
+		// theoretical case of some other tasker type.
+		if copyTasks, ok := copyTasksOf(p.tasks); ok {
+			return executeCopyTasksFanIn(ctx, copyTasks)
+		}
+		return p.executeTasksSerial(ctx)
 	}
+
+	// A multi-writer joindb tolerates concurrent writers, so the fused copies
+	// run concurrently up to the errgroup limit.
+	return p.executeTasksConcurrent(ctx)
+}
+
+// copyTasksOf returns tasks as a slice of *joinCopyTask, reporting false if any
+// element is not a *joinCopyTask.
+func copyTasksOf(tasks []tasker) ([]*joinCopyTask, bool) {
+	copyTasks := make([]*joinCopyTask, len(tasks))
+	for i, t := range tasks {
+		ct, ok := t.(*joinCopyTask)
+		if !ok {
+			return nil, false
+		}
+		copyTasks[i] = ct
+	}
+	return copyTasks, true
+}
+
+// executeTasksSerial runs the tasks one at a time, in order.
+func (p *pipeline) executeTasksSerial(ctx context.Context) error {
+	for _, task := range p.tasks {
+		if err := task.executeTask(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// executeTasksConcurrent runs the tasks concurrently, up to the errgroup limit.
+func (p *pipeline) executeTasksConcurrent(ctx context.Context) error {
+	limit := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(limit)

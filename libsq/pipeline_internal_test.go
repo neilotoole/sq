@@ -56,10 +56,13 @@ func newConcProbeTasks(n int) (tasks []tasker, peak *atomic.Int32) {
 	return tasks, peak
 }
 
-// TestPipeline_executeTasks_singleWriterSerializes verifies gh975: when the
-// join destination is single-writer (tasksSingleWriter, as SQLite is),
-// executeTasks runs the copy tasks one at a time, so they never contend on
-// the single write lock and fail with "database is locked".
+// TestPipeline_executeTasks_singleWriterSerializes verifies the serial
+// fallback for a single-writer joindb (tasksSingleWriter): when the tasks are
+// not joinCopyTasks (as here, using concurrency probes), executeTasks runs
+// them one at a time rather than concurrently. Real join copies take the
+// fan-in path instead (concurrent reads, one serialized writer), which never
+// contends on the single write lock and fails with "database is locked"
+// (gh975); that path's concurrency contract is covered by TestRunCopyFanIn_*.
 func TestPipeline_executeTasks_singleWriterSerializes(t *testing.T) {
 	tasks, peak := newConcProbeTasks(4)
 	p := &pipeline{tasks: tasks, tasksSingleWriter: true}
