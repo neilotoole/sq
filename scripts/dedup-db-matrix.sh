@@ -8,12 +8,12 @@
 #   stdout: the same array with duplicates removed.
 #
 # Dedup happens in two passes:
-#   1. Exact (engine,tag) duplicates — pure text, always applied (e.g. "18,18").
-#   2. Same image digest — e.g. postgres:latest == postgres:18. The digest is
+#   1. Exact (engine,tag) duplicates: pure text, always applied (e.g. "18,18").
+#   2. Same image digest, e.g. postgres:latest == postgres:18. The digest is
 #      resolved by inspecting the entry's `image` ref with `docker buildx
 #      imagetools inspect` (manifest only, no layer pull). This is best-effort:
 #      if resolution fails (offline, unknown tag), the entry is KEPT rather than
-#      dropped, so a registry hiccup can never silently remove test coverage —
+#      dropped, so a registry hiccup can never silently remove test coverage;
 #      the worst case is the original redundant run.
 #
 # The `image` ref (registry included) is chosen once by build-db-matrix.sh; this

@@ -2,6 +2,11 @@
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 
+# Keep the default-registry assertions hermetic: a SAKILADB_REGISTRY exported in
+# the caller's shell would otherwise override the default and fail them. Cases
+# that need an override set it inline (prefixed on a single invocation).
+unset SAKILADB_REGISTRY
+
 # narrow scope: postgres@12 picks per-engine packages
 out=$("$here/build-db-matrix.sh" narrow '{"postgres":["12"]}')
 echo "$out" | jq -e 'length == 1' >/dev/null

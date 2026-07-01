@@ -28,8 +28,8 @@ jobs:
         run: |
           set -euo pipefail
           # The weekly cron and a manual "sweep" dispatch both run the full
-          # version sweep (every published tag, narrow scope). Everything else —
-          # the nightly cron and the default manual dispatch — runs every engine
+          # version sweep (every published tag, narrow scope). Everything else
+          # (the nightly cron and the default manual dispatch) runs every engine
           # at :latest, full scope. "latest" is derived here (not stored in the
           # config's tags), so it never duplicates the newest numbered tag in
           # the sweep.

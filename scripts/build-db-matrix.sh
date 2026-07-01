@@ -6,7 +6,7 @@
 # Emits a JSON array of {engine,tag,image,port,env,packages} on stdout.
 #
 # The `image` field is the fully-qualified pull ref, built once here so both the
-# test job's service container and dedup-db-matrix.sh consume the same string —
+# test job's service container and dedup-db-matrix.sh consume the same string;
 # the registry is defined in exactly one place. Registry defaults to GHCR
 # (ghcr.io/sakiladb), which isn't subject to Docker Hub's anonymous pull rate
 # limits; override with SAKILADB_REGISTRY.
