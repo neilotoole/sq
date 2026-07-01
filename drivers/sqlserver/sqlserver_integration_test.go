@@ -360,6 +360,43 @@ func TestDriver_AlterTable_QuotedIdentifier_MSSQL(t *testing.T) {
 	require.Len(t, md.Columns, 3, "expected c\"1b, id, c\"2 after the alters")
 }
 
+// TestDriver_DropSchema_QuotedIdentifier_MSSQL exercises DropSchema and
+// genDropSchemaObjectsStmt against a schema whose name contains a single quote
+// (#1027). DropSchema first enumerates and drops the schema's objects (the
+// generated script assigns @SchemaName from a string literal, so the name must
+// be single-quoted with the ' doubled), then drops the schema itself
+// (identifier-quoted). A single quote is the char that breaks the generated
+// script's string literal; a name containing a ] can still fail server-side
+// because the generated script bracket-builds object names without doubling ]
+// (a deeper pre-existing limit, out of scope here).
+func TestDriver_DropSchema_QuotedIdentifier_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.MS)
+	ctx := th.Context
+
+	schemaName := `s'ch_` + stringz.Uniq8()
+	require.NoError(t, drvr.CreateSchema(ctx, db, schemaName),
+		"CreateSchema must escape a quoted schema name")
+	dropped := false
+	t.Cleanup(func() {
+		if !dropped {
+			_ = drvr.DropSchema(ctx, db, schemaName)
+		}
+	})
+
+	// Put a table in the schema so genDropSchemaObjectsStmt has an object to
+	// drop before DROP SCHEMA (it enumerates sys.tables for the schema).
+	_, err := db.ExecContext(ctx,
+		`CREATE TABLE `+stringz.DoubleQuote(schemaName)+`.`+stringz.DoubleQuote(`t"1`)+` (id INT)`)
+	require.NoError(t, err)
+
+	require.NoError(t, drvr.DropSchema(ctx, db, schemaName),
+		"DropSchema must escape a quoted schema name and its objects")
+	dropped = true
+}
+
 func TestDriver_PrepareUpdateStmt_MSSQL(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
