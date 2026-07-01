@@ -16,6 +16,9 @@ documentation (commands, query syntax, drivers), see [sq.io](https://sq.io).
   SQL, the element catalog, the lexical layer, operator precedence, and a
   grammar-editing checklist. Companion to
   [`grammar/SLQ.g4`](../grammar/SLQ.g4).
+- [`WORKFLOW.md`](./WORKFLOW.md): development and CI workflows — the local
+  `Makefile` loop and the GitHub Actions under
+  [`.github/workflows/`](../.github/workflows).
 
 ## See also
 

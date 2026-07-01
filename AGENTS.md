@@ -31,6 +31,8 @@ task:
   structure, type mapping, the driver ship checklist).
 - [`docs/GRAMMAR.md`](./docs/GRAMMAR.md): SLQ query language grammar guide
   (companion to [`grammar/SLQ.g4`](./grammar/SLQ.g4)).
+- [`docs/WORKFLOW.md`](./docs/WORKFLOW.md): development and CI workflows (local
+  `Makefile` loop and the GitHub Actions pipelines).
 - [sq.io](https://sq.io): end-user documentation for commands and query
   syntax.
 
