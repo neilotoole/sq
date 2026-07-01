@@ -994,11 +994,12 @@ func countTblsIndividually(ctx context.Context, db sqlz.DB, names []string, coun
 		err := db.QueryRowContext(ctx,
 			"SELECT COUNT(*) FROM "+stringz.DoubleQuote(name)).Scan(&count)
 		if err != nil {
-			if errz.Has[*driver.NotExistError](errw(err)) {
+			wrapped := errw(err)
+			if errz.Has[*driver.NotExistError](wrapped) {
 				counts[i] = -1
 				continue
 			}
-			return errw(err)
+			return wrapped
 		}
 		counts[i] = count
 		progress.Incr(ctx, 1)

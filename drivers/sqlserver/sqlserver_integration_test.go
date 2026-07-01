@@ -334,7 +334,7 @@ func TestSourceMetadata_VanishedView_MSSQL(t *testing.T) {
 	})
 
 	// Drop the base table out from under the view: the view remains
-	// enumerable, but its COUNT(*) now raises error 208.
+	// enumerable, but its COUNT(*) now raises error 4413 (binding errors).
 	require.NoError(t, drvr.DropTable(th.Context, db, tablefq.From(baseTbl), false))
 
 	md, err := grip.SourceMetadata(th.Context, false)
