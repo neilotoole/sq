@@ -291,10 +291,11 @@ func TestPostgres_ColumnFlags(t *testing.T) {
 }
 
 // TestPostgres_QuotedTableName_Metadata pins that table metadata loads for a
-// table whose name contains a double-quote. getTableMetadata must escape the
-// identifier (and pass it as a bound regclass parameter); raw interpolation
-// built malformed SQL, which surfaced as a flake when a full-source scan
-// happened to run while such a table existed (issue #1025).
+// table whose name contains a double-quote. getTableMetadata must resolve the
+// OID via a pg_class JOIN on the bound name and use an escaped identifier in the
+// COUNT subquery; raw interpolation built malformed SQL, which surfaced as a
+// flake when a full-source scan happened to run while such a table existed
+// (issue #1025).
 func TestPostgres_QuotedTableName_Metadata(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()

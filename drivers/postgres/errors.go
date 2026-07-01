@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -50,22 +49,17 @@ func isErrRelationNotExist(err error) bool {
 	return hasErrCode(err, errCodeRelationNotExist)
 }
 
-// isErrRelationDroppedMidScan reports whether err indicates a relation
-// disappeared while a source-wide metadata scan was reading it: the canonical
-// "relation does not exist" (42P01), or the lower-level "could not open
-// relation with OID ..." (XX000) that pg_total_relation_size / regclass raise
-// when a relation is dropped between OID resolution and access. A scan reads a
-// live database, so it tolerates such a drop rather than failing.
-func isErrRelationDroppedMidScan(err error) bool {
-	if isErrRelationNotExist(err) {
-		return true
-	}
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == errCodeInternalError &&
-			strings.Contains(pgErr.Message, "could not open relation")
-	}
-	return false
+// isErrScanRetryable reports whether a bulk metadata-loader error is worth
+// retrying during a source-wide scan of a live database: too-many-connections,
+// or a relation that vanished mid-query. The latter surfaces either as 42P01,
+// or as an XX000 internal error (e.g. "could not open relation with OID") when a
+// relation is dropped between resolution and access. Matching XX000 by code
+// (not message text) keeps this locale-independent, and retrying is safe: a
+// persistent error still surfaces once the retry budget is exhausted.
+func isErrScanRetryable(err error) bool {
+	return isErrTooManyConnections(err) ||
+		isErrRelationNotExist(err) ||
+		hasErrCode(err, errCodeInternalError)
 }
 
 // hasErrCode returns true if err (or its cause error)

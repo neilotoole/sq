@@ -908,5 +908,5 @@ func doRetry(ctx context.Context, fn func() error) error {
 // retries are exhausted.
 func doRetryVanished(ctx context.Context, fn func() error) error {
 	maxRetryInterval := tuning.OptMaxRetryInterval.Get(options.FromContext(ctx))
-	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections, isErrRelationDroppedMidScan)
+	return retry.Do(ctx, maxRetryInterval, fn, isErrScanRetryable)
 }
