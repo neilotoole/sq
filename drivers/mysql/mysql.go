@@ -11,6 +11,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/samber/lo"
 	"github.com/xo/dburl"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
@@ -386,11 +387,38 @@ func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName
 	return errz.Wrapf(errw(err), "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
-// AlterTableRenameColumn implements driver.SQLDriver.
+// AlterTableRenameColumn implements driver.SQLDriver. RENAME COLUMN was added
+// in MySQL 8.0.0; on 5.6/5.7 the rename must go through CHANGE COLUMN, which
+// requires restating the column's full definition (else nullability/default/
+// charset/AUTO_INCREMENT/comment are dropped). The definition is taken verbatim
+// from SHOW CREATE TABLE. See issue #973. (Note: 8.0.0 threshold, distinct from
+// the avg-cast 8.0.17 threshold.)
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
+	v, err := d.DBSemver(ctx, db)
+	if err == nil && v != "" && semver.Compare(v, "v8.0.0") < 0 {
+		return d.renameColumnViaChange(ctx, db, tbl, col, newName)
+	}
 	q := "ALTER TABLE " + stringz.BacktickQuote(tbl) + " RENAME COLUMN " +
 		stringz.BacktickQuote(col) + " TO " + stringz.BacktickQuote(newName)
-	_, err := db.ExecContext(ctx, q)
+	_, err = db.ExecContext(ctx, q)
+	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
+}
+
+// renameColumnViaChange renames col to newName on pre-8.0 MySQL using
+// CHANGE COLUMN with the column's definition from SHOW CREATE TABLE.
+func (d *driveri) renameColumnViaChange(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
+	var tblName, showCreate string
+	if err := db.QueryRowContext(ctx, "SHOW CREATE TABLE "+stringz.BacktickQuote(tbl)).
+		Scan(&tblName, &showCreate); err != nil {
+		return errz.Wrapf(errw(err), "alter table: failed to read definition of {%s}", tbl)
+	}
+	def, err := extractColumnDef(showCreate, col)
+	if err != nil {
+		return errz.Wrapf(err, "alter table: rename column {%s.%s}", tbl, col)
+	}
+	q := "ALTER TABLE " + stringz.BacktickQuote(tbl) + " CHANGE COLUMN " +
+		stringz.BacktickQuote(col) + " " + stringz.BacktickQuote(newName) + " " + def
+	_, err = db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
