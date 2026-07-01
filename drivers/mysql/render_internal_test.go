@@ -36,11 +36,13 @@ func TestRenderFuncAvg_versionCast(t *testing.T) {
 		semver   string
 		wantFrag string
 	}{
-		{semver: "v8.0.17", wantFrag: "CAST("}, // >= 8.0.17 → CAST ... AS DOUBLE
+		{semver: "v8.0.17", wantFrag: "CAST("}, // MySQL >= 8.0.17 → CAST ... AS DOUBLE
 		{semver: "v8.0.36", wantFrag: "CAST("},
-		{semver: "v8.0.16", wantFrag: "+ 0e0"}, // < 8.0.17 → + 0e0
+		{semver: "v8.0.16", wantFrag: "+ 0e0"}, // MySQL < 8.0.17 → + 0e0
 		{semver: "v5.6.51", wantFrag: "+ 0e0"},
-		{semver: "", wantFrag: "CAST("}, // unknown → modern default
+		{semver: "v10.4.0", wantFrag: "CAST("},  // MariaDB >= 10.4.0 → CAST ... AS DOUBLE
+		{semver: "v10.3.39", wantFrag: "+ 0e0"}, // MariaDB < 10.4.0 → + 0e0
+		{semver: "", wantFrag: "+ 0e0"},         // unknown → universally valid fallback
 	}
 
 	for _, tc := range testCases {

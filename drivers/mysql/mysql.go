@@ -11,7 +11,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/samber/lo"
 	"github.com/xo/dburl"
-	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
@@ -387,15 +386,16 @@ func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName
 	return errz.Wrapf(errw(err), "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
-// AlterTableRenameColumn implements driver.SQLDriver. RENAME COLUMN was added
-// in MySQL 8.0.0; on 5.6/5.7 the rename must go through CHANGE COLUMN, which
+// AlterTableRenameColumn implements driver.SQLDriver. ALTER TABLE ... RENAME
+// COLUMN was added in MySQL 8.0.0 (MariaDB 10.5.2); on older servers — or when
+// the version can't be determined — the rename goes through CHANGE COLUMN, which
 // requires restating the column's full definition (else nullability/default/
 // charset/AUTO_INCREMENT/comment are dropped). The definition is taken verbatim
-// from SHOW CREATE TABLE. See issue #973. (Note: 8.0.0 threshold, distinct from
-// the avg-cast 8.0.17 threshold.)
+// from SHOW CREATE TABLE. See issue #973. (Note: the RENAME COLUMN threshold is
+// distinct from the avg-cast threshold; see supportsRenameColumn.)
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
 	v, err := d.DBSemver(ctx, db)
-	if err == nil && v != "" && semver.Compare(v, "v8.0.0") < 0 {
+	if err != nil || !supportsRenameColumn(v) {
 		return d.renameColumnViaChange(ctx, db, tbl, col, newName)
 	}
 	q := "ALTER TABLE " + stringz.BacktickQuote(tbl) + " RENAME COLUMN " +

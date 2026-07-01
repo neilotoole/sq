@@ -156,3 +156,55 @@ func TestParseSemver(t *testing.T) {
 		})
 	}
 }
+
+func TestSupportsCastAsDouble(t *testing.T) {
+	testCases := []struct {
+		v    string
+		want bool
+	}{
+		{v: "", want: false},         // version unknown -> safe fallback
+		{v: "bogus", want: false},    // invalid -> safe fallback
+		{v: "v5.6.51", want: false},  // MySQL, pre-8.0.17
+		{v: "v5.7.44", want: false},  // MySQL, pre-8.0.17
+		{v: "v8.0.16", want: false},  // MySQL, just below threshold
+		{v: "v8.0.17", want: true},   // MySQL, at threshold
+		{v: "v8.0.36", want: true},   // MySQL
+		{v: "v9.0.0", want: true},    // MySQL
+		{v: "v10.3.39", want: false}, // MariaDB, pre-10.4.0
+		{v: "v10.4.0", want: true},   // MariaDB, at threshold
+		{v: "v10.6.4", want: true},   // MariaDB
+		{v: "v11.2.2", want: true},   // MariaDB
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.v, func(t *testing.T) {
+			require.Equal(t, tc.want, supportsCastAsDouble(tc.v))
+		})
+	}
+}
+
+func TestSupportsRenameColumn(t *testing.T) {
+	testCases := []struct {
+		v    string
+		want bool
+	}{
+		{v: "", want: false},         // version unknown -> safe fallback
+		{v: "bogus", want: false},    // invalid -> safe fallback
+		{v: "v5.6.51", want: false},  // MySQL, pre-8.0.0
+		{v: "v5.7.44", want: false},  // MySQL, pre-8.0.0
+		{v: "v8.0.0", want: true},    // MySQL, at threshold
+		{v: "v8.0.36", want: true},   // MySQL
+		{v: "v9.0.0", want: true},    // MySQL
+		{v: "v10.3.39", want: false}, // MariaDB, pre-10.5.2
+		{v: "v10.5.1", want: false},  // MariaDB, just below threshold
+		{v: "v10.5.2", want: true},   // MariaDB, at threshold
+		{v: "v10.6.4", want: true},   // MariaDB
+		{v: "v11.2.2", want: true},   // MariaDB
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.v, func(t *testing.T) {
+			require.Equal(t, tc.want, supportsRenameColumn(tc.v))
+		})
+	}
+}
