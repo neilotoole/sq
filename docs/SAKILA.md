@@ -99,16 +99,14 @@ scripts, so they never drift.
 
 [`sakila-start-local.sh`](../sakila-start-local.sh) starts every engine from the
 matrix above (`docker run --pull always` on each `sakiladb/*` image at its first
-tag), waits for the `HEALTHCHECK` to report healthy, and prints an
-`export SQ_TEST_SRC__SAKILA_*` line for each source it started. Run it from the
-repo root, then paste those lines into your shell to enable the external
-sources:
+tag) and waits for the `HEALTHCHECK` to report healthy. Progress goes to stderr,
+and an `export SQ_TEST_SRC__SAKILA_*` line for each source goes to stdout, so you
+can source its output to set those vars in the current shell, then run the tests:
 
 ```bash
-./sakila-start-local.sh          # start containers; prints the export lines
-# paste the printed `export SQ_TEST_SRC__SAKILA_*` lines into this shell, then:
-make test                        # external-engine tests now run
-./sakila-stop-local.sh           # tear the containers down
+source <(./sakila-start-local.sh)   # start containers + export the DSN env vars
+make test                           # external-engine tests now run
+./sakila-stop-local.sh              # tear the containers down
 ```
 
 `make test-short` skips everything that needs a container.
