@@ -41,7 +41,7 @@ task:
 ## Common commands
 
 This project uses a `Makefile` as its canonical developer entry point (see
-[`CONTRIBUTING.md`](./CONTRIBUTING.md#makefile) for why).
+[`CONTRIBUTING.md`](./CONTRIBUTING.md#general-advice) for why).
 
 `make help` (the default target) lists every target with a one-line
 description; each target is documented inline in the `Makefile`.
