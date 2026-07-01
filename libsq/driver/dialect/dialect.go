@@ -73,6 +73,16 @@ type Dialect struct {
 	// MaxBatchValues is the maximum number of values in a batch insert.
 	MaxBatchValues int
 
+	// SingleWriter indicates that a database of this dialect permits only one
+	// write transaction at a time, so writers must be serialized. It governs
+	// bulk ingest such as the table copies that populate a cross-source join
+	// DB. The zero value (false) is the common case for client/server
+	// databases (e.g. PostgreSQL) that permit many concurrent writers. SQLite
+	// sets it true: its rollback journal serializes writers, so concurrent
+	// copies otherwise contend on the file lock and fail with "database is
+	// locked" (gh975).
+	SingleWriter bool
+
 	// IntBool is true if BOOLEAN is handled as an INT by the DB driver.
 	IntBool bool `json:"int_bool"`
 
