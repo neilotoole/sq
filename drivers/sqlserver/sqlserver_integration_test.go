@@ -303,6 +303,54 @@ func TestDriver_QuotedView_RowCount_MSSQL(t *testing.T) {
 	require.Equal(t, int64(2), md.RowCount, "row count must load via the COUNT(*) fallback")
 }
 
+// TestSourceMetadata_VanishedView_MSSQL pins that a source-wide metadata scan
+// tolerates a view whose underlying object has vanished. A base table dropped
+// mid-scan by concurrent DDL leaves its dependent views broken: sp_spaceused
+// still succeeds (a view has no storage, so it reports a NULL row count), and
+// then the SELECT COUNT(*) row-count fallback raises error 4413 ("binding
+// errors"); a view that itself vanishes raises 208 from the same site.
+// Previously only error 15009 was tolerated, so either failed the whole scan;
+// this was the cause of TestDBSemver flakes under parallel test load (issue
+// #1027). The dangling view used here reproduces the 4413 shape
+// deterministically, with no race; 208 is pinned by Test_isObjectVanishedErr.
+func TestSourceMetadata_VanishedView_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, grip, db := testh.NewWith(t, sakila.MS)
+
+	baseTbl := stringz.UniqTableName("vanish_base")
+	tblDef := schema.NewTable(baseTbl, []string{"id", "val"}, []kind.Kind{kind.Int, kind.Text})
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
+
+	viewName := stringz.UniqTableName("vanish_view")
+	qView := stringz.DoubleQuote(viewName)
+	_, err := db.ExecContext(th.Context,
+		`CREATE VIEW `+qView+` AS SELECT id, val FROM `+stringz.DoubleQuote(baseTbl))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP VIEW IF EXISTS `+qView)
+	})
+
+	// Drop the base table out from under the view: the view remains
+	// enumerable, but its COUNT(*) now raises error 208.
+	require.NoError(t, drvr.DropTable(th.Context, db, tablefq.From(baseTbl), false))
+
+	md, err := grip.SourceMetadata(th.Context, false)
+	require.NoError(t, err,
+		"source scan must tolerate a view whose object cannot be resolved (error 208)")
+
+	var foundView bool
+	for _, tbl := range md.Tables {
+		if tbl.Name == viewName {
+			foundView = true
+			break
+		}
+	}
+	require.False(t, foundView, "the unresolvable view is skipped, not failed")
+}
+
 // TestDriver_Truncate_QuotedIdentity_MSSQL exercises Truncate's reseed path
 // (DBCC CHECKIDENT) against an identity table whose name contains a double
 // quote. DBCC parses the name out of a string literal, so it must be

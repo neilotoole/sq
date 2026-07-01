@@ -553,21 +553,24 @@ AND t.table_name = $1`
 // pg_catalog. Matviews are absent from information_schema, so this is the
 // fallback path from getTableMetadata. It is a two-step operation: first
 // confirm that name actually is a matview (returning the canonical not-found
-// error otherwise), and only then run the detail query. The size/comment/viewdef
-// functions take name via quote_ident($1)::regclass; only the COUNT(*) FROM
-// identifier is interpolated, and only after Step A confirms name is a real
-// matview.
+// error otherwise) and resolve its OID on the bound name, and only then run
+// the detail query against that OID. Passing the OID (rather than a
+// quote_ident($1)::regclass text lookup) pins the relation resolved in Step A
+// regardless of search_path, mirroring getTableMetadata's pg_class JOIN. Only
+// the COUNT(*) FROM identifier is interpolated, as a double-quoted (escaped)
+// identifier, and only after Step A confirms name is a real matview.
 func getMatviewMetadata(ctx context.Context, db sqlz.DB, name string) (*metadata.Table, error) {
-	// Step A: confirm name is a matview in the current schema, and get
-	// the catalog & schema for the FQ name.
-	const confirmQuery = `SELECT current_database(), current_schema()
-WHERE EXISTS (
-  SELECT 1 FROM pg_catalog.pg_class c
-  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE c.relname = $1 AND n.nspname = current_schema() AND c.relkind = 'm'
-)`
-	var catalog, schema string
-	err := db.QueryRowContext(ctx, confirmQuery, name).Scan(&catalog, &schema)
+	// Step A: confirm name is a matview in the current schema, resolving its
+	// OID, and get the catalog & schema for the FQ name.
+	const confirmQuery = `SELECT current_database(), current_schema(), c.oid
+FROM pg_catalog.pg_class c
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relname = $1 AND n.nspname = current_schema() AND c.relkind = 'm'`
+	var (
+		catalog, schema string
+		oid             int64
+	)
+	err := db.QueryRowContext(ctx, confirmQuery, name).Scan(&catalog, &schema, &oid)
 	if errors.Is(err, sql.ErrNoRows) {
 		// Not a matview (nor any other relation found in info-schema):
 		// behave as before for a genuinely-missing relation.
@@ -579,19 +582,15 @@ WHERE EXISTS (
 	progress.Incr(ctx, 1)
 	debugz.DebugSleep(ctx)
 
-	// Step B: name is confirmed a matview. The size/comment/viewdef
-	// functions take name via quote_ident($1)::regclass. Only the
-	// COUNT(*) FROM identifier must be interpolated: a relation name
-	// cannot be a bind parameter in a FROM clause, and it's safe here
-	// because Step A confirmed name is a real matview in this schema.
-	const detailQueryTpl = `SELECT
-  (SELECT COUNT(*) FROM "%s") AS row_count,
-  pg_total_relation_size(quote_ident($1)::regclass) AS mv_size,
-  obj_description(quote_ident($1)::regclass, 'pg_class') AS mv_comment,
-  pg_get_viewdef(quote_ident($1)::regclass, true) AS view_def`
-	// Double any embedded double-quotes so the identifier literal can't be broken out of.
-	safeName := strings.ReplaceAll(name, `"`, `""`)
-	detailQuery := fmt.Sprintf(detailQueryTpl, safeName)
+	// Step B: name is confirmed a matview; the size/comment/viewdef functions
+	// take its OID directly. Only the COUNT(*) FROM identifier must be
+	// interpolated: a relation name cannot be a bind parameter in a FROM
+	// clause. DoubleQuote escapes it.
+	detailQuery := `SELECT
+  (SELECT COUNT(*) FROM ` + stringz.DoubleQuote(name) + `) AS row_count,
+  pg_total_relation_size($1::oid) AS mv_size,
+  obj_description($1::oid, 'pg_class') AS mv_comment,
+  pg_get_viewdef($1::oid, true) AS view_def`
 
 	var (
 		rowCount int64
@@ -599,7 +598,7 @@ WHERE EXISTS (
 		comment  sql.NullString
 		viewDef  sql.NullString
 	)
-	err = db.QueryRowContext(ctx, detailQuery, name).Scan(&rowCount, &mvSize, &comment, &viewDef)
+	err = db.QueryRowContext(ctx, detailQuery, oid).Scan(&rowCount, &mvSize, &comment, &viewDef)
 	if err != nil {
 		return nil, errw(err)
 	}

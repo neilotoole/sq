@@ -42,6 +42,38 @@ func Test_hasErrCode(t *testing.T) {
 	require.True(t, hasErrCode(err, wantCode))
 }
 
+// Test_isObjectVanishedErr pins the predicate that a source-wide metadata scan
+// uses to tolerate objects dropped mid-scan by concurrent DDL: error 15009
+// (sp_spaceused, object does not exist), error 208 (invalid object name, e.g.
+// from the view row-count fallback), and error 4413 (view binding errors,
+// when a view's underlying object vanished). In production the errors arrive
+// wrapped via errw (which maps 208 to driver.NotExistError), so wrapped forms
+// are covered too. See issue #1027.
+func Test_isObjectVanishedErr(t *testing.T) {
+	testCases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "nil", err: nil, want: false},
+		{name: "object_not_exist_15009", err: mssql.Error{Number: errCodeObjectNotExist}, want: true},
+		{name: "object_not_exist_15009_wrapped", err: errw(mssql.Error{Number: errCodeObjectNotExist}), want: true},
+		{name: "bad_object_208", err: mssql.Error{Number: errCodeBadObject}, want: true},
+		{name: "bad_object_208_wrapped", err: errw(mssql.Error{Number: errCodeBadObject}), want: true},
+		{name: "view_binding_4413", err: mssql.Error{Number: errCodeViewBindingErr}, want: true},
+		{name: "view_binding_4413_wrapped", err: errw(mssql.Error{Number: errCodeViewBindingErr}), want: true},
+		{name: "identity_insert_544", err: mssql.Error{Number: errCodeIdentityInsert}, want: false},
+		{name: "wrapped_other_code", err: errw(mssql.Error{Number: errCodeIdentityInsert}), want: false},
+		{name: "non_mssql_error", err: errors.New("huzzah"), want: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, isObjectVanishedErr(tc.err))
+		})
+	}
+}
+
 func TestParseSemver(t *testing.T) {
 	testCases := []struct {
 		raw     string

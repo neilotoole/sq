@@ -182,11 +182,14 @@ GROUP BY database_id) AS total_size_bytes`
 
 			tblMeta, gErr := getTableMetadata(gCtx, db, catalog, schema, tblNames[i], tblTypes[i], false)
 			if gErr != nil {
-				if hasErrCode(gErr, errCodeObjectNotExist) {
-					// This can happen if the table is dropped while
-					// we're collecting metadata. We log a warning and continue.
+				if isObjectVanishedErr(gErr) {
+					// This can happen if the table or view is dropped while
+					// we're collecting metadata: sp_spaceused raises 15009,
+					// and the view row-count fallback's SELECT COUNT(*)
+					// raises 208. We log a warning and continue rather than
+					// failing the whole source scan.
 					log.Warn(
-						"Table metadata: table not found (continuing regardless)",
+						"Table metadata: object not found (continuing regardless)",
 						lga.Table, tblNames[i],
 						lga.Err, gErr,
 					)
