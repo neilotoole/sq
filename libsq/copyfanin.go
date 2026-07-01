@@ -117,7 +117,8 @@ func groupTaskIndicesBySource(handles []string) [][]int {
 // OptErrgroupLimit here would risk deadlock: the single writer goroutine shares
 // this errgroup, so a saturated limit could starve its slot (or a source the
 // writer is waiting on). Overlapping the source reads is the point of the
-// fan-in, so the distinct-source count is the intended bound.
+// fan-in, so the distinct-source count is the intended bound. Safely bounding
+// it further for very wide multi-source joins is tracked in #1009.
 func runCopyFanIn(ctx context.Context, readers []func(context.Context) error,
 	nWrites int, write func(ctx context.Context, i int) error,
 ) error {

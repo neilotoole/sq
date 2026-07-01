@@ -41,7 +41,13 @@ func TestWriteCopyTable_readFailureRollsBack(t *testing.T) {
 	// readCopyTable does when QuerySQL errors after streaming some rows.
 	go func() {
 		recCh, _, openErr := buf.Open(ctx, func() {}, qsink.RecMeta)
-		assert.NoError(t, openErr)
+		if !assert.NoError(t, openErr) {
+			// Open never errors today, but guard anyway: on error recCh is nil
+			// and the send loop would block forever. Signal the writer so it
+			// can't hang, then bail.
+			buf.FinishRead(openErr)
+			return
+		}
 		for _, rec := range qsink.Recs {
 			recCh <- rec
 		}
