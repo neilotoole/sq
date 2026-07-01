@@ -9,7 +9,7 @@ documentation, and [ARCHITECTURE.md](./ARCHITECTURE.md) for a diagram of how
 drivers fit into the overall `sq` architecture.
 
 Some drivers carry their own README with maintainer notes (connection strings,
-local Docker, test env vars), e.g. [`oracle/README.md`](../drivers/oracle/README.md) or
+local Docker, test envars), e.g. [`oracle/README.md`](../drivers/oracle/README.md) or
 [`clickhouse/README.md`](../drivers/clickhouse/README.md).
 
 ## New driver implementations
@@ -71,7 +71,7 @@ documentation as incomplete work. This is what keeps [sq.io](https://sq.io),
    user-visible (maintainers may edit wording at release time).
 
 Optional: `drivers/{driver}/README.md` for maintainers (connection strings,
-local Docker, env vars for tests).
+local Docker, envars for tests).
 
 ### All drivers
 

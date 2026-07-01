@@ -179,6 +179,12 @@ commit messages, PR descriptions, CHANGELOG entries, and site docs. For
 example, "honors" not "honours", "color" not "colour", "behavior" not
 "behaviour", "optimize" not "optimise".
 
+### Terminology
+
+- **Envar** (one word) for an environment variable, not "env var", "env-var",
+  or "environment variable". Capitalize as "Envar" in headings and table
+  headers, "envar" in running prose.
+
 ### Prose style (no AI-isms)
 
 Applies to all written content in this repo: `README.md`, `CHANGELOG.md`,
