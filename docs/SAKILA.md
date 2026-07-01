@@ -16,7 +16,9 @@ The external database engines are served by the pre-built Docker images from the
 - **Registries:** published to both
   [Docker Hub](https://hub.docker.com/u/sakiladb) (`sakiladb/*`) and the
   [GitHub Container Registry](https://github.com/orgs/sakiladb/packages)
-  (`ghcr.io/sakiladb/*`).
+  (`ghcr.io/sakiladb/*`) as identical, cosign-signed images. Prefer **GHCR from
+  CI**: Docker Hub rate-limits pulls from shared CI-runner IPs, whereas GHCR does
+  not.
 - **One image per engine:** `sakiladb/postgres`, `sakiladb/mysql`,
   `sakiladb/sqlserver`, `sakiladb/clickhouse`, `sakiladb/oracle`, and
   `sakiladb/rqlite`.
@@ -97,13 +99,15 @@ scripts, so they never drift.
 
 [`sakila-start-local.sh`](../sakila-start-local.sh) starts every engine from the
 matrix above (`docker run --pull always` on each `sakiladb/*` image at its first
-tag), waits for the `HEALTHCHECK` to report healthy, and prints the
-`export SQ_TEST_SRC__SAKILA_*` lines to enable those sources. Source it to set
-the vars in the current shell:
+tag), waits for the `HEALTHCHECK` to report healthy, and prints an
+`export SQ_TEST_SRC__SAKILA_*` line for each source it started. Run it from the
+repo root, then paste those lines into your shell to enable the external
+sources:
 
 ```bash
-source ./sakila-start-local.sh   # start containers + export DSN env vars
-make test                        # now the external-engine tests run
+./sakila-start-local.sh          # start containers; prints the export lines
+# paste the printed `export SQ_TEST_SRC__SAKILA_*` lines into this shell, then:
+make test                        # external-engine tests now run
 ./sakila-stop-local.sh           # tear the containers down
 ```
 
@@ -114,21 +118,25 @@ make test                        # now the external-engine tests run
 In CI, the same matrix drives the reusable **DB integration** workflow
 (nightly at `:latest`, a weekly full version sweep, or on demand). See
 [`docs/WORKFLOW.md`](./WORKFLOW.md#database-integration-tests) for how
-`db-integration.yml` and `db-scheduled.yml` consume `.github/sakila-db.json`.
+[`db-integration.yml`](../.github/workflows/db-integration.yml) and
+[`db-scheduled.yml`](../.github/workflows/db-scheduled.yml) consume
+[`.github/sakila-db.json`](../.github/sakila-db.json).
 
 ## Regenerating embedded fixtures
 
 The in-repo fixtures are generated, not hand-authored; e.g.
-`drivers/sqlite3/testdata/recreate_sakila_sqlite.sh`, the
-`drivers/duckdb/testdata/duckdb-sakila-*.sql` scripts, and
-`drivers/csv/testdata/generate-sakila.sh`. Regenerate with those when the schema
-or data needs to change, rather than editing the binary fixtures directly.
+[`drivers/sqlite3/testdata/recreate_sakila_sqlite.sh`](../drivers/sqlite3/testdata/recreate_sakila_sqlite.sh),
+the [`duckdb-sakila-*.sql`](../drivers/duckdb/testdata) scripts under
+`drivers/duckdb/testdata/`, and
+[`drivers/csv/testdata/generate-sakila.sh`](../drivers/csv/testdata/generate-sakila.sh).
+Regenerate with those when the schema or data needs to change, rather than
+editing the binary fixtures directly.
 
 ## User-facing Sakila
 
 Sakila also underpins the end-user docs: the [sq.io](https://sq.io) tutorial and
 command examples query `@sakila` sources, and downloadable Sakila datasets are
-served from the site (`site/static/testdata/`, e.g.
+served from the site ([`site/static/testdata/`](../site/static/testdata), e.g.
 [`sq.io/testdata/sakila.db`](https://sq.io/testdata/sakila.db)) so readers can
 follow along.
 
