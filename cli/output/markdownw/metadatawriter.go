@@ -209,6 +209,7 @@ func (w *metadataWriter) writeSourceOverview(buf *bytes.Buffer, md *metadata.Sou
 	writeKVRow(buf, "Driver", md.Driver.String())
 	writeKVRow(buf, "DB product", md.DBProduct)
 	writeKVRow(buf, "DB version", md.DBVersion)
+	writeKVRow(buf, "DB semver", md.DBSemver)
 	writeKVRow(buf, "Schema", md.Schema)
 	writeKVRow(buf, "Catalog", md.Catalog)
 	writeKVRow(buf, "Size", stringz.FormatSize(md.Size))
