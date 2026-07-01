@@ -27,7 +27,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   the participating tables were copied into the temporary SQLite join database.
   The copies ran concurrently, but SQLite permits only one writer at a time, so a
   large table holding the write lock could starve the others past their timeout.
-  The copies into a single-writer join database are now serialized.
+  The copies into a single-writer join database now funnel through a single
+  writer while their source reads still run concurrently ([#995]), so they no
+  longer contend on the write lock and the reads are not serialized.
+- [#1017]: When a table copy or ingest was canceled or its source read failed
+  partway, the destination write could occasionally commit a partially-written
+  table instead of rolling back, due to a race between the read's cancellation
+  and the close of its record stream. The write is now rolled back whenever the
+  context is canceled.
 - [#994]: The DuckDB driver now SQL-quotes schema names that contain a double
   quote in `CreateSchema` and `DropSchema`, completing the `%q` → `stringz.DoubleQuote`
   identifier-quoting fix that [#976] applied to the table paths.
@@ -1765,6 +1772,8 @@ make working with lots of sources much easier.
 [#976]: https://github.com/neilotoole/sq/pull/976
 [#986]: https://github.com/neilotoole/sq/issues/986
 [#994]: https://github.com/neilotoole/sq/pull/994
+[#995]: https://github.com/neilotoole/sq/issues/995
+[#1017]: https://github.com/neilotoole/sq/issues/1017
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

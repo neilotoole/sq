@@ -17,8 +17,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/core/tuning"
@@ -53,12 +51,13 @@ type pipeline struct {
 	// set up the joindb before it is queried.
 	tasks []tasker
 
-	// tasksSingleWriter, when true, forces executeTasks to run its tasks
-	// one at a time instead of concurrently up to the errgroup limit. It is
-	// set from the join destination's dialect.SingleWriter so that a
-	// single-writer joindb (SQLite) serializes its copy tasks rather than
-	// contending on the write lock and failing with "database is locked"
-	// (gh975).
+	// tasksSingleWriter, when true, routes executeTasks through the fan-in copy
+	// path (concurrent source reads funneled through a single serialized
+	// writer) instead of the concurrent fused path. It is set from the join
+	// destination's dialect.SingleWriter so that a single-writer joindb (SQLite)
+	// serializes its writes rather than contending on the write lock and failing
+	// with "database is locked" (gh975), while its source reads still overlap
+	// (#995).
 	tasksSingleWriter bool
 }
 
@@ -163,10 +162,57 @@ func (p *pipeline) executeTasks(ctx context.Context) error {
 	default:
 	}
 
-	limit := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
+	// A single-writer joindb (SQLite) permits only one write tx at a time. Fan
+	// the copies in: run the source reads concurrently but funnel them through a
+	// single serialized writer, so the copies don't contend on the write lock
+	// (gh975) yet still overlap their reads (#995).
 	if p.tasksSingleWriter {
-		limit = 1
+		if copyTasks, ok := copyTasksOf(p.tasks); ok {
+			return executeCopyTasksFanIn(ctx, copyTasks)
+		}
+		// joinCopyTask is the only tasker, so copyTasksOf always succeeds above.
+		// This branch is unreachable today; if another tasker type is ever
+		// introduced, serialize it rather than running concurrent writers
+		// against the single-writer joindb (which would reintroduce gh975).
+		return p.executeTasksSerial(ctx)
 	}
+
+	// A multi-writer joindb tolerates concurrent writers, so the fused copies
+	// run concurrently up to the errgroup limit.
+	return p.executeTasksConcurrent(ctx)
+}
+
+// executeTasksSerial runs the tasks one at a time, in order, checking for
+// context cancellation before each.
+func (p *pipeline) executeTasksSerial(ctx context.Context) error {
+	for _, task := range p.tasks {
+		if ctx.Err() != nil {
+			return context.Cause(ctx)
+		}
+		if err := task.executeTask(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// copyTasksOf returns tasks as a slice of *joinCopyTask, reporting false if any
+// element is not a *joinCopyTask.
+func copyTasksOf(tasks []tasker) ([]*joinCopyTask, bool) {
+	copyTasks := make([]*joinCopyTask, len(tasks))
+	for i, t := range tasks {
+		ct, ok := t.(*joinCopyTask)
+		if !ok {
+			return nil, false
+		}
+		copyTasks[i] = ct
+	}
+	return copyTasks, true
+}
+
+// executeTasksConcurrent runs the tasks concurrently, up to the errgroup limit.
+func (p *pipeline) executeTasksConcurrent(ctx context.Context) error {
+	limit := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(limit)
@@ -522,11 +568,11 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		p.tasks = append(p.tasks, task)
 	}
 
-	// Cap copy-task concurrency to what the joindb tolerates. A
-	// single-writer joindb (SQLite) reports SingleWriter, so its copies
-	// serialize instead of contending on the write lock and failing with
-	// "database is locked" (gh975); a multi-writer joindb leaves the
-	// errgroup limit in force.
+	// Route copy execution based on what the joindb tolerates. A single-writer
+	// joindb (SQLite) reports SingleWriter, so its copies fan in through one
+	// serialized writer (concurrent reads, no write-lock contention; gh975 /
+	// #995); a multi-writer joindb runs the fused copies concurrently up to the
+	// errgroup limit.
 	p.tasksSingleWriter = joinGrip.SQLDriver().Dialect().SingleWriter
 
 	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)
@@ -564,27 +610,12 @@ func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
 ) error {
 	log := lg.FromContext(ctx)
 
-	createTblHook := func(ctx context.Context, originRecMeta record.Meta, destGrip driver.Grip,
-		tx sqlz.DB,
-	) error {
-		destColNames := originRecMeta.Names()
-		destColKinds := originRecMeta.Kinds()
-		destTblDef := schema.NewTable(destTbl.Table, destColNames, destColKinds)
-
-		err := destGrip.SQLDriver().CreateTable(ctx, tx, destTblDef)
-		if err != nil {
-			return errz.Wrapf(err, "failed to create dest table %s.%s", destGrip.Source().Handle, destTbl)
-		}
-
-		return nil
-	}
-
 	inserter := NewDBWriter(
 		"Copy records",
 		destGrip,
 		destTbl.Table,
 		tuning.OptRecBufSize.Get(destGrip.Source().Options),
-		createTblHook,
+		newJoinDestTableHook(destTbl),
 	)
 
 	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)
