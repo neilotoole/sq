@@ -80,6 +80,11 @@
     <a class="docs-link rounded {{ if $active }} active{{ end }}" href="{{- $hackURL -}}">Commands</a>
   </li>
 
+  {{- /* Contributor docs live in the repo, not on sq.io: external link. */}}
+  <li class="mb-1">
+    <a class="docs-link external rounded" href="https://github.com/neilotoole/sq/blob/master/CONTRIBUTING.md">Contributing</a>
+  </li>
+
   {{ range (where .Site.Sections "Section" "in" $section) }}
     {{ range .Sections }}
       {{- /* Sections with sidebar_skip: true in _index.md are rendered as a hardcoded link above instead. */}}
@@ -135,11 +140,6 @@
       {{ end }}{{/* if not .Params.sidebar_skip */}}
     {{ end }}
   {{ end }}
-
-  {{- /* Contributor docs live in the repo, not on sq.io: external link. */}}
-  <li class="mb-1">
-    <a class="docs-link external rounded" href="https://github.com/neilotoole/sq/blob/master/CONTRIBUTING.md">Contributing</a>
-  </li>
 
 <!--  <li class="mb-1">-->
 <!--    <a class="docs-link changelog external rounded" href="https://github.com/neilotoole/sq/blob/master/CHANGELOG.md"> 🔔&nbsp; CHANGELOG</a>-->
