@@ -33,6 +33,8 @@ task:
   (companion to [`grammar/SLQ.g4`](./grammar/SLQ.g4)).
 - [`docs/WORKFLOW.md`](./docs/WORKFLOW.md): development and CI workflows (local
   `Makefile` loop and the GitHub Actions pipelines).
+- [`docs/SAKILA.md`](./docs/SAKILA.md): the Sakila test dataset (`sakiladb`
+  images, embedded vs external sources, engine matrix, repo-wide usage).
 - [sq.io](https://sq.io): end-user documentation for commands and query
   syntax.
 

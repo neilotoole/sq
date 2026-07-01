@@ -19,6 +19,9 @@ documentation (commands, query syntax, drivers), see [sq.io](https://sq.io).
 - [`WORKFLOW.md`](./WORKFLOW.md): development and CI workflows — the local
   `Makefile` loop and the GitHub Actions under
   [`.github/workflows/`](../.github/workflows).
+- [`SAKILA.md`](./SAKILA.md): the Sakila test dataset — the
+  [`sakiladb`](https://github.com/sakiladb) Docker images, embedded vs external
+  sources, the engine matrix, and how Sakila is used across the repo.
 
 ## See also
 
