@@ -89,6 +89,10 @@ func TestIsErrScanRetryable(t *testing.T) {
 		{name: "relation_not_exist", err: &pgconn.PgError{Code: errCodeRelationNotExist}, want: true},
 		{name: "too_many_connections", err: &pgconn.PgError{Code: errCodeTooManyConnections}, want: true},
 		{name: "internal_error", err: &pgconn.PgError{Code: errCodeInternalError}, want: true},
+		// The predicate sees errors that have already been wrapped via errw, so
+		// each retryable code is also covered in wrapped form.
+		{name: "wrapped_relation_not_exist", err: errw(&pgconn.PgError{Code: errCodeRelationNotExist}), want: true},
+		{name: "wrapped_too_many_connections", err: errw(&pgconn.PgError{Code: errCodeTooManyConnections}), want: true},
 		{name: "wrapped_internal_error", err: errw(&pgconn.PgError{Code: errCodeInternalError}), want: true},
 		{name: "syntax_error", err: &pgconn.PgError{Code: "42601"}, want: false},
 		{name: "non_pg_error", err: errors.New("boom"), want: false},
