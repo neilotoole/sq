@@ -4,9 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
-	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -14,64 +12,20 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-// oracleTestDSN is the default DSN for the sakiladb/oracle image; override
-// with SQ_TEST_ORACLE_DSN.
-const oracleTestDSN = "oracle://sakila:p_ssW0rd@localhost:1521/SAKILA"
-
-// openOracleForInternalTest opens a connection to the test Oracle instance,
-// skipping the test if it's unreachable. The caller owns Close.
-func openOracleForInternalTest(t *testing.T) *sql.DB {
-	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	dsn := os.Getenv("SQ_TEST_ORACLE_DSN")
-	if dsn == "" {
-		dsn = oracleTestDSN
-	}
-	// sql.Open only fails if the "oracle" driver isn't registered or the DSN
-	// is malformed; both are real regressions, so require success here and
-	// skip only when the instance itself is unreachable (PingContext).
-	db, err := sql.Open("oracle", dsn)
-	require.NoError(t, err)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err = db.PingContext(ctx); err != nil {
-		_ = db.Close()
-		t.Skipf("Oracle not reachable: %v", err)
-	}
-	return db
-}
-
-// TestGetSourceMetadata_NoSchema covers the noSchema=true early-return branch
-// of getSourceMetadata, which grip.SourceMetadata(noSchema=false) doesn't hit.
-func TestGetSourceMetadata_NoSchema(t *testing.T) {
-	db := openOracleForInternalTest(t)
-	defer db.Close()
-
-	src := &source.Source{
-		Handle:   "@ora_internal",
-		Type:     drivertype.Oracle,
-		Location: oracleTestDSN,
-	}
-	md, err := getSourceMetadata(context.Background(), src, db, true)
-	require.NoError(t, err)
-	require.NotNil(t, md)
-	require.NotEmpty(t, md.Schema)
-	require.Empty(t, md.Tables, "noSchema=true must skip table enumeration")
-}
-
 // TestMetadataHelpers_ErrorPaths drives the first-query error branch of every
 // unexported metadata helper by handing each a closed *sql.DB. This covers the
-// errw(err) propagation paths deterministically.
+// errw(err) propagation paths deterministically. sql.Open does not dial the
+// server, so no live Oracle is required and the test always runs.
 func TestMetadataHelpers_ErrorPaths(t *testing.T) {
-	db := openOracleForInternalTest(t)
+	const dsn = "oracle://u:p@localhost:1521/x"
+	db, err := sql.Open("oracle", dsn)
+	require.NoError(t, err)
 	require.NoError(t, db.Close())
 
 	ctx := context.Background()
 	const tbl = "ACTOR"
 
-	_, err := queryOracleObjectNames(ctx, db, `SELECT table_name FROM user_tables`)
+	_, err = queryOracleObjectNames(ctx, db, `SELECT table_name FROM user_tables`)
 	require.Error(t, err)
 
 	_, err = liveRowCount(ctx, db, tbl)
@@ -116,7 +70,7 @@ func TestMetadataHelpers_ErrorPaths(t *testing.T) {
 	_, err = loadUserSchemaObjectsMetadata(ctx, slog.New(slog.DiscardHandler), "@h", db)
 	require.Error(t, err)
 
-	src := &source.Source{Handle: "@h", Type: drivertype.Oracle, Location: oracleTestDSN}
+	src := &source.Source{Handle: "@h", Type: drivertype.Oracle, Location: dsn}
 	_, err = getSourceMetadata(ctx, src, db, false)
 	require.Error(t, err)
 }

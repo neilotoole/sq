@@ -1,170 +1,47 @@
 package oracle_test
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
-	_ "github.com/jackc/pgx/v5/stdlib" // postgres driver
-	_ "github.com/sijms/go-ora/v2"     // Registers database/sql driver name "oracle".
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/oracle"
 	"github.com/neilotoole/sq/libsq/core/kind"
-	"github.com/neilotoole/sq/libsq/core/lg"
-	"github.com/neilotoole/sq/libsq/core/lg/lga"
-	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
-const (
-	// Default test DSN for the sakiladb/oracle image.
-	testDSN = "oracle://sakila:p_ssW0rd@localhost:1521/SAKILA"
-)
-
-// skipIfNoOracle skips the test if Oracle is not available.
-// It provides helpful error messages for common setup issues.
-func skipIfNoOracle(t *testing.T) {
-	t.Helper()
-
-	dsn := os.Getenv("SQ_TEST_ORACLE_DSN")
-	if dsn == "" {
-		dsn = testDSN
-	}
-	db, err := sql.Open("oracle", dsn)
-	if err != nil {
-		t.Skipf("Oracle driver open failed: %v", err)
-		return
-	}
-	defer db.Close()
-
-	pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err = db.PingContext(pingCtx); err != nil {
-		errMsg := err.Error()
-
-		// Check for connection refused (Oracle database not running).
-		if strings.Contains(errMsg, "connection refused") ||
-			strings.Contains(errMsg, "ORA-12541") ||
-			strings.Contains(errMsg, "no such host") ||
-			strings.Contains(errMsg, "i/o timeout") {
-			t.Skip(`Oracle database not reachable.
-
-Start a local instance:
-  docker run -d -p 1521:1521 sakiladb/oracle:latest
-
-Then set SQ_TEST_ORACLE_DSN if not using the default DSN. See
-drivers/oracle/README.md.`)
-			return
-		}
-
-		t.Skipf("Oracle not available: %v", err)
-		return
-	}
-}
-
-// getTestSource returns a test source for Oracle.
-func getTestSource(t *testing.T) *source.Source {
-	t.Helper()
-
-	dsn := os.Getenv("SQ_TEST_ORACLE_DSN")
-	if dsn == "" {
-		dsn = testDSN
-	}
-
-	return &source.Source{
-		Handle:   "@test_oracle",
-		Type:     drivertype.Oracle,
-		Location: dsn,
-		Options:  options.Options{},
-	}
-}
-
 // TestSmoke is a basic smoke test to verify the driver works.
 func TestSmoke(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	skipIfNoOracle(t)
+	tu.SkipShort(t, true)
+	th, src, drvr, _, db := testh.NewWith(t, sakila.Ora)
+	ctx := th.Context
 
-	ctx := context.Background()
-	log := slog.Default()
-	ctx = lg.NewContext(ctx, log)
+	require.NoError(t, drvr.Ping(ctx, src, driver.ModeReadWrite), "Ping should succeed")
 
-	provider := &oracle.Provider{Log: log}
-	drvr, err := provider.DriverFor(drivertype.Oracle)
-	require.NoError(t, err)
-	require.NotNil(t, drvr)
-
-	src := getTestSource(t)
-
-	// Test Ping
-	err = drvr.Ping(ctx, src, driver.ModeReadWrite)
-	require.NoError(t, err, "Ping should succeed")
-
-	// Test Open
-	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
-	require.NoError(t, err, "Open should succeed")
-	require.NotNil(t, grip)
-	defer grip.Close()
-
-	db, err := grip.DB(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, db)
-
-	// Test a simple query
 	var result int
-	err = db.QueryRowContext(ctx, "SELECT 1 FROM DUAL").Scan(&result)
-	require.NoError(t, err)
+	require.NoError(t, db.QueryRowContext(ctx, "SELECT 1 FROM DUAL").Scan(&result))
 	assert.Equal(t, 1, result)
-
-	log.Info("Smoke test passed", lga.Src, src)
 }
 
 // TestOracle_DBProperties_BestEffort verifies DBProperties returns core fields
 // even when v$instance is not readable (version may come from v$version).
 func TestOracle_DBProperties_BestEffort(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	skipIfNoOracle(t)
+	tu.SkipShort(t, true)
+	th, _, drvr, _, db := testh.NewWith(t, sakila.Ora)
 
-	ctx := context.Background()
-	log := slog.Default()
-	ctx = lg.NewContext(ctx, log)
-
-	provider := &oracle.Provider{Log: log}
-	drvr, err := provider.DriverFor(drivertype.Oracle)
-	require.NoError(t, err)
-
-	sqlDrvr, ok := drvr.(driver.SQLDriver)
-	require.True(t, ok, "driver should implement driver.SQLDriver")
-
-	src := getTestSource(t)
-	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
-	require.NoError(t, err)
-	defer grip.Close()
-
-	db, err := grip.DB(ctx)
-	require.NoError(t, err)
-
-	props, err := sqlDrvr.DBProperties(ctx, db)
+	props, err := drvr.DBProperties(th.Context, db)
 	require.NoError(t, err)
 	require.NotEmpty(t, props["db_name"])
 	require.NotEmpty(t, props["current_schema"])
@@ -175,62 +52,19 @@ func TestOracle_DBProperties_BestEffort(t *testing.T) {
 
 // TestCurrentSchema tests the CurrentSchema method.
 func TestCurrentSchema(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	skipIfNoOracle(t)
+	tu.SkipShort(t, true)
+	th, _, drvr, _, db := testh.NewWith(t, sakila.Ora)
 
-	ctx := context.Background()
-	log := slog.Default()
-	ctx = lg.NewContext(ctx, log)
-
-	provider := &oracle.Provider{Log: log}
-	drvr, err := provider.DriverFor(drivertype.Oracle)
-	require.NoError(t, err)
-
-	sqlDrvr, ok := drvr.(driver.SQLDriver)
-	require.True(t, ok, "driver should implement driver.SQLDriver")
-	src := getTestSource(t)
-
-	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
-	require.NoError(t, err)
-	defer grip.Close()
-
-	db, err := grip.DB(ctx)
-	require.NoError(t, err)
-
-	schemaName, err := sqlDrvr.CurrentSchema(ctx, db)
+	schemaName, err := drvr.CurrentSchema(th.Context, db)
 	require.NoError(t, err)
 	assert.NotEmpty(t, schemaName)
-
-	log.Info("Current schema", lga.Schema, schemaName)
 }
 
 // TestCreateAndDropTable tests table creation and deletion.
 func TestCreateAndDropTable(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	skipIfNoOracle(t)
-
-	ctx := context.Background()
-	log := slog.Default()
-	ctx = lg.NewContext(ctx, log)
-
-	provider := &oracle.Provider{Log: log}
-	drvr, err := provider.DriverFor(drivertype.Oracle)
-	require.NoError(t, err)
-
-	sqlDrvr, ok := drvr.(driver.SQLDriver)
-	require.True(t, ok, "driver should implement driver.SQLDriver")
-	src := getTestSource(t)
-
-	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
-	require.NoError(t, err)
-	defer grip.Close()
-
-	db, err := grip.DB(ctx)
-	require.NoError(t, err)
+	tu.SkipShort(t, true)
+	th, _, drvr, _, db := testh.NewWith(t, sakila.Ora)
+	ctx := th.Context
 
 	// Create a test table
 	tblName := stringz.UniqSuffix("TEST")
@@ -243,11 +77,11 @@ func TestCreateAndDropTable(t *testing.T) {
 		},
 	}
 
-	err = sqlDrvr.CreateTable(ctx, db, tblDef)
+	err := drvr.CreateTable(ctx, db, tblDef)
 	require.NoError(t, err, "CreateTable should succeed")
 
 	// Verify table exists
-	exists, err := sqlDrvr.TableExists(ctx, db, tblName)
+	exists, err := drvr.TableExists(ctx, db, tblName)
 	require.NoError(t, err)
 	assert.True(t, exists, "Table should exist after creation")
 
@@ -267,42 +101,20 @@ func TestCreateAndDropTable(t *testing.T) {
 	assert.Equal(t, "Test", name.String)
 
 	// Drop the table
-	err = sqlDrvr.DropTable(ctx, db, tablefq.From(tblName), false)
+	err = drvr.DropTable(ctx, db, tablefq.From(tblName), false)
 	require.NoError(t, err, "DropTable should succeed")
 
 	// Verify table no longer exists
-	exists, err = sqlDrvr.TableExists(ctx, db, tblName)
+	exists, err = drvr.TableExists(ctx, db, tblName)
 	require.NoError(t, err)
 	assert.False(t, exists, "Table should not exist after drop")
-
-	log.Info("CreateAndDropTable test passed")
 }
 
 // TestTypeMappings tests various Oracle data types.
 func TestTypeMappings(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	skipIfNoOracle(t)
-
-	ctx := context.Background()
-	log := slog.Default()
-	ctx = lg.NewContext(ctx, log)
-
-	provider := &oracle.Provider{Log: log}
-	drvr, err := provider.DriverFor(drivertype.Oracle)
-	require.NoError(t, err)
-
-	sqlDrvr, ok := drvr.(driver.SQLDriver)
-	require.True(t, ok, "driver should implement driver.SQLDriver")
-	src := getTestSource(t)
-
-	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
-	require.NoError(t, err)
-	defer grip.Close()
-
-	db, err := grip.DB(ctx)
-	require.NoError(t, err)
+	tu.SkipShort(t, true)
+	th, _, drvr, _, db := testh.NewWith(t, sakila.Ora)
+	ctx := th.Context
 
 	// Create a test table with various types
 	tblName := stringz.UniqSuffix("TEST_TYPES")
@@ -320,9 +132,9 @@ func TestTypeMappings(t *testing.T) {
 		},
 	}
 
-	err = sqlDrvr.CreateTable(ctx, db, tblDef)
+	err := drvr.CreateTable(ctx, db, tblDef)
 	require.NoError(t, err)
-	defer func() { _ = sqlDrvr.DropTable(ctx, db, tablefq.From(tblName), true) }()
+	defer func() { _ = drvr.DropTable(ctx, db, tablefq.From(tblName), true) }()
 
 	// Insert test data
 	testTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
@@ -344,126 +156,37 @@ func TestTypeMappings(t *testing.T) {
 	// Verify we can scan the row
 	require.True(t, rows.Next())
 
-	values := make([]interface{}, 8)
+	values := make([]any, 8)
 	for i := range values {
-		values[i] = new(interface{})
+		values[i] = new(any)
 	}
 
 	err = rows.Scan(values...)
 	require.NoError(t, err)
-
-	log.Info("TypeMappings test passed")
+	require.NoError(t, rows.Err())
 }
 
 // TestListTables tests listing tables.
 func TestListTables(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	skipIfNoOracle(t)
+	tu.SkipShort(t, true)
+	th, _, drvr, _, db := testh.NewWith(t, sakila.Ora)
 
-	ctx := context.Background()
-	log := slog.Default()
-	ctx = lg.NewContext(ctx, log)
-
-	provider := &oracle.Provider{Log: log}
-	drvr, err := provider.DriverFor(drivertype.Oracle)
-	require.NoError(t, err)
-
-	sqlDrvr, ok := drvr.(driver.SQLDriver)
-	require.True(t, ok, "driver should implement driver.SQLDriver")
-	src := getTestSource(t)
-
-	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
-	require.NoError(t, err)
-	defer grip.Close()
-
-	db, err := grip.DB(ctx)
-	require.NoError(t, err)
-
-	// List tables
-	tables, err := sqlDrvr.ListTableNames(ctx, db, "", true, false)
+	tables, err := drvr.ListTableNames(th.Context, db, "", true, false)
 	require.NoError(t, err)
 	assert.NotNil(t, tables)
-
-	log.Info("Listed tables", lga.Count, len(tables))
-}
-
-// skipIfNoPostgres skips the test if Postgres is not available.
-func skipIfNoPostgres(t *testing.T) {
-	t.Helper()
-
-	dsn := os.Getenv("SQ_TEST_POSTGRES_DSN")
-	if dsn == "" {
-		dsn = "postgres://testuser:testpass@localhost:5432/sakila?sslmode=disable"
-	}
-
-	db, err := sql.Open("pgx", dsn)
-	if err != nil {
-		t.Skipf("Postgres not available: %v", err)
-		return
-	}
-	defer db.Close()
-
-	if err = db.Ping(); err != nil {
-		t.Skipf("Postgres not available: %v", err)
-		return
-	}
 }
 
 // TestSakilaCrossDatabase tests reading data from Postgres and writing to Oracle.
 // This is a real-world integration test demonstrating cross-database data migration.
 func TestSakilaCrossDatabase(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	skipIfNoOracle(t)
-	skipIfNoPostgres(t)
-
-	ctx := context.Background()
-	log := slog.Default()
-	ctx = lg.NewContext(ctx, log)
-
-	// Setup Postgres source
-	pgDSN := os.Getenv("SQ_TEST_POSTGRES_DSN")
-	if pgDSN == "" {
-		pgDSN = "postgres://testuser:testpass@localhost:5432/sakila?sslmode=disable"
-	}
-
-	pgSrc := &source.Source{
-		Handle:   "@test_postgres",
-		Type:     drivertype.Pg,
-		Location: pgDSN,
-		Options:  options.Options{},
-	}
-
-	// Setup Oracle source
-	oracleSrc := getTestSource(t)
-
-	// Connect to Postgres
-	pgDB, err := sql.Open("pgx", pgDSN)
-	require.NoError(t, err, "Failed to open Postgres connection")
-	defer pgDB.Close()
-
-	err = pgDB.PingContext(ctx)
-	require.NoError(t, err, "Failed to ping Postgres")
-
-	// Get Oracle driver and connect
-	oracleProvider := &oracle.Provider{Log: log}
-	oracleDrvr, err := oracleProvider.DriverFor(drivertype.Oracle)
+	tu.SkipShort(t, true)
+	th := testh.New(t)
+	pgDB := th.OpenDB(th.Source(sakila.Pg))
+	oraGrip := th.Open(th.Source(sakila.Ora))
+	oraDrvr := oraGrip.SQLDriver()
+	ctx := th.Context
+	oraDB, err := oraGrip.DB(ctx)
 	require.NoError(t, err)
-
-	oracleSQLDrvr, ok := oracleDrvr.(driver.SQLDriver)
-	require.True(t, ok, "Oracle driver should implement driver.SQLDriver")
-
-	oracleGrip, err := oracleDrvr.Open(ctx, oracleSrc, driver.ModeReadWrite)
-	require.NoError(t, err)
-	defer oracleGrip.Close()
-
-	oracleDB, err := oracleGrip.DB(ctx)
-	require.NoError(t, err)
-
-	log.Info("Connected to both databases", "postgres", pgSrc.Handle, "oracle", oracleSrc.Handle)
 
 	// Test 1: Copy actor table
 	t.Run("CopyActorTable", func(t *testing.T) {
@@ -492,7 +215,6 @@ func TestSakilaCrossDatabase(t *testing.T) {
 		require.NotEmpty(t, actors, "Expected actor data in Postgres")
 
 		pgRowCount := len(actors)
-		log.Info("Read actors from Postgres", lga.Count, pgRowCount)
 
 		// Create table in Oracle
 		tblDef := &schema.Table{
@@ -504,16 +226,15 @@ func TestSakilaCrossDatabase(t *testing.T) {
 			},
 		}
 
-		err = oracleSQLDrvr.CreateTable(ctx, oracleDB, tblDef)
+		err = oraDrvr.CreateTable(ctx, oraDB, tblDef)
 		require.NoError(t, err, "Failed to create actor table in Oracle")
-		log.Info("Created table in Oracle", "table", testTableName)
 
 		// Insert data into Oracle (use uppercase table name)
 		insertSQL := fmt.Sprintf(
 			`INSERT INTO "%s" (ACTOR_ID, FIRST_NAME, LAST_NAME) VALUES (:1, :2, :3)`,
 			strings.ToUpper(testTableName),
 		)
-		stmt, err := oracleDB.PrepareContext(ctx, insertSQL)
+		stmt, err := oraDB.PrepareContext(ctx, insertSQL)
 		require.NoError(t, err, "Failed to prepare insert statement")
 		defer stmt.Close()
 
@@ -521,16 +242,14 @@ func TestSakilaCrossDatabase(t *testing.T) {
 			_, err := stmt.ExecContext(ctx, actor.ActorID, actor.FirstName, actor.LastName)
 			require.NoError(t, err, "Failed to insert actor %d", actor.ActorID)
 		}
-		log.Info("Inserted rows into Oracle", lga.Count, len(actors))
 
 		// Verify row count in Oracle (use uppercase table name)
 		var oracleRowCount int
 		countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "%s"`, strings.ToUpper(testTableName))
-		err = oracleDB.QueryRowContext(ctx, countQuery).Scan(&oracleRowCount)
+		err = oraDB.QueryRowContext(ctx, countQuery).Scan(&oracleRowCount)
 		require.NoError(t, err, "Failed to count Oracle rows")
 
 		assert.Equal(t, pgRowCount, oracleRowCount, "Row count mismatch between Postgres and Oracle")
-		log.Info("Row count verification passed", "postgres", pgRowCount, "oracle", oracleRowCount)
 
 		// Verify data integrity - spot check first and last rows
 		if len(actors) > 0 {
@@ -539,7 +258,7 @@ func TestSakilaCrossDatabase(t *testing.T) {
 
 			// Check first actor (use uppercase table name)
 			firstActor := actors[0]
-			err = oracleDB.QueryRowContext(ctx,
+			err = oraDB.QueryRowContext(ctx,
 				fmt.Sprintf(`SELECT ACTOR_ID, FIRST_NAME, LAST_NAME FROM "%s" WHERE ACTOR_ID = :1`, strings.ToUpper(testTableName)),
 				firstActor.ActorID).Scan(&oracleActorID, &oracleFirstName, &oracleLastName)
 			require.NoError(t, err, "Failed to query first actor from Oracle")
@@ -550,7 +269,7 @@ func TestSakilaCrossDatabase(t *testing.T) {
 
 			// Check last actor (use uppercase table name)
 			lastActor := actors[len(actors)-1]
-			err = oracleDB.QueryRowContext(ctx,
+			err = oraDB.QueryRowContext(ctx,
 				fmt.Sprintf(`SELECT ACTOR_ID, FIRST_NAME, LAST_NAME FROM "%s" WHERE ACTOR_ID = :1`, strings.ToUpper(testTableName)),
 				lastActor.ActorID).Scan(&oracleActorID, &oracleFirstName, &oracleLastName)
 			require.NoError(t, err, "Failed to query last actor from Oracle")
@@ -558,17 +277,12 @@ func TestSakilaCrossDatabase(t *testing.T) {
 			assert.Equal(t, lastActor.ActorID, oracleActorID, "Actor ID mismatch")
 			assert.Equal(t, lastActor.FirstName, oracleFirstName, "First name mismatch")
 			assert.Equal(t, lastActor.LastName, oracleLastName, "Last name mismatch")
-
-			log.Info("Data integrity verification passed")
 		}
 
 		// Cleanup
-		err = oracleSQLDrvr.DropTable(ctx, oracleDB, tablefq.From(testTableName), true)
+		err = oraDrvr.DropTable(ctx, oraDB, tablefq.From(testTableName), true)
 		require.NoError(t, err, "Failed to drop Oracle test table")
-		log.Info("Cleaned up Oracle test table", "table", testTableName)
 	})
-
-	log.Info("Cross-database test completed successfully")
 }
 
 // TestTableMetadata_DispatchByObjectType is a regression test covering both:
@@ -586,23 +300,9 @@ func TestSakilaCrossDatabase(t *testing.T) {
 // The test assumes the standard SAKILA fixture (table "actor", view
 // "customer_list").
 func TestTableMetadata_DispatchByObjectType(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping integration test in short mode")
-	}
-	skipIfNoOracle(t)
-
-	ctx := context.Background()
-	log := slog.Default()
-	ctx = lg.NewContext(ctx, log)
-
-	provider := &oracle.Provider{Log: log}
-	drvr, err := provider.DriverFor(drivertype.Oracle)
-	require.NoError(t, err)
-
-	src := getTestSource(t)
-	grip, err := drvr.Open(ctx, src, driver.ModeReadWrite)
-	require.NoError(t, err)
-	defer grip.Close()
+	tu.SkipShort(t, true)
+	th, _, _, grip, _ := testh.NewWith(t, sakila.Ora)
+	ctx := th.Context
 
 	// Oracle stores unquoted identifiers as upper case and the driver
 	// returns them verbatim — no case folding on output.
@@ -646,6 +346,19 @@ func TestTableMetadata_DispatchByObjectType(t *testing.T) {
 		assert.Contains(t, err.Error(), "does not exist",
 			"missing-object error should be descriptive, got: %v", err)
 	})
+}
+
+// TestGetSourceMetadata_NoSchema covers the noSchema=true early-return branch
+// of getSourceMetadata, which grip.SourceMetadata(noSchema=false) doesn't hit.
+func TestGetSourceMetadata_NoSchema(t *testing.T) {
+	tu.SkipShort(t, true)
+	th, src, _, _, db := testh.NewWith(t, sakila.Ora)
+
+	md, err := oracle.GetSourceMetadata(th.Context, src, db, true)
+	require.NoError(t, err)
+	require.NotNil(t, md)
+	require.NotEmpty(t, md.Schema)
+	require.Empty(t, md.Tables, "noSchema=true must skip table enumeration")
 }
 
 func TestDBSemver(t *testing.T) {
