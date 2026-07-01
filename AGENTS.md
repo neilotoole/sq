@@ -219,7 +219,7 @@ JSON) file you touch before committing.
 
 ### `CHANGELOG.md`
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md#changelogmd) for the full format.
+See [`docs/RELEASING.md`](./docs/RELEASING.md) for the full format.
 In short: work-in-progress goes under an `## Unreleased` section at the top
 with `Fixed` / `Changed` / `Added` subsections, and the first reference to
 an `sq` command in a release section links to its `sq.io` documentation.

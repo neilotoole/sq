@@ -22,6 +22,8 @@ documentation (commands, query syntax, drivers), see [sq.io](https://sq.io).
 - [`SAKILA.md`](./SAKILA.md): the Sakila test dataset — the
   [`sakiladb`](https://github.com/sakiladb) Docker images, embedded vs external
   sources, the engine matrix, and how Sakila is used across the repo.
+- [`RELEASING.md`](./RELEASING.md): `CHANGELOG.md` entry conventions and the
+  release procedure (tag → GoReleaser → publish).
 
 ## See also
 
