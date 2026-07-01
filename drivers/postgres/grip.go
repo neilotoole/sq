@@ -16,12 +16,12 @@ import (
 
 // grip is the postgres implementation of driver.Grip.
 type grip struct {
+	closeErr  error
 	log       *slog.Logger
-	drvr      *driveri
 	db        *sql.DB
 	src       *source.Source
+	drvr      *driveri
 	semver    driver.SemverCache
-	closeErr  error
 	closeOnce sync.Once
 }
 

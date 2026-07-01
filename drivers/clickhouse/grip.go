@@ -23,6 +23,9 @@ var _ driver.Grip = (*grip)(nil)
 // The grip is returned by driveri.Open and should be closed when no longer
 // needed to release the database connection.
 type grip struct {
+	// closeErr stores the error from closing the database connection.
+	closeErr error
+
 	// log is the logger for grip operations.
 	log *slog.Logger
 
@@ -38,9 +41,6 @@ type grip struct {
 
 	// semver memoizes DBSemver.
 	semver driver.SemverCache
-
-	// closeErr stores the error from closing the database connection.
-	closeErr error
 
 	// closeOnce ensures the database connection is closed only once.
 	closeOnce sync.Once

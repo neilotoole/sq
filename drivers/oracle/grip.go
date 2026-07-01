@@ -16,12 +16,12 @@ import (
 
 // grip implements driver.Grip for Oracle.
 type grip struct {
+	closeErr  error
 	log       *slog.Logger
-	drvr      *driveri
 	db        *sql.DB
 	src       *source.Source
+	drvr      *driveri
 	semver    driver.SemverCache
-	closeErr  error
 	closeOnce sync.Once
 }
 
