@@ -309,9 +309,12 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	}
 
 	if reset {
-		// DBCC CHECKIDENT takes the table name as a string literal, so it is
-		// single-quoted (SingleQuote doubles any embedded ').
-		_, err = db.ExecContext(ctx, `DBCC CHECKIDENT (`+stringz.SingleQuote(tbl)+`, RESEED, 1)`)
+		// DBCC CHECKIDENT parses the table name out of a string literal (as a
+		// possibly-multipart name), so it gets the same bracket-then-single
+		// quoting as sp_spaceused: bracket-quote so a name with a '.' resolves
+		// as one identifier (matching the DELETE above), then single-quote the
+		// literal. Raw single-quoting diverged from the DELETE for such names.
+		_, err = db.ExecContext(ctx, `DBCC CHECKIDENT (`+stringz.SingleQuote(bracketQuote(tbl))+`, RESEED, 1)`)
 		if err != nil {
 			if hasErrCode(err, errNoIdentityColumn) {
 				// The table has no identity column, so we can't reseed.

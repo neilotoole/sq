@@ -315,13 +315,13 @@ func TestDriver_CreateTable_QuotedIdentifier(t *testing.T) {
 
 			// Oracle forbids a double-quote char in an identifier outright
 			// (ORA-25716), even when escaped, so its own delimiter can never
-			// appear in a name — there is nothing to escape-test. Oracle's
+			// appear in a name, so there is nothing to escape-test. Oracle's
 			// write-path builders still route through enquoteOracle for hygiene.
 			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.Oracle,
 				"Oracle: ORA-25716 forbids a double-quote char in identifiers")
 
 			// The "weird" char is the dialect's own identifier delimiter (the
-			// first rune Enquote emits) — the exact char that must be doubled:
+			// first rune Enquote emits): the exact char that must be doubled,
 			// a double-quote for most dialects, a backtick for MySQL.
 			delim := []rune(drvr.Dialect().Enquote(""))[0]
 			weird := "we" + string(delim) + "ird"
