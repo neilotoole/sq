@@ -118,10 +118,13 @@ release procedure, see [`docs/RELEASING.md`](./docs/RELEASING.md).
 
 ## New driver implementations
 
-A "driver" implements a datasource type (Postgres, MySQL, CSV, JSON, etc.). The
-full guide (SQL vs document drivers, package structure, type mapping, dialect
-configuration, test handles, and the **driver ship checklist** for adding a new
-driver type) lives in [`docs/DRIVERS.md`](./docs/DRIVERS.md).
+A "driver" implements a datasource type
+([Postgres](https://sq.io/docs/drivers/postgres),
+[MySQL](https://sq.io/docs/drivers/mysql), [CSV](https://sq.io/docs/drivers/csv),
+[JSON](https://sq.io/docs/drivers/json), etc.). The full guide (SQL vs document
+drivers, package structure, type mapping, dialect configuration, test handles,
+and the **driver ship checklist** for adding a new driver type) lives in
+[`docs/DRIVERS.md`](./docs/DRIVERS.md).
 
 When you add a **new driver type**, complete the
 [driver ship checklist](./docs/DRIVERS.md#driver-ship-checklist) (code, sq.io
