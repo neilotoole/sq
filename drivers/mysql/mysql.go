@@ -387,8 +387,8 @@ func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver. ALTER TABLE ... RENAME
-// COLUMN was added in MySQL 8.0.0 (MariaDB 10.5.2); on older servers — or when
-// the version can't be determined — the rename goes through CHANGE COLUMN, which
+// COLUMN was added in MySQL 8.0.0 (MariaDB 10.5.2); on older servers (or when
+// the version can't be determined) the rename goes through CHANGE COLUMN, which
 // requires restating the column's full definition (else nullability/default/
 // charset/AUTO_INCREMENT/comment are dropped). The definition is taken verbatim
 // from SHOW CREATE TABLE. See issue #973. (Note: the RENAME COLUMN threshold is
