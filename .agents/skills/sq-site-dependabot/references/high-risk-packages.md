@@ -10,17 +10,13 @@ Dependabot PR title and `site/bun.lock` diff against this list.
 - Replacement/alternate PRs may be needed if Dependabot cannot auto-resolve
   (see sq repo history: held PRs, manual migration).
 
-## ESLint ecosystem (T3 when major)
+## JS lint / formatting (moved to root toolchain)
 
-- Flat config (`eslint.config.js`) — major bumps often need rule fixes across
-  `site/scripts/`, `site/bunfig.toml`, and content tooling.
-- Run `make site-test` after merge; expect multi-file lint fixes in a follow-up
-  commit if merging a major without a dedicated migration branch.
-
-## Stylelint (T3 when major)
-
-- Can fail on Doks/Hugo template-adjacent CSS and custom properties.
-- Compare `stylelint.config.*` changelog; run `bun run lint:styles` locally.
+Site JS linting (formerly ESLint) and formatting (formerly Stylelint /
+markdownlint) moved to the repo-root Bun toolchain: **Biome** (JS lint) and
+**dprint** (formatting). Those bumps arrive through the **root `/` bun
+ecosystem**, not this site flow, so they are out of scope here.
+`site/package.json` no longer carries any linter or formatter.
 
 ## `flexsearch` / search index (T4)
 
