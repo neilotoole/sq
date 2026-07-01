@@ -24,7 +24,7 @@ Classify every open site PR before ordering merges. Read this file during
 ## T2 — Medium (review changelog)
 
 - ESLint / Stylelint **minor** updates or new rules that may fail `site-test`
-- `linkinator`, markdownlint, or test-runner bumps
+- `linkinator`, `dprint`/`biome`, or test-runner bumps
 - Netlify plugin version bumps (`@netlify/plugin-lighthouse`, sitemap submit)
 
 **Validation:** Full `make ci`; scan Netlify Lighthouse report on deploy preview
