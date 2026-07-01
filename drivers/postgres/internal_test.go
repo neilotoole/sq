@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -70,6 +72,71 @@ func TestIsErrTooManyConnections(t *testing.T) {
 	// Test with a wrapped error
 	err = errw(err)
 	require.True(t, isErrTooManyConnections(err))
+}
+
+// TestIsErrScanRetryable pins the retry predicate used by the bulk metadata
+// loaders (loadWithRetry / doRetryVanished): too-many-connections, a relation
+// that no longer exists, and the XX000 internal error raised when a relation
+// is dropped between OID resolution and access are retryable; anything else
+// is not. See issue #1025.
+func TestIsErrScanRetryable(t *testing.T) {
+	testCases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "nil", err: nil, want: false},
+		{name: "relation_not_exist", err: &pgconn.PgError{Code: errCodeRelationNotExist}, want: true},
+		{name: "too_many_connections", err: &pgconn.PgError{Code: errCodeTooManyConnections}, want: true},
+		{name: "internal_error", err: &pgconn.PgError{Code: errCodeInternalError}, want: true},
+		{name: "wrapped_internal_error", err: errw(&pgconn.PgError{Code: errCodeInternalError}), want: true},
+		{name: "syntax_error", err: &pgconn.PgError{Code: "42601"}, want: false},
+		{name: "non_pg_error", err: errors.New("boom"), want: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, isErrScanRetryable(tc.err))
+		})
+	}
+}
+
+// TestLoadWithRetry_VanishedRelation pins the retry behavior of the bulk
+// metadata loaders: a transient vanished-relation error (a relation dropped
+// mid-scan by concurrent DDL) is retried and resolves on the next attempt,
+// while a non-retryable error surfaces immediately without a retry.
+func TestLoadWithRetry_VanishedRelation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("transient_vanished_relation", func(t *testing.T) {
+		t.Parallel()
+		var calls int
+		got, err := loadWithRetry(context.Background(), func() (int, error) {
+			calls++
+			if calls == 1 {
+				return 0, errw(&pgconn.PgError{
+					Code:    errCodeInternalError,
+					Message: "could not open relation with OID 12345",
+				})
+			}
+			return 7, nil
+		})
+		require.NoError(t, err)
+		require.Equal(t, 7, got)
+		require.Equal(t, 2, calls, "should succeed on the first retry")
+	})
+
+	t.Run("non_retryable_error", func(t *testing.T) {
+		t.Parallel()
+		wantErr := errors.New("boom")
+		var calls int
+		_, err := loadWithRetry(context.Background(), func() (int, error) {
+			calls++
+			return 0, wantErr
+		})
+		require.ErrorIs(t, err, wantErr)
+		require.Equal(t, 1, calls, "a non-retryable error must not be retried")
+	})
 }
 
 func TestParseSemver(t *testing.T) {
