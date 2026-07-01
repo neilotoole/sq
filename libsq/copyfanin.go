@@ -288,10 +288,12 @@ func writeCopyTable(ctx context.Context, task *joinCopyTask, buf *copyBuffer) er
 		return nil
 	}
 
-	// copyBuffer already provides the pre-writer buffering, so the DBWriter's
-	// own record channel is unbuffered (recChSize 0) to avoid a redundant
-	// second buffer of the active table's records.
-	inserter := NewDBWriter("Copy records", task.toGrip, task.toTbl.Table, 0,
+	// The DBWriter's record channel is buffered (not 0): it lets forwardRecords
+	// and the DBWriter's insert goroutine pipeline instead of handing off one
+	// record at a time. An unbuffered channel here measured ~30% slower on
+	// fast (low-latency) sources, for a negligible memory saving.
+	bufSize := tuning.OptRecBufSize.Get(task.toGrip.Source().Options)
+	inserter := NewDBWriter("Copy records", task.toGrip, task.toTbl.Table, bufSize,
 		newJoinDestTableHook(task.toTbl))
 
 	// wCancel drives a rollback of the inserter's tx: DBWriter watches its ctx
