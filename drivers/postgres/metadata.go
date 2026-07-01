@@ -184,6 +184,18 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 	return nullableScanType
 }
 
+// loadWithRetry runs a bulk metadata loader with vanished-relation retry, so a
+// table dropped mid-scan by concurrent DDL doesn't fail the whole source scan.
+func loadWithRetry[T any](ctx context.Context, load func() (T, error)) (T, error) {
+	var result T
+	err := doRetryVanished(ctx, func() error {
+		var e error
+		result, e = load()
+		return e
+	})
+	return result, err
+}
+
 func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*metadata.Source, error) {
 	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
@@ -261,9 +273,10 @@ current_setting('server_version'), version(), "current_user"()`
 
 			if mdErr != nil {
 				switch {
-				case isErrRelationNotExist(mdErr):
-					// For example, if the table is dropped while we're collecting
-					// metadata, we log a warning and suppress the error.
+				case isErrRelationDroppedMidScan(mdErr):
+					// If the table is dropped while we're collecting metadata
+					// (42P01, or the lower-level "could not open relation with
+					// OID"), log a warning and suppress the error.
 					log.Warn(
 						"metadata collection: table not found (continuing regardless)",
 						lga.Table, tblNames[i],
@@ -296,39 +309,54 @@ current_setting('server_version'), version(), "current_user"()`
 
 	md.RecomputeTableCounts()
 
-	// Fetch foreign keys for all tables in one query, assign them to
-	// their owning tables, and derive the cross-table back-references.
-	allFKs, err := getPgForeignKeys(ctx, db, "")
+	// Fetch foreign keys for all tables in one query, assign them to their
+	// owning tables, and derive the cross-table back-references. Each bulk
+	// loader is a single catalog query over every table in the schema; a table
+	// dropped mid-query by concurrent DDL is retried (loadWithRetry) so the
+	// scan doesn't fail on transient churn.
+	allFKs, err := loadWithRetry(ctx, func() ([]*metadata.ForeignKey, error) {
+		return getPgForeignKeys(ctx, db, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignForeignKeys(log, md.Tables, allFKs)
 
-	allUCs, err := getPgUniqueConstraints(ctx, db, "")
+	allUCs, err := loadWithRetry(ctx, func() ([]*metadata.UniqueConstraint, error) {
+		return getPgUniqueConstraints(ctx, db, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
 
-	allChecks, err := getPgCheckConstraints(ctx, db, "")
+	allChecks, err := loadWithRetry(ctx, func() ([]*metadata.CheckConstraint, error) {
+		return getPgCheckConstraints(ctx, db, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignCheckConstraints(log, md.Tables, allChecks)
 
-	allTriggers, err := getPgTriggers(ctx, db, "")
+	allTriggers, err := loadWithRetry(ctx, func() ([]*metadata.Trigger, error) {
+		return getPgTriggers(ctx, db, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignTriggers(log, md.Tables, allTriggers)
 
-	allIdxs, err := getPgIndexes(ctx, db, "")
+	allIdxs, err := loadWithRetry(ctx, func() ([]*metadata.Index, error) {
+		return getPgIndexes(ctx, db, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignIndexes(log, md.Tables, allIdxs)
 
-	allViewDefs, err := getPgViewDefinitions(ctx, db, "")
+	allViewDefs, err := loadWithRetry(ctx, func() (map[string]string, error) {
+		return getPgViewDefinitions(ctx, db, "")
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -448,16 +476,25 @@ ORDER BY table_name`
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 
-	const tblsQueryTpl = `SELECT table_catalog, table_schema, table_name, table_type, is_insertable_into,
-  (SELECT COUNT(*) FROM "%s") AS table_row_count,
-  pg_total_relation_size('%q') AS table_size,
-  (SELECT '%q'::regclass::oid AS table_oid),
-  obj_description('%q'::REGCLASS, 'pg_class') AS table_comment
-FROM information_schema.tables
-WHERE table_catalog = current_database()
-AND table_schema = current_schema()
-AND table_name = $1`
-	tablesQuery := fmt.Sprintf(tblsQueryTpl, tblName, tblName, tblName, tblName)
+	// A table name can legally contain a double-quote (e.g. `we"ird`). The
+	// relation's OID is resolved via a pg_class JOIN on the raw name ($1, a
+	// bind parameter) rather than a regclass text cast, which mis-parses such
+	// names; the size/oid/comment functions then take the OID directly. The
+	// only interpolation is the COUNT subquery's FROM, which uses a
+	// double-quoted (escaped) identifier. Raw interpolation built malformed
+	// SQL. See issue #1025.
+	safeIdent := stringz.DoubleQuote(tblName)
+	tablesQuery := `SELECT t.table_catalog, t.table_schema, t.table_name, t.table_type, t.is_insertable_into,
+  (SELECT COUNT(*) FROM ` + safeIdent + `) AS table_row_count,
+  pg_total_relation_size(c.oid) AS table_size,
+  c.oid AS table_oid,
+  obj_description(c.oid, 'pg_class') AS table_comment
+FROM information_schema.tables t
+JOIN pg_catalog.pg_class c ON c.relname = t.table_name
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace AND n.nspname = t.table_schema
+WHERE t.table_catalog = current_database()
+AND t.table_schema = current_schema()
+AND t.table_name = $1`
 
 	pgTbl := &pgTable{}
 	err := db.QueryRowContext(ctx, tablesQuery, tblName).
@@ -518,7 +555,7 @@ AND table_name = $1`
 // fallback path from getTableMetadata. It is a two-step operation: first
 // confirm that name actually is a matview (returning the canonical not-found
 // error otherwise), and only then run the detail query. The size/comment/
-// viewdef functions take name as a bound $1::regclass parameter; only the
+// viewdef functions take name as a bound quote_ident($1)::regclass parameter; only the
 // COUNT(*) FROM identifier is interpolated, and only after Step A confirms
 // name is a real matview.
 func getMatviewMetadata(ctx context.Context, db sqlz.DB, name string) (*metadata.Table, error) {
@@ -544,15 +581,15 @@ WHERE EXISTS (
 	debugz.DebugSleep(ctx)
 
 	// Step B: name is confirmed a matview. The size/comment/viewdef
-	// functions take name as a bound $1::regclass parameter. Only the
+	// functions take name as a bound quote_ident($1)::regclass parameter. Only the
 	// COUNT(*) FROM identifier must be interpolated: a relation name
 	// cannot be a bind parameter in a FROM clause, and it's safe here
 	// because Step A confirmed name is a real matview in this schema.
 	const detailQueryTpl = `SELECT
   (SELECT COUNT(*) FROM "%s") AS row_count,
-  pg_total_relation_size($1::regclass) AS mv_size,
-  obj_description($1::regclass, 'pg_class') AS mv_comment,
-  pg_get_viewdef($1::regclass, true) AS view_def`
+  pg_total_relation_size(quote_ident($1)::regclass) AS mv_size,
+  obj_description(quote_ident($1)::regclass, 'pg_class') AS mv_comment,
+  pg_get_viewdef(quote_ident($1)::regclass, true) AS view_def`
 	// Double any embedded double-quotes so the identifier literal can't be broken out of.
 	safeName := strings.ReplaceAll(name, `"`, `""`)
 	detailQuery := fmt.Sprintf(detailQueryTpl, safeName)
@@ -823,7 +860,7 @@ func getPgColumns(ctx context.Context, db sqlz.DB, tblName string) ([]*pgColumn,
 	FROM
 		pg_catalog.pg_class c
 	WHERE
-		c.oid = (SELECT ('"' || cols.table_name || '"')::regclass::oid)
+		c.oid = (SELECT quote_ident(cols.table_name)::regclass::oid)
 		AND c.relname = cols.table_name
 	) AS column_comment
 FROM information_schema.columns cols
@@ -902,14 +939,14 @@ func getPgConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*pgCon
     (
        SELECT pg_catalog.pg_get_constraintdef(pgc.oid, TRUE)
        FROM pg_catalog.pg_constraint pgc
-       WHERE pgc.conrelid = (SELECT ('"' || kcu.table_name || '"')::regclass::oid)
+       WHERE pgc.conrelid = (SELECT quote_ident(kcu.table_name)::regclass::oid)
        AND pgc.conname = tc.constraint_name
        limit 1
     )  AS constraint_def,
     (
        SELECT pgc.confrelid::regclass
        FROM pg_catalog.pg_constraint pgc
-       WHERE pgc.conrelid = (SELECT ('"' || kcu.table_name || '"')::regclass::oid)
+       WHERE pgc.conrelid = (SELECT quote_ident(kcu.table_name)::regclass::oid)
        AND pgc.conname = tc.constraint_name
        AND pgc.confrelid > 0
        LIMIT 1

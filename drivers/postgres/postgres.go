@@ -900,3 +900,13 @@ func doRetry(ctx context.Context, fn func() error) error {
 	maxRetryInterval := tuning.OptMaxRetryInterval.Get(options.FromContext(ctx))
 	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
 }
+
+// doRetryVanished is like doRetry, but also retries when a relation vanishes
+// mid-operation because of concurrent DDL. A source-wide metadata scan issues
+// bulk catalog queries against a live database, so a table dropped mid-query is
+// transient; retrying lets the churn settle. The error is still returned if
+// retries are exhausted.
+func doRetryVanished(ctx context.Context, fn func() error) error {
+	maxRetryInterval := tuning.OptMaxRetryInterval.Get(options.FromContext(ctx))
+	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections, isErrRelationDroppedMidScan)
+}

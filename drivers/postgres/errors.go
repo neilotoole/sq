@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -27,6 +28,10 @@ func errw(err error) error {
 const (
 	errCodeRelationNotExist   = "42P01"
 	errCodeTooManyConnections = "53300"
+	// errCodeInternalError (XX000) is raised, among other cases, as "could not
+	// open relation with OID ..." when a relation is dropped between OID
+	// resolution and access, i.e. by concurrent DDL.
+	errCodeInternalError = "XX000"
 )
 
 // isErrTooManyConnections returns true if err is a postgres error
@@ -43,6 +48,24 @@ func isErrTooManyConnections(err error) bool {
 // See: https://www.postgresql.org/docs/14/errcodes-appendix.html
 func isErrRelationNotExist(err error) bool {
 	return hasErrCode(err, errCodeRelationNotExist)
+}
+
+// isErrRelationDroppedMidScan reports whether err indicates a relation
+// disappeared while a source-wide metadata scan was reading it: the canonical
+// "relation does not exist" (42P01), or the lower-level "could not open
+// relation with OID ..." (XX000) that pg_total_relation_size / regclass raise
+// when a relation is dropped between OID resolution and access. A scan reads a
+// live database, so it tolerates such a drop rather than failing.
+func isErrRelationDroppedMidScan(err error) bool {
+	if isErrRelationNotExist(err) {
+		return true
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == errCodeInternalError &&
+			strings.Contains(pgErr.Message, "could not open relation")
+	}
+	return false
 }
 
 // hasErrCode returns true if err (or its cause error)

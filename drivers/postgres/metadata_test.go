@@ -290,6 +290,35 @@ func TestPostgres_ColumnFlags(t *testing.T) {
 	}
 }
 
+// TestPostgres_QuotedTableName_Metadata pins that table metadata loads for a
+// table whose name contains a double-quote. getTableMetadata must escape the
+// identifier (and pass it as a bound regclass parameter); raw interpolation
+// built malformed SQL, which surfaced as a flake when a full-source scan
+// happened to run while such a table existed (issue #1025).
+func TestPostgres_QuotedTableName_Metadata(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName(`me"ta`)
+	qtbl := stringz.DoubleQuote(tbl)
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+qtbl+` (id INT, name TEXT)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	_, err = db.ExecContext(th.Context, `INSERT INTO `+qtbl+` (id, name) VALUES (1, 'a'), (2, 'b')`)
+	require.NoError(t, err)
+
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.Equal(t, tbl, md.Name)
+	require.Equal(t, int64(2), md.RowCount, "RowCount must load for a quoted table name")
+	require.Len(t, md.Columns, 2)
+}
+
 // TestPostgres_ViewDefinition verifies that ViewDefinition is populated for
 // views and is empty for base tables.
 func TestPostgres_ViewDefinition(t *testing.T) {
