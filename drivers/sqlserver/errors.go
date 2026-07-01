@@ -18,6 +18,7 @@ const (
 	errCodeObjectNotExist int32 = 15009
 	errCodeBadObject      int32 = 208
 	errCodeViewBindingErr int32 = 4413
+	errCodeDeadlockVictim int32 = 1205
 	errNoIdentityColumn   int32 = 7997
 )
 
@@ -42,15 +43,25 @@ func hasErrCode(err error, code int32) bool {
 // error 208 ("invalid object name", e.g. from the view row-count fallback's
 // SELECT COUNT(*)) when it vanishes after resolution, or as error 4413
 // ("could not use view or function because of binding errors") when a view's
-// underlying object is what vanished. Matching is by error code, so it holds
-// whether or not err has been wrapped (errw maps 208 to driver.NotExistError,
-// which unwraps to the mssql.Error). A source-wide metadata scan of a live
-// database tolerates all three rather than failing the whole scan over one
-// dropped object.
+// underlying object is what vanished. Code matching holds whether or not err
+// has been wrapped (errw maps 208 to driver.NotExistError, which unwraps to
+// the mssql.Error). A bare driver.NotExistError also matches: getTableMetadata
+// returns one when sp_spaceused reports NULL fields for an object dropped
+// mid-call. A source-wide metadata scan of a live database tolerates all of
+// these rather than failing the whole scan over one dropped object.
 func isObjectVanishedErr(err error) bool {
 	return hasErrCode(err, errCodeObjectNotExist) ||
 		hasErrCode(err, errCodeBadObject) ||
-		hasErrCode(err, errCodeViewBindingErr)
+		hasErrCode(err, errCodeViewBindingErr) ||
+		errz.Has[*driver.NotExistError](err)
+}
+
+// isErrDeadlockVictim reports whether err is mssql error 1205: the query was
+// chosen as a deadlock victim. Catalog metadata queries can lose a lock race
+// against concurrent DDL; error 1205 is retryable by definition ("Rerun the
+// transaction").
+func isErrDeadlockVictim(err error) bool {
+	return hasErrCode(err, errCodeDeadlockVictim)
 }
 
 // errw wraps any error from the db. It should be called at

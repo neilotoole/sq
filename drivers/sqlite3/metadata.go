@@ -830,9 +830,21 @@ ORDER BY m.name, p.cid
 		return nil, errw(err)
 	}
 
+	// Assign counts, omitting any table that vanished mid-scan (recorded as -1
+	// by getTblRowCounts): a dropped table must not appear in the results with
+	// a nonsensical count, and the per-table FK/index queries below would be
+	// querying a relation that no longer exists.
+	kept := tblMetas[:0]
 	for i := range rowCounts {
+		if rowCounts[i] < 0 {
+			lg.FromContext(ctx).Warn("Table vanished during metadata scan; omitting",
+				lga.Table, tblMetas[i].Name)
+			continue
+		}
 		tblMetas[i].RowCount = rowCounts[i]
+		kept = append(kept, tblMetas[i])
 	}
+	tblMetas = kept
 
 	// Batch-fetch all triggers in a single round-trip (replaces N per-table
 	// getTableTriggers calls).
@@ -882,7 +894,8 @@ ORDER BY m.name, p.cid
 // in tblNames is dropped by concurrent DDL between enumeration and the COUNT
 // batch here, the batch fails with "no such table"; getTblRowCounts then falls
 // back to per-table COUNTs for that batch (countTblsIndividually) and records
-// -1 for any table that has since vanished, so callers can detect (or skip).
+// -1 for any table that has since vanished. The caller (getAllTableMetadata)
+// omits such tables from the results.
 func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error) {
 	log := lg.FromContext(ctx)
 

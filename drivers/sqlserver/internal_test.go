@@ -6,6 +6,8 @@ import (
 
 	mssql "github.com/microsoft/go-mssqldb"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/driver"
 )
 
 func Test_placeholders(t *testing.T) {
@@ -62,6 +64,11 @@ func Test_isObjectVanishedErr(t *testing.T) {
 		{name: "bad_object_208_wrapped", err: errw(mssql.Error{Number: errCodeBadObject}), want: true},
 		{name: "view_binding_4413", err: mssql.Error{Number: errCodeViewBindingErr}, want: true},
 		{name: "view_binding_4413_wrapped", err: errw(mssql.Error{Number: errCodeViewBindingErr}), want: true},
+		{
+			name: "not_exist_error",
+			err:  driver.NewNotExistError(errors.New("table {t} not found")),
+			want: true,
+		},
 		{name: "identity_insert_544", err: mssql.Error{Number: errCodeIdentityInsert}, want: false},
 		{name: "wrapped_other_code", err: errw(mssql.Error{Number: errCodeIdentityInsert}), want: false},
 		{name: "non_mssql_error", err: errors.New("huzzah"), want: false},
@@ -72,6 +79,17 @@ func Test_isObjectVanishedErr(t *testing.T) {
 			require.Equal(t, tc.want, isObjectVanishedErr(tc.err))
 		})
 	}
+}
+
+// Test_isErrDeadlockVictim pins the retry predicate for catalog metadata
+// queries chosen as a deadlock victim (error 1205) by concurrent DDL. See
+// issue #1031.
+func Test_isErrDeadlockVictim(t *testing.T) {
+	require.False(t, isErrDeadlockVictim(nil))
+	require.False(t, isErrDeadlockVictim(errors.New("huzzah")))
+	require.False(t, isErrDeadlockVictim(mssql.Error{Number: errCodeBadObject}))
+	require.True(t, isErrDeadlockVictim(mssql.Error{Number: errCodeDeadlockVictim}))
+	require.True(t, isErrDeadlockVictim(errw(mssql.Error{Number: errCodeDeadlockVictim})))
 }
 
 func TestParseSemver(t *testing.T) {

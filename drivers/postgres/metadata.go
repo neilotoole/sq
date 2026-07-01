@@ -557,8 +557,9 @@ AND t.table_name = $1`
 // the detail query against that OID. Passing the OID (rather than a
 // quote_ident($1)::regclass text lookup) pins the relation resolved in Step A
 // regardless of search_path, mirroring getTableMetadata's pg_class JOIN. Only
-// the COUNT(*) FROM identifier is interpolated, as a double-quoted (escaped)
-// identifier, and only after Step A confirms name is a real matview.
+// the COUNT(*) FROM identifier is interpolated, as a schema-qualified,
+// double-quoted (escaped) identifier, and only after Step A confirms name is
+// a real matview.
 func getMatviewMetadata(ctx context.Context, db sqlz.DB, name string) (*metadata.Table, error) {
 	// Step A: confirm name is a matview in the current schema, resolving its
 	// OID, and get the catalog & schema for the FQ name.
@@ -585,9 +586,12 @@ WHERE c.relname = $1 AND n.nspname = current_schema() AND c.relkind = 'm'`
 	// Step B: name is confirmed a matview; the size/comment/viewdef functions
 	// take its OID directly. Only the COUNT(*) FROM identifier must be
 	// interpolated: a relation name cannot be a bind parameter in a FROM
-	// clause. DoubleQuote escapes it.
+	// clause. DoubleQuote escapes it, and it is qualified with the schema
+	// resolved in Step A: an unqualified name resolves via the search path,
+	// where a same-named pg_temp relation would shadow the matview and supply
+	// a row count belonging to a different relation than the OID describes.
 	detailQuery := `SELECT
-  (SELECT COUNT(*) FROM ` + stringz.DoubleQuote(name) + `) AS row_count,
+  (SELECT COUNT(*) FROM ` + stringz.DoubleQuote(schema) + `.` + stringz.DoubleQuote(name) + `) AS row_count,
   pg_total_relation_size($1::oid) AS mv_size,
   obj_description($1::oid, 'pg_class') AS mv_comment,
   pg_get_viewdef($1::oid, true) AS view_def`
