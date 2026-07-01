@@ -136,6 +136,13 @@ func TestBuildCreateTableStmt(t *testing.T) {
 	got = buildCreateTableStmt(tblDef)
 	require.Contains(t, got, `"id" BIGINT DEFAULT 0 NOT NULL`)
 	require.Contains(t, got, `"name" TEXT DEFAULT '' NOT NULL`)
+
+	// With PKColName set, an inline PRIMARY KEY is emitted after the
+	// DEFAULT / NOT NULL block (#1029).
+	tblDef.PKColName = "id"
+	got = buildCreateTableStmt(tblDef)
+	require.Contains(t, got, `"id" BIGINT DEFAULT 0 NOT NULL PRIMARY KEY`)
+	require.NotContains(t, got, `"name" TEXT DEFAULT '' NOT NULL PRIMARY KEY`)
 }
 
 func TestBuildUpdateStmt(t *testing.T) {
