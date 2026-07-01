@@ -153,6 +153,29 @@ func TestMetadataWriter_SourceMetadata_nilSize(t *testing.T) {
 	require.NotContains(t, got, "0.0B")
 }
 
+// TestMetadataWriter_DBSemver checks that the "DB semver" row appears when
+// Source.DBSemver is set, and is omitted when it's empty (addRow skips
+// empty values).
+func TestMetadataWriter_DBSemver(t *testing.T) {
+	src := newTestSource()
+	src.DBVersion = "3.45.1"
+	src.DBSemver = "v3.45.1"
+
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.SourceMetadata(src, true))
+	got := buf.String()
+	require.Contains(t, got, "DB semver")
+	require.Contains(t, got, "v3.45.1")
+
+	src.DBSemver = ""
+	buf2 := &bytes.Buffer{}
+	w2 := htmlw.NewMetadataWriter(buf2, output.NewPrinting(), false)
+	require.NoError(t, w2.SourceMetadata(src, true))
+	got2 := buf2.String()
+	require.NotContains(t, got2, "DB semver")
+}
+
 // TestMetadataWriter_indexesAndUniqueConstraints checks that indexes and
 // unique constraints render as <table> elements with the expected columns.
 func TestMetadataWriter_indexesAndUniqueConstraints(t *testing.T) {
