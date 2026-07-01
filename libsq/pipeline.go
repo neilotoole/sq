@@ -212,6 +212,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 				Renderer: p.targetGrip.SQLDriver().Renderer(),
 				Args:     p.qc.Args,
 				Dialect:  p.targetGrip.SQLDriver().Dialect(),
+				DBSemver: dbSemverOf(ctx, p.targetGrip),
 			}
 			return nil
 		}
@@ -230,6 +231,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 		Renderer: p.targetGrip.SQLDriver().Renderer(),
 		Args:     p.qc.Args,
 		Dialect:  p.targetGrip.SQLDriver().Dialect(),
+		DBSemver: dbSemverOf(ctx, p.targetGrip),
 	}
 
 	return nil
@@ -264,6 +266,7 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		Renderer: rndr,
 		Args:     p.qc.Args,
 		Dialect:  fromGrip.SQLDriver().Dialect(),
+		DBSemver: dbSemverOf(ctx, fromGrip),
 	}
 
 	fromClause, err = rndr.FromTable(p.rc, tblSel)
@@ -272,6 +275,15 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 	}
 
 	return fromClause, fromGrip, nil
+}
+
+// dbSemverOf returns grip's canonical semver, or "" if it can't be determined.
+// Renderers compare "" below every feature-version threshold, so an
+// undeterminable version falls back to SQL valid on all server versions rather
+// than failing the query.
+func dbSemverOf(ctx context.Context, grip driver.Grip) string {
+	v, _ := grip.DBSemver(ctx)
+	return v
 }
 
 // joinClause models the SQL "JOIN" construct.
@@ -357,6 +369,7 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		Renderer: rndr,
 		Args:     p.qc.Args,
 		Dialect:  fromGrip.SQLDriver().Dialect(),
+		DBSemver: dbSemverOf(ctx, fromGrip),
 	}
 
 	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)
@@ -395,6 +408,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		Renderer: rndr,
 		Args:     p.qc.Args,
 		Dialect:  joinGrip.SQLDriver().Dialect(),
+		DBSemver: dbSemverOf(ctx, joinGrip),
 	}
 
 	leftHandle := jc.leftTbl.Handle()

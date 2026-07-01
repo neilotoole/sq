@@ -1440,3 +1440,33 @@ func (d *driveri) DBSemver(ctx context.Context, db sqlz.DB) (string, error) {
 	}
 	return parseSemver(raw)
 }
+
+// This driver serves both MySQL and MariaDB, whose feature-version numbers
+// diverge: MariaDB reports 10.x/11.x versions (a range MySQL has never used, so
+// a canonical semver >= v10.0.0 identifies MariaDB) and gained several features
+// at different points than MySQL. The supportsXxx helpers below encapsulate that
+// split so callers gate on capability rather than a raw MySQL-numbered compare
+// (which would misjudge MariaDB). An empty or otherwise invalid v (version
+// undeterminable) compares below every threshold via semver.Compare, so each
+// helper returns false and callers fall back to the form valid on all versions.
+// See issue #973.
+
+// supportsCastAsDouble reports whether the server supports CAST(... AS DOUBLE),
+// added to CAST()/CONVERT() in MySQL 8.0.17 and MariaDB 10.4.0. Below that, a
+// query must promote to DOUBLE another way (e.g. "expr + 0e0").
+func supportsCastAsDouble(v string) bool {
+	if semver.Compare(v, "v10.0.0") >= 0 { // MariaDB
+		return semver.Compare(v, "v10.4.0") >= 0
+	}
+	return semver.Compare(v, "v8.0.17") >= 0 // MySQL
+}
+
+// supportsRenameColumn reports whether the server supports
+// ALTER TABLE ... RENAME COLUMN, added in MySQL 8.0.0 and MariaDB 10.5.2. Below
+// that, a rename must go through CHANGE COLUMN (restating the column definition).
+func supportsRenameColumn(v string) bool {
+	if semver.Compare(v, "v10.0.0") >= 0 { // MariaDB
+		return semver.Compare(v, "v10.5.2") >= 0
+	}
+	return semver.Compare(v, "v8.0.0") >= 0 // MySQL
+}

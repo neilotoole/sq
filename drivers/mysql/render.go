@@ -250,6 +250,25 @@ func renderFuncRowNum(rc *render.Context, _ *ast.FuncNode) (string, error) { //n
 	return "(" + variable + ":=" + variable + " + 1)", nil
 }
 
+// renderFuncAvg renders avg() as a portable float64. CAST(... AS DOUBLE) was
+// only added to CAST()/CONVERT() in MySQL 8.0.17 (MariaDB 10.4.0), so on older
+// servers it is a syntax error (ER_PARSE_ERROR 1064). On those, fall back to
+// "(inner + 0e0)": the 0e0 double literal promotes the result to DOUBLE on every
+// version. avg() stays float64 across all versions (issue #973; #594 for why avg
+// is float64). When the server version is unknown, supportsCastAsDouble returns
+// false, so avg() renders the universally valid "(inner + 0e0)" rather than SQL
+// that only parses on modern servers.
+func renderFuncAvg(rc *render.Context, fn *ast.FuncNode) (string, error) {
+	inner, err := render.RenderFuncDefault(rc, fn)
+	if err != nil {
+		return "", err
+	}
+	if !supportsCastAsDouble(rc.DBSemver) {
+		return "(" + inner + " + 0e0)", nil
+	}
+	return "CAST(" + inner + " AS DOUBLE)", nil
+}
+
 func renderFuncContainsBinary(rc *render.Context, fn *ast.FuncNode) (string, error) {
 	return render.RenderLikeOp(rc, fn, render.LikeOpts{Mode: render.LikeContains, Op: "LIKE BINARY"})
 }

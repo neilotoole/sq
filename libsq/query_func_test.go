@@ -58,7 +58,11 @@ func TestQuery_func(t *testing.T) {
 				drivertype.ClickHouse: "SELECT avg(`actor_id`) AS `avg(.actor_id)` FROM `actor`",
 				drivertype.Oracle:     `SELECT CAST(avg("ACTOR_ID") AS BINARY_DOUBLE) AS "AVG(.ACTOR_ID)" FROM "ACTOR"`,
 			},
-			wantRecCount: 1,
+			// mysql's override above is only correct on MySQL >= 8.0.17; below
+			// that, avg() renders as "(avg(...) + 0e0)" (see render.go). Skip
+			// the exact-SQL assertion on old MySQL rather than assert stale SQL.
+			mysqlAvgVersionSQL: true,
+			wantRecCount:       1,
 			sinkFns: []SinkTestFunc{
 				assertSinkColName(0, "avg(.actor_id)"),
 				assertSinkColValue(0, float64(100.5)),
