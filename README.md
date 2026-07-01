@@ -332,8 +332,8 @@ Read more about cross-source joins in the [query guide](https://sq.io/docs/query
 ### Table commands
 
 `sq` provides several handy commands for working with tables:
-[`tbl copy`](/docs/cmd/tbl-copy), [`tbl truncate`](/docs/cmd/tbl-truncate)
-and [`tbl drop`](/docs/cmd/tbl-drop).
+[`tbl copy`](https://sq.io/docs/cmd/tbl-copy), [`tbl truncate`](https://sq.io/docs/cmd/tbl-truncate)
+and [`tbl drop`](https://sq.io/docs/cmd/tbl-drop).
 Note that these commands work directly
 against SQL database sources, using their native SQL commands.
 
@@ -382,10 +382,10 @@ $ cat ./example.xlsx | sq inspect
 ## Contributing
 
 Bug reports, feature requests, and pull requests are welcome. Start with
-[CONTRIBUTING.md](./CONTRIBUTING.md), which links out to the per-area guides:
-[`site/README.md`](./site/README.md) for the website and
-[`drivers/README.md`](./drivers/README.md) for adding a driver, plus
-[AGENTS.md](./AGENTS.md) for coding-agent conventions.
+[CONTRIBUTING.md](./CONTRIBUTING.md). Contributor and maintainer docs
+(architecture, drivers, grammar, workflows) are indexed in
+[`docs/README.md`](./docs/README.md), and [AGENTS.md](./AGENTS.md) covers
+AI-agent conventions.
 
 ## CHANGELOG
 
