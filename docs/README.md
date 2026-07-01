@@ -1,5 +1,11 @@
 # sq developer docs
 
+> [!IMPORTANT]
+> This `docs/` directory holds **developer-facing** documentation (architecture,
+> drivers, grammar, workflows, and such). **User-facing** documentation
+> (commands, query syntax, installation) lives on [sq.io](https://sq.io), whose
+> source is under [`site/`](../site); see [`site/README.md`](../site/README.md).
+
 Developer and maintainer documentation for the `sq` codebase. For end-user
 documentation (commands, query syntax, drivers), see [sq.io](https://sq.io).
 
