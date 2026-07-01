@@ -216,13 +216,42 @@ func TestDataQuery(t *testing.T) {
 	// No PK -> bare query, unchanged from the positional path.
 	require.Equal(t, `@a."payment"`, dataQuery(td, nil))
 
-	// Single int PK -> ordered.
-	require.Equal(t, `@a."payment" | order_by(.payment_id)`, dataQuery(td, []string{"payment_id"}))
+	// Single int PK -> ordered using quoted selector.
+	require.Equal(t, `@a."payment" | order_by(."payment_id")`, dataQuery(td, []string{"payment_id"}))
 
-	// Composite PK -> ordered by both, in order.
+	// Composite PK -> ordered by both, in order, using quoted selectors.
 	fa := source.Table{Handle: "@a", Name: "film_actor"}
-	require.Equal(t,
-		`@a."film_actor" | order_by(.actor_id, .film_id)`,
+	require.Equal(
+		t,
+		`@a."film_actor" | order_by(."actor_id", ."film_id")`,
 		dataQuery(fa, []string{"actor_id", "film_id"}),
 	)
+}
+
+func TestDataQueryQuoting(t *testing.T) {
+	// Verifies that dataQuery emits double-quoted SLQ selectors for PK columns,
+	// including names that would break the unquoted `.name` form (D-2A / D-2B).
+	td := source.Table{Handle: "@a", Name: "t"}
+
+	tests := []struct {
+		colName string
+		want    string
+	}{
+		// Trailing `+` or `-` is misread as sort direction in unquoted form (D-2A).
+		{"weird+", `@a."t" | order_by(."weird+")`},
+		{"weird-", `@a."t" | order_by(."weird-")`},
+		// Space or `|` causes a syntax error in unquoted form (D-2B).
+		{"my id", `@a."t" | order_by(."my id")`},
+		{"a|b", `@a."t" | order_by(."a|b")`},
+		// `.` in a name is misread as table.column in unquoted form (D-2C).
+		{"a.b", `@a."t" | order_by(."a.b")`},
+		// Embedded `"` must be backslash-escaped; `\` must be double-escaped.
+		{`col"name`, `@a."t" | order_by(."col\"name")`},
+		{`back\slash`, `@a."t" | order_by(."back\\slash")`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.colName, func(t *testing.T) {
+			require.Equal(t, tc.want, dataQuery(td, []string{tc.colName}))
+		})
+	}
 }

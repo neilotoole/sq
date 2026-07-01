@@ -186,7 +186,33 @@ func dataQuery(td source.Table, pkColNames []string) string {
 
 	sel := make([]string, len(pkColNames))
 	for i, name := range pkColNames {
-		sel[i] = "." + name
+		sel[i] = slqQuotedSelector(name)
 	}
 	return q + " | order_by(" + strings.Join(sel, ", ") + ")"
+}
+
+// slqQuotedSelector returns a double-quoted SLQ selector for the given column
+// name, suitable for use in order_by and similar SLQ expressions. Examples:
+//
+//	actor_id  →  ."actor_id"
+//	my id     →  ."my id"
+//	a.b       →  ."a.b"
+//	a+b       →  ."a+b"
+//
+// The SLQ STRING token (libsq/ast/internal/slq/SLQLexer.interp, ATN charset
+// analysis) admits any character except `"` and `\` literally, and treats `\"`
+// and `\\` as escape sequences (JSON-style). All other characters — including
+// space, `.`, `+`, `-`, `|`, `(`, `)` — are safe unescaped inside the quotes.
+//
+// Note: libsq/ast/selector.go extractSelVal strips the outer quotes but does
+// not unescape backslash sequences. Column names containing a literal `"` or
+// `\` are correctly escaped here so the SLQ lexer accepts the input, but the
+// extracted column name seen by the SQL renderer will retain the backslash.
+// This is a pre-existing limitation of extractSelVal; the common special
+// characters (space, `.`, `+`, `-`, `|`, `(`, `)`) are fully unaffected.
+func slqQuotedSelector(name string) string {
+	// Escape `\` before `"` to avoid double-escaping.
+	escaped := strings.ReplaceAll(name, `\`, `\\`)
+	escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+	return `."` + escaped + `"`
 }

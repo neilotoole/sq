@@ -343,11 +343,14 @@ func TestDiff_Data_PKAlignChangedAdjacent(t *testing.T) {
 				got := runDiffChangedAdjacent(t, format,
 					func(th *testh.Helper, left, right *source.Source) {
 						th.ExecSQL(left, fmt.Sprintf(
-							"DELETE FROM actor WHERE actor_id = %d", k))
+							"DELETE FROM actor WHERE actor_id = %d", k,
+						))
 						th.ExecSQL(left, fmt.Sprintf(
-							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", leftSent, changeID))
+							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", leftSent, changeID,
+						))
 						th.ExecSQL(right, fmt.Sprintf(
-							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", rightSnt, changeID))
+							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", rightSnt, changeID,
+						))
 					})
 
 				requireHasDiffLine(t, got, "-", leftSent,
@@ -363,11 +366,14 @@ func TestDiff_Data_PKAlignChangedAdjacent(t *testing.T) {
 				got := runDiffChangedAdjacent(t, format,
 					func(th *testh.Helper, left, right *source.Source) {
 						th.ExecSQL(right, fmt.Sprintf(
-							"DELETE FROM actor WHERE actor_id = %d", k))
+							"DELETE FROM actor WHERE actor_id = %d", k,
+						))
 						th.ExecSQL(right, fmt.Sprintf(
-							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", rightSnt, changeID))
+							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", rightSnt, changeID,
+						))
 						th.ExecSQL(left, fmt.Sprintf(
-							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", leftSent, changeID))
+							"UPDATE actor SET first_name = '%s' WHERE actor_id = %d", leftSent, changeID,
+						))
 					})
 
 				requireHasDiffLine(t, got, "-", leftSent,
@@ -434,4 +440,83 @@ func requireHasDiffLine(t *testing.T, got, prefix, substr, msg string) {
 		}
 	}
 	t.Fatalf("%s: no %q data line containing %q found in diff output:\n%s", msg, prefix, substr, got)
+}
+
+// TestDiff_Data_PKAlignSpecialCharPK is an integration gate for the D-2A/D-2B
+// bug class: dataQuery formerly emitted `.name` (unquoted) for PK column
+// selectors, which broke when the PK column name contained an SLQ operator
+// character (e.g., `+`). The fix always emits `."name"` (double-quoted).
+//
+// This test creates two SQLite tables whose INTEGER PRIMARY KEY column is
+// named `my+id` — a name that causes `order_by(.my+id)` to be mis-parsed
+// by the SLQ engine as `.my` with ascending direction (D-2A) or to abort with
+// a syntax error (D-2B), depending on whether a column named `my` exists.
+// Post-fix, `order_by(."my+id")` is emitted, the SLQ lexer recognises the
+// quoted NAME token, and the diff engine correctly aligns rows by their PK.
+func TestDiff_Data_PKAlignSpecialCharPK(t *testing.T) {
+	const tbl = "items"
+
+	th := testh.New(t)
+
+	// Create two fresh SQLite databases with a table whose PK column name
+	// contains '+', the SLQ sort-direction operator.
+	leftPath := filepath.Join(tu.TempDir(t), "left.db")
+	rightPath := filepath.Join(tu.TempDir(t), "right.db")
+
+	srcLeft := source.Source{
+		Handle:   "@test_left",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + leftPath,
+	}
+	srcRight := source.Source{
+		Handle:   "@test_right",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + rightPath,
+	}
+
+	// Create the table on both sides with a PK column named "my+id".
+	const createDDL = `CREATE TABLE "items" ("my+id" INTEGER PRIMARY KEY, val TEXT)`
+	th.ExecSQL(&srcLeft, createDDL)
+	th.ExecSQL(&srcRight, createDDL)
+
+	// Left: rows 1, 3, 4 (missing row 2).
+	th.ExecSQL(&srcLeft, `INSERT INTO "items" VALUES (1,'a'), (3,'c'), (4,'d')`)
+	// Right: rows 1, 2, 3, 4 (row 2 is the scattered-insert that should appear as "added").
+	th.ExecSQL(&srcRight, `INSERT INTO "items" VALUES (1,'a'), (2,'b'), (3,'c'), (4,'d')`)
+
+	// --unified 0 suppresses context rows so each diff line is exactly one data
+	// row, keeping the assertion count unambiguous.
+	tr := testrun.New(th.Context, t, nil).Hush().Add(srcLeft, srcRight)
+	err := tr.Exec(
+		"diff", "--data", "--unified", "0", "--stop", "0",
+		srcLeft.Handle+"."+tbl,
+		srcRight.Handle+"."+tbl,
+	)
+
+	require.Error(t, err, "diff must report differences (exit code 1)")
+	require.Equal(t, 1, errz.ExitCode(err),
+		"sq diff exits 1 when differences exist; exit 2 indicates a query error "+
+			"(likely a misquoted order_by selector)")
+
+	got := tr.Out.String()
+	t.Log("diff output:\n" + got)
+
+	var added, removed int
+	for _, line := range strings.Split(got, "\n") {
+		switch {
+		case strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---"):
+			// file header — skip
+		case strings.HasPrefix(line, "+"):
+			added++
+		case strings.HasPrefix(line, "-"):
+			removed++
+		}
+	}
+
+	t.Logf("added=%d removed=%d (want added=1 removed=0)", added, removed)
+	require.Equal(t, 1, added,
+		"PK-aware diff must report exactly one added row for the scattered PK value; "+
+			"a misquoted selector silently misaligns rows or aborts with exit 2")
+	require.Zero(t, removed,
+		"no rows were removed from the right table; zero removed lines expected")
 }
