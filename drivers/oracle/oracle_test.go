@@ -305,7 +305,7 @@ func TestTableMetadata_DispatchByObjectType(t *testing.T) {
 	ctx := th.Context
 
 	// Oracle stores unquoted identifiers as upper case and the driver
-	// returns them verbatim — no case folding on output.
+	// returns them verbatim, with no case folding on output.
 	t.Run("table", func(t *testing.T) {
 		md, err := grip.TableMetadata(ctx, "actor")
 		require.NoError(t, err, "inspecting a base table must succeed")

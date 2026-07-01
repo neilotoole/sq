@@ -117,7 +117,7 @@ not a gap awaiting a fix. See [#544](https://github.com/neilotoole/sq/issues/544
 ### Mutations are asynchronous by default
 
 ClickHouse has no standard `UPDATE`/`DELETE`; it uses "lightweight mutations"
-via `ALTER TABLE ... UPDATE/DELETE`, which are **asynchronous by default** —
+via `ALTER TABLE ... UPDATE/DELETE`, which are **asynchronous by default**:
 the statement returns before rows change, so a subsequent `SELECT` may see
 stale data.
 
@@ -164,8 +164,8 @@ The integration tests run against the shared `@sakila_ch` handle; see
 <!-- markdownlint-enable MD013 -->
 
 For #1/#2, `TestDriver_CreateTable_Minimal` and `TestOutputRaw` are skipped for
-ClickHouse (the `kind.Bytes` data is preserved on disk — `String` is
-binary-safe — but the Go type and sq kind change on readback).
+ClickHouse (the `kind.Bytes` data is preserved on disk, since `String` is
+binary-safe, but the Go type and sq kind change on readback).
 
 ### Array handling (#3)
 
@@ -174,7 +174,7 @@ sq's kind system has no `kind.Array`, and `record.Valid()` restricts values to
 `string`, `[]byte`, `time.Time`). ClickHouse `Array(T)` columns are therefore
 mapped to `kind.Text` in `metadata.go`: their scan type is overridden to
 `sqlz.RTypeAny`, and `getNewRecordFunc()` converts the resulting Go slice to a
-comma-separated string (`convertArrayToString()`). This loses structure —
+comma-separated string (`convertArrayToString()`). This loses structure:
 `["Action","Drama"]` becomes `"Action,Drama"`, nested arrays flatten, and
 elements containing commas are ambiguous. Serialization happens early because
 multi-source joins copy ClickHouse data into a scratch SQLite database.
