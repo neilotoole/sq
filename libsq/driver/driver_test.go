@@ -253,10 +253,10 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 			// Oracle's DATE type stores down to seconds (it's effectively a small
 			// datetime), so kind.Date round-trips back as kind.Datetime. Oracle
 			// has no time-only type, so kind.Time is stored as TIMESTAMP and
-			// also reads back as kind.Datetime. See drivers/oracle/render.go and
-			// drivers/oracle/README.md "Known limitations" for details.
+			// also reads back as kind.Datetime. See drivers/oracle/render.go
+			// for the type mapping.
 			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.Oracle,
-				"Oracle: kind.Date and kind.Time don't roundtrip exactly (see README Known limitations)")
+				"Oracle: kind.Date and kind.Time don't roundtrip exactly (see drivers/oracle/render.go)")
 
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
