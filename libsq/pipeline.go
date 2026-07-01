@@ -52,6 +52,14 @@ type pipeline struct {
 	// is executed against targetGrip. Typically tasks is used to
 	// set up the joindb before it is queried.
 	tasks []tasker
+
+	// tasksSingleWriter, when true, forces executeTasks to run its tasks
+	// one at a time instead of concurrently up to the errgroup limit. It is
+	// set from the join destination's dialect.SingleWriter so that a
+	// single-writer joindb (SQLite) serializes its copy tasks rather than
+	// contending on the write lock and failing with "database is locked"
+	// (gh975).
+	tasksSingleWriter bool
 }
 
 // newPipeline parses query, returning a pipeline prepared for
@@ -155,8 +163,13 @@ func (p *pipeline) executeTasks(ctx context.Context) error {
 	default:
 	}
 
+	limit := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
+	if p.tasksSingleWriter {
+		limit = 1
+	}
+
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(tuning.OptErrgroupLimit.Get(options.FromContext(ctx)))
+	g.SetLimit(limit)
 
 	for _, task := range p.tasks {
 		g.Go(func() error {
@@ -494,6 +507,13 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 
 		p.tasks = append(p.tasks, task)
 	}
+
+	// Cap copy-task concurrency to what the joindb tolerates. A
+	// single-writer joindb (SQLite) reports SingleWriter, so its copies
+	// serialize instead of contending on the write lock and failing with
+	// "database is locked" (gh975); a multi-writer joindb leaves the
+	// errgroup limit in force.
+	p.tasksSingleWriter = joinGrip.SQLDriver().Dialect().SingleWriter
 
 	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)
 	if err != nil {
