@@ -3,7 +3,10 @@
 `sq` welcomes new [issues](https://github.com/neilotoole/sq/issues), [pull requests](https://github.com/neilotoole/sq/pulls)
 and [discussion](https://github.com/neilotoole/sq/discussions).
 
-For user documentation, see [sq.io](https://sq.io).
+For user documentation, see [sq.io](https://sq.io). For contributor and
+maintainer reference docs (architecture, drivers, grammar, workflows,
+releasing), see the [`docs/`](./docs) index at
+[`docs/README.md`](./docs/README.md).
 
 For AI coding assistants working in this repo, see [AGENTS.md](./AGENTS.md)
 (cross-agent guidance and contributor [Agent Skills](https://agentskills.io/specification)
