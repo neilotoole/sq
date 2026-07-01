@@ -12,16 +12,20 @@ import (
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // executeCopyTasksFanIn copies each join-participant table into the join DB
-// using a fan-in strategy: the N slow source reads run concurrently while a
-// single writer drains them into the join DB one table at a time. Because
-// only one write transaction is ever open, the copies don't contend on the
-// join DB's write lock (the "database is locked" failure of gh975), yet the
-// source reads still overlap (#995), unlike the fully-serialized fix.
+// using a fan-in strategy: the source reads run concurrently while a single
+// writer drains them into the join DB one table at a time. Because only one
+// write transaction is ever open, the copies don't contend on the join DB's
+// write lock (the "database is locked" failure of gh975), yet the source reads
+// still overlap (#995), unlike the fully-serialized fix.
+//
+// Reads from the same source are serialized (see fanInReaders); reads from
+// different sources overlap, which is where the cross-source win comes from.
 //
 // It is used when the join DB is single-writer (SQLite); a multi-writer joindb
 // uses the concurrent fused path instead (see pipeline.executeTasks).
@@ -32,36 +36,90 @@ func executeCopyTasksFanIn(ctx context.Context, tasks []*joinCopyTask) error {
 		buffers[i] = newCopyBuffer(bufSize)
 	}
 
+	readers := fanInReaders(tasks, buffers)
+
 	return runCopyFanIn(
-		ctx, len(tasks),
-		func(ctx context.Context, i int) error { return readCopyTable(ctx, tasks[i], buffers[i]) },
+		ctx, readers, len(tasks),
 		func(ctx context.Context, i int) error { return writeCopyTable(ctx, tasks[i], buffers[i]) },
 	)
 }
 
-// runCopyFanIn is the concurrency skeleton of the fan-in copy: it runs read
-// concurrently for each of the n tasks, and runs write for every task from a
-// single goroutine, in task order, so writes are serialized. The read and
-// write for a given index coordinate out-of-band (via a shared copyBuffer);
-// runCopyFanIn only owns the goroutine structure. Any error from a read or
+// fanInReaders builds the concurrent read side of the fan-in: one reader func
+// per distinct source, each reading that source's tables sequentially (in task
+// order) into their buffers.
+//
+// Same-source reads are serialized deliberately. All of a source's tables are
+// read over that source's connection pool, and the single writer drains tables
+// in task order; if two tables from one source were read concurrently and the
+// pool were smaller than that (e.g. conn.max-open=1), a later table's reader
+// could hold the only connection while blocked on its full buffer, starving the
+// earlier table's reader that the writer is waiting on — deadlocking the query.
+// Reading a source's tables in task order makes the writer's current table
+// always the one holding that source's connection. It also bounds concurrency
+// to the number of sources (typically two or three) rather than the table
+// count. Same-source reads share one server/pool and gain little from
+// concurrency anyway.
+func fanInReaders(tasks []*joinCopyTask, buffers []*copyBuffer) []func(context.Context) error {
+	handles := make([]string, len(tasks))
+	for i, task := range tasks {
+		handles[i] = task.fromGrip.Source().Handle
+	}
+
+	groups := groupTaskIndicesBySource(handles)
+	readers := make([]func(context.Context) error, len(groups))
+	for g, idxs := range groups {
+		readers[g] = func(ctx context.Context) error {
+			for _, i := range idxs {
+				if err := readCopyTable(ctx, tasks[i], buffers[i]); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+	return readers
+}
+
+// groupTaskIndicesBySource groups task indices by their source handle,
+// preserving first-seen source order and, within each group, task order.
+func groupTaskIndicesBySource(handles []string) [][]int {
+	var order []string
+	groups := map[string][]int{}
+	for i, h := range handles {
+		if _, ok := groups[h]; !ok {
+			order = append(order, h)
+		}
+		groups[h] = append(groups[h], i)
+	}
+	out := make([][]int, len(order))
+	for i, h := range order {
+		out[i] = groups[h]
+	}
+	return out
+}
+
+// runCopyFanIn is the concurrency skeleton of the fan-in copy: it runs every
+// reader concurrently, and runs write for each of the nWrites tables from a
+// single goroutine, in task order, so writes are serialized. A reader and the
+// write for a given table coordinate out-of-band (via a shared copyBuffer);
+// runCopyFanIn only owns the goroutine structure. Any error from a reader or a
 // write cancels the shared context and is returned.
 //
-// read and write are parameters (rather than inlined) so the orchestration can
-// be tested without a database.
-func runCopyFanIn(ctx context.Context, n int,
-	read func(ctx context.Context, i int) error,
-	write func(ctx context.Context, i int) error,
+// readers and write are parameters (rather than inlined) so the orchestration
+// can be tested without a database.
+func runCopyFanIn(ctx context.Context, readers []func(context.Context) error,
+	nWrites int, write func(ctx context.Context, i int) error,
 ) error {
 	g, gCtx := errgroup.WithContext(ctx)
 
-	for i := range n {
+	for _, read := range readers {
 		g.Go(func() error {
-			return read(gCtx, i)
+			return read(gCtx)
 		})
 	}
 
 	g.Go(func() error {
-		for i := range n {
+		for i := range nWrites {
 			if err := write(gCtx, i); err != nil {
 				return err
 			}
@@ -70,6 +128,20 @@ func runCopyFanIn(ctx context.Context, n int,
 	})
 
 	return g.Wait()
+}
+
+// newJoinDestTableHook returns a DBWriter pre-write hook that creates the join
+// DB destination table destTbl from the incoming source record metadata. It is
+// shared by the fan-in writer and execCopyTable so the two copy paths create
+// join dest tables identically.
+func newJoinDestTableHook(destTbl tablefq.T) DBWriterPreWriteHook {
+	return func(ctx context.Context, recMeta record.Meta, destGrip driver.Grip, tx sqlz.DB) error {
+		destTblDef := schema.NewTable(destTbl.Table, recMeta.Names(), recMeta.Kinds())
+		if err := destGrip.SQLDriver().CreateTable(ctx, tx, destTblDef); err != nil {
+			return errz.Wrapf(err, "failed to create dest table %s.%s", destGrip.Source().Handle, destTbl)
+		}
+		return nil
+	}
 }
 
 // copyBuffer is a [RecordWriter] that buffers records read from a source table
@@ -193,18 +265,11 @@ func writeCopyTable(ctx context.Context, task *joinCopyTask, buf *copyBuffer) er
 		return nil
 	}
 
-	createTblHook := func(ctx context.Context, originRecMeta record.Meta, destGrip driver.Grip,
-		tx sqlz.DB,
-	) error {
-		destTblDef := schema.NewTable(task.toTbl.Table, originRecMeta.Names(), originRecMeta.Kinds())
-		if err := destGrip.SQLDriver().CreateTable(ctx, tx, destTblDef); err != nil {
-			return errz.Wrapf(err, "failed to create dest table %s.%s", destGrip.Source().Handle, task.toTbl)
-		}
-		return nil
-	}
-
-	bufSize := tuning.OptRecBufSize.Get(task.toGrip.Source().Options)
-	inserter := NewDBWriter("Copy records", task.toGrip, task.toTbl.Table, bufSize, createTblHook)
+	// copyBuffer already provides the pre-writer buffering, so the DBWriter's
+	// own record channel is unbuffered (recChSize 0) to avoid a redundant
+	// second buffer of the active table's records.
+	inserter := NewDBWriter("Copy records", task.toGrip, task.toTbl.Table, 0,
+		newJoinDestTableHook(task.toTbl))
 
 	// wCancel drives a rollback of the inserter's tx: DBWriter watches its ctx
 	// and rolls back when it's cancelled.

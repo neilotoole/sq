@@ -17,8 +17,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/core/tuning"
@@ -163,17 +161,17 @@ func (p *pipeline) executeTasks(ctx context.Context) error {
 	default:
 	}
 
+	// A single-writer joindb (SQLite) permits only one write tx at a time. Fan
+	// the copies in: run the source reads concurrently but funnel them through a
+	// single serialized writer, so the copies don't contend on the write lock
+	// (gh975) yet still overlap their reads (#995). joinCopyTask is the only
+	// tasker, so copyTasksOf always succeeds here; the !ok branch is a defensive
+	// fall-through to the generic concurrent path should another tasker type
+	// ever be introduced.
 	if p.tasksSingleWriter {
-		// A single-writer joindb (SQLite) permits only one write tx at a time.
-		// Fan the copies in: run the source reads concurrently but funnel them
-		// through a single serialized writer, so the copies don't contend on
-		// the write lock (gh975) yet still overlap their reads (#995). The
-		// copies are always joinCopyTasks; the serial fallback only guards the
-		// theoretical case of some other tasker type.
 		if copyTasks, ok := copyTasksOf(p.tasks); ok {
 			return executeCopyTasksFanIn(ctx, copyTasks)
 		}
-		return p.executeTasksSerial(ctx)
 	}
 
 	// A multi-writer joindb tolerates concurrent writers, so the fused copies
@@ -193,16 +191,6 @@ func copyTasksOf(tasks []tasker) ([]*joinCopyTask, bool) {
 		copyTasks[i] = ct
 	}
 	return copyTasks, true
-}
-
-// executeTasksSerial runs the tasks one at a time, in order.
-func (p *pipeline) executeTasksSerial(ctx context.Context) error {
-	for _, task := range p.tasks {
-		if err := task.executeTask(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // executeTasksConcurrent runs the tasks concurrently, up to the errgroup limit.
@@ -591,27 +579,12 @@ func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
 ) error {
 	log := lg.FromContext(ctx)
 
-	createTblHook := func(ctx context.Context, originRecMeta record.Meta, destGrip driver.Grip,
-		tx sqlz.DB,
-	) error {
-		destColNames := originRecMeta.Names()
-		destColKinds := originRecMeta.Kinds()
-		destTblDef := schema.NewTable(destTbl.Table, destColNames, destColKinds)
-
-		err := destGrip.SQLDriver().CreateTable(ctx, tx, destTblDef)
-		if err != nil {
-			return errz.Wrapf(err, "failed to create dest table %s.%s", destGrip.Source().Handle, destTbl)
-		}
-
-		return nil
-	}
-
 	inserter := NewDBWriter(
 		"Copy records",
 		destGrip,
 		destTbl.Table,
 		tuning.OptRecBufSize.Get(destGrip.Source().Options),
-		createTblHook,
+		newJoinDestTableHook(destTbl),
 	)
 
 	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)

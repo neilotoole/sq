@@ -28,49 +28,6 @@ func recordPeak(active, peak *atomic.Int32) int32 {
 	}
 }
 
-// concProbeTask records the peak number of tasks executing concurrently.
-// The sleep widens the window in which overlapping tasks are observable, so
-// that a broken concurrency clamp (tasks running in parallel when they must
-// be serialized) is reliably caught; under a correct serialized run the peak
-// is structurally 1 regardless of the sleep, so this cannot yield a false
-// failure.
-type concProbeTask struct {
-	active *atomic.Int32
-	peak   *atomic.Int32
-}
-
-func (ct *concProbeTask) executeTask(context.Context) error {
-	recordPeak(ct.active, ct.peak)
-	defer ct.active.Add(-1)
-	time.Sleep(50 * time.Millisecond)
-	return nil
-}
-
-func newConcProbeTasks(n int) (tasks []tasker, peak *atomic.Int32) {
-	active := &atomic.Int32{}
-	peak = &atomic.Int32{}
-	tasks = make([]tasker, n)
-	for i := range tasks {
-		tasks[i] = &concProbeTask{active: active, peak: peak}
-	}
-	return tasks, peak
-}
-
-// TestPipeline_executeTasks_singleWriterSerializes verifies the serial
-// fallback for a single-writer joindb (tasksSingleWriter): when the tasks are
-// not joinCopyTasks (as here, using concurrency probes), executeTasks runs
-// them one at a time rather than concurrently. Real join copies take the
-// fan-in path instead (concurrent reads, one serialized writer), which never
-// contends on the single write lock and fails with "database is locked"
-// (gh975); that path's concurrency contract is covered by TestRunCopyFanIn_*.
-func TestPipeline_executeTasks_singleWriterSerializes(t *testing.T) {
-	tasks, peak := newConcProbeTasks(4)
-	p := &pipeline{tasks: tasks, tasksSingleWriter: true}
-	require.NoError(t, p.executeTasks(context.Background()))
-	require.Equal(t, int32(1), peak.Load(),
-		"tasksSingleWriter must serialize join copy tasks")
-}
-
 // TestPipeline_executeTasks_concurrentByDefault verifies that for a
 // multi-writer joindb (tasksSingleWriter false), executeTasks runs tasks
 // concurrently up to the errgroup limit. Each task blocks until a second

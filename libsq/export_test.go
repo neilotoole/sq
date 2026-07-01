@@ -34,3 +34,8 @@ func NewJoinCopyTask(fromGrip driver.Grip, fromTbl tablefq.T,
 func WriteCopyTable(ctx context.Context, task *JoinCopyTask, buf *CopyBuffer) error {
 	return writeCopyTable(ctx, task, buf)
 }
+
+// ExecuteCopyTasksFanIn is exported for testing.
+func ExecuteCopyTasksFanIn(ctx context.Context, tasks []*JoinCopyTask) error {
+	return executeCopyTasksFanIn(ctx, tasks)
+}
