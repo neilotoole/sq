@@ -29,7 +29,7 @@ make install     # build + install sq into the Go bin dir
 
 ### The inner loop
 
-1. `make init` once after cloning — installs dependencies and activates the
+1. `make init` once after cloning: installs dependencies and activates the
    repo git hooks (`.githooks`).
 2. Edit code. If you touch generated inputs (the [SLQ grammar](./GRAMMAR.md),
    anything under `go generate`), run `make gen`.
@@ -40,7 +40,7 @@ make install     # build + install sq into the Go bin dir
 4. `make test-short` for the fast pass; `make test` for the full suite
    (needs Docker for the `sakiladb/*` images used by SQL-driver integration
    tests).
-5. `make all` before opening a PR — it mirrors the merge-blocking CI set
+5. `make all` before opening a PR: it mirrors the merge-blocking CI set
    (gen, fmt, lint, test, build).
 
 Mark long-running tests with `tu.SkipShort` so they stay out of the dev loop
@@ -86,29 +86,29 @@ doc-only, `site/**`, and `sq.json` (scoop) changes on PRs, but always runs on
 
 **Fast loop** (every PR push and `master` merge; superseded runs are cancelled):
 
-- **`lint`** — actionlint (workflow files), shellcheck, Go import-grouping
+- **`lint`**: actionlint (workflow files), shellcheck, Go import-grouping
   check, and golangci-lint.
-- **`test-nix`** — Linux + macOS tests with `-short` (long-running tests
+- **`test-nix`**: Linux + macOS tests with `-short` (long-running tests
   skipped).
-- **`test-windows-smoke`** — focused smoke suite (`./test/smoke/...`) to catch
+- **`test-windows-smoke`**: focused smoke suite (`./test/smoke/...`) to catch
   CGO/SQLite breakage.
 
 **Slow suites** (nightly against `master`, on `v*` tags, and on manual
 dispatch):
 
 - **`test-nix`** without `-short` (full suite).
-- **`test-windows-full`** — the full Windows suite; **gates `publish`**.
+- **`test-windows-full`**: the full Windows suite; **gates `publish`**.
 
 **Release** (only on `v*` tags):
 
 - `binaries-darwin`, `binaries-linux-amd64`, `binaries-linux-arm64`,
-  `binaries-windows` — per-platform GoReleaser builds.
-- **`publish`** — GoReleaser release (gated by lint + full test suites +
+  `binaries-windows`: per-platform GoReleaser builds.
+- **`publish`**: GoReleaser release (gated by lint + full test suites +
   binaries).
-- **`docker-publish`** — builds and pushes the `ghcr.io` image from the linux
+- **`docker-publish`**: builds and pushes the `ghcr.io` image from the linux
   release binaries; a sibling of `publish`, so the image ships with every
   release rather than being withheld by an unrelated install-test failure.
-- **`test-install`** — runs _after_ publish and docker-publish as a
+- **`test-install`**: runs _after_ publish and docker-publish as a
   **post-publish canary** (it gates nothing); a failure means users are already
   hitting the problem.
 

@@ -8,20 +8,20 @@ documentation (commands, query syntax, drivers), see [sq.io](https://sq.io).
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md): Mermaid ERD of the core types
   (`Source`, `Driver`, `Grip`, `Registry`, `RecordWriter`, etc.) and how they
   fit together, plus SQL dialects, the type system, and an extension guide.
-- [`DRIVERS.md`](./DRIVERS.md): driver development guide — package structure,
+- [`DRIVERS.md`](./DRIVERS.md): driver development guide (package structure,
   type mapping, dialect configuration, test handles, the
-  [driver ship checklist](./DRIVERS.md#driver-ship-checklist), and the SQL-vs-
-  document driver split.
-- [`GRAMMAR.md`](./GRAMMAR.md): the SLQ query language grammar — how SLQ becomes
+  [driver ship checklist](./DRIVERS.md#driver-ship-checklist), and the
+  SQL-vs-document driver split).
+- [`GRAMMAR.md`](./GRAMMAR.md): the SLQ query language grammar (how SLQ becomes
   SQL, the element catalog, the lexical layer, operator precedence, and a
-  grammar-editing checklist. Companion to
+  grammar-editing checklist). Companion to
   [`grammar/SLQ.g4`](../grammar/SLQ.g4).
-- [`WORKFLOW.md`](./WORKFLOW.md): development and CI workflows — the local
+- [`WORKFLOW.md`](./WORKFLOW.md): development and CI workflows (the local
   `Makefile` loop and the GitHub Actions under
-  [`.github/workflows/`](../.github/workflows).
-- [`SAKILA.md`](./SAKILA.md): the Sakila test dataset — the
+  [`.github/workflows/`](../.github/workflows)).
+- [`SAKILA.md`](./SAKILA.md): the Sakila test dataset (the
   [`sakiladb`](https://github.com/sakiladb) Docker images, embedded vs external
-  sources, the engine matrix, and how Sakila is used across the repo.
+  sources, the engine matrix, and how Sakila is used across the repo).
 - [`RELEASING.md`](./RELEASING.md): `CHANGELOG.md` entry conventions and the
   release procedure (tag → GoReleaser → publish).
 
@@ -34,4 +34,4 @@ documentation (commands, query syntax, drivers), see [sq.io](https://sq.io).
 - [`../drivers/README.md`](../drivers/README.md): the `drivers/` directory
   orientation stub.
 - [`../site/README.md`](../site/README.md): the [sq.io](https://sq.io) website
-  source (`site/`) — Hugo/Bun tooling, local dev, and Netlify CI/publish.
+  source (`site/`): Hugo/Bun tooling, local dev, and Netlify CI/publish.

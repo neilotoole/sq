@@ -9,8 +9,8 @@ by [`sq`](https://sq.io):
   `libsq/ast/internal/slq/` (also runs via `go generate ./...`).
 - `testdata/`: a corpus of valid SLQ snippets used as parser smoke tests.
 
-The high-level guide — how SLQ becomes SQL, the element catalog, the lexical
-layer, operator precedence, and a grammar-editing checklist — lives in
+The high-level guide (how SLQ becomes SQL, the element catalog, the lexical
+layer, operator precedence, and a grammar-editing checklist) lives in
 [`docs/GRAMMAR.md`](../docs/GRAMMAR.md). Read that first, then dive into
 [`SLQ.g4`](./SLQ.g4) for rule-by-rule detail.
 

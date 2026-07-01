@@ -4,7 +4,7 @@
 (a DVD-rental store: `actor`, `film`, `customer`, `payment`, …) originally
 published for MySQL. `sq` uses Sakila as its **canonical test dataset**: the
 same logical schema and data, materialized once per datasource type, so a
-single query can be exercised uniformly across every driver — SQLite, DuckDB,
+single query can be exercised uniformly across every driver: SQLite, DuckDB,
 Postgres, MySQL, SQL Server, ClickHouse, Oracle, rqlite, and the document
 formats (CSV, TSV, Excel).
 
@@ -13,9 +13,9 @@ formats (CSV, TSV, Excel).
 The external database engines are served by the pre-built Docker images under
 the [`github.com/sakiladb`](https://github.com/sakiladb) organization (published
 to [`hub.docker.com/u/sakiladb`](https://hub.docker.com/u/sakiladb)). There is
-one image per engine — `sakiladb/postgres`, `sakiladb/mysql`,
+one image per engine (`sakiladb/postgres`, `sakiladb/mysql`,
 `sakiladb/sqlserver`, `sakiladb/clickhouse`, `sakiladb/oracle`,
-`sakiladb/rqlite` — each preloaded with the Sakila dataset and shipping a Docker
+`sakiladb/rqlite`), each preloaded with the Sakila dataset and shipping a Docker
 `HEALTHCHECK` so callers can wait for readiness. The image name always matches
 the `sq` driver type string (see
 [`docs/DRIVERS.md`](./DRIVERS.md#driver-type-registration)).
@@ -27,14 +27,14 @@ ready-to-query Sakila instance for each engine.
 
 Sakila reaches `sq`'s tests two ways:
 
-- **Embedded fixtures** — checked into the repo under `drivers/*/testdata/`, so
+- **Embedded fixtures**: checked into the repo under `drivers/*/testdata/`, so
   they need no container and run under `go test -short`:
   - SQLite: [`drivers/sqlite3/testdata/sakila.db`](../drivers/sqlite3/testdata)
   - DuckDB: [`drivers/duckdb/testdata/sakila.duckdb`](../drivers/duckdb/testdata)
   - Excel: [`drivers/xlsx/testdata/sakila.xlsx`](../drivers/xlsx/testdata)
   - CSV / TSV: [`drivers/csv/testdata/sakila-csv/`](../drivers/csv/testdata)
     (and `sakila-tsv/`, plus `*-noheader/` variants)
-- **External engines** — Postgres, MySQL, SQL Server, ClickHouse, Oracle, and
+- **External engines**: Postgres, MySQL, SQL Server, ClickHouse, Oracle, and
   rqlite, each requiring a running `sakiladb/*` container. Tests that touch
   these skip automatically under `-short` (mark them with `tu.SkipShort`).
 
@@ -44,17 +44,17 @@ The [`testh/sakila`](../testh/sakila) package
 ([`sakila.go`](../testh/sakila/sakila.go)) is the Go-side source of truth for
 test code. It defines:
 
-- **Handle constants** — the `@sakila_*` source handles: `@sakila_sl3`,
+- **Handle constants** are the `@sakila_*` source handles: `@sakila_sl3`,
   `@sakila_duck`, `@sakila_pg`, `@sakila_my`, `@sakila_ms`, `@sakila_ch`,
   `@sakila_or`, `@sakila_rq`, plus the document handles `@sakila_xlsx`,
   `@sakila_csv_actor`, `@sakila_tsv_actor`, and their variants. The engine
   **version** is a property of the image the source points at, not of the
   handle (see gh #958).
-- **Handle sets** — helpers that select the right group for a test:
+- **Handle sets** are helpers that select the right group for a test:
   `SQLEmbedded()` (SQLite, DuckDB), `SQLAllExternal()`, `SQLAll()`,
   `SQLLatest()` (one handle per engine, sans rqlite), `AllHandles()`, and
   `CrossSourceDests()` for cross-source (origin × dest) matrices.
-- **Dataset facts** — table names and row counts (`TblActor` / `TblActorCount`
+- **Dataset facts**: table names and row counts (`TblActor` / `TblActorCount`
   = 200, `TblFilmCount` = 1000, `TblPaymentCount` = 16049, …) plus column
   name/kind helpers, so assertions don't hard-code magic numbers.
 
@@ -73,7 +73,7 @@ handle to a location:
 ## The engine matrix
 
 [`.github/sakila-db.json`](../.github/sakila-db.json) is the **single source of
-truth** for the external engines — for each engine it records the container
+truth** for the external engines: for each engine it records the container
 port, the DSN, the `SQ_TEST_SRC__SAKILA_*` env-var name, the test packages, and
 the image `tags` (versions) to exercise. It is shared by both CI and the local
 scripts, so they never drift.
@@ -112,7 +112,7 @@ In CI, the same matrix drives the reusable **DB integration** workflow
 
 ## Regenerating embedded fixtures
 
-The in-repo fixtures are generated, not hand-authored — e.g.
+The in-repo fixtures are generated, not hand-authored; e.g.
 `drivers/sqlite3/testdata/recreate_sakila_sqlite.sh`, the
 `drivers/duckdb/testdata/duckdb-sakila-*.sql` scripts, and
 `drivers/csv/testdata/generate-sakila.sh`. Regenerate with those when the schema
@@ -128,10 +128,10 @@ follow along.
 
 ## See also
 
-- [`testh/sakila`](../testh/sakila) — the Go test-constants package.
-- [`.github/sakila-db.json`](../.github/sakila-db.json) — the engine/version
+- [`testh/sakila`](../testh/sakila): the Go test-constants package.
+- [`.github/sakila-db.json`](../.github/sakila-db.json): the engine/version
   matrix.
-- [`docs/DRIVERS.md`](./DRIVERS.md) — driver development, including the
+- [`docs/DRIVERS.md`](./DRIVERS.md): driver development, including the
   `sakiladb/{driver}` image requirement for new SQL drivers.
-- [`docs/WORKFLOW.md`](./WORKFLOW.md) — CI workflows that run the integration
+- [`docs/WORKFLOW.md`](./WORKFLOW.md): CI workflows that run the integration
   suites.

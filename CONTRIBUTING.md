@@ -53,25 +53,25 @@ you may not need all of these tools. You'll definitely need `go`.
 - `docker`: needed for the `sakiladb/*` containers used by the SQL-driver
   integration tests (`make test`); not needed for `make test-short`. See
   [Docker Desktop](https://www.docker.com).
-- `java`: `brew install java` — the [antlr](https://www.antlr.org) tool that
+- `java`: `brew install java`. The [antlr](https://www.antlr.org) tool that
   generates the SLQ parser is Java-based (see [`docs/GRAMMAR.md`](./docs/GRAMMAR.md)).
 
 ## General advice
 
-`sq` is a Go project, but a complex one — generated code,
+`sq` is a Go project, but a complex one: generated code,
 [CGo](https://go.dev/wiki/cgo) (embedded SQLite), test containers, and a docs
-[website](https://sq.io) — so local development goes through the
+[website](https://sq.io). So local development goes through the
 [Makefile](./Makefile) rather than raw `go` commands; `make help` (the default
 target) lists every target.
 
 After cloning, run `make init` once: it installs dependencies (`bun` packages
 and Go modules) and activates the repo's git hooks, including the `pre-commit`
 `dprint` formatting check (bypass a single commit with `git commit --no-verify`).
-Then run `make all` as a kick-off — it generates code, formats, lints, tests,
+Then run `make all` as a kick-off: it generates code, formats, lints, tests,
 builds, and installs a local `sq`.
 
-For the full local development loop — the inner-loop sequence, the Makefile
-targets, and how they map to CI — see [`docs/WORKFLOW.md`](./docs/WORKFLOW.md).
+For the full local development loop (the inner-loop sequence, the Makefile
+targets, and how they map to CI), see [`docs/WORKFLOW.md`](./docs/WORKFLOW.md).
 
 ## Opening issues
 
@@ -112,9 +112,9 @@ release procedure, see [`docs/RELEASING.md`](./docs/RELEASING.md).
 ## New driver implementations
 
 A "driver" implements a datasource type (Postgres, MySQL, CSV, JSON, etc.). The
-full guide — SQL vs document drivers, package structure, type mapping, dialect
+full guide (SQL vs document drivers, package structure, type mapping, dialect
 configuration, test handles, and the **driver ship checklist** for adding a new
-driver type — lives in [`docs/DRIVERS.md`](./docs/DRIVERS.md).
+driver type) lives in [`docs/DRIVERS.md`](./docs/DRIVERS.md).
 
 When you add a **new driver type**, complete the
 [driver ship checklist](./docs/DRIVERS.md#driver-ship-checklist) (code, sq.io

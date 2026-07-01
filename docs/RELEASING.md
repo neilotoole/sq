@@ -3,13 +3,13 @@
 How `sq` releases are cut, and the conventions for
 [`CHANGELOG.md`](../CHANGELOG.md). Updating the changelog at release time is a
 **maintainer** task; as a PR author you generally only add an entry under
-`## Unreleased` (and often not even that — see **Scope** below).
+`## Unreleased` (and often not even that; see **Scope** below).
 
 ## CHANGELOG conventions
 
 [`CHANGELOG.md`](../CHANGELOG.md) follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html) — see that spec for
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html); see that spec for
 the baseline format.
 
 **Scope:** Entries describe the **`sq` CLI and core libraries** (what ships in
@@ -74,7 +74,7 @@ Beyond the Keep a Changelog baseline:
 
 Releases are cut by pushing a `v*` tag. A maintainer:
 
-1. **Finalizes the CHANGELOG** — renames `## Unreleased` to
+1. **Finalizes the CHANGELOG**: renames `## Unreleased` to
    `## [vX.Y.Z] - YYYY-MM-DD`, drops empty subsections, and adds the version
    comparison link at the bottom (per the conventions above).
 2. **Tags and pushes** `vX.Y.Z` on `master`.

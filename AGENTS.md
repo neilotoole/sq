@@ -9,7 +9,7 @@ all shared rules.
 > [!IMPORTANT]
 > Before making a significant change, review [`docs/README.md`](./docs/README.md)
 > and the developer docs it links to (architecture, drivers, grammar, workflows,
-> Sakila, releasing). Read the ones relevant to your task before you start — and
+> Sakila, releasing). Read the ones relevant to your task before you start, and
 > if your change makes any of them inaccurate, update them in the same change.
 
 ## About `sq`
