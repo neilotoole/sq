@@ -607,3 +607,133 @@ func TestDiff_Data_PKAlignSpecialCharPK(t *testing.T) {
 	require.Zero(t, removed,
 		"no rows were removed from the right table; zero removed lines expected")
 }
+
+// TestDiff_Data_HunkHeaderCounts verifies that the unified-diff hunk header
+// correctly counts per-side lines for single-sided pairs (added/removed rows).
+//
+// With PK-aligned diffs, an ADDED pair (Rec1()==nil) contributes zero lines to
+// the left "-" side and one line to the right "+" side. A REMOVED pair
+// (Rec2()==nil) is the inverse. The hunk header must reflect actual per-side
+// line counts, not the total number of pairs.
+//
+// Pre-fix, the writers used len(pairs) for BOTH sides and applied the
+// single-argument short form "@@ -N +N @@" for any one-pair hunk, regardless
+// of which side was nil. Post-fix:
+//
+//   - A pure-insertion hunk (left count = 0) must produce "@@ -N,0 +M @@".
+//   - A pure-deletion hunk (right count = 0) must produce "@@ -N +M,0 @@".
+func TestDiff_Data_HunkHeaderCounts(t *testing.T) {
+	const tbl = "items"
+
+	for _, format := range []string{"text", "csv"} {
+		format := format
+		t.Run(format, func(t *testing.T) {
+			t.Run("pure_insertion", func(t *testing.T) {
+				// Left: [1,3], Right: [1,2,3].
+				// Row 2 is absent from the left → it is an ADDED pair (Rec1()==nil).
+				// With --unified 0, there is exactly one hunk (for row 2).
+				// That hunk has leftCount=0 and rightCount=1.
+				// Expected header:   @@ -N,0 +M @@
+				// Pre-fix (buggy):   @@ -N +M @@
+				got := runDiffHunkHeader(
+					t, format, tbl,
+					`INSERT INTO "items" VALUES (1,'a'),(3,'c')`,
+					`INSERT INTO "items" VALUES (1,'a'),(2,'b'),(3,'c')`,
+				)
+				headers := parseHunkHeaders(got)
+				require.NotEmpty(t, headers,
+					"diff output must contain at least one hunk header")
+				require.True(t, anyHunkHeaderContains(headers, ",0 +"),
+					"pure-insertion hunk header must encode left count as 0 "+
+						"(e.g. @@ -N,0 +M @@); got: %v", headers)
+			})
+
+			t.Run("pure_deletion", func(t *testing.T) {
+				// Left: [1,2,3], Right: [1,3].
+				// Row 2 is absent from the right → it is a REMOVED pair (Rec2()==nil).
+				// With --unified 0, there is exactly one hunk (for row 2).
+				// That hunk has leftCount=1 and rightCount=0.
+				// Expected header:   @@ -N +M,0 @@
+				// Pre-fix (buggy):   @@ -N +M @@
+				got := runDiffHunkHeader(
+					t, format, tbl,
+					`INSERT INTO "items" VALUES (1,'a'),(2,'b'),(3,'c')`,
+					`INSERT INTO "items" VALUES (1,'a'),(3,'c')`,
+				)
+				headers := parseHunkHeaders(got)
+				require.NotEmpty(t, headers,
+					"diff output must contain at least one hunk header")
+				require.True(t, anyHunkHeaderContains(headers, ",0 @@"),
+					"pure-deletion hunk header must encode right count as 0 "+
+						"(e.g. @@ -N +M,0 @@); got: %v", headers)
+			})
+		})
+	}
+}
+
+// runDiffHunkHeader creates two SQLite databases with the given table and
+// insert statements, runs sq diff --data --unified 0, and returns the raw diff
+// output. The table is created with an INTEGER PRIMARY KEY so the PK-aware
+// alignment path is exercised.
+func runDiffHunkHeader(t *testing.T, format, tbl, leftInsert, rightInsert string) string {
+	t.Helper()
+	th := testh.New(t)
+
+	leftPath := filepath.Join(tu.TempDir(t), "left_hdr.db")
+	rightPath := filepath.Join(tu.TempDir(t), "right_hdr.db")
+
+	srcLeft := source.Source{
+		Handle:   "@test_left",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + leftPath,
+	}
+	srcRight := source.Source{
+		Handle:   "@test_right",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + rightPath,
+	}
+
+	ddl := fmt.Sprintf(`CREATE TABLE "%s" ("id" INTEGER PRIMARY KEY, "val" TEXT)`, tbl)
+	th.ExecSQL(&srcLeft, ddl)
+	th.ExecSQL(&srcRight, ddl)
+	th.ExecSQL(&srcLeft, leftInsert)
+	th.ExecSQL(&srcRight, rightInsert)
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(srcLeft, srcRight)
+	args := []string{"diff", "--data", "--unified", "0", "--stop", "0"}
+	if format != "text" {
+		args = append(args, "-f", format)
+	}
+	args = append(args, srcLeft.Handle+"."+tbl, srcRight.Handle+"."+tbl)
+
+	err := tr.Exec(args...)
+	require.Error(t, err, "diff must report differences (exit code 1)")
+	require.Equal(t, 1, errz.ExitCode(err), "sq diff exits 1 when differences exist")
+
+	got := tr.Out.String()
+	t.Log("diff output:\n" + got)
+	return got
+}
+
+// parseHunkHeaders returns all "@@ ... @@" hunk header lines from a unified
+// diff output.
+func parseHunkHeaders(output string) []string {
+	var headers []string
+	for _, line := range strings.Split(output, "\n") {
+		if strings.HasPrefix(line, "@@") {
+			headers = append(headers, line)
+		}
+	}
+	return headers
+}
+
+// anyHunkHeaderContains returns true if any of the given hunk headers contains
+// substr.
+func anyHunkHeaderContains(headers []string, substr string) bool {
+	for _, h := range headers {
+		if strings.Contains(h, substr) {
+			return true
+		}
+	}
+	return false
+}

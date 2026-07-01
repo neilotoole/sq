@@ -3,7 +3,6 @@ package tablew
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"slices"
 
 	"github.com/neilotoole/sq/cli/diff"
@@ -202,14 +201,17 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 		i = end - 1
 	}
 
-	offset := dest.Offset() + 1
-	var headerText string
-	if len(pairs) == 1 {
-		// Short hunk header format for single-line diffs.
-		headerText = fmt.Sprintf("@@ -%d +%d @@", offset, offset)
-	} else {
-		headerText = fmt.Sprintf("@@ -%d,%d +%d,%d @@", offset, len(pairs), offset, len(pairs))
+	leftCount, rightCount := 0, 0
+	for i := range pairs {
+		if pairs[i].Rec1() != nil {
+			leftCount++
+		}
+		if pairs[i].Rec2() != nil {
+			rightCount++
+		}
 	}
+	offset := dest.Offset() + 1
+	headerText := "@@ -" + diffdoc.HunkRange(offset, leftCount) + " +" + diffdoc.HunkRange(offset, rightCount) + " @@"
 
 	seq := colorz.ExtractSeqs(dw.pr.Diff.Section)
 	hunkHeader = seq.Appendln(hunkHeader, []byte(headerText))
@@ -367,14 +369,17 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 		i = end - 1
 	}
 
-	offset := dest.Offset() + 1
-	var headerText string
-	if len(pairs) == 1 {
-		// Short hunk header format for single-line diffs.
-		headerText = fmt.Sprintf("@@ -%d +%d @@", offset, offset)
-	} else {
-		headerText = fmt.Sprintf("@@ -%d,%d +%d,%d @@", offset, len(pairs), offset, len(pairs))
+	leftCount, rightCount := 0, 0
+	for i := range pairs {
+		if pairs[i].Rec1() != nil {
+			leftCount++
+		}
+		if pairs[i].Rec2() != nil {
+			rightCount++
+		}
 	}
+	offset := dest.Offset() + 1
+	headerText := "@@ -" + diffdoc.HunkRange(offset, leftCount) + " +" + diffdoc.HunkRange(offset, rightCount) + " @@"
 
 	seq := colorz.ExtractSeqs(dw.pr.Diff.Section)
 	hunkHeader = seq.Appendln(hunkHeader, []byte(headerText))
