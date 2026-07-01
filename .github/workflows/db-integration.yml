@@ -120,6 +120,27 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # scope=full runs `go test ./...`, whose embedded SQLite/DuckDB temp
+      # databases can exhaust the runner's ~14 GB root filesystem (each leg runs
+      # the full suite on its own runner, so this bites single-version nightlies
+      # too, not just multi-version dispatches). Reclaim space from preinstalled
+      # toolchains we never use. Not needed for scope=narrow.
+      - name: Free disk space
+        if: ${{ (inputs.scope || github.event.inputs.scope || 'full') == 'full' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          before=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+          sudo rm -rf \
+            /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /usr/share/swift
+          after=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+          echo "Freed disk on /: ${before}G -> ${after}G available"
+
       - name: Wait for DB healthy
         shell: bash
         run: |
