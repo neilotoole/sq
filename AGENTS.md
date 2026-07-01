@@ -115,7 +115,7 @@ func TestExample(t *testing.T) {
 }
 ```
 
-Integration tests that need a real database should call `tu.SkipShort(t, true)`
+Integration tests that need a real database should call [`tu.SkipShort(t, true)`](./testh/tu/skip.go)
 so they're skipped under `go test -short`. See
 [`docs/DRIVERS.md`](./docs/DRIVERS.md#test-handles) for driver test handle
 conventions.
@@ -178,6 +178,12 @@ Use US English in all prose: code comments, godoc, user-facing strings,
 commit messages, PR descriptions, CHANGELOG entries, and site docs. For
 example, "honors" not "honours", "color" not "colour", "behavior" not
 "behaviour", "optimize" not "optimise".
+
+### Terminology
+
+- **Envar** (one word) for an environment variable, not "env var", "env-var",
+  or "environment variable". Capitalize as "Envar" in headings and table
+  headers, "envar" in running prose.
 
 ### Prose style (no AI-isms)
 

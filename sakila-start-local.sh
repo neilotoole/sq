@@ -3,6 +3,15 @@
 # Starts local Postgres, MySQL, SQL Server, ClickHouse, Oracle, and rqlite
 # (via the sakiladb/* docker images) for repo-wide integration tests.
 #
+# Usage: source its output to export the SQ_TEST_SRC__SAKILA_* DSN vars into the
+# current shell, then run the tests:
+#
+#   source <(./sakila-start-local.sh)   # or: eval "$(./sakila-start-local.sh)"
+#   make test
+#
+# Progress and health-check status are written to stderr; stdout carries only
+# the `export ...` lines, so the output is safe to source.
+#
 # Image tags, ports, DSNs, and env-var names come from .github/sakila-db.json
 # (single source of truth, shared with CI). Each engine uses its first tag
 # (tags[0], normally "latest"). `--pull always` avoids a silently-stale image.
@@ -38,7 +47,7 @@ for engine in "${engines[@]}"; do
 done
 
 # Wait for every container to report healthy (images ship a HEALTHCHECK).
-echo "Waiting for containers to become healthy..."
+echo "Waiting for containers to become healthy..." >&2
 for engine in "${engines[@]}"; do
   c="${cname[$engine]}"
   for _ in $(seq 1 60); do
@@ -48,11 +57,11 @@ for engine in "${engines[@]}"; do
     [ "$status" = missing ] && break # container gone: stop waiting
     sleep 5
   done
-  echo "  $c: $(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$c" 2>/dev/null || echo '?')"
+  echo "  $c: $(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$c" 2>/dev/null || echo '?')" >&2
 done
 
-echo
-echo "Export these envars (and source them) to run the tests with these sources enabled"
+echo >&2
+echo "# Source these into your shell, e.g.: source <(./sakila-start-local.sh)" >&2
+
+# Emit only the `export ...` lines on stdout, so the output is safe to source.
 printf '%s\n' "${exports[@]}"
-# Also export into the current shell when sourced.
-for line in "${exports[@]}"; do eval "$line"; done
