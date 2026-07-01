@@ -6,6 +6,12 @@ human contributors working in this repo.
 [`CLAUDE.md`](./CLAUDE.md) is the Claude Code entry point; it points here for
 all shared rules.
 
+> [!IMPORTANT]
+> Before making a significant change, review [`docs/README.md`](./docs/README.md)
+> and the developer docs it links to (architecture, drivers, grammar, workflows,
+> Sakila, releasing). Read the ones relevant to your task before you start — and
+> if your change makes any of them inaccurate, update them in the same change.
+
 ## About `sq`
 
 `sq` is a command-line data wrangler providing jq-style access to structured
