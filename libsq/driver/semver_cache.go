@@ -7,8 +7,8 @@ import "sync"
 // server version is immutable for a connection's lifetime, so a single
 // successful fetch is reused. Embed it in a grip and route DBSemver through Get.
 type SemverCache struct {
-	mu  sync.Mutex
 	val string
+	mu  sync.Mutex
 	ok  bool
 }
 

@@ -36,13 +36,13 @@ type Context struct {
 	// #839. It's nil unless at least one result column has a forced kind.
 	ResultColumnKinds map[int]kind.Kind
 
-	// Dialect is the driver dialect.
-	Dialect dialect.Dialect
-
 	// DBSemver is the canonical semver of the target server (e.g. "v8.0.36"),
 	// or "" if unknown. Lets a FunctionOverride emit version-appropriate SQL.
 	// Populated by the pipeline from the grip's DBSemver.
 	DBSemver string
+
+	// Dialect is the driver dialect.
+	Dialect dialect.Dialect
 }
 
 // Renderer is a set of functions for rendering ast elements into SQL.
