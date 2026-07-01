@@ -21,6 +21,7 @@ scope="${1:?usage: build-db-matrix.sh <full|narrow> <selection-json>}"
 selection="${2:?missing selection json}"
 config="$(cd "$(dirname "$0")/.." && pwd)/.github/sakila-db.json"
 registry="${SAKILADB_REGISTRY:-ghcr.io/sakiladb}"
+registry="${registry%/}" # tolerate a trailing slash in the override
 
 # workflow_dispatch constrains scope via type:choice, but the workflow_call
 # input is a free string — reject typos rather than silently treating any

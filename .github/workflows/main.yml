@@ -175,9 +175,11 @@ jobs:
 
       - name: shellcheck
         run: |
-          shellcheck ./install.sh scripts/fmt-go-imports.sh scripts/build-db-matrix.sh scripts/dedup-db-matrix.sh scripts/build-db-matrix_test.sh
-          # Hermetic unit test for the shared DB-matrix builder (no network).
+          shellcheck ./install.sh scripts/fmt-go-imports.sh scripts/build-db-matrix.sh scripts/dedup-db-matrix.sh scripts/build-db-matrix_test.sh scripts/dedup-db-matrix_test.sh
+          # Hermetic unit tests for the shared DB-matrix scripts (no network;
+          # dedup stubs docker on PATH).
           bash scripts/build-db-matrix_test.sh
+          bash scripts/dedup-db-matrix_test.sh
 
       - name: Set up Go
         uses: actions/setup-go@v6

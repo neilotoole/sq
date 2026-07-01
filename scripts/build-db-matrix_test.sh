@@ -25,6 +25,10 @@ echo "$out" | jq -e '[.[].image] == ["ghcr.io/sakiladb/mysql:8","ghcr.io/sakilad
 out=$(SAKILADB_REGISTRY=example.test/ns "$here/build-db-matrix.sh" narrow '{"postgres":["12"]}')
 echo "$out" | jq -e '.[0].image == "example.test/ns/postgres:12"' >/dev/null
 
+# a trailing slash in the override is tolerated (not doubled into an invalid ref)
+out=$(SAKILADB_REGISTRY=example.test/ns/ "$here/build-db-matrix.sh" narrow '{"postgres":["12"]}')
+echo "$out" | jq -e '.[0].image == "example.test/ns/postgres:12"' >/dev/null
+
 # the DSN must NOT travel through the matrix: GitHub masks the credential and
 # drops a job output containing it, which silently empties the matrix.
 echo "$out" | jq -e 'all(has("dsn") | not)' >/dev/null
