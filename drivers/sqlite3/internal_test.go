@@ -23,6 +23,14 @@ func TestDriverMetadata(t *testing.T) {
 	require.LessOrEqual(t, md.DefaultPort, 0)
 }
 
+// TestDialect_SingleWriter verifies that the SQLite dialect is marked
+// single-writer (gh975): its rollback journal serializes writers, so
+// concurrent cross-source join copies otherwise contend on the file lock
+// and fail with "database is locked".
+func TestDialect_SingleWriter(t *testing.T) {
+	require.True(t, (&driveri{}).Dialect().SingleWriter)
+}
+
 var (
 	KindFromDBTypeName = kindFromDBTypeName
 	GetTblRowCounts    = getTblRowCounts
