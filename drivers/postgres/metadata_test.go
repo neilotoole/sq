@@ -68,6 +68,12 @@ func TestIndexes_IncludeFilter_Postgres(t *testing.T) {
 	src := th.Source(sakila.Pg)
 	db := th.OpenDB(src)
 
+	// INCLUDE covering indexes were added in Postgres 11; there is no pre-11
+	// equivalent to introspect.
+	if !th.DBSemverAtLeast(sakila.Pg, "v11.0.0") {
+		t.Skip("INCLUDE covering indexes require Postgres >= 11")
+	}
+
 	tbl := stringz.UniqTableName("idx_include")
 	_, err := db.ExecContext(th.Context,
 		"CREATE TABLE "+tbl+" (k INT, extra TEXT)")
@@ -235,34 +241,53 @@ func TestPostgres_ColumnFlags(t *testing.T) {
 	src := th.Source(sakila.Pg)
 	db := th.OpenDB(src)
 
+	// Column flags are version-gated: identity columns arrived in Postgres 10,
+	// stored generated columns in Postgres 12. Collation applies on every
+	// supported version, so the base table always exercises it.
+	hasIdentity := th.DBSemverAtLeast(sakila.Pg, "v10.0.0")
+	hasGenerated := th.DBSemverAtLeast(sakila.Pg, "v12.0.0")
+
 	tbl := stringz.UniqTableName("col_flags")
 	_, err := db.ExecContext(th.Context,
 		`CREATE TABLE `+tbl+` (
-			id         bigint GENERATED ALWAYS AS IDENTITY,
 			first_name text,
 			last_name  text,
-			full_name  text GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
 			country    text COLLATE "C"
 		)`)
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
 
+	if hasIdentity {
+		_, err = db.ExecContext(th.Context,
+			`ALTER TABLE `+tbl+` ADD COLUMN id bigint GENERATED ALWAYS AS IDENTITY`)
+		require.NoError(t, err)
+	}
+	if hasGenerated {
+		_, err = db.ExecContext(th.Context,
+			`ALTER TABLE `+tbl+` ADD COLUMN full_name text `+
+				`GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED`)
+		require.NoError(t, err)
+	}
+
 	md, err := th.Open(src).TableMetadata(th.Context, tbl)
 	require.NoError(t, err)
-
-	idCol := md.Column("id")
-	require.NotNil(t, idCol)
-	require.True(t, idCol.Identity, "id: Identity should be true")
-
-	fullNameCol := md.Column("full_name")
-	require.NotNil(t, fullNameCol)
-	require.True(t, fullNameCol.Generated, "full_name: Generated should be true")
-	require.Contains(t, fullNameCol.GeneratedExpr, "first_name",
-		"full_name: GeneratedExpr should contain 'first_name'")
 
 	countryCol := md.Column("country")
 	require.NotNil(t, countryCol)
 	require.Equal(t, "C", countryCol.Collation, "country: Collation should be 'C'")
+
+	if hasIdentity {
+		idCol := md.Column("id")
+		require.NotNil(t, idCol)
+		require.True(t, idCol.Identity, "id: Identity should be true")
+	}
+	if hasGenerated {
+		fullNameCol := md.Column("full_name")
+		require.NotNil(t, fullNameCol)
+		require.True(t, fullNameCol.Generated, "full_name: Generated should be true")
+		require.Contains(t, fullNameCol.GeneratedExpr, "first_name",
+			"full_name: GeneratedExpr should contain 'first_name'")
+	}
 }
 
 // TestPostgres_ViewDefinition verifies that ViewDefinition is populated for
@@ -331,7 +356,7 @@ func TestPostgres_Triggers(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context,
 		`CREATE TRIGGER `+trigName+` AFTER INSERT OR UPDATE ON `+tbl+
-			` FOR EACH ROW EXECUTE FUNCTION `+fnName+`()`)
+			` FOR EACH ROW EXECUTE PROCEDURE `+fnName+`()`)
 	require.NoError(t, err)
 
 	md, err := th.Open(src).TableMetadata(th.Context, tbl)
@@ -393,7 +418,7 @@ func TestPostgres_ViewInsteadOfTrigger(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context,
 		`CREATE TRIGGER `+trigName+` INSTEAD OF INSERT ON `+viewName+
-			` FOR EACH ROW EXECUTE FUNCTION `+fnName+`()`)
+			` FOR EACH ROW EXECUTE PROCEDURE `+fnName+`()`)
 	require.NoError(t, err)
 	// Dropping the view removes its triggers; no separate trigger DROP needed.
 
