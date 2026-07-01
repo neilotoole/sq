@@ -304,9 +304,13 @@ func TestPostgres_QuotedTableName_Metadata(t *testing.T) {
 	src := th.Source(sakila.Pg)
 	db := th.OpenDB(src)
 
+	// The PRIMARY KEY matters: getPgConstraints resolves each constraint row's
+	// table via quote_ident(kcu.table_name)::regclass, and that expression only
+	// evaluates when the table has at least one constraint. Without the PK, the
+	// constraint path would go untested for a quoted name.
 	tbl := stringz.UniqTableName(`me"ta`)
 	qtbl := stringz.DoubleQuote(tbl)
-	_, err := db.ExecContext(th.Context, `CREATE TABLE `+qtbl+` (id INT, name TEXT)`)
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+qtbl+` (id INT PRIMARY KEY, name TEXT)`)
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
 
@@ -318,6 +322,48 @@ func TestPostgres_QuotedTableName_Metadata(t *testing.T) {
 	require.Equal(t, tbl, md.Name)
 	require.Equal(t, int64(2), md.RowCount, "RowCount must load for a quoted table name")
 	require.Len(t, md.Columns, 2)
+
+	idCol := md.Column("id")
+	require.NotNil(t, idCol)
+	require.True(t, idCol.PrimaryKey,
+		"PK must load for a quoted table name (getPgConstraints)")
+}
+
+// TestPostgres_QuotedMatviewName_Metadata pins that matview metadata loads for
+// a name that regclass text-parsing mishandles. getMatviewMetadata resolves
+// name via quote_ident($1)::regclass; the previous raw $1::regclass parsed the
+// value as SQL identifier syntax, so an uppercase name case-folded to a miss,
+// a dotted name was read as a schema qualifier, and a leading double-quote was
+// a syntax error. (An embedded mid-name double-quote happens to survive the
+// old form, so it alone would not catch a regression.) The name here combines
+// uppercase, a dot, and a double-quote to cover case-folding, qualification,
+// and the COUNT(*) identifier escaping at once.
+func TestPostgres_QuotedMatviewName_Metadata(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	db := th.OpenDB(src)
+
+	// Not stringz.UniqTableName, which lowercases: the uppercase char is part
+	// of the regression surface.
+	mv := `Mv.we"ird__` + stringz.Uniq8()
+	qmv := stringz.DoubleQuote(mv)
+	_, err := db.ExecContext(th.Context,
+		`CREATE MATERIALIZED VIEW `+qmv+` AS SELECT 1 AS id, 'a' AS label`)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP MATERIALIZED VIEW IF EXISTS `+qmv)
+	})
+
+	md, err := th.Open(src).TableMetadata(th.Context, mv)
+	require.NoError(t, err, "TableMetadata must load for a quoted matview name")
+	require.Equal(t, mv, md.Name)
+	require.Equal(t, sqlz.TableTypeMaterializedView, md.TableType)
+	require.Equal(t, int64(1), md.RowCount, "RowCount must load for a quoted matview name")
+	require.Len(t, md.Columns, 2)
+	require.NotEmpty(t, md.ViewDefinition, "ViewDefinition must load for a quoted matview name")
 }
 
 // TestPostgres_ViewDefinition verifies that ViewDefinition is populated for
