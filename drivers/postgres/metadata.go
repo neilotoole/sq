@@ -184,23 +184,6 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 	return nullableScanType
 }
 
-// relationExistsInCurrentSchema reports whether a relation named tblName exists
-// in the current schema. It distinguishes a table dropped mid-scan (tolerate)
-// from a genuine error on a table that still exists (propagate), independently
-// of server locale. The name is a bound parameter compared against pg_class,
-// so no identifier escaping is needed.
-func relationExistsInCurrentSchema(ctx context.Context, db sqlz.DB, tblName string) (bool, error) {
-	const q = `SELECT EXISTS(
-  SELECT 1 FROM pg_catalog.pg_class c
-  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE c.relname = $1 AND n.nspname = current_schema())`
-	var exists bool
-	if err := db.QueryRowContext(ctx, q, tblName).Scan(&exists); err != nil {
-		return false, errw(err)
-	}
-	return exists, nil
-}
-
 // loadWithRetry runs a bulk metadata loader with vanished-relation retry, so a
 // table dropped mid-scan by concurrent DDL doesn't fail the whole source scan.
 func loadWithRetry[T any](ctx context.Context, load func() (T, error)) (T, error) {
@@ -289,20 +272,18 @@ current_setting('server_version'), version(), "current_user"()`
 			})
 
 			if mdErr != nil {
-				// A relation dropped by concurrent DDL mid-scan is expected on a
-				// live database. Confirm the table is actually gone (a
-				// locale-independent check that, unlike matching the error text,
-				// won't mask a genuine fault on a table that still exists), then
-				// tolerate it; otherwise the error is real and propagates.
-				exists, existErr := relationExistsInCurrentSchema(gCtx, db, tblNames[i])
-				if existErr != nil || exists {
+				switch {
+				case isErrRelationNotExist(mdErr):
+					// For example, if the table is dropped while we're collecting
+					// metadata, we log a warning and suppress the error.
+					log.Warn(
+						"metadata collection: table not found (continuing regardless)",
+						lga.Table, tblNames[i],
+						lga.Err, mdErr,
+					)
+				default:
 					return mdErr
 				}
-				log.Warn(
-					"metadata collection: table dropped during scan (continuing regardless)",
-					lga.Table, tblNames[i],
-					lga.Err, mdErr,
-				)
 			}
 
 			tblMetas[i] = tblMeta
