@@ -1403,11 +1403,18 @@ var semverRx = regexp.MustCompile(`^v?(\d+(?:\.\d+){0,2})`)
 //
 // Vanilla MySQL: "8.0.36-0ubuntu0.22.04.1" -> "v8.0.36".
 // MariaDB:       "5.5.5-10.6.4-MariaDB"    -> "v10.6.4". The leading "5.5.5-" is
-// a replication-protocol sentinel, not the real version, so it is stripped
-// first. Modern MariaDB ("10.11.2-MariaDB-...") has no sentinel and parses
-// directly.
+// a replication-protocol sentinel, not the real version, so it is stripped only
+// for MariaDB. Modern MariaDB ("10.11.2-MariaDB-...") has no sentinel and parses
+// directly. Vanilla MySQL can genuinely be version 5.5.5 (e.g. "5.5.5-log"), so
+// the sentinel must not be stripped for non-MariaDB versions.
 func parseSemver(raw string) (string, error) {
-	s := strings.TrimPrefix(strings.TrimSpace(raw), "5.5.5-")
+	s := strings.TrimSpace(raw)
+	// MariaDB prepends a "5.5.5-" replication-protocol sentinel to @@version
+	// (e.g. "5.5.5-10.6.4-MariaDB"); strip it only for MariaDB, since "5.5.5"
+	// is itself a valid MySQL version that must not be trimmed.
+	if strings.Contains(s, "MariaDB") {
+		s = strings.TrimPrefix(s, "5.5.5-")
+	}
 	m := semverRx.FindStringSubmatch(s)
 	if m == nil {
 		return "", errz.Errorf("no semver in mysql version string: %q", raw)

@@ -138,6 +138,8 @@ func TestParseSemver(t *testing.T) {
 		{raw: "8.4.0", want: "v8.4.0"},
 		{raw: "5.5.5-10.6.4-MariaDB", want: "v10.6.4"},                     // MariaDB replication sentinel
 		{raw: "10.11.2-MariaDB-1:10.11.2+maria~ubu2204", want: "v10.11.2"}, // modern MariaDB, no sentinel
+		{raw: "5.5.5-0ubuntu0.14.04.1", want: "v5.5.5"},                    // real MySQL 5.5.5 — sentinel NOT stripped (no "MariaDB")
+		{raw: "5.5.5-log", want: "v5.5.5"},                                 // real MySQL 5.5.5 with suffix
 		{raw: "not-a-version", wantErr: true},
 		{raw: "", wantErr: true},
 	}
