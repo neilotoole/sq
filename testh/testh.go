@@ -15,6 +15,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/buildinfo"
@@ -462,6 +463,19 @@ func (h *Helper) Open(src *source.Source) driver.Grip {
 
 	require.NoError(h.T, db.PingContext(ctx))
 	return grip
+}
+
+// DBSemverAtLeast reports whether the source at handle is running a server whose
+// canonical semver is >= minSemver (e.g. "v8.0.13"). It opens the source's grip
+// and reads DBSemver. Fails the test if the version cannot be determined. Use it
+// to version-guard tests that rely on features added in a specific server
+// version.
+func (h *Helper) DBSemverAtLeast(handle, minSemver string) bool {
+	h.T.Helper()
+	grip := h.Open(h.Source(handle))
+	v, err := grip.DBSemver(h.Context)
+	require.NoError(h.T, err)
+	return semver.Compare(v, minSemver) >= 0
 }
 
 // OpenDB is a convenience method for getting the sql.DB for src.

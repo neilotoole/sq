@@ -113,6 +113,10 @@ func TestIndexes_ExpressionArity_MySQL(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
+	// TestIndexes_ExpressionArity_MySQL: expression indexes require MySQL 8.0.13+.
+	if !th.DBSemverAtLeast(sakila.My, "v8.0.13") {
+		t.Skip("expression indexes require MySQL >= 8.0.13")
+	}
 	src := th.Source(sakila.My) // sakila.My == MySQL 8 (functional indexes)
 	db := th.OpenDB(src)
 
@@ -193,6 +197,10 @@ func TestMySQL_ColumnFlags(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
+	// TestMySQL_ColumnFlags: generated columns require MySQL 5.7+.
+	if !th.DBSemverAtLeast(sakila.My, "v5.7.0") {
+		t.Skip("generated columns require MySQL >= 5.7")
+	}
 	src := th.Source(sakila.My)
 	db := th.OpenDB(src)
 
@@ -265,6 +273,10 @@ func TestMySQL_CheckConstraints(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
+	// TestMySQL_CheckConstraints: CHECK constraints require MySQL 8.0.16+.
+	if !th.DBSemverAtLeast(sakila.My, "v8.0.16") {
+		t.Skip("CHECK constraints require MySQL >= 8.0.16")
+	}
 	src := th.Source(sakila.My)
 	db := th.OpenDB(src)
 

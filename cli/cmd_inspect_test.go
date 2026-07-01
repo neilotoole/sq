@@ -856,6 +856,19 @@ func TestCmdInspect_mode_schemata(t *testing.T) {
 		Active  *bool  `json:"active" yaml:"active"`
 	}
 
+	// withoutSchema returns schemas with any entry named name removed. It's
+	// used to drop the "sys" schema expectation on MySQL < 5.7, where it
+	// doesn't exist.
+	withoutSchema := func(schemas []schema, name string) []schema {
+		out := make([]schema, 0, len(schemas))
+		for _, s := range schemas {
+			if s.Name != name {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+
 	testCases := []struct {
 		handle       string
 		wantSchemata []schema
@@ -922,7 +935,12 @@ func TestCmdInspect_mode_schemata(t *testing.T) {
 						return
 					}
 
-					for i, s := range tc.wantSchemata {
+					want := tc.wantSchemata
+					if tc.handle == sakila.My && !th.DBSemverAtLeast(sakila.My, "v5.7.0") {
+						// The "sys" schema was introduced in MySQL 5.7.
+						want = withoutSchema(want, "sys")
+					}
+					for i, s := range want {
 						require.Contains(t, gotSchemata, s, "wantSchemata[%d]", i)
 					}
 				})
