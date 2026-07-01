@@ -65,9 +65,13 @@ func pkColIndexes(recMeta record.Meta, pkColNames []string) (idxs []int, ok bool
 
 // mergeRecordsByKey reads PK-ordered records from left and right and emits
 // record.Pair values in key order. Both channels must deliver records sorted
-// ascending by the PK columns at keyIdxs (the caller guarantees this via an
-// ORDER BY query). A receive of nil from a channel signals that side is
-// exhausted.
+// ascending by the PK columns (the caller guarantees this via an ORDER BY
+// query). A receive of nil from a channel signals that side is exhausted.
+//
+// keyIdxs1 and keyIdxs2 are the PK column positions within a left and right
+// record, respectively. They must have the same length (one entry per PK
+// column, in pkColNames order) but may differ in values when the PK column
+// occupies a different ordinal position in the two tables.
 //
 // For each step the lower-keyed record is emitted: equal keys produce a pair of
 // both records (equal/changed decided by record.Equal inside NewPair); a
@@ -76,7 +80,7 @@ func pkColIndexes(recMeta record.Meta, pkColNames []string) (idxs []int, ok bool
 // merge stops and returns nil. row is a monotonic counter used as the pair's
 // nominal row index, matching the positional path's semantics.
 func mergeRecordsByKey(ctx context.Context, left, right <-chan record.Record,
-	keyIdxs []int, emit func(rp record.Pair) bool,
+	keyIdxs1, keyIdxs2 []int, emit func(rp record.Pair) bool,
 ) error {
 	var (
 		rec1, rec2   record.Record
@@ -125,7 +129,7 @@ func mergeRecordsByKey(ctx context.Context, left, right <-chan record.Record,
 			rp = record.NewPair(row, nil, rec2) // added
 			advance2 = true
 		default:
-			c, cmpErr := compareIntKey(rec1, rec2, keyIdxs)
+			c, cmpErr := compareIntKey(rec1, rec2, keyIdxs1, keyIdxs2)
 			if cmpErr != nil {
 				return cmpErr
 			}
@@ -151,18 +155,22 @@ func mergeRecordsByKey(ctx context.Context, left, right <-chan record.Record,
 }
 
 // compareIntKey returns -1, 0 or 1 comparing the integer PK tuples of rec1 and
-// rec2 at the given column indexes. It returns an error if any keyed value is
-// not an int64 (which should not happen for an integer-kind PK column, but is
-// guarded so a surprising value triggers a clean fallback rather than a panic).
-func compareIntKey(rec1, rec2 record.Record, idxs []int) (int, error) {
-	for _, idx := range idxs {
-		v1, ok := rec1[idx].(int64)
+// rec2 at the given column indexes. idxs1 indexes into rec1 and idxs2 indexes
+// into rec2; they must have the same length (one entry per PK column). When the
+// PK column sits at a different ordinal position in the two tables, idxs1[i]
+// and idxs2[i] will differ. It returns an error if any keyed value is not an
+// int64 (which should not happen for an integer-kind PK column, but is guarded
+// so a surprising value triggers a clean error rather than a panic).
+func compareIntKey(rec1, rec2 record.Record, idxs1, idxs2 []int) (int, error) {
+	for i, idx1 := range idxs1 {
+		v1, ok := rec1[idx1].(int64)
 		if !ok {
-			return 0, errz.Errorf("diff: PK value at index %d in left record is %T, want int64", idx, rec1[idx])
+			return 0, errz.Errorf("diff: PK value at index %d in left record is %T, want int64", idx1, rec1[idx1])
 		}
-		v2, ok := rec2[idx].(int64)
+		idx2 := idxs2[i]
+		v2, ok := rec2[idx2].(int64)
 		if !ok {
-			return 0, errz.Errorf("diff: PK value at index %d in right record is %T, want int64", idx, rec2[idx])
+			return 0, errz.Errorf("diff: PK value at index %d in right record is %T, want int64", idx2, rec2[idx2])
 		}
 		switch {
 		case v1 < v2:

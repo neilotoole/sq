@@ -314,8 +314,8 @@ func TestCollateByKey_ScatteredInserts(t *testing.T) {
 
 	require.Len(t, pairs, 4)
 	// Only the inserted key (2) is an "added" pair; the rest are equal.
-	require.True(t, pairs[0].Equal())     // 1
-	require.Nil(t, pairs[1].Rec1())       // 2 added
+	require.True(t, pairs[0].Equal()) // 1
+	require.Nil(t, pairs[1].Rec1())   // 2 added
 	require.Equal(t, int64(2), pairs[1].Rec2()[0])
 	require.True(t, pairs[2].Equal()) // 3
 	require.True(t, pairs[3].Equal()) // 4

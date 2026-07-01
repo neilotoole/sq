@@ -80,34 +80,63 @@ func TestPKColIndexes(t *testing.T) {
 
 func TestCompareIntKey(t *testing.T) {
 	idxs := []int{0}
-	lt, err := compareIntKey(record.Record{int64(1)}, record.Record{int64(2)}, idxs)
+	lt, err := compareIntKey(record.Record{int64(1)}, record.Record{int64(2)}, idxs, idxs)
 	require.NoError(t, err)
 	require.Equal(t, -1, lt)
 
-	eq, err := compareIntKey(record.Record{int64(5)}, record.Record{int64(5)}, idxs)
+	eq, err := compareIntKey(record.Record{int64(5)}, record.Record{int64(5)}, idxs, idxs)
 	require.NoError(t, err)
 	require.Equal(t, 0, eq)
 
-	gt, err := compareIntKey(record.Record{int64(9)}, record.Record{int64(3)}, idxs)
+	gt, err := compareIntKey(record.Record{int64(9)}, record.Record{int64(3)}, idxs, idxs)
 	require.NoError(t, err)
 	require.Equal(t, 1, gt)
 
-	// Composite: first column ties, second decides.
+	// Composite: first column ties, second decides; same positions on both sides.
 	comp := []int{0, 1}
-	c, err := compareIntKey(record.Record{int64(1), int64(7)}, record.Record{int64(1), int64(9)}, comp)
+	c, err := compareIntKey(record.Record{int64(1), int64(7)}, record.Record{int64(1), int64(9)}, comp, comp)
 	require.NoError(t, err)
 	require.Equal(t, -1, c)
 
-	// Non-int keyed value -> error.
-	_, err = compareIntKey(record.Record{"x"}, record.Record{int64(1)}, idxs)
+	// Non-int keyed value in left record -> error.
+	_, err = compareIntKey(record.Record{"x"}, record.Record{int64(1)}, idxs, idxs)
 	require.Error(t, err)
+
+	// Non-int keyed value in right record -> error.
+	_, err = compareIntKey(record.Record{int64(1)}, record.Record{"y"}, idxs, idxs)
+	require.Error(t, err)
+
+	// Cross-position: PK is at index 0 in rec1 and index 1 in rec2.
+	// rec1 = ["text", int64(3)], but we only read rec1[0] which is wrong type.
+	// Test the correct case: rec1 = [int64(3), "text"], rec2 = ["text", int64(5)].
+	// idxs1=[0] reads rec1[0]=3, idxs2=[1] reads rec2[1]=5 -> 3 < 5 -> -1.
+	idxs1 := []int{0}
+	idxs2 := []int{1}
+	c, err = compareIntKey(
+		record.Record{int64(3), "text"},
+		record.Record{"text", int64(5)},
+		idxs1, idxs2,
+	)
+	require.NoError(t, err)
+	require.Equal(t, -1, c, "cross-position: id=3 (left idx 0) < id=5 (right idx 1)")
+
+	// Same cross-position, equal keys.
+	c, err = compareIntKey(
+		record.Record{int64(7), "text"},
+		record.Record{"text", int64(7)},
+		idxs1, idxs2,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 0, c, "cross-position: id=7 (left idx 0) == id=7 (right idx 1)")
 }
 
 // drainMerge feeds left/right records into mergeRecordsByKey and returns the
 // emitted pairs as compact "k:side" tokens: "added=K" (left nil), "removed=K"
 // (right nil), "same=K" (equal), "chg=K" (both present, differ). Key is the
 // first PK column's int64 value, taken from whichever side is non-nil.
-func drainMerge(t *testing.T, keyIdxs []int, leftRows, rightRows []record.Record) []string {
+// keyIdxs1 and keyIdxs2 are the PK column positions in left and right records
+// respectively; pass the same slice twice when the positions are identical.
+func drainMerge(t *testing.T, keyIdxs1, keyIdxs2 []int, leftRows, rightRows []record.Record) []string {
 	t.Helper()
 	left := make(chan record.Record, len(leftRows)+1)
 	right := make(chan record.Record, len(rightRows)+1)
@@ -121,13 +150,13 @@ func drainMerge(t *testing.T, keyIdxs []int, leftRows, rightRows []record.Record
 	close(right)
 
 	var got []string
-	err := mergeRecordsByKey(context.Background(), left, right, keyIdxs, func(rp record.Pair) bool {
+	err := mergeRecordsByKey(context.Background(), left, right, keyIdxs1, keyIdxs2, func(rp record.Pair) bool {
 		var k int64
 		switch {
 		case rp.Rec1() != nil:
-			k = rp.Rec1()[keyIdxs[0]].(int64)
+			k = rp.Rec1()[keyIdxs1[0]].(int64)
 		default:
-			k = rp.Rec2()[keyIdxs[0]].(int64)
+			k = rp.Rec2()[keyIdxs2[0]].(int64)
 		}
 		switch {
 		case rp.Rec1() == nil:
@@ -157,7 +186,7 @@ func TestMergeRecordsByKey_ScatteredInserts(t *testing.T) {
 		rowID(1), rowID(2), rowID(3), rowID(4), rowID(5),
 		rowID(6), rowID(7), rowID(8), rowID(9), rowID(10),
 	}
-	got := drainMerge(t, []int{0}, left, right)
+	got := drainMerge(t, []int{0}, []int{0}, left, right)
 	require.Equal(t, []string{
 		"same=1", "added=2", "same=3", "same=4", "added=5",
 		"same=6", "same=7", "added=8", "same=9", "same=10",
@@ -167,7 +196,7 @@ func TestMergeRecordsByKey_ScatteredInserts(t *testing.T) {
 func TestMergeRecordsByKey_Removed(t *testing.T) {
 	left := []record.Record{rowID(1), rowID(2), rowID(3)}
 	right := []record.Record{rowID(2)}
-	got := drainMerge(t, []int{0}, left, right)
+	got := drainMerge(t, []int{0}, []int{0}, left, right)
 	require.Equal(t, []string{"removed=1", "same=2", "removed=3"}, got)
 }
 
@@ -175,16 +204,46 @@ func TestMergeRecordsByKey_Changed(t *testing.T) {
 	// Same key, differing non-key column -> "chg", not removed+added.
 	left := []record.Record{rowID(1, "a"), rowID(2, "b")}
 	right := []record.Record{rowID(1, "a"), rowID(2, "B")}
-	got := drainMerge(t, []int{0}, left, right)
+	got := drainMerge(t, []int{0}, []int{0}, left, right)
 	require.Equal(t, []string{"same=1", "chg=2"}, got)
 }
 
 func TestMergeRecordsByKey_OneSideEmpty(t *testing.T) {
-	got := drainMerge(t, []int{0}, nil, []record.Record{rowID(1), rowID(2)})
+	got := drainMerge(t, []int{0}, []int{0}, nil, []record.Record{rowID(1), rowID(2)})
 	require.Equal(t, []string{"added=1", "added=2"}, got)
 
-	got = drainMerge(t, []int{0}, []record.Record{rowID(1), rowID(2)}, nil)
+	got = drainMerge(t, []int{0}, []int{0}, []record.Record{rowID(1), rowID(2)}, nil)
 	require.Equal(t, []string{"removed=1", "removed=2"}, got)
+}
+
+// TestMergeRecordsByKey_CrossPositionPK verifies the fix for the cross-table PK
+// ordinal bug. When the PK column sits at index 0 on the left (id, name) and
+// index 1 on the right (name, id), passing a single shared keyIdxs would read
+// the name TEXT column of the right record as the key, producing "PK value is
+// string, want int64". The fix passes keyIdxs1 and keyIdxs2 independently.
+func TestMergeRecordsByKey_CrossPositionPK(t *testing.T) {
+	// Left records: [id int64, name string] — PK id is at index 0.
+	// Right records: [name string, id int64] — PK id is at index 1.
+	left := []record.Record{
+		{int64(1), "alice"},
+		{int64(2), "bob"},
+		{int64(3), "carol"},
+	}
+	right := []record.Record{
+		{"alice", int64(1)},
+		{"bob", int64(2)},
+		{"carol", int64(3)},
+	}
+
+	// idxs1=[0]: id at index 0 in left records.
+	// idxs2=[1]: id at index 1 in right records.
+	got := drainMerge(t, []int{0}, []int{1}, left, right)
+
+	// All three rows have the same id on both sides, so they're all paired.
+	// record.Equal compares positionally: [1,"alice"] != ["alice",1], so "chg".
+	require.Equal(t, []string{"chg=1", "chg=2", "chg=3"}, got,
+		"cross-position PK: rows are paired by id (no added/removed), "+
+			"but positional comparison marks each as changed due to column reordering")
 }
 
 func TestMergeRecordsByKey_EmitStop(t *testing.T) {
@@ -202,7 +261,7 @@ func TestMergeRecordsByKey_EmitStop(t *testing.T) {
 	close(right2)
 
 	var n int
-	err := mergeRecordsByKey(context.Background(), left2, right2, []int{0}, func(record.Pair) bool {
+	err := mergeRecordsByKey(context.Background(), left2, right2, []int{0}, []int{0}, func(record.Pair) bool {
 		n++
 		return n < 2 // stop after emitting 2 pairs
 	})

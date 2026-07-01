@@ -425,6 +425,93 @@ func runDiffChangedAdjacent(t *testing.T, format string,
 	return got
 }
 
+// TestDiff_Data_PKAlignDifferentOrdinal is the cross-table PK ordinal regression
+// test. It verifies that sq diff --data correctly aligns rows by PK when the PK
+// column sits at different ordinal positions in the two tables.
+//
+//	left:  CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)  -- id at index 0
+//	right: CREATE TABLE t (name TEXT, id INTEGER PRIMARY KEY)  -- id at index 1
+//
+// Pre-fix, collateByKey resolved PK column indexes from rs1 (left) only, then
+// applied those same indexes to both sides. On the right table, index 0 is the
+// name TEXT column, not id. compareIntKey cast rec2[0] to int64, got a string,
+// and returned "PK value at index 0 in right record is string, want int64" →
+// exit 2. Post-fix, keyIdxs are resolved independently per side (keyIdxs1=[0],
+// keyIdxs2=[1]), so rec2[1] (the id column) is read correctly.
+//
+// With all three rows present on both sides, the PK merge pairs each id with
+// its counterpart. Because the column order differs, record.Equal compares
+// [id,name] vs [name,id] positionally and marks each pair as "changed" (not
+// equal), so the diff exits 1 (differences exist), not 0. The critical
+// assertion is that exit code is 1, NOT 2.
+func TestDiff_Data_PKAlignDifferentOrdinal(t *testing.T) {
+	const tbl = "t"
+
+	th := testh.New(t)
+
+	leftPath := filepath.Join(tu.TempDir(t), "left_ordinal.db")
+	rightPath := filepath.Join(tu.TempDir(t), "right_ordinal.db")
+
+	srcLeft := source.Source{
+		Handle:   "@test_left",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + leftPath,
+	}
+	srcRight := source.Source{
+		Handle:   "@test_right",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + rightPath,
+	}
+
+	// Left: id at column index 0.
+	th.ExecSQL(&srcLeft, `CREATE TABLE "t" ("id" INTEGER PRIMARY KEY, "name" TEXT)`)
+	th.ExecSQL(&srcLeft, `INSERT INTO "t" VALUES (1,'alice'), (2,'bob'), (3,'carol')`)
+
+	// Right: id at column index 1 (name comes first).
+	th.ExecSQL(&srcRight, `CREATE TABLE "t" ("name" TEXT, "id" INTEGER PRIMARY KEY)`)
+	th.ExecSQL(&srcRight, `INSERT INTO "t" VALUES ('alice',1), ('bob',2), ('carol',3)`)
+
+	// --unified 0 suppresses context so each diff line is exactly one data row.
+	tr := testrun.New(th.Context, t, nil).Hush().Add(srcLeft, srcRight)
+	err := tr.Exec(
+		"diff", "--data", "--unified", "0", "--stop", "0",
+		srcLeft.Handle+"."+tbl,
+		srcRight.Handle+"."+tbl,
+	)
+
+	got := tr.Out.String()
+	t.Log("diff output:\n" + got)
+
+	// The tables differ (column order makes each row appear changed), so exit 1.
+	// Pre-fix this would be exit 2 ("PK value ... is string, want int64").
+	require.Error(t, err, "diff must report differences (column order makes rows appear changed)")
+	require.Equal(t, 1, errz.ExitCode(err),
+		"exit 2 means the PK index bug is still present; post-fix must exit 1")
+
+	// Count added (+) and removed (-) data lines. With all three rows paired by
+	// PK (same id values on both sides), there must be zero "added" and zero
+	// "removed" lines. Each changed pair produces one "-" and one "+", so
+	// added_diff_lines == removed_diff_lines == 3.
+	var added, removed int
+	for _, line := range strings.Split(got, "\n") {
+		switch {
+		case strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---"):
+			// file header line
+		case strings.HasPrefix(line, "+"):
+			added++
+		case strings.HasPrefix(line, "-"):
+			removed++
+		}
+	}
+	t.Logf("added=%d removed=%d (want added==removed==3, no single-sided pairs)", added, removed)
+	require.Equal(t, 3, added,
+		"each of the 3 changed pairs produces one + line; pre-fix exit 2 produces zero lines")
+	require.Equal(t, 3, removed,
+		"each of the 3 changed pairs produces one - line; miskeyed alignment would produce wrong counts")
+	require.Equal(t, added, removed,
+		"no rows are missing on either side: added and removed line counts must match")
+}
+
 // requireHasDiffLine asserts that got contains a diff data line beginning with
 // the single-character prefix ("-" or "+") and containing substr, excluding the
 // ---/+++ file-header lines.

@@ -363,9 +363,11 @@ type keyCollation struct {
 
 // collateByKey merges kc.rs1 and kc.rs2 by primary key into record.Pair values,
 // sending them to kc.recPairsCh. The records must arrive PK-ordered (the queries
-// use order_by). The PK column positions within a record are resolved from
-// rs1.recMeta, which isn't known until the query engine invokes dbResults.Open;
-// collateByKey waits on rs1.opened for that signal before resolving.
+// use order_by). The PK column positions are resolved independently for each
+// side from rs1.recMeta and rs2.recMeta (the PK column may sit at a different
+// ordinal position in each table). Both recMetas aren't known until the query
+// engine invokes dbResults.Open on each side; collateByKey waits on both
+// rs1.opened and rs2.opened before resolving.
 //
 // collateByKey owns both cancellation and channel close. On a non-context error
 // it sets the cause via kc.cancelFn BEFORE closing kc.recPairsCh, so the exec
@@ -388,23 +390,33 @@ func collateByKey(ctx context.Context, kc keyCollation) (err error) {
 	}()
 
 	// recMeta isn't populated until the query engine invokes dbResults.Open on
-	// another goroutine. Wait for that before resolving the PK column indexes.
-	// The close of rs1.opened happens-before this receive, so rs1.recMeta is
-	// safe to read once we proceed.
+	// another goroutine. Wait for both sides before resolving the PK column
+	// indexes. The close of each opened channel happens-before the corresponding
+	// receive, so both recMetas are safe to read once we proceed.
 	select {
 	case <-ctx.Done():
 		return errz.Err(context.Cause(ctx))
 	case <-kc.rs1.opened:
 	}
+	select {
+	case <-ctx.Done():
+		return errz.Err(context.Cause(ctx))
+	case <-kc.rs2.opened:
+	}
 
-	// Resolve PK column indexes from recMeta. A mismatch at this point is a real
-	// bug (pkMergeKey already validated the PK against the table metadata), not
-	// normal flow, so there's no mid-stream fallback: we return an error that
-	// seals the doc.
-	keyIdxs, ok := pkColIndexes(kc.rs1.recMeta, kc.pkColNames)
-	if !ok {
-		return errz.Errorf("diff: PK columns %v not found in result columns %v",
+	// Resolve PK column indexes independently for each side. A mismatch is a
+	// real bug (pkMergeKey already validated the PK against the table metadata),
+	// not normal flow, so there's no mid-stream fallback: we return an error
+	// that seals the doc.
+	keyIdxs1, ok1 := pkColIndexes(kc.rs1.recMeta, kc.pkColNames)
+	if !ok1 {
+		return errz.Errorf("diff: PK columns %v not found in left result columns %v",
 			kc.pkColNames, kc.rs1.recMeta.Names())
+	}
+	keyIdxs2, ok2 := pkColIndexes(kc.rs2.recMeta, kc.pkColNames)
+	if !ok2 {
+		return errz.Errorf("diff: PK columns %v not found in right result columns %v",
+			kc.pkColNames, kc.rs2.recMeta.Names())
 	}
 
 	var (
@@ -413,7 +425,7 @@ func collateByKey(ctx context.Context, kc keyCollation) (err error) {
 		row       int
 	)
 
-	return mergeRecordsByKey(ctx, kc.rs1.recCh, kc.rs2.recCh, keyIdxs, func(rp record.Pair) bool {
+	return mergeRecordsByKey(ctx, kc.rs1.recCh, kc.rs2.recCh, keyIdxs1, keyIdxs2, func(rp record.Pair) bool {
 		kc.incr(1)
 		if !rp.Equal() {
 			diffCount++
