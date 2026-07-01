@@ -8,16 +8,20 @@ maintainer reference docs (architecture, drivers, grammar, workflows,
 releasing), see the [`docs/`](./docs) index at
 [`docs/README.md`](./docs/README.md).
 
-For AI coding assistants working in this repo, see [AGENTS.md](./AGENTS.md)
-(cross-agent guidance and contributor [Agent Skills](https://agentskills.io/specification)
-under [`.agents/skills/`](./.agents/skills/)). [CLAUDE.md](./CLAUDE.md) is the
-Claude Code entry point and links to AGENTS.md for shared rules. Install into
-your agent with
-`npx skills add neilotoole/sq --skill <name>` (see
-[AGENTS.md](./AGENTS.md#installing-and-verifying-skills-npx-skills)). Claude Code
-also uses [`.claude/skills`](./.claude/skills) (symlink to `.agents/skills`
-when checked out). On Windows, if symlinks are unavailable, use WSL, `npx skills
-add`, or copy `.agents/skills` under `.claude/skills`.
+For AI coding assistants working in this repo:
+
+- [AGENTS.md](./AGENTS.md) is the cross-agent guide (shared rules plus
+  contributor [Agent Skills](https://agentskills.io/specification) under
+  [`.agents/skills/`](./.agents/skills/)).
+- [CLAUDE.md](./CLAUDE.md) is the Claude Code entry point and links to AGENTS.md
+  for shared rules. Claude Code also discovers skills via
+  [`.claude/skills`](./.claude/skills) (a symlink to `.agents/skills` when
+  checked out).
+- Install a skill into your agent with
+  `npx skills add neilotoole/sq --skill <name>` (see
+  [AGENTS.md](./AGENTS.md#installing-and-verifying-skills-npx-skills)).
+- On Windows, if symlinks are unavailable, use WSL, `npx skills add`, or copy
+  `.agents/skills` under `.claude/skills`.
 
 ## Documentation site (`site/`)
 
