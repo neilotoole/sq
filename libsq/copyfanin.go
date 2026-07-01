@@ -32,7 +32,11 @@ import (
 func executeCopyTasksFanIn(ctx context.Context, tasks []*joinCopyTask) error {
 	buffers := make([]*copyBuffer, len(tasks))
 	for i := range tasks {
-		bufSize := tuning.OptRecBufSize.Get(tasks[i].fromGrip.Source().Options)
+		// Size from the destination (join DB) options, matching execCopyTable,
+		// so tuning.record-buffer behaves consistently across the copy paths.
+		// The actual recCh is allocated lazily in copyBuffer.Open, so only about
+		// one buffer per concurrently-reading source is live at a time.
+		bufSize := tuning.OptRecBufSize.Get(tasks[i].toGrip.Source().Options)
 		buffers[i] = newCopyBuffer(bufSize)
 	}
 
@@ -107,6 +111,13 @@ func groupTaskIndicesBySource(handles []string) [][]int {
 //
 // readers and write are parameters (rather than inlined) so the orchestration
 // can be tested without a database.
+//
+// The reader errgroup is intentionally uncapped. Concurrency is already bounded
+// to the number of distinct sources by fanInReaders, and applying a hard
+// OptErrgroupLimit here would risk deadlock: the single writer goroutine shares
+// this errgroup, so a saturated limit could starve its slot (or a source the
+// writer is waiting on). Overlapping the source reads is the point of the
+// fan-in, so the distinct-source count is the intended bound.
 func runCopyFanIn(ctx context.Context, readers []func(context.Context) error,
 	nWrites int, write func(ctx context.Context, i int) error,
 ) error {
@@ -152,12 +163,14 @@ func newJoinDestTableHook(destTbl tablefq.T) DBWriterPreWriteHook {
 // The bounded recCh provides backpressure: a reader that outpaces the writer
 // blocks once the buffer is full, rather than growing memory without bound.
 //
-// Field order is tuned for govet fieldalignment (the record.Meta slice, whose
-// len/cap are non-pointer, sits last).
+// Field order is tuned for govet fieldalignment (the non-pointer fields, and
+// the record.Meta slice whose len/cap are non-pointer, sit last).
 type copyBuffer struct {
-	// recCh is the bounded record buffer. QuerySQL (the reader) sends records
-	// to it and closes it when the read completes; writeCopyTable (the writer)
-	// receives from it.
+	// recCh is the bounded record buffer, allocated lazily in Open (when the
+	// read actually starts) so only about one buffer per concurrently-reading
+	// source is live at a time, not one per table. QuerySQL (the reader) sends
+	// records to it and closes it when the read completes; writeCopyTable (the
+	// writer) receives from it after metaReady.
 	recCh chan record.Record
 
 	// metaReady is closed once Open has run, signalling that meta and recCh are
@@ -169,9 +182,11 @@ type copyBuffer struct {
 	// QuerySQL closes it on both success and failure.
 	doneCh chan struct{}
 
-	// errCh satisfies the RecordWriter contract for QuerySQL. It is never
-	// signalled: cross-goroutine cancellation is handled via ctx (the
-	// errgroup), and read success/failure is delivered via doneCh/readErr.
+	// errCh is handed to QuerySQL to satisfy the RecordWriter contract; it is
+	// closed by finish (after QuerySQL has returned, so it does not disturb
+	// QuerySQL's select loop). Cross-goroutine cancellation is handled via ctx
+	// (the errgroup), and read success/failure via doneCh/readErr, so it never
+	// carries a value.
 	errCh chan error
 
 	// readErr is the terminal read error (nil on success), set by finish before
@@ -180,23 +195,27 @@ type copyBuffer struct {
 
 	// meta is the source record metadata, set in Open before metaReady closes.
 	meta record.Meta
+
+	// bufSize is the capacity applied to recCh when Open allocates it.
+	bufSize int
 }
 
 func newCopyBuffer(bufSize int) *copyBuffer {
 	return &copyBuffer{
-		recCh:     make(chan record.Record, bufSize),
 		metaReady: make(chan struct{}),
 		doneCh:    make(chan struct{}),
 		errCh:     make(chan error),
+		bufSize:   bufSize,
 	}
 }
 
-// Open implements [RecordWriter]. It records recMeta and hands QuerySQL the
-// buffer's record channel. cancelFn is unused: this sink is not driven via
-// Wait (see the type doc).
+// Open implements [RecordWriter]. It allocates the record buffer, records
+// recMeta, and hands QuerySQL the buffer's record channel. cancelFn is unused:
+// this sink is not driven via Wait (see the type doc).
 func (b *copyBuffer) Open(_ context.Context, _ context.CancelFunc, recMeta record.Meta) (
 	chan<- record.Record, <-chan error, error,
 ) {
+	b.recCh = make(chan record.Record, b.bufSize)
 	b.meta = recMeta
 	close(b.metaReady)
 	return b.recCh, b.errCh, nil
@@ -212,9 +231,12 @@ func (b *copyBuffer) Wait() (int64, error) {
 
 // finish records the terminal read error (nil on success) and signals the
 // writer that the source read is complete. It must be called exactly once,
-// after QuerySQL returns.
+// after QuerySQL returns. Closing errCh here (rather than leaving it open)
+// satisfies the RecordWriter contract; QuerySQL has already returned, so it
+// does not affect QuerySQL's select loop.
 func (b *copyBuffer) finish(err error) {
 	b.readErr = err
+	close(b.errCh)
 	close(b.doneCh)
 }
 
