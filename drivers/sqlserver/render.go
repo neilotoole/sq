@@ -10,6 +10,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 func renderRange(_ *render.Context, rr *ast.RowRangeNode) (string, error) {
@@ -105,14 +106,14 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 // The implementation is minimal: it does not honor PK, FK, etc.
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
-	sb.WriteString(`CREATE TABLE "`)
-	sb.WriteString(tblDef.Name)
-	sb.WriteString("\" (")
+	sb.WriteString(`CREATE TABLE `)
+	sb.WriteString(stringz.DoubleQuote(tblDef.Name))
+	sb.WriteString(" (")
 
 	for i, colDef := range tblDef.Cols {
-		sb.WriteString("\n\"")
-		sb.WriteString(colDef.Name)
-		sb.WriteString("\" ")
+		sb.WriteRune('\n')
+		sb.WriteString(stringz.DoubleQuote(colDef.Name))
+		sb.WriteRune(' ')
 		sb.WriteString(dbTypeNameFromKind(colDef.Kind))
 
 		if colDef.NotNull {
@@ -137,11 +138,16 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	sb := strings.Builder{}
-	sb.WriteString(`UPDATE "`)
-	sb.WriteString(tbl)
-	sb.WriteString(`" SET "`)
-	sb.WriteString(strings.Join(cols, `" = ?, "`))
-	sb.WriteString(`" = ?`)
+	sb.WriteString(`UPDATE `)
+	sb.WriteString(stringz.DoubleQuote(tbl))
+	sb.WriteString(` SET `)
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(`, `)
+		}
+		sb.WriteString(stringz.DoubleQuote(col))
+		sb.WriteString(` = ?`)
+	}
 	if where != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(where)

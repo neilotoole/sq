@@ -120,22 +120,18 @@ jobs:
         with:
           go-version-file: go.mod
 
-      # scope=full runs `go test ./...`, whose many embedded SQLite/DuckDB temp
-      # databases exhaust the runner (observed: a pg17 leg hit "no space left on
-      # device"). The runner has ~86 GB free on / (measured: 86G -> 110G after
-      # this step), so it is almost certainly inode exhaustion, not bytes: the
-      # preinstalled toolchains removed below are millions of small files, so the
-      # rm frees inodes as much as the ~20 GB. Each leg runs the full suite on
-      # its own runner, so this bites single-version nightlies too, not just
-      # multi-version dispatches.
-      #
-      # TODO: gated to scope=full because narrow runs only the per-engine
-      # packages and has not exhausted in practice. That is an empirical
-      # assumption, not a guarantee — if narrow's libsq/cli cross-source tests
-      # grow heavier it may need this too, at which point drop the `if:` and
-      # always free space.
+      # The DB test legs exhaust the runner's root filesystem. scope=full runs
+      # `go test ./...` (many embedded SQLite/DuckDB temp databases; observed: a
+      # pg17 leg hit "no space left on device"), and scope=narrow compiles
+      # ./libsq/... and ./cli/..., whose large test binaries have hit ENOSPC
+      # during compile/link (observed: mysql and sqlserver narrow legs). The
+      # runner has ~86 GB free on / but the preinstalled toolchains removed
+      # below are millions of small files, so the rm reclaims inodes as much as
+      # the ~20 GB. This runs for every scope: each leg builds on its own
+      # runner, so it bites single-version nightlies and narrow dispatches too,
+      # not just full runs. (It was previously gated to scope=full on the
+      # assumption narrow never exhausted; narrow now does, so the gate is gone.)
       - name: Free disk space
-        if: ${{ (inputs.scope || github.event.inputs.scope || 'full') == 'full' }}
         shell: bash
         run: |
           set -euo pipefail

@@ -269,6 +269,134 @@ func TestDriver_Truncate_NoIdentity_MSSQL(t *testing.T) {
 	require.Equal(t, int64(2), affected)
 }
 
+// TestDriver_QuotedView_RowCount_MSSQL exercises the view row-count fallback in
+// getTableMetadata (issue #1027 P1): sp_spaceused returns a NULL row count for a
+// VIEW, so the code falls back to SELECT COUNT(*) FROM <view>. That site
+// previously interpolated the name with %q (Go backslash-quoting, not SQL
+// identifier doubling), so a view whose name contains a double-quote built
+// malformed SQL. Here the view name contains a double-quote, so metadata must
+// still load and report the correct row count.
+func TestDriver_QuotedView_RowCount_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, grip, db := testh.NewWith(t, sakila.MS)
+
+	baseTbl := stringz.UniqTableName(`ba"se`)
+	tblDef := schema.NewTable(baseTbl, []string{"id", "val"}, []kind.Kind{kind.Int, kind.Text})
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(baseTbl)) })
+	th.Insert(src, baseTbl, []string{"id", "val"}, []any{int64(1), "a"}, []any{int64(2), "b"})
+
+	viewName := stringz.UniqTableName(`vi"ew`)
+	qView := stringz.DoubleQuote(viewName)
+	_, err := db.ExecContext(th.Context,
+		`CREATE VIEW `+qView+` AS SELECT id, val FROM `+stringz.DoubleQuote(baseTbl))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, `DROP VIEW IF EXISTS `+qView)
+	})
+
+	md, err := grip.TableMetadata(th.Context, viewName)
+	require.NoError(t, err, "view metadata must load for a quoted view name")
+	require.Equal(t, viewName, md.Name)
+	require.Equal(t, int64(2), md.RowCount, "row count must load via the COUNT(*) fallback")
+}
+
+// TestDriver_Truncate_QuotedIdentity_MSSQL exercises Truncate's reseed path
+// (DBCC CHECKIDENT) against an identity table whose name contains a double
+// quote. DBCC parses the name out of a string literal, so it must be
+// bracket-quoted before single-quoting (#1027); a raw single-quoted name broke
+// object resolution after the destructive DELETE.
+func TestDriver_Truncate_QuotedIdentity_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	tblName := stringz.UniqTableName(`tr"unc`)
+	// sq's CreateTable does not emit IDENTITY columns, so create the identity
+	// table with raw (properly quoted) DDL.
+	_, err := db.ExecContext(th.Context,
+		`CREATE TABLE `+stringz.DoubleQuote(tblName)+` (id INT IDENTITY(1,1) PRIMARY KEY, val NVARCHAR(20))`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+	th.Insert(src, tblName, []string{"val"}, []any{"a"}, []any{"b"})
+
+	affected, err := drvr.Truncate(th.Context, src, tblName, true)
+	require.NoError(t, err, "Truncate+reset must handle a quoted identity table name")
+	require.Equal(t, int64(2), affected)
+}
+
+// TestDriver_AlterTable_QuotedIdentifier_MSSQL exercises the ALTER-family DDL
+// (AlterTableAddColumn, AlterTableRenameColumn, AlterTableRename) against a
+// table and columns whose names contain a double quote (#1027). AddColumn
+// quotes as an identifier; the sp_rename paths bracket-quote the name inside a
+// string literal.
+func TestDriver_AlterTable_QuotedIdentifier_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, src, drvr, _, db := testh.NewWith(t, sakila.MS)
+
+	tblName := stringz.UniqTableName(`al"ter`)
+	tblDef := schema.NewTable(tblName, []string{`c"1`, "id"}, []kind.Kind{kind.Text, kind.Int})
+	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tblName, `c"2`, kind.Int),
+		"AlterTableAddColumn must escape quoted table/column names")
+	require.NoError(t, drvr.AlterTableRenameColumn(th.Context, db, tblName, `c"1`, `c"1b`),
+		"AlterTableRenameColumn must escape quoted names")
+
+	newName := stringz.UniqTableName(`al"ter2`)
+	require.NoError(t, drvr.AlterTableRename(th.Context, db, tblName, newName),
+		"AlterTableRename must escape quoted names")
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(newName)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, newName)
+	require.NoError(t, err, "renamed quoted table must load")
+	require.Equal(t, newName, md.Name)
+	require.Len(t, md.Columns, 3, "expected c\"1b, id, c\"2 after the alters")
+}
+
+// TestDriver_DropSchema_QuotedIdentifier_MSSQL exercises DropSchema and
+// genDropSchemaObjectsStmt against a schema whose name contains a single quote
+// (#1027). DropSchema first enumerates and drops the schema's objects (the
+// generated script assigns @SchemaName from a string literal, so the name must
+// be single-quoted with the ' doubled), then drops the schema itself
+// (identifier-quoted). A single quote is the char that breaks the generated
+// script's string literal; a name containing a ] can still fail server-side
+// because the generated script bracket-builds object names without doubling ]
+// (a deeper pre-existing limit, out of scope here).
+func TestDriver_DropSchema_QuotedIdentifier_MSSQL(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.MS)
+	ctx := th.Context
+
+	schemaName := `s'ch_` + stringz.Uniq8()
+	require.NoError(t, drvr.CreateSchema(ctx, db, schemaName),
+		"CreateSchema must escape a quoted schema name")
+	dropped := false
+	t.Cleanup(func() {
+		if !dropped {
+			_ = drvr.DropSchema(ctx, db, schemaName)
+		}
+	})
+
+	// Put a table in the schema so genDropSchemaObjectsStmt has an object to
+	// drop before DROP SCHEMA (it enumerates sys.tables for the schema).
+	_, err := db.ExecContext(ctx,
+		`CREATE TABLE `+stringz.DoubleQuote(schemaName)+`.`+stringz.DoubleQuote(`t"1`)+` (id INT)`)
+	require.NoError(t, err)
+
+	require.NoError(t, drvr.DropSchema(ctx, db, schemaName),
+		"DropSchema must escape a quoted schema name and its objects")
+	dropped = true
+}
+
 func TestDriver_PrepareUpdateStmt_MSSQL(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()

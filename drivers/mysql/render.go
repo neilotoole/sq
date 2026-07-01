@@ -57,15 +57,13 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 	kind.Unknown:  ``,
 }
 
-//nolint:funlen
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	buf := &bytes.Buffer{}
 
 	cols := make([]string, len(tblDef.Cols))
 	for i, col := range tblDef.Cols {
-		buf.WriteRune('`')
-		buf.WriteString(col.Name)
-		buf.WriteString("` ")
+		buf.WriteString(stringz.BacktickQuote(col.Name))
+		buf.WriteRune(' ')
 		buf.WriteString(dbTypeNameFromKind(col.Kind))
 
 		if col.HasDefault {
@@ -86,16 +84,14 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 
 	pk := ""
 	if tblDef.PKColName != "" {
-		buf.WriteString("PRIMARY KEY (`")
-		buf.WriteString(tblDef.PKColName)
-		buf.WriteString("`),\n")
-		buf.WriteString("UNIQUE KEY `")
-		buf.WriteString(tblDef.Name)
-		buf.WriteRune('_')
-		buf.WriteString(tblDef.PKColName)
-		buf.WriteString("_uindex` (`")
-		buf.WriteString(tblDef.PKColName)
-		buf.WriteString("`)")
+		buf.WriteString("PRIMARY KEY (")
+		buf.WriteString(stringz.BacktickQuote(tblDef.PKColName))
+		buf.WriteString("),\n")
+		buf.WriteString("UNIQUE KEY ")
+		buf.WriteString(stringz.BacktickQuote(tblDef.Name + "_" + tblDef.PKColName + "_uindex"))
+		buf.WriteString(" (")
+		buf.WriteString(stringz.BacktickQuote(tblDef.PKColName))
+		buf.WriteString(")")
 		pk = buf.String()
 	}
 
@@ -111,13 +107,11 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 			if buf.Len() > 0 {
 				buf.WriteString(",\n")
 			}
-			buf.WriteString("UNIQUE KEY `")
-			buf.WriteString(tblDef.Name)
-			buf.WriteRune('_')
-			buf.WriteString(col.Name)
-			buf.WriteString("_uindex` (`")
-			buf.WriteString(col.Name)
-			buf.WriteString("`)")
+			buf.WriteString("UNIQUE KEY ")
+			buf.WriteString(stringz.BacktickQuote(tblDef.Name + "_" + col.Name + "_uindex"))
+			buf.WriteString(" (")
+			buf.WriteString(stringz.BacktickQuote(col.Name))
+			buf.WriteString(")")
 		}
 	}
 	uniq = buf.String()
@@ -132,31 +126,21 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 		if buf.Len() > 0 {
 			buf.WriteString(",\n")
 		}
-		buf.WriteString("KEY `")
-		buf.WriteString(tblDef.Name)
-		buf.WriteRune('_')
-		buf.WriteString(col.Name)
-		buf.WriteRune('_')
-		buf.WriteString(col.ForeignKey.RefTable)
-		buf.WriteRune('_')
-		buf.WriteString(col.ForeignKey.RefCol)
-		buf.WriteString("_key` (`")
-		buf.WriteString(col.Name)
-		buf.WriteString("`),\nCONSTRAINT `")
-		buf.WriteString(tblDef.Name)
-		buf.WriteRune('_')
-		buf.WriteString(col.Name)
-		buf.WriteRune('_')
-		buf.WriteString(col.ForeignKey.RefTable)
-		buf.WriteRune('_')
-		buf.WriteString(col.ForeignKey.RefCol)
-		buf.WriteString("_fk` FOREIGN KEY (`")
-		buf.WriteString(col.Name)
-		buf.WriteString("`) REFERENCES `")
-		buf.WriteString(col.ForeignKey.RefTable)
-		buf.WriteString("` (`")
-		buf.WriteString(col.ForeignKey.RefCol)
-		buf.WriteString("`) ON DELETE ")
+		fkBase := tblDef.Name + "_" + col.Name + "_" +
+			col.ForeignKey.RefTable + "_" + col.ForeignKey.RefCol
+		buf.WriteString("KEY ")
+		buf.WriteString(stringz.BacktickQuote(fkBase + "_key"))
+		buf.WriteString(" (")
+		buf.WriteString(stringz.BacktickQuote(col.Name))
+		buf.WriteString("),\nCONSTRAINT ")
+		buf.WriteString(stringz.BacktickQuote(fkBase + "_fk"))
+		buf.WriteString(" FOREIGN KEY (")
+		buf.WriteString(stringz.BacktickQuote(col.Name))
+		buf.WriteString(") REFERENCES ")
+		buf.WriteString(stringz.BacktickQuote(col.ForeignKey.RefTable))
+		buf.WriteString(" (")
+		buf.WriteString(stringz.BacktickQuote(col.ForeignKey.RefCol))
+		buf.WriteString(") ON DELETE ")
 		if col.ForeignKey.OnDelete == "" {
 			buf.WriteString("CASCADE")
 		} else {
@@ -172,9 +156,9 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 	fk = buf.String()
 
 	buf.Reset()
-	buf.WriteString("CREATE TABLE `")
-	buf.WriteString(tblDef.Name)
-	buf.WriteString("` (\n")
+	buf.WriteString("CREATE TABLE ")
+	buf.WriteString(stringz.BacktickQuote(tblDef.Name))
+	buf.WriteString(" (\n")
 
 	for x := 0; x < len(cols)-1; x++ {
 		buf.WriteString(cols[x])
@@ -204,11 +188,16 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	buf := strings.Builder{}
-	buf.WriteString("UPDATE `")
-	buf.WriteString(tbl)
-	buf.WriteString("` SET `")
-	buf.WriteString(strings.Join(cols, "` = ?, `"))
-	buf.WriteString("` = ?")
+	buf.WriteString("UPDATE ")
+	buf.WriteString(stringz.BacktickQuote(tbl))
+	buf.WriteString(" SET ")
+	for i, col := range cols {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		buf.WriteString(stringz.BacktickQuote(col))
+		buf.WriteString(" = ?")
+	}
 	if where != "" {
 		buf.WriteString(" WHERE ")
 		buf.WriteString(where)

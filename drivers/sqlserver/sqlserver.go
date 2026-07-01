@@ -303,13 +303,18 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
-	affected, err = sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err = sqlz.ExecAffected(ctx, db, `DELETE FROM `+stringz.DoubleQuote(tbl))
 	if err != nil {
 		return affected, errz.Wrapf(errw(err), "truncate: failed to delete from %q", tbl)
 	}
 
 	if reset {
-		_, err = db.ExecContext(ctx, fmt.Sprintf("DBCC CHECKIDENT ('%s', RESEED, 1)", tbl))
+		// DBCC CHECKIDENT parses the table name out of a string literal (as a
+		// possibly-multipart name), so it gets the same bracket-then-single
+		// quoting as sp_spaceused: bracket-quote so a name with a '.' resolves
+		// as one identifier (matching the DELETE above), then single-quote the
+		// literal. Raw single-quoting diverged from the DELETE for such names.
+		_, err = db.ExecContext(ctx, `DBCC CHECKIDENT (`+stringz.SingleQuote(bracketQuote(tbl))+`, RESEED, 1)`)
 		if err != nil {
 			if hasErrCode(err, errNoIdentityColumn) {
 				// The table has no identity column, so we can't reseed.
@@ -585,7 +590,7 @@ func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string)
 		return errz.Wrapf(err, "failed to drop objects in schema {%s}", schemaName)
 	}
 
-	dropSchemaStmt := `DROP SCHEMA [` + schemaName + `]`
+	dropSchemaStmt := `DROP SCHEMA ` + stringz.DoubleQuote(schemaName)
 	if _, err := db.ExecContext(ctx, dropSchemaStmt); err != nil {
 		return errz.Wrapf(err, "failed to drop schema {%s}", schemaName)
 	}
@@ -642,7 +647,8 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Ta
 
 // AlterTableAddColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD %q ", tbl, col) + dbTypeNameFromKind(knd)
+	q := `ALTER TABLE ` + stringz.DoubleQuote(tbl) + ` ADD ` +
+		stringz.DoubleQuote(col) + ` ` + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to add column %q to table %q", col, tbl)
@@ -655,7 +661,12 @@ func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName
 		return err
 	}
 
-	q := fmt.Sprintf(`exec sp_rename '[%s].[%s]', '%s'`, schma, tbl, newName)
+	// sp_rename receives the current object name inside a string literal and
+	// parses it with bracket quoting; the new name is a bare literal it uses
+	// verbatim. Bracket-quote each identifier part, then single-quote the
+	// whole literal so embedded ] or ' can't break out.
+	oldName := bracketQuote(schma) + "." + bracketQuote(tbl)
+	q := `exec sp_rename ` + stringz.SingleQuote(oldName) + `, ` + stringz.SingleQuote(newName)
 	_, err = db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename table %q to %q", tbl, newName)
 }
@@ -667,7 +678,8 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 		return err
 	}
 
-	q := fmt.Sprintf(`exec sp_rename '[%s].[%s].[%s]', '%s'`, schma, tbl, col, newName)
+	oldName := bracketQuote(schma) + "." + bracketQuote(tbl) + "." + bracketQuote(col)
+	q := `exec sp_rename ` + stringz.SingleQuote(oldName) + `, ` + stringz.SingleQuote(newName)
 	_, err = db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s.%s} to {%s}", schma, tbl, col, newName)
 }
@@ -706,7 +718,9 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifEx
 	tblID := tblfmt(tbl)
 
 	if ifExists {
-		stmt = fmt.Sprintf("IF OBJECT_ID('%s', 'U') IS NOT NULL DROP TABLE %s", tblID, tblID)
+		// OBJECT_ID takes the object name as a string literal; single-quote the
+		// (already identifier-quoted) tblID so an embedded ' can't break it.
+		stmt = `IF OBJECT_ID(` + stringz.SingleQuote(tblID) + `, 'U') IS NOT NULL DROP TABLE ` + tblID
 	} else {
 		stmt = "DROP TABLE " + tblID
 	}
@@ -867,6 +881,14 @@ func tblfmt[T string | tablefq.T](tbl T) string {
 	return tablefq.Format(tbl, stringz.DoubleQuote)
 }
 
+// bracketQuote quotes a SQL Server identifier using [ ] delimiters, doubling
+// any embedded ] (the SQL Server escape char). It is for contexts such as
+// sp_rename that receive a name inside a string literal and parse it with
+// bracket quoting; the literal itself is single-quoted separately.
+func bracketQuote(s string) string {
+	return "[" + strings.ReplaceAll(s, "]", "]]") + "]"
+}
+
 // genDropSchemaObjectsStmt generates a SQL statement that drops all
 // objects in the named schema. It is used by driveri.DropSchema.
 // This statement is necessary because SQLServer
@@ -880,7 +902,7 @@ func tblfmt[T string | tablefq.T](tbl T) string {
 //nolint:lll
 func genDropSchemaObjectsStmt(schemaName string) string {
 	const tpl = `
-declare @SchemaName nvarchar(100) = '%s'
+declare @SchemaName nvarchar(100) = %s
 declare @SchemaID int = schema_id(@SchemaName)
 
 declare @n char(1)
@@ -928,5 +950,8 @@ where schema_id = @SchemaID and is_user_defined = 1
 exec sp_executesql @stmt
 `
 
-	return fmt.Sprintf(tpl, schemaName)
+	// @SchemaName is assigned from a string literal; single-quote it so an
+	// embedded ' can't break out. (The inner dynamic SQL still bracket-quotes
+	// object names server-side.)
+	return fmt.Sprintf(tpl, stringz.SingleQuote(schemaName))
 }
