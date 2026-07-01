@@ -3,7 +3,7 @@
 # dprint owns formatting for markdown, JSON, YAML, TOML, SCSS/CSS, Go (gofumpt
 # plugin), and site JS; Biome lints site JS (replacing eslint). This single
 # workflow gates all of it, including docs-only and site-only PRs that main.yml
-# skips (it ignores **.md and site/**). Replaces the old markdownlint workflow.
+# skips (it ignores **.md and site/**).
 name: Format
 
 on:
