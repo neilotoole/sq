@@ -37,7 +37,7 @@ func TestWriteCopyTable_readFailureRollsBack(t *testing.T) {
 	buf := libsq.NewCopyBuffer(1024)
 	task := libsq.NewJoinCopyTask(srcGrip, tablefq.New("actor"), destGrip, tablefq.New("actor_copy"))
 
-	// Simulate a source read that emits records and then fails — exactly what
+	// Simulate a source read that emits records and then fails, exactly what
 	// readCopyTable does when QuerySQL errors after streaming some rows.
 	go func() {
 		recCh, _, openErr := buf.Open(ctx, func() {}, qsink.RecMeta)
@@ -74,7 +74,7 @@ func TestWriteCopyTable_readFailureRollsBack(t *testing.T) {
 // conn.max-open=1), must not deadlock. The fan-in serializes same-source reads
 // so the single in-order writer's current table always holds the source's lone
 // connection. With unbounded per-table reads, a later table's reader could grab
-// the only connection, fill its buffer, and block — starving the reader the
+// the only connection, fill its buffer, and block, starving the reader the
 // writer is waiting on, hanging the query forever.
 func TestExecuteCopyTasksFanIn_sameSourceNoDeadlock(t *testing.T) {
 	th := testh.New(t)
@@ -94,7 +94,7 @@ func TestExecuteCopyTasksFanIn_sameSourceNoDeadlock(t *testing.T) {
 
 	// Two large same-source tables, each with far more rows than the record
 	// buffer (default 1024), so a reader that gets ahead blocks on backpressure
-	// while holding the connection — the deadlock precondition.
+	// while holding the connection: the deadlock precondition.
 	tasks := []*libsq.JoinCopyTask{
 		libsq.NewJoinCopyTask(srcGrip, tablefq.New("rental"), destGrip, tablefq.New("rental")),
 		libsq.NewJoinCopyTask(srcGrip, tablefq.New("payment"), destGrip, tablefq.New("payment")),

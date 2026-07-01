@@ -57,7 +57,7 @@ func executeCopyTasksFanIn(ctx context.Context, tasks []*joinCopyTask) error {
 // in task order; if two tables from one source were read concurrently and the
 // pool were smaller than that (e.g. conn.max-open=1), a later table's reader
 // could hold the only connection while blocked on its full buffer, starving the
-// earlier table's reader that the writer is waiting on — deadlocking the query.
+// earlier table's reader that the writer is waiting on, deadlocking the query.
 // Reading a source's tables in task order makes the writer's current table
 // always the one holding that source's connection. It also bounds concurrency
 // to the number of sources (typically two or three) rather than the table
@@ -295,7 +295,7 @@ func writeCopyTable(ctx context.Context, task *joinCopyTask, buf *copyBuffer) er
 		newJoinDestTableHook(task.toTbl))
 
 	// wCancel drives a rollback of the inserter's tx: DBWriter watches its ctx
-	// and rolls back when it's cancelled.
+	// and rolls back when it's canceled.
 	wCtx, wCancel := context.WithCancel(ctx)
 	destCh, dbErrCh, err := inserter.Open(wCtx, wCancel, buf.meta)
 	if err != nil {
@@ -335,7 +335,7 @@ func writeCopyTable(ctx context.Context, task *joinCopyTask, buf *copyBuffer) er
 
 // forwardRecords copies records from src to dst until src is closed (the read
 // completed), returning nil. It returns early with an error if ctx is
-// cancelled or the destination writer reports an error on dbErrCh.
+// canceled or the destination writer reports an error on dbErrCh.
 func forwardRecords(ctx context.Context, src <-chan record.Record, dst chan<- record.Record,
 	dbErrCh <-chan error,
 ) error {

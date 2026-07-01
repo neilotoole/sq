@@ -52,7 +52,7 @@ type pipeline struct {
 	tasks []tasker
 
 	// tasksSingleWriter, when true, routes executeTasks through the fan-in copy
-	// path (concurrent source reads funnelled through a single serialized
+	// path (concurrent source reads funneled through a single serialized
 	// writer) instead of the concurrent fused path. It is set from the join
 	// destination's dialect.SingleWriter so that a single-writer joindb (SQLite)
 	// serializes its writes rather than contending on the write lock and failing
@@ -556,7 +556,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 
 	// Route copy execution based on what the joindb tolerates. A single-writer
 	// joindb (SQLite) reports SingleWriter, so its copies fan in through one
-	// serialized writer (concurrent reads, no write-lock contention — gh975 /
+	// serialized writer (concurrent reads, no write-lock contention; gh975 /
 	// #995); a multi-writer joindb runs the fused copies concurrently up to the
 	// errgroup limit.
 	p.tasksSingleWriter = joinGrip.SQLDriver().Dialect().SingleWriter

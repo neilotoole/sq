@@ -80,7 +80,7 @@ func TestRunCopyFanIn_readErrorPropagates(t *testing.T) {
 	const n = 4
 	wantErr := errz.New("read boom")
 
-	var cancelledReads atomic.Int32
+	var canceledReads atomic.Int32
 	readers := make([]func(context.Context) error, n)
 	for i := range readers {
 		readers[i] = func(ctx context.Context) error {
@@ -90,7 +90,7 @@ func TestRunCopyFanIn_readErrorPropagates(t *testing.T) {
 			// The other readers block until the failing read cancels ctx.
 			select {
 			case <-ctx.Done():
-				cancelledReads.Add(1)
+				canceledReads.Add(1)
 				return ctx.Err()
 			case <-time.After(3 * time.Second):
 				return nil
@@ -105,7 +105,7 @@ func TestRunCopyFanIn_readErrorPropagates(t *testing.T) {
 	err := runCopyFanIn(context.Background(), readers, n, write)
 	require.Error(t, err)
 	require.ErrorIs(t, err, wantErr)
-	require.Positive(t, cancelledReads.Load(),
+	require.Positive(t, canceledReads.Load(),
 		"a read failure must cancel the other in-flight reads")
 }
 
@@ -136,7 +136,7 @@ func TestRunCopyFanIn_writeErrorPropagates(t *testing.T) {
 		"the serial writer must stop after a write failure")
 }
 
-// TestRunCopyFanIn_cancellation verifies that cancelling the parent context
+// TestRunCopyFanIn_cancellation verifies that canceling the parent context
 // aborts the fan-in and returns a context error.
 func TestRunCopyFanIn_cancellation(t *testing.T) {
 	const n = 4
