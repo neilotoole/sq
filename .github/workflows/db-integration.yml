@@ -35,6 +35,12 @@ on:
 
 env:
   BUILD_TAGS: "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions"
+  # Single source of truth for the sakiladb registry. GHCR isn't subject to
+  # Docker Hub's anonymous pull rate limits (easily tripped from shared runner
+  # IPs) and mirrors the same images with identical digests. build-db-matrix.sh
+  # reads it and stamps each matrix entry's `image` ref; the test service and
+  # dedup-db-matrix.sh then both consume that ref, so the registry lives here only.
+  SAKILADB_REGISTRY: ghcr.io/sakiladb
 
 jobs:
   setup:
@@ -74,7 +80,11 @@ jobs:
               | map({key:.key, value:(.value | split(","))}) | from_entries')
           fi
           scope="$INPUT_SCOPE"
-          inc=$(scripts/build-db-matrix.sh "$scope" "$sel")
+          # dedup-db-matrix.sh collapses tags that resolve to the same image
+          # (e.g. a dispatch naming both "latest" and "18" for postgres) so the
+          # image is tested once, not twice. It's best-effort: an unresolvable
+          # digest leaves the entry in place rather than dropping coverage.
+          inc=$(scripts/build-db-matrix.sh "$scope" "$sel" | scripts/dedup-db-matrix.sh)
           matrix="{\"include\":$inc}"
           echo "::notice::scope=$scope selection=$sel"
           echo "::notice::matrix=$matrix"
@@ -90,13 +100,16 @@ jobs:
   test:
     needs: setup
     if: ${{ fromJSON(needs.setup.outputs.matrix).include[0] != null }}
+    # Concise name; without this the matrix auto-appends every include field
+    # (image, port, env, packages) to the job title.
+    name: test ${{ matrix.engine }}:${{ matrix.tag }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     services:
       db:
-        image: sakiladb/${{ matrix.engine }}:${{ matrix.tag }}
+        image: ${{ matrix.image }}
         ports:
           - ${{ matrix.port }}:${{ matrix.port }}
     steps:
