@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/record"
 )
 
@@ -242,6 +243,84 @@ func TestRecordDifferExec_WriteHunkPanicNoDoubleSeal(t *testing.T) {
 	_ = rd.exec(context.Background(), ch, doc)
 }
 
+// collectPairs runs collateByKey over two synthetic PK-ordered streams and
+// returns the emitted pairs. It builds a record.Meta whose column names map
+// back to keyIdxs, then passes the corresponding pkColNames so that collateByKey
+// resolves indices via pkColIndexes exactly as production does.
+func collectPairs(t *testing.T, keyIdxs []int, left, right []record.Record) []record.Pair {
+	t.Helper()
+	rs1 := &dbResults{recCh: make(chan record.Record, len(left)+1), opened: make(chan struct{})}
+	rs2 := &dbResults{recCh: make(chan record.Record, len(right)+1), opened: make(chan struct{})}
+	for _, r := range left {
+		rs1.recCh <- r
+	}
+	rs1.recCh <- nil // end-of-data sentinel used by the collation loop
+	for _, r := range right {
+		rs2.recCh <- r
+	}
+	rs2.recCh <- nil
+
+	// Build a record.Meta with one named column per record position, so
+	// pkColIndexes(recMeta, pkColNames) resolves back to keyIdxs.
+	nCols := 0
+	for _, r := range append(append([]record.Record{}, left...), right...) {
+		if len(r) > nCols {
+			nCols = len(r)
+		}
+	}
+	names := make([]string, nCols)
+	rm := make(record.Meta, nCols)
+	for i := range names {
+		names[i] = fmt.Sprintf("col%d", i)
+		rm[i] = newFieldMeta(names[i])
+	}
+	rs1.recMeta = rm
+	rs2.recMeta = rm
+	// Signal that recMeta is ready, mimicking dbResults.Open.
+	close(rs1.opened)
+	close(rs2.opened)
+
+	pkColNames := make([]string, len(keyIdxs))
+	for i, idx := range keyIdxs {
+		pkColNames[i] = names[idx]
+	}
+
+	recPairsCh := make(chan record.Pair, len(left)+len(right)+2)
+	cfg := &Config{Lines: 3, StopAfter: 0}
+	kc := keyCollation{
+		rs1:        rs1,
+		rs2:        rs2,
+		pkColNames: pkColNames,
+		recPairsCh: recPairsCh,
+		cfg:        cfg,
+		incr:       func(int64) {},
+		dbCancel:   func(error) {},
+		cancelFn:   func(error) {},
+	}
+	err := collateByKey(context.Background(), kc)
+	require.NoError(t, err)
+
+	var got []record.Pair
+	for rp := range recPairsCh {
+		got = append(got, rp)
+	}
+	return got
+}
+
+func TestCollateByKey_ScatteredInserts(t *testing.T) {
+	left := []record.Record{{int64(1)}, {int64(3)}, {int64(4)}}
+	right := []record.Record{{int64(1)}, {int64(2)}, {int64(3)}, {int64(4)}}
+	pairs := collectPairs(t, []int{0}, left, right)
+
+	require.Len(t, pairs, 4)
+	// Only the inserted key (2) is an "added" pair; the rest are equal.
+	require.True(t, pairs[0].Equal()) // 1
+	require.Nil(t, pairs[1].Rec1())   // 2 added
+	require.Equal(t, int64(2), pairs[1].Rec2()[0])
+	require.True(t, pairs[2].Equal()) // 3
+	require.True(t, pairs[3].Equal()) // 4
+}
+
 func TestRecordDifferExec(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -346,4 +425,142 @@ func TestRecordDifferExec(t *testing.T) {
 			}
 		})
 	}
+}
+
+// makeAllDiff returns a []bool of length n where every element is false
+// (all record pairs differ). Used to construct an all-differing stream for
+// stop-trailer tests.
+func makeAllDiff(n int) []bool {
+	// Zero value of bool is false, so a plain make is enough.
+	return make([]bool, n)
+}
+
+// runRecordDifferStop is the stop-trailer analogue of runRecordDiffer. It
+// accepts a stopAfter parameter and simulates the production stop signal by
+// cancelling a synthetic dbCtx with errz.ErrStop (mirroring what
+// collateByKey/collatePositional do when the threshold is reached). It drives
+// recordDiffer.execAndSeal, which is the method that owns the trailer logic,
+// so the assertion exercises the real production code path.
+func runRecordDifferStop(t *testing.T, numLines, hunkMaxSize, stopAfter int, equal []bool) string {
+	t.Helper()
+
+	fake := &fakeHunkWriter{}
+	rd := &recordDiffer{
+		cfg: &Config{
+			Lines:            numLines,
+			HunkMaxSize:      hunkMaxSize,
+			StopAfter:        stopAfter,
+			RecordHunkWriter: fake,
+		},
+		recMetaFn: func() (rm1, rm2 record.Meta) { return nil, nil },
+	}
+
+	doc := diffdoc.NewHunkDoc(
+		diffdoc.Titlef(nil, "test diff"),
+		diffdoc.Headerf(nil, "left", "right"),
+	)
+
+	ch := make(chan record.Pair, len(equal)+1)
+	for i, eq := range equal {
+		if eq {
+			rec := record.Record{fmt.Sprintf("r%d", i)}
+			ch <- record.NewPair(i, rec, rec)
+			continue
+		}
+		ch <- record.NewPair(i, record.Record{fmt.Sprintf("a%d", i)}, record.Record{fmt.Sprintf("b%d", i)})
+	}
+	close(ch)
+
+	// Simulate the stop signal. In production, collateByKey/collatePositional
+	// call dbCancel(errz.ErrStop) when the stop threshold is reached, cancelling
+	// dbCtx (not the outer ctx). We pre-cancel dbCtx here to mimic that. When
+	// stopAfter is 0 no stop is configured and dbCtx is left uncancelled.
+	dbCtx, dbCancel := context.WithCancelCause(context.Background())
+	defer dbCancel(nil)
+	if stopAfter > 0 {
+		dbCancel(errz.ErrStop)
+	}
+
+	rd.execAndSeal(context.Background(), dbCtx, ch, doc)
+
+	out, err := io.ReadAll(doc)
+	require.NoError(t, err)
+
+	return string(out)
+}
+
+// TestStopTrailer_PresentWhenTruncated verifies that execAndSeal appends a
+// "stopped after N differences" trailer when the db context was cancelled with
+// errz.ErrStop, and emits no trailer when StopAfter is 0.
+func TestStopTrailer_PresentWhenTruncated(t *testing.T) {
+	// 10 differing pairs, StopAfter=2 -> stop occurred -> trailer present.
+	out := runRecordDifferStop(t, 0, 5000, 2, makeAllDiff(10))
+	require.Contains(t, out, "stopped after")
+
+	// No StopAfter -> no stop -> no trailer.
+	out = runRecordDifferStop(t, 0, 5000, 0, makeAllDiff(10))
+	require.NotContains(t, out, "stopped after")
+}
+
+// runRecordDifferWithPK is like runRecordDifferStop but lets the caller
+// supply pkColNames to test the positional-fallback note path. A nil
+// pkColNames simulates a table with no usable integer primary key.
+func runRecordDifferWithPK(t *testing.T, pkColNames []string,
+	numLines, hunkMaxSize int, equal []bool,
+) string {
+	t.Helper()
+
+	fake := &fakeHunkWriter{}
+	rd := &recordDiffer{
+		cfg: &Config{
+			Lines:            numLines,
+			HunkMaxSize:      hunkMaxSize,
+			RecordHunkWriter: fake,
+		},
+		pkColNames: pkColNames,
+		recMetaFn:  func() (rm1, rm2 record.Meta) { return nil, nil },
+	}
+
+	doc := diffdoc.NewHunkDoc(
+		diffdoc.Titlef(nil, "test diff"),
+		diffdoc.Headerf(nil, "left", "right"),
+	)
+
+	ch := make(chan record.Pair, len(equal)+1)
+	for i, eq := range equal {
+		if eq {
+			rec := record.Record{fmt.Sprintf("r%d", i)}
+			ch <- record.NewPair(i, rec, rec)
+			continue
+		}
+		ch <- record.NewPair(i, record.Record{fmt.Sprintf("a%d", i)}, record.Record{fmt.Sprintf("b%d", i)})
+	}
+	close(ch)
+
+	dbCtx := context.Background()
+	rd.execAndSeal(context.Background(), dbCtx, ch, doc)
+
+	out, err := io.ReadAll(doc)
+	require.NoError(t, err)
+	return string(out)
+}
+
+// TestPositionalFallbackNote verifies that execAndSeal appends the no-PK note
+// exactly when pkColNames is nil AND the tables actually differ.
+func TestPositionalFallbackNote(t *testing.T) {
+	const noteText = "no primary key"
+	const notePosition = "by position"
+
+	// No PK, tables differ: note must be present.
+	out := runRecordDifferWithPK(t, nil, 1, 5000, makeAllDiff(3))
+	require.Contains(t, out, noteText, "note must appear when no PK and tables differ")
+	require.Contains(t, out, notePosition, "note must mention positional alignment")
+
+	// No PK, tables identical: no hunks -> note must NOT be present.
+	out = runRecordDifferWithPK(t, nil, 1, 5000, []bool{true, true, true})
+	require.NotContains(t, out, noteText, "note must not appear when tables are identical")
+
+	// Has eligible PK, tables differ: note must NOT be present.
+	out = runRecordDifferWithPK(t, []string{"id"}, 1, 5000, makeAllDiff(3))
+	require.NotContains(t, out, noteText, "note must not appear when an eligible PK exists")
 }

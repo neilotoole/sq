@@ -1,0 +1,316 @@
+// cli/diff/keymerge_internal_test.go
+package diff
+
+import (
+	"context"
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/source"
+	"github.com/neilotoole/sq/libsq/source/metadata"
+)
+
+// newFieldMeta constructs a *record.FieldMeta whose Name() returns name.
+// Only the name matters for TestPKColIndexes.
+func newFieldMeta(name string) *record.FieldMeta {
+	return record.NewFieldMeta(&record.ColumnTypeData{Name: name}, "")
+}
+
+func tbl(cols ...*metadata.Column) *metadata.Table {
+	return &metadata.Table{Columns: cols}
+}
+
+func col(name string, k kind.Kind, pk bool) *metadata.Column {
+	return &metadata.Column{Name: name, Kind: k, PrimaryKey: pk}
+}
+
+func TestPKMergeKey(t *testing.T) {
+	intPK := tbl(col("payment_id", kind.Int, true), col("amount", kind.Decimal, false))
+	names, ok := pkMergeKey(intPK, intPK)
+	require.True(t, ok)
+	require.Equal(t, []string{"payment_id"}, names)
+
+	// Composite int PK is eligible.
+	comp := tbl(col("actor_id", kind.Int, true), col("film_id", kind.Int, true))
+	names, ok = pkMergeKey(comp, comp)
+	require.True(t, ok)
+	require.Equal(t, []string{"actor_id", "film_id"}, names)
+
+	// No PK -> ineligible.
+	noPK := tbl(col("a", kind.Int, false))
+	_, ok = pkMergeKey(noPK, noPK)
+	require.False(t, ok)
+
+	// String PK -> ineligible in v1.
+	strPK := tbl(col("code", kind.Text, true))
+	_, ok = pkMergeKey(strPK, strPK)
+	require.False(t, ok)
+
+	// Mismatched PK columns between the two tables -> ineligible.
+	other := tbl(col("rental_id", kind.Int, true))
+	_, ok = pkMergeKey(intPK, other)
+	require.False(t, ok)
+
+	// nil metadata -> ineligible, no panic.
+	_, ok = pkMergeKey(nil, intPK)
+	require.False(t, ok)
+}
+
+func TestPKColIndexes(t *testing.T) {
+	rm := record.Meta{
+		newFieldMeta("payment_id"),
+		newFieldMeta("amount"),
+		newFieldMeta("rental_id"),
+	}
+	idxs, ok := pkColIndexes(rm, []string{"payment_id"})
+	require.True(t, ok)
+	require.Equal(t, []int{0}, idxs)
+
+	idxs, ok = pkColIndexes(rm, []string{"rental_id", "payment_id"})
+	require.True(t, ok)
+	require.Equal(t, []int{2, 0}, idxs)
+
+	_, ok = pkColIndexes(rm, []string{"missing"})
+	require.False(t, ok)
+}
+
+func TestCompareIntKey(t *testing.T) {
+	idxs := []int{0}
+	lt, err := compareIntKey(record.Record{int64(1)}, record.Record{int64(2)}, idxs, idxs)
+	require.NoError(t, err)
+	require.Equal(t, -1, lt)
+
+	eq, err := compareIntKey(record.Record{int64(5)}, record.Record{int64(5)}, idxs, idxs)
+	require.NoError(t, err)
+	require.Equal(t, 0, eq)
+
+	gt, err := compareIntKey(record.Record{int64(9)}, record.Record{int64(3)}, idxs, idxs)
+	require.NoError(t, err)
+	require.Equal(t, 1, gt)
+
+	// Composite: first column ties, second decides; same positions on both sides.
+	comp := []int{0, 1}
+	c, err := compareIntKey(record.Record{int64(1), int64(7)}, record.Record{int64(1), int64(9)}, comp, comp)
+	require.NoError(t, err)
+	require.Equal(t, -1, c)
+
+	// Non-int keyed value in left record -> error.
+	_, err = compareIntKey(record.Record{"x"}, record.Record{int64(1)}, idxs, idxs)
+	require.Error(t, err)
+
+	// Non-int keyed value in right record -> error.
+	_, err = compareIntKey(record.Record{int64(1)}, record.Record{"y"}, idxs, idxs)
+	require.Error(t, err)
+
+	// Cross-position: PK is at index 0 in rec1 and index 1 in rec2.
+	// rec1 = ["text", int64(3)], but we only read rec1[0] which is wrong type.
+	// Test the correct case: rec1 = [int64(3), "text"], rec2 = ["text", int64(5)].
+	// idxs1=[0] reads rec1[0]=3, idxs2=[1] reads rec2[1]=5 -> 3 < 5 -> -1.
+	idxs1 := []int{0}
+	idxs2 := []int{1}
+	c, err = compareIntKey(
+		record.Record{int64(3), "text"},
+		record.Record{"text", int64(5)},
+		idxs1, idxs2,
+	)
+	require.NoError(t, err)
+	require.Equal(t, -1, c, "cross-position: id=3 (left idx 0) < id=5 (right idx 1)")
+
+	// Same cross-position, equal keys.
+	c, err = compareIntKey(
+		record.Record{int64(7), "text"},
+		record.Record{"text", int64(7)},
+		idxs1, idxs2,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 0, c, "cross-position: id=7 (left idx 0) == id=7 (right idx 1)")
+}
+
+// drainMerge feeds left/right records into mergeRecordsByKey and returns the
+// emitted pairs as compact "k:side" tokens: "added=K" (left nil), "removed=K"
+// (right nil), "same=K" (equal), "chg=K" (both present, differ). Key is the
+// first PK column's int64 value, taken from whichever side is non-nil.
+// keyIdxs1 and keyIdxs2 are the PK column positions in left and right records
+// respectively; pass the same slice twice when the positions are identical.
+func drainMerge(t *testing.T, keyIdxs1, keyIdxs2 []int, leftRows, rightRows []record.Record) []string {
+	t.Helper()
+	left := make(chan record.Record, len(leftRows)+1)
+	right := make(chan record.Record, len(rightRows)+1)
+	for _, r := range leftRows {
+		left <- r
+	}
+	close(left)
+	for _, r := range rightRows {
+		right <- r
+	}
+	close(right)
+
+	var got []string
+	err := mergeRecordsByKey(context.Background(), left, right, keyIdxs1, keyIdxs2, func(rp record.Pair) bool {
+		var k int64
+		switch {
+		case rp.Rec1() != nil:
+			k = rp.Rec1()[keyIdxs1[0]].(int64)
+		default:
+			k = rp.Rec2()[keyIdxs2[0]].(int64)
+		}
+		switch {
+		case rp.Rec1() == nil:
+			got = append(got, fmt.Sprintf("added=%d", k))
+		case rp.Rec2() == nil:
+			got = append(got, fmt.Sprintf("removed=%d", k))
+		case rp.Equal():
+			got = append(got, fmt.Sprintf("same=%d", k))
+		default:
+			got = append(got, fmt.Sprintf("chg=%d", k))
+		}
+		return true
+	})
+	require.NoError(t, err)
+	return got
+}
+
+func rowID(id int64, rest ...any) record.Record {
+	return append(record.Record{id}, rest...)
+}
+
+func TestMergeRecordsByKey_ScatteredInserts(t *testing.T) {
+	// Issue #947 minimal shape: right has 3 extra rows (2,5,8) scattered
+	// through the key range. Expect 3 clean "added", everything else "same".
+	left := []record.Record{rowID(1), rowID(3), rowID(4), rowID(6), rowID(7), rowID(9), rowID(10)}
+	right := []record.Record{
+		rowID(1), rowID(2), rowID(3), rowID(4), rowID(5),
+		rowID(6), rowID(7), rowID(8), rowID(9), rowID(10),
+	}
+	got := drainMerge(t, []int{0}, []int{0}, left, right)
+	require.Equal(t, []string{
+		"same=1", "added=2", "same=3", "same=4", "added=5",
+		"same=6", "same=7", "added=8", "same=9", "same=10",
+	}, got)
+}
+
+func TestMergeRecordsByKey_Removed(t *testing.T) {
+	left := []record.Record{rowID(1), rowID(2), rowID(3)}
+	right := []record.Record{rowID(2)}
+	got := drainMerge(t, []int{0}, []int{0}, left, right)
+	require.Equal(t, []string{"removed=1", "same=2", "removed=3"}, got)
+}
+
+func TestMergeRecordsByKey_Changed(t *testing.T) {
+	// Same key, differing non-key column -> "chg", not removed+added.
+	left := []record.Record{rowID(1, "a"), rowID(2, "b")}
+	right := []record.Record{rowID(1, "a"), rowID(2, "B")}
+	got := drainMerge(t, []int{0}, []int{0}, left, right)
+	require.Equal(t, []string{"same=1", "chg=2"}, got)
+}
+
+func TestMergeRecordsByKey_OneSideEmpty(t *testing.T) {
+	got := drainMerge(t, []int{0}, []int{0}, nil, []record.Record{rowID(1), rowID(2)})
+	require.Equal(t, []string{"added=1", "added=2"}, got)
+
+	got = drainMerge(t, []int{0}, []int{0}, []record.Record{rowID(1), rowID(2)}, nil)
+	require.Equal(t, []string{"removed=1", "removed=2"}, got)
+}
+
+// TestMergeRecordsByKey_CrossPositionPK verifies the fix for the cross-table PK
+// ordinal bug. When the PK column sits at index 0 on the left (id, name) and
+// index 1 on the right (name, id), passing a single shared keyIdxs would read
+// the name TEXT column of the right record as the key, producing "PK value is
+// string, want int64". The fix passes keyIdxs1 and keyIdxs2 independently.
+func TestMergeRecordsByKey_CrossPositionPK(t *testing.T) {
+	// Left records: [id int64, name string] — PK id is at index 0.
+	// Right records: [name string, id int64] — PK id is at index 1.
+	left := []record.Record{
+		{int64(1), "alice"},
+		{int64(2), "bob"},
+		{int64(3), "carol"},
+	}
+	right := []record.Record{
+		{"alice", int64(1)},
+		{"bob", int64(2)},
+		{"carol", int64(3)},
+	}
+
+	// idxs1=[0]: id at index 0 in left records.
+	// idxs2=[1]: id at index 1 in right records.
+	got := drainMerge(t, []int{0}, []int{1}, left, right)
+
+	// All three rows have the same id on both sides, so they're all paired.
+	// record.Equal compares positionally: [1,"alice"] != ["alice",1], so "chg".
+	require.Equal(t, []string{"chg=1", "chg=2", "chg=3"}, got,
+		"cross-position PK: rows are paired by id (no added/removed), "+
+			"but positional comparison marks each as changed due to column reordering")
+}
+
+func TestMergeRecordsByKey_EmitStop(t *testing.T) {
+	left := []record.Record{rowID(1), rowID(2), rowID(3)}
+	right := []record.Record{rowID(1), rowID(2), rowID(3)}
+	left2 := make(chan record.Record, 4)
+	right2 := make(chan record.Record, 4)
+	for _, r := range left {
+		left2 <- r
+	}
+	close(left2)
+	for _, r := range right {
+		right2 <- r
+	}
+	close(right2)
+
+	var n int
+	err := mergeRecordsByKey(context.Background(), left2, right2, []int{0}, []int{0}, func(record.Pair) bool {
+		n++
+		return n < 2 // stop after emitting 2 pairs
+	})
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+}
+
+func TestDataQuery(t *testing.T) {
+	td := source.Table{Handle: "@a", Name: "payment"}
+
+	// No PK -> bare query, unchanged from the positional path.
+	require.Equal(t, `@a."payment"`, dataQuery(td, nil))
+
+	// Single int PK -> ordered using quoted selector.
+	require.Equal(t, `@a."payment" | order_by(."payment_id")`, dataQuery(td, []string{"payment_id"}))
+
+	// Composite PK -> ordered by both, in order, using quoted selectors.
+	fa := source.Table{Handle: "@a", Name: "film_actor"}
+	require.Equal(
+		t,
+		`@a."film_actor" | order_by(."actor_id", ."film_id")`,
+		dataQuery(fa, []string{"actor_id", "film_id"}),
+	)
+}
+
+func TestDataQueryQuoting(t *testing.T) {
+	// Verifies that dataQuery emits double-quoted SLQ selectors for PK columns,
+	// including names that would break the unquoted `.name` form (D-2A / D-2B).
+	td := source.Table{Handle: "@a", Name: "t"}
+
+	tests := []struct {
+		colName string
+		want    string
+	}{
+		// Trailing `+` or `-` is misread as sort direction in unquoted form (D-2A).
+		{"weird+", `@a."t" | order_by(."weird+")`},
+		{"weird-", `@a."t" | order_by(."weird-")`},
+		// Space or `|` causes a syntax error in unquoted form (D-2B).
+		{"my id", `@a."t" | order_by(."my id")`},
+		{"a|b", `@a."t" | order_by(."a|b")`},
+		// `.` in a name is misread as table.column in unquoted form (D-2C).
+		{"a.b", `@a."t" | order_by(."a.b")`},
+		// Embedded `"` must be backslash-escaped; `\` must be double-escaped.
+		{`col"name`, `@a."t" | order_by(."col\"name")`},
+		{`back\slash`, `@a."t" | order_by(."back\\slash")`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.colName, func(t *testing.T) {
+			require.Equal(t, tc.want, dataQuery(td, []string{tc.colName}))
+		})
+	}
+}
