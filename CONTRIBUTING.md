@@ -103,7 +103,7 @@ fast lint + `-short` test set (plus a Windows smoke test); the full suites run
 nightly against master and on release tags. For the job-by-job breakdown, see
 [`docs/WORKFLOW.md`](./docs/WORKFLOW.md#github-actions).
 
-Mark long-running tests with `tu.SkipShort` so they stay out of the dev loop
+Mark long-running tests with [`tu.SkipShort`](./testh/tu/skip.go) so they stay out of the dev loop
 but still run in the nightly/release suites.
 
 ## CHANGELOG & releasing

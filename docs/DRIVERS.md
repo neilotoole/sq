@@ -157,7 +157,7 @@ const (
 )
 ```
 
-Integration tests that require a running database should use `tu.SkipShort(t, true)`
+Integration tests that require a running database should use [`tu.SkipShort(t, true)`](../testh/tu/skip.go)
 to skip when running in short mode (`go test -short`):
 
 ```go

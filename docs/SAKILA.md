@@ -36,7 +36,8 @@ Sakila reaches `sq`'s tests two ways:
     (and `sakila-tsv/`, plus `*-noheader/` variants)
 - **External engines**: Postgres, MySQL, SQL Server, ClickHouse, Oracle, and
   rqlite, each requiring a running `sakiladb/*` container. Tests that touch
-  these skip automatically under `-short` (mark them with `tu.SkipShort`).
+  these skip automatically under `-short` (mark them with
+  [`tu.SkipShort`](../testh/tu/skip.go)).
 
 ## Test handles (`testh/sakila`)
 

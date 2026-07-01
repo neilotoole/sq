@@ -43,7 +43,7 @@ make install     # build + install sq into the Go bin dir
 5. `make all` before opening a PR: it mirrors the merge-blocking CI set
    (gen, fmt, lint, test, build).
 
-Mark long-running tests with `tu.SkipShort` so they stay out of the dev loop
+Mark long-running tests with [`tu.SkipShort`](../testh/tu/skip.go) so they stay out of the dev loop
 (`-short`) but still run in the nightly / release suites.
 
 ### Site (sq.io) local dev
