@@ -5,9 +5,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
@@ -364,6 +367,77 @@ func TestPostgres_QuotedMatviewName_Metadata(t *testing.T) {
 	require.Equal(t, int64(1), md.RowCount, "RowCount must load for a quoted matview name")
 	require.Len(t, md.Columns, 2)
 	require.NotEmpty(t, md.ViewDefinition, "ViewDefinition must load for a quoted matview name")
+}
+
+// TestPostgres_TempTableShadow_TableMetadata pins that per-table metadata
+// describes the schema table even when a same-named temp table exists in the
+// session. A relation name cannot be a bind parameter in a FROM clause, so the
+// row-count query interpolates the identifier; if that identifier (or a
+// quote_ident()::regclass lookup) is unqualified, it resolves via the search
+// path, where pg_temp precedes the current schema, and the value describes a
+// different relation than the OID-resolved size and comment. getTableMetadata
+// must schema-qualify the COUNT identifier, and the getPgColumns comment
+// subquery must schema-qualify its regclass lookup (issue #945).
+//
+// The pool is pinned to a single connection so that the session-scoped temp
+// table is deterministically visible to the metadata queries.
+func TestPostgres_TempTableShadow_TableMetadata(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+	src.Options = options.Options{driver.OptConnMaxOpen.Key(): 1}
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("shadow")
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tbl+` (id INT PRIMARY KEY)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+	_, err = db.ExecContext(th.Context, `INSERT INTO `+tbl+` (id) VALUES (1), (2)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(th.Context, `COMMENT ON COLUMN `+tbl+`.id IS 'the real id'`)
+	require.NoError(t, err)
+
+	// The temp table shadows tbl on the search path for this session: it has a
+	// different row count and no column comment. Its auto-named PK constraint
+	// (tbl_pkey) collides with the schema table's, exercising the constraint
+	// subqueries too.
+	_, err = db.ExecContext(th.Context, `CREATE TEMP TABLE `+tbl+` (id INT PRIMARY KEY)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { _, _ = db.ExecContext(th.Context, `DROP TABLE IF EXISTS pg_temp.`+tbl) })
+	_, err = db.ExecContext(th.Context,
+		`INSERT INTO pg_temp.`+tbl+` (id) VALUES (1), (2), (3), (4), (5)`)
+	require.NoError(t, err)
+
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), md.RowCount,
+		"RowCount must come from the schema table, not the pg_temp shadow")
+	idCol := md.Column("id")
+	require.NotNil(t, idCol)
+	require.Equal(t, "the real id", idCol.Comment,
+		"column comment must come from the schema table, not the pg_temp shadow")
+	require.True(t, idCol.PrimaryKey)
+}
+
+// TestPostgres_TableMetadata_NotFound pins the error classification for a
+// nonexistent relation. Since #945, getTableMetadata confirms existence before
+// running the row-count query, so a missing relation surfaces via the
+// getMatviewMetadata fallback's canonical not-found error. That error must be
+// typed driver.NotExistError, the same as a 42P01 wrapped by errw, so that the
+// source-wide scan's dropped-mid-scan tolerance still recognizes it.
+func TestPostgres_TableMetadata_NotFound(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.Pg)
+
+	_, err := th.Open(src).TableMetadata(th.Context, stringz.UniqTableName("no_such"))
+	require.Error(t, err)
+	require.True(t, errz.Has[*driver.NotExistError](err),
+		"a missing table must surface as driver.NotExistError")
 }
 
 // TestPostgres_ViewDefinition verifies that ViewDefinition is populated for

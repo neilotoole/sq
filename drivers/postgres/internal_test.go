@@ -7,6 +7,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // Export for testing.
@@ -103,6 +106,25 @@ func TestIsErrScanRetryable(t *testing.T) {
 			require.Equal(t, tc.want, isErrScanRetryable(tc.err))
 		})
 	}
+}
+
+// TestIsErrTableNotFound pins the predicate that getSourceMetadata uses to
+// tolerate a table dropped mid-scan: it must match a 42P01 wrapped by errw AND
+// the typed not-found error returned by the getTableMetadata /
+// getMatviewMetadata existence gates, and nothing else. See issue #945.
+func TestIsErrTableNotFound(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, isErrTableNotFound(errw(&pgconn.PgError{Code: errCodeRelationNotExist})))
+	require.True(t, isErrTableNotFound(driver.NewNotExistError(errz.Errorf("table {%s} not found", "tbl"))))
+
+	require.False(t, isErrTableNotFound(nil))
+	// A raw 42P01 that has NOT passed through errw is not matched: every db
+	// interaction in this package wraps via errw, so an unwrapped pg error
+	// reaching the scan would be a bug worth surfacing.
+	require.False(t, isErrTableNotFound(&pgconn.PgError{Code: errCodeRelationNotExist}))
+	require.False(t, isErrTableNotFound(errw(&pgconn.PgError{Code: errCodeTooManyConnections})))
+	require.False(t, isErrTableNotFound(errors.New("boom")))
 }
 
 // TestLoadWithRetry_VanishedRelation pins the retry behavior of the bulk
