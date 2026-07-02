@@ -266,7 +266,10 @@ func preRenderOracle(_ *render.Context, f *render.Fragments) error {
 	return nil
 }
 
-// buildCreateTableStmt builds a CREATE TABLE statement for Oracle.
+// buildCreateTableStmt builds a CREATE TABLE statement for Oracle. It honors
+// PKColName as an inline PRIMARY KEY constraint (which implies NOT NULL).
+// Oracle requires the DEFAULT clause to precede inline constraints, so the
+// PRIMARY KEY clause is emitted after the DEFAULT / NOT NULL block (#1029).
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
 	sb.WriteString(`CREATE TABLE `)
@@ -287,6 +290,10 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 				sb.WriteString(defaultVal)
 			}
 			sb.WriteString(" NOT NULL")
+		}
+
+		if colDef.Name == tblDef.PKColName {
+			sb.WriteString(" PRIMARY KEY")
 		}
 
 		if i < len(tblDef.Cols)-1 {

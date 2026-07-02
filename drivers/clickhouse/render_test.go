@@ -126,6 +126,33 @@ func TestBuildCreateTableStmt(t *testing.T) {
 
 	// ORDER BY should use the first NOT NULL column, even if not first in table
 	require.Contains(t, stmt3, "ORDER BY `not_null_col`")
+
+	// Scenario 4: PKColName is set (#1029). The PK column becomes the sorting
+	// key even though other NOT NULL columns exist, and it is created
+	// non-nullable (ClickHouse forbids nullable sorting-key columns) even
+	// though its col def is nullable.
+	tblDef4 := schema.NewTable("test_table4",
+		[]string{"id", "name"},
+		[]kind.Kind{kind.Int, kind.Text})
+	tblDef4.PKColName = "id"
+	tblDef4.Cols[1].NotNull = true // without PKColName, name would be the key
+
+	stmt4 := clickhouse.BuildCreateTableStmt(tblDef4)
+	require.Contains(t, stmt4, "ORDER BY `id`")
+	require.Contains(t, stmt4, "`id` Int64")
+	require.NotContains(t, stmt4, "`id` Nullable")
+
+	// Scenario 5: PKColName that doesn't name an actual column is ignored;
+	// the first-NOT-NULL fallback applies.
+	tblDef5 := schema.NewTable("test_table5",
+		[]string{"id", "name"},
+		[]kind.Kind{kind.Int, kind.Text})
+	tblDef5.PKColName = "no_such_col"
+	tblDef5.Cols[1].NotNull = true
+
+	stmt5 := clickhouse.BuildCreateTableStmt(tblDef5)
+	require.Contains(t, stmt5, "ORDER BY `name`")
+	require.Contains(t, stmt5, "`id` Nullable(Int64)")
 }
 
 // TestBuildCreateTableStmtName_SchemaQualified is a short-mode (no live

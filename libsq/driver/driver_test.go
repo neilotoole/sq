@@ -348,6 +348,15 @@ func TestDriver_QuotedIdentifier(t *testing.T) {
 			require.Equal(t, tblName, md.Name)
 			require.Len(t, md.Columns, len(colNames))
 
+			// The PK must materialize (#1029) so that constraint metadata is
+			// exercised for the quoted table name: postgres getPgConstraints
+			// initially shipped without coverage (#1026) because no PK ever
+			// existed here.
+			idCol := md.Column("id")
+			require.NotNil(t, idCol)
+			require.True(t, idCol.PrimaryKey,
+				"CreateTable must honor PKColName so constraint metadata is exercised")
+
 			// Exercise the UPDATE write-path builder (buildUpdateStmt) with the
 			// quoted column: insert a row, then update the weird column by id.
 			th.Insert(src, tblName, colNames, []any{int64(1), "before"})
@@ -356,6 +365,61 @@ func TestDriver_QuotedIdentifier(t *testing.T) {
 			require.NoError(t, execer.Munge([]any{"after"}))
 			_, err = execer.Exec(th.Context, "after", int64(1))
 			require.NoError(t, err, "UPDATE must escape the quoted column %q", weird)
+		})
+	}
+}
+
+// TestDriver_CreateTable_PKColName verifies that SQLDriver.CreateTable honors
+// schema.Table.PKColName on every SQL engine (#1029). Before that fix the
+// postgres, sqlserver, oracle and clickhouse builders silently ignored the
+// field, so the same schema.Table input yielded a primary key on half the
+// engines and none on the others.
+//
+// ClickHouse has no ANSI primary key: PKColName maps to the MergeTree sorting
+// key (ORDER BY), which does not enforce uniqueness, and the driver
+// deliberately reports Column.PrimaryKey as false. The metadata assertion is
+// therefore skipped for ClickHouse here; TestCreateTable_PKColName_SortingKey
+// in drivers/clickhouse asserts the sorting key directly.
+func TestDriver_CreateTable_PKColName(t *testing.T) {
+	t.Parallel()
+
+	for _, handle := range sakila.SQLAll() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, src, drvr, grip, db := testh.NewWith(t, handle)
+
+			tblName := stringz.UniqTableName("pk_col")
+			tblDef := schema.NewTable(tblName,
+				[]string{"id", "name"}, []kind.Kind{kind.Int, kind.Text})
+			tblDef.PKColName = "id"
+
+			require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+
+			// A PK column is implicitly NOT NULL, so a row with a non-null id
+			// must insert cleanly on every engine.
+			th.Insert(src, tblName, []string{"id", "name"}, []any{int64(1), "a"})
+
+			if drvr.DriverMetadata().Type == drivertype.ClickHouse {
+				return // see comment above
+			}
+
+			// enquoteOracle uppercases identifiers, and Oracle reports names
+			// in their stored case.
+			pkColName := "id"
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				pkColName = "ID"
+			}
+
+			md, err := grip.TableMetadata(th.Context, tblName)
+			require.NoError(t, err)
+			idCol := md.Column(pkColName)
+			require.NotNil(t, idCol)
+			require.True(t, idCol.PrimaryKey, "CreateTable must honor PKColName")
+			pkCols := md.PKCols()
+			require.Len(t, pkCols, 1)
+			require.Equal(t, pkColName, pkCols[0].Name)
 		})
 	}
 }

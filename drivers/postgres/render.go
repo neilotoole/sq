@@ -61,7 +61,11 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 }
 
 // buildCreateTableStmt builds a CREATE TABLE statement from tblDef.
-// The implementation is minimal: it does not honor PK, FK, etc.
+// The implementation is minimal: it honors PKColName (as an inline
+// PRIMARY KEY, which implies NOT NULL) but not FK, etc. The PRIMARY KEY
+// clause is emitted after the DEFAULT / NOT NULL block for cross-driver
+// consistency: Oracle requires DEFAULT before inline constraints, and the
+// sqlserver and oracle builders mirror this function (#1029).
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
 	sb.WriteString("CREATE TABLE ")
@@ -78,6 +82,10 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 			sb.WriteRune(' ')
 			sb.WriteString(createTblKindDefaults[colDef.Kind])
 			sb.WriteString(" NOT NULL")
+		}
+
+		if colDef.Name == tblDef.PKColName {
+			sb.WriteString(" PRIMARY KEY")
 		}
 
 		if i < len(tblDef.Cols)-1 {
