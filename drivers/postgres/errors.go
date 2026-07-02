@@ -49,6 +49,16 @@ func isErrRelationNotExist(err error) bool {
 	return hasErrCode(err, errCodeRelationNotExist)
 }
 
+// isErrTableNotFound reports whether err indicates a relation that does not
+// exist, however it surfaced: a 42P01 (which errw wraps in
+// driver.NotExistError), or the typed not-found error returned by the
+// getTableMetadata / getMatviewMetadata existence gates (#945). The
+// source-wide scan in getSourceMetadata uses this to tolerate a table dropped
+// mid-scan by concurrent DDL.
+func isErrTableNotFound(err error) bool {
+	return errz.Has[*driver.NotExistError](err)
+}
+
 // isErrScanRetryable reports whether a bulk metadata-loader error is worth
 // retrying during a source-wide scan of a live database: too-many-connections,
 // or a relation that vanished mid-query. The latter surfaces either as 42P01,
