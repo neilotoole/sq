@@ -25,6 +25,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tuning"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -273,7 +274,7 @@ current_setting('server_version'), version(), "current_user"()`
 
 			if mdErr != nil {
 				switch {
-				case isErrRelationNotExist(mdErr):
+				case isErrTableNotFound(mdErr):
 					// For example, if the table is dropped while we're collecting
 					// metadata, we log a warning and suppress the error.
 					log.Warn(
@@ -475,16 +476,16 @@ ORDER BY table_name`
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 
+	// Step A: resolve the relation from the catalogs on the bound name ($1).
 	// A table name can legally contain a double-quote (e.g. `we"ird`). The
-	// relation's OID is resolved via a pg_class JOIN on the raw name ($1, a
-	// bind parameter) rather than a regclass text cast, which mis-parses such
-	// names; the size/oid/comment functions then take the OID directly. The
-	// only interpolation is the COUNT subquery's FROM, which uses a
-	// double-quoted (escaped) identifier. Raw interpolation built malformed
-	// SQL. See issue #1025.
-	safeIdent := stringz.DoubleQuote(tblName)
-	tablesQuery := `SELECT t.table_catalog, t.table_schema, t.table_name, t.table_type, t.is_insertable_into,
-  (SELECT COUNT(*) FROM ` + safeIdent + `) AS table_row_count,
+	// relation's OID is resolved via a pg_class JOIN on the raw name rather
+	// than a regclass text cast, which mis-parses such names; the size and
+	// comment functions then take the OID directly (#1025). The row count is
+	// NOT computed here: a relation name cannot be a bind parameter in a FROM
+	// clause, so the COUNT query must interpolate the identifier, and it runs
+	// as Step B only after this step confirms that tblName is a real relation
+	// in the current schema (#945).
+	const tablesQuery = `SELECT t.table_catalog, t.table_schema, t.table_name, t.table_type, t.is_insertable_into,
   pg_total_relation_size(c.oid) AS table_size,
   c.oid AS table_oid,
   obj_description(c.oid, 'pg_class') AS table_comment
@@ -498,7 +499,7 @@ AND t.table_name = $1`
 	pgTbl := &pgTable{}
 	err := db.QueryRowContext(ctx, tablesQuery, tblName).
 		Scan(&pgTbl.tableCatalog, &pgTbl.tableSchema, &pgTbl.tableName, &pgTbl.tableType, &pgTbl.isInsertable,
-			&pgTbl.rowCount, &pgTbl.size, &pgTbl.oid, &pgTbl.comment)
+			&pgTbl.size, &pgTbl.oid, &pgTbl.comment)
 	if errors.Is(err, sql.ErrNoRows) {
 		// A matview is absent from information_schema.tables, so the
 		// query above returns no rows. Fall back to the pg_catalog path,
@@ -507,6 +508,23 @@ AND t.table_name = $1`
 		return getMatviewMetadata(ctx, db, tblName)
 	}
 	if err != nil {
+		return nil, errw(err)
+	}
+	progress.Incr(ctx, 1)
+	debugz.DebugSleep(ctx)
+
+	// Step B: tblName is confirmed to exist; fetch its row count. The COUNT
+	// identifier is double-quoted (escaped) and qualified with the schema
+	// resolved in Step A: an unqualified name resolves via the search path,
+	// where a same-named pg_temp relation would shadow the table and supply a
+	// row count belonging to a different relation than the OID describes. This
+	// mirrors getMatviewMetadata (#945). If the relation is dropped between
+	// the steps, the COUNT fails with 42P01, which errw maps to
+	// driver.NotExistError, and the source-wide scan tolerates it like any
+	// other mid-scan drop.
+	countQuery := `SELECT COUNT(*) FROM ` +
+		stringz.DoubleQuote(pgTbl.tableSchema) + `.` + stringz.DoubleQuote(pgTbl.tableName)
+	if err = db.QueryRowContext(ctx, countQuery).Scan(&pgTbl.rowCount); err != nil {
 		return nil, errw(err)
 	}
 	progress.Incr(ctx, 1)
@@ -573,9 +591,11 @@ WHERE c.relname = $1 AND n.nspname = current_schema() AND c.relkind = 'm'`
 	)
 	err := db.QueryRowContext(ctx, confirmQuery, name).Scan(&catalog, &schema, &oid)
 	if errors.Is(err, sql.ErrNoRows) {
-		// Not a matview (nor any other relation found in info-schema):
-		// behave as before for a genuinely-missing relation.
-		return nil, errz.Errorf("table {%s} not found", name)
+		// Not a matview (nor any other relation found in info-schema). The
+		// canonical not-found error is typed driver.NotExistError so that the
+		// source-wide scan in getSourceMetadata can tolerate a relation
+		// dropped mid-scan, the same as a 42P01 wrapped by errw (#945).
+		return nil, driver.NewNotExistError(errz.Errorf("table {%s} not found", name))
 	}
 	if err != nil {
 		return nil, errw(err)
@@ -862,7 +882,7 @@ func getPgColumns(ctx context.Context, db sqlz.DB, tblName string) ([]*pgColumn,
 	FROM
 		pg_catalog.pg_class c
 	WHERE
-		c.oid = (SELECT quote_ident(cols.table_name)::regclass::oid)
+		c.oid = (SELECT (quote_ident(cols.table_schema) || '.' || quote_ident(cols.table_name))::regclass::oid)
 		AND c.relname = cols.table_name
 	) AS column_comment
 FROM information_schema.columns cols
@@ -941,14 +961,16 @@ func getPgConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*pgCon
     (
        SELECT pg_catalog.pg_get_constraintdef(pgc.oid, TRUE)
        FROM pg_catalog.pg_constraint pgc
-       WHERE pgc.conrelid = (SELECT quote_ident(kcu.table_name)::regclass::oid)
+       WHERE pgc.conrelid =
+         (SELECT (quote_ident(kcu.table_schema) || '.' || quote_ident(kcu.table_name))::regclass::oid)
        AND pgc.conname = tc.constraint_name
        limit 1
     )  AS constraint_def,
     (
        SELECT pgc.confrelid::regclass
        FROM pg_catalog.pg_constraint pgc
-       WHERE pgc.conrelid = (SELECT quote_ident(kcu.table_name)::regclass::oid)
+       WHERE pgc.conrelid =
+         (SELECT (quote_ident(kcu.table_schema) || '.' || quote_ident(kcu.table_name))::regclass::oid)
        AND pgc.conname = tc.constraint_name
        AND pgc.confrelid > 0
        LIMIT 1
