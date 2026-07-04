@@ -228,7 +228,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build darwin binaries)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -259,7 +259,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build linux-amd64 binaries)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -295,7 +295,7 @@ jobs:
           sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       - name: GoReleaser (build linux-arm64 binaries)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -326,7 +326,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build windows binaries)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -388,7 +388,7 @@ jobs:
           path: dist-windows
 
       - name: GoReleaser (publish)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -457,7 +457,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: GoReleaser (docker publish)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
