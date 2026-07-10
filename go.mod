@@ -71,7 +71,7 @@ require (
 	// is significant functionality in usql that sq may take advantag eof in the
 	// future.
 	github.com/xo/usql v0.21.4
-	github.com/xuri/excelize/v2 v2.10.1 // BRITTLE
+	github.com/xuri/excelize/v2 v2.11.0 // BRITTLE
 	go.uber.org/atomic v1.11.0
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
 	golang.org/x/mod v0.37.0
@@ -151,7 +151,7 @@ require (
 	github.com/paulmach/orb v0.13.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.27 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/richardlehane/mscfb v1.0.6 // indirect
+	github.com/richardlehane/mscfb v1.0.7 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
