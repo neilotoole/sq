@@ -11,14 +11,16 @@ compatibility: >-
 metadata:
   author: Todd Papaioannou
   homepage: https://sq.io
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
 # sq-gomod-dependabot
 
 Maintainer workflow for Dependabot PRs updating [`go.mod`](../../../go.mod) /
 [`go.sum`](../../../go.sum) at the repository root. For [`site/`](../../../site/)
-Bun/Hugo PRs, use [`sq-site-dependabot`](../sq-site-dependabot/SKILL.md).
+Bun/Hugo PRs, use [`sq-site-dependabot`](../sq-site-dependabot/SKILL.md); for
+GitHub Actions pins under `.github/workflows/`, use
+[`sq-actions-dependabot`](../sq-actions-dependabot/SKILL.md).
 
 No `bun.lock` sequencing — multiple gomod PRs are less coupled than site PRs,
 but still prefer merging after CI is green.
@@ -50,8 +52,12 @@ gh pr list --author 'app/dependabot' --state open \
   --jq '.[] | select(.headRefName | test("^dependabot/")) | select(.title | test("go|gomod|golang"; "i"))'
 ```
 
-Confirm the PR does **not** only touch `site/` (`gh pr diff <n> --name-only`). If it
-touches both, split judgment: site hunks → `sq-site-dependabot`.
+The title filter matches `go`/`golang`, so it also catches github-actions PRs
+like `goreleaser-action` or `golangci-lint-action`. Those touch only
+`.github/workflows/`, not `go.mod`; hand them to
+[`sq-actions-dependabot`](../sq-actions-dependabot/SKILL.md). Confirm the PR does
+**not** only touch `site/` (`gh pr diff <n> --name-only`); if it touches both,
+split judgment: site hunks → `sq-site-dependabot`.
 
 ## Phase 2 — Risk
 

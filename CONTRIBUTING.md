@@ -40,9 +40,13 @@ Changes under `site/` are validated by
 live [sq.io](https://sq.io) updates on a manual **Site Publish (dispatch)** or a stable
 `sq` release.
 
-To triage or merge a batch of **Dependabot PRs** for `site/`, use the
-[`sq-site-dependabot`](./.agents/skills/sq-site-dependabot/) agent skill (invoke
-explicitly in your agent, e.g. `/sq-site-dependabot` in Cursor). See
+To triage or merge a batch of **Dependabot PRs**, use the matching agent skill
+(invoke explicitly in your agent, e.g. `/sq-site-dependabot` in Cursor):
+[`sq-site-dependabot`](./.agents/skills/sq-site-dependabot/) for `site/` (Bun /
+Hugo), [`sq-gomod-dependabot`](./.agents/skills/sq-gomod-dependabot/) for
+`go.mod`/`go.sum`, and
+[`sq-actions-dependabot`](./.agents/skills/sq-actions-dependabot/) for GitHub
+Actions pins under `.github/workflows/`. See
 [AGENTS.md](./AGENTS.md#agent-skills-contributors).
 
 ## Tooling

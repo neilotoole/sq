@@ -311,10 +311,14 @@ tree as documented in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ### Skills in this repo
 
-| Skill                                                        | Use when                                                              |
-| ------------------------------------------------------------ | --------------------------------------------------------------------- |
-| [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/)   | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo). |
-| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) | Dependabot PRs for Go modules (`go.mod`/`go.sum`) at repo root.       |
+| Skill                                                            | Use when                                                              |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/)       | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo). |
+| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/)     | Dependabot PRs for Go modules (`go.mod`/`go.sum`) at repo root.       |
+| [`sq-actions-dependabot`](.agents/skills/sq-actions-dependabot/) | Dependabot PRs for GitHub Actions pins under `.github/workflows/`.    |
+
+These cover all four Dependabot ecosystems in [`.github/dependabot.yml`](.github/dependabot.yml):
+`gomod`, both `bun` manifests (`/` dev tooling and `/site`), and `github-actions`.
 
 Invoke explicitly when your agent supports it (e.g. `/sq-site-dependabot` in
 Cursor, `$sq-site-dependabot` in Codex) or ask to “clear site dependabot PRs”.
@@ -332,6 +336,7 @@ npx skills add <owner/repo> --skill <skill-name>
 ```bash
 npx skills add neilotoole/sq --skill sq-site-dependabot
 npx skills add neilotoole/sq --skill sq-gomod-dependabot
+npx skills add neilotoole/sq --skill sq-actions-dependabot
 ```
 
 **From a local checkout** (verify before opening a PR that touches skills):
