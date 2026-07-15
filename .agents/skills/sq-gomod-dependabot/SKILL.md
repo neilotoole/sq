@@ -52,7 +52,7 @@ gh pr list --author 'app/dependabot' --state open \
   --jq '.[] | select(.headRefName | test("^dependabot/")) | select(.title | test("go|gomod|golang"; "i"))'
 ```
 
-The title filter matches `go`/`golang`, so it also catches github-actions PRs
+The title filter matches `go`/`golang`, so it also catches GitHub Actions PRs
 like `goreleaser-action` or `golangci-lint-action`. Those touch only
 `.github/workflows/`, not `go.mod`; hand them to
 [`sq-actions-dependabot`](../sq-actions-dependabot/SKILL.md). Confirm the PR does
