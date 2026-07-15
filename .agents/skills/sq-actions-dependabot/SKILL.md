@@ -3,7 +3,8 @@ name: sq-actions-dependabot
 description: >-
   Reviews and merges Dependabot pull requests for GitHub Actions (the
   github-actions ecosystem) that bump `uses:` pins in `.github/workflows/`. Use
-  for dependabot github_actions PRs, not go.mod or site/ Bun PRs.
+  for Dependabot github_actions PRs (branches like `dependabot/github_actions/...`),
+  not go.mod or site/ Bun PRs.
 license: MIT
 compatibility: >-
   Requires gh CLI (authenticated) and network access to GitHub. actionlint is
@@ -58,13 +59,13 @@ From repository root:
 
 ```bash
 gh pr list --author 'app/dependabot' --state open \
-  --json number,title,headRefName,mergeable,statusCheckRollup \
+  --json number,title,headRefName,headRefOid,mergeable,statusCheckRollup \
   --jq '.[] | select(.headRefName | test("^dependabot/github_actions/"))'
 ```
 
 Match on `headRefName`, not the title. Titles such as "bump **go**releaser-action"
 or "bump **golang**ci-lint-action" trip the gomod skill's word filter but belong
-here. Confirm the diff only touches `.github/` (`gh pr diff <n> --name-only`).
+here. Confirm the diff only touches `.github/workflows/` (`gh pr diff <n> --name-only`).
 
 ## Phase 2 — Risk
 
@@ -78,9 +79,9 @@ Trusted publishers already in `.github/workflows/` carry low supply-chain risk. 
 **major** bump can change or remove `with:` inputs, so read the release notes and
 confirm the workflow still passes the right inputs.
 
-**Release-only caveat:** PR CI runs the workflows triggered by `pull_request`
-(`lint`, `test-nix`, `test-windows-smoke`). Jobs gated to releases or tags
-(`goreleaser`, `docker/login`, publish, `binaries-*`) show as `skipping` on the
+**Release-only caveat:** PR CI runs the jobs triggered by the `pull_request` event
+(`lint`, `test-nix`, `test-windows-smoke`). Steps and jobs gated to releases or tags
+(`goreleaser`, `docker/login`, publish, `binaries-*`) are skipped on the
 PR, so green CI does **not** exercise them. For those, lean on the changelog and
 trusted-publisher status.
 
