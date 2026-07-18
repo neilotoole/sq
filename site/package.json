@@ -55,7 +55,7 @@
     "@hyas/images": "^3",
     "@netlify/plugin-lighthouse": "^6.0.4",
     "asciinema-player": "^3.17.0",
-    "autoprefixer": "^10.5.2",
+    "autoprefixer": "^10.5.4",
     "bootstrap": "^5.2.3",
     "esbuild": "^0.28.1",
     "exec-bin": "^1.0.0",
