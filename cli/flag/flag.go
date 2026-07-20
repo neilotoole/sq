@@ -250,3 +250,16 @@ var OutputFormatFlags = []string{
 	XML,
 	YAML,
 }
+
+// Flags for `sq explore`.
+const (
+	ExploreEmitHandle      = "emit-handle"
+	ExploreEmitHandleShort = "q"
+	ExploreEmitHandleUsage = "On quit, write the last-focused handle (e.g. @src.table) to stdout"
+
+	ExploreNoTUI      = "no-tui"
+	ExploreNoTUIUsage = "Do not start the TUI; print the source overview instead"
+
+	ExplorePreviewRows      = "preview-rows"
+	ExplorePreviewRowsUsage = "Max rows fetched for the preview pane"
+)
