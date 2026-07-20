@@ -378,12 +378,77 @@ func TestPrintTablesVerbose_COLSPlainNumeric(t *testing.T) {
 	require.NotContains(t, emptyRow, "\x1b[")
 }
 
+// TestPrintTablesVerbose_AutoPopulationMarkers verifies that the AUTO column
+// in printTablesVerbose renders the correct compact markers for identity,
+// auto_increment, and generated columns, and that plain columns render no marker.
+// It also confirms the output contains no triggers or check-constraint section
+// (tiered-output decision: those are reserved for Markdown/HTML writers).
+func TestPrintTablesVerbose_AutoPopulationMarkers(t *testing.T) {
+	tbls := []*metadata.Table{
+		{
+			Name:      "accounts",
+			TableType: "table",
+			RowCount:  10,
+			Columns: []*metadata.Column{
+				{Name: "id", BaseType: "BIGINT", Identity: true},
+				{Name: "code", BaseType: "TEXT", AutoIncrement: true},
+				{Name: "hash", BaseType: "TEXT", Generated: true},
+				{Name: "name", BaseType: "TEXT"},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := NewMetadataWriter(&buf, pr).(*mdWriter)
+	require.NoError(t, w.printTablesVerbose(tbls))
+
+	out := buf.String()
+	require.NotEmpty(t, out)
+
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+
+	// Helper to find the row for a given column name.
+	findColRow := func(colName string) string {
+		for _, line := range lines {
+			if strings.Contains(line, colName) {
+				return line
+			}
+		}
+		return ""
+	}
+
+	idRow := findColRow("id")
+	require.NotEmpty(t, idRow, "id column row not found in:\n%s", out)
+	require.Contains(t, idRow, "identity", "identity column must render 'identity' marker")
+
+	codeRow := findColRow("code")
+	require.NotEmpty(t, codeRow, "code column row not found in:\n%s", out)
+	require.Contains(t, codeRow, "auto_inc", "auto_increment column must render 'auto_inc' marker")
+
+	hashRow := findColRow("hash")
+	require.NotEmpty(t, hashRow, "hash column row not found in:\n%s", out)
+	require.Contains(t, hashRow, "generated", "generated column must render 'generated' marker")
+
+	nameRow := findColRow("name")
+	require.NotEmpty(t, nameRow, "name column row not found in:\n%s", out)
+	require.NotContains(t, nameRow, "identity", "plain column must not render identity marker")
+	require.NotContains(t, nameRow, "auto_inc", "plain column must not render auto_inc marker")
+	require.NotContains(t, nameRow, "generated", "plain column must not render generated marker")
+
+	// Tiered output decision: text table must not contain triggers or
+	// check-constraint sections (those are reserved for Markdown/HTML writers).
+	require.NotContains(t, out, "TRIGGER", "text table must not contain trigger section")
+	require.NotContains(t, out, "CHECK", "text table must not contain check-constraint section")
+}
+
 // TestPrintTablesVerbose_GoldenLayout is the end-to-end golden test
 // for [mdWriter.printTablesVerbose]; helper-function coverage lives
 // alongside [indexEntriesByColumn] / [formatIdxCell]. It pins:
 //
 //   - the header row order (NAME / TYPE / ROWS / COLS / NAME / TYPE /
-//     PK / FK / INDEXES / UNIQUE CONSTRAINTS) so a header reorder or
+//     PK / AUTO / FK / INDEXES / UNIQUE CONSTRAINTS) so a header reorder or
 //     rename in the writer surfaces as a test failure rather than as
 //     a silent CLI UX regression.
 //   - the UC-backing index rendering (parens-wrap, surviving even
@@ -436,7 +501,7 @@ func TestPrintTablesVerbose_GoldenLayout(t *testing.T) {
 	header := lines[0]
 	wantHeaders := []string{
 		"NAME", "TYPE", "ROWS", "COLS",
-		"NAME", "TYPE", "PK", "FK",
+		"NAME", "TYPE", "PK", "AUTO", "FK",
 		"INDEXES", "UNIQUE CONSTRAINTS",
 	}
 	pos := 0

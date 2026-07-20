@@ -27,6 +27,10 @@ func errw(err error) error {
 const (
 	errCodeRelationNotExist   = "42P01"
 	errCodeTooManyConnections = "53300"
+	// errCodeInternalError (XX000) is raised, among other cases, as "could not
+	// open relation with OID ..." when a relation is dropped between OID
+	// resolution and access, i.e. by concurrent DDL.
+	errCodeInternalError = "XX000"
 )
 
 // isErrTooManyConnections returns true if err is a postgres error
@@ -43,6 +47,19 @@ func isErrTooManyConnections(err error) bool {
 // See: https://www.postgresql.org/docs/14/errcodes-appendix.html
 func isErrRelationNotExist(err error) bool {
 	return hasErrCode(err, errCodeRelationNotExist)
+}
+
+// isErrScanRetryable reports whether a bulk metadata-loader error is worth
+// retrying during a source-wide scan of a live database: too-many-connections,
+// or a relation that vanished mid-query. The latter surfaces either as 42P01,
+// or as an XX000 internal error (e.g. "could not open relation with OID") when a
+// relation is dropped between resolution and access. Matching XX000 by code
+// (not message text) keeps this locale-independent, and retrying is safe: a
+// persistent error still surfaces once the retry budget is exhausted.
+func isErrScanRetryable(err error) bool {
+	return isErrTooManyConnections(err) ||
+		isErrRelationNotExist(err) ||
+		hasErrCode(err, errCodeInternalError)
 }
 
 // hasErrCode returns true if err (or its cause error)

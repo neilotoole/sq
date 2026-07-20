@@ -263,7 +263,8 @@ func (fs *Store) backupNewerConfig(ctx context.Context) error {
 			"Config version is newer than sq version; wrote verbatim backup of config before save",
 			lga.ConfigVersion, fs.newerCfgVers,
 			lga.BuildVersion, buildinfo.Version,
-			lga.Path, backupFilePath(fs.Path, fs.newerCfgVers))
+			lga.Path, backupFilePath(fs.Path, fs.newerCfgVers),
+		)
 	}
 	fs.newerCfgVers = ""
 	return nil

@@ -67,9 +67,10 @@ func ExecAffected(ctx context.Context, db Execer, query string, args ...any) (af
 
 // Canonical driver-independent names for table types.
 const (
-	TableTypeTable   = "table"
-	TableTypeView    = "view"
-	TableTypeVirtual = "virtual"
+	TableTypeTable            = "table"
+	TableTypeView             = "view"
+	TableTypeMaterializedView = "materialized_view"
+	TableTypeVirtual          = "virtual"
 )
 
 // RequireSingleConn returns nil if db is a type that guarantees a

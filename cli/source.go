@@ -180,7 +180,7 @@ func verifySourceCatalogSchema(ctx context.Context, ru *run.Run, src *source.Sou
 	// Bypassing Grips also bypasses the ${scheme:path} placeholder
 	// resolution that Grips.doOpen performs, so resolve here before
 	// handing src to the driver.
-	openSrc, err := driver.ResolveSourceSecrets(ctx, src)
+	openSrc, err := driver.ResolveSourceSecrets(ctx, ru.SecretRegistry, src)
 	if err != nil {
 		return err
 	}
@@ -438,13 +438,15 @@ func newSource(ctx context.Context, dp driver.Provider, typ drivertype.Type, han
 	log := lg.FromContext(ctx)
 
 	if opts == nil {
-		log.Debug("Create new data source",
+		log.Debug(
+			"Create new data source",
 			lga.Handle, handle,
 			lga.Driver, typ,
 			lga.Loc, location.Redact(loc),
 		)
 	} else {
-		log.Debug("Create new data source with opts",
+		log.Debug(
+			"Create new data source with opts",
 			lga.Handle, handle,
 			lga.Driver, typ,
 			lga.Loc, location.Redact(loc),

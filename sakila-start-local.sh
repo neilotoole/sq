@@ -1,41 +1,67 @@
 #!/usr/bin/env bash
 
-# This script starts local Postgres, MySQL, SQL Server, ClickHouse,
-# Oracle, and rqlite (via the corresponding sakiladb/* docker images)
-# for repo-wide integration tests.
-# NOTE: This script has only been tested on MacOS on Apple Silicon.
+# Starts local Postgres, MySQL, SQL Server, ClickHouse, Oracle, and rqlite
+# (via the sakiladb/* docker images) for repo-wide integration tests.
+#
+# Usage: source its output to export the SQ_TEST_SRC__SAKILA_* DSN vars into the
+# current shell, then run the tests:
+#
+#   source <(./sakila-start-local.sh)   # or: eval "$(./sakila-start-local.sh)"
+#   make test
+#
+# Progress and health-check status are written to stderr; stdout carries only
+# the `export ...` lines, so the output is safe to source.
+#
+# Image tags, ports, DSNs, and env-var names come from .github/sakila-db.json
+# (single source of truth, shared with CI). Each engine uses its first tag
+# (tags[0], normally "latest"). `--pull always` avoids a silently-stale image.
+#
+# NOTE: tested on macOS / Apple Silicon. SQL Server is amd64-only.
 
-set +e
-# First, kill any already running services.
-./sakila-stop-local.sh &>/dev/null
+set -euo pipefail
 
-set -e
+here="$(cd "$(dirname "$0")" && pwd)"
+config="$here/.github/sakila-db.json"
 
-docker run -d -p 5432:5432 --name sakiladb-pg sakiladb/postgres:12 &>/dev/null
-docker run -d -p 3306:3306 --name sakiladb-my sakiladb/mysql:8 &>/dev/null
-docker run -d -p 9000:9000 --name sakiladb-ch sakiladb/clickhouse:25 &>/dev/null
-docker run -d -p 1521:1521 --name sakiladb-or sakiladb/oracle:23 &>/dev/null
-docker run -d -p 1433:1433 --name sakiladb-ms --platform=linux/amd64 sakiladb/sqlserver:2019 &>/dev/null
-docker run -d -p 4001:4001 --name sakiladb-rq sakiladb/rqlite:10 &>/dev/null
+# Stop anything already running.
+"$here/sakila-stop-local.sh" &>/dev/null || true
 
-sleep 5
+declare -A cname=(
+  [postgres]=sakiladb-pg [mysql]=sakiladb-my [sqlserver]=sakiladb-ms
+  [clickhouse]=sakiladb-ch [oracle]=sakiladb-or [rqlite]=sakiladb-rq
+)
+declare -A platform=( [sqlserver]="--platform=linux/amd64" )
 
-# Print the envars that need to be exported for the sq e2e tests to work
-# correctly.
+engines=(postgres mysql sqlserver clickhouse oracle rqlite)
+exports=()
 
-echo "Export these envars (and source them) to run the tests with these sources enabled"
+for engine in "${engines[@]}"; do
+  tag=$(jq -r --arg e "$engine" '.[$e].tags[0]' "$config")
+  port=$(jq -r --arg e "$engine" '.[$e].port' "$config")
+  env=$(jq -r --arg e "$engine" '.[$e].env' "$config")
+  dsn=$(jq -r --arg e "$engine" '.[$e].dsn' "$config")
+  # shellcheck disable=SC2086
+  docker run -d --pull always ${platform[$engine]:-} \
+    -p "$port:$port" --name "${cname[$engine]}" "sakiladb/$engine:$tag" &>/dev/null
+  exports+=("export $env=\"$dsn\"")
+done
 
-cat << EOF
-export SQ_TEST_SRC__SAKILA_PG12=localhost
-export SQ_TEST_SRC__SAKILA_MS19=localhost
-export SQ_TEST_SRC__SAKILA_MY8=localhost
-export SQ_TEST_SRC__SAKILA_CH25=localhost
-export SQ_TEST_SRC__SAKILA_OR23=localhost
-export SQ_TEST_SRC__SAKILA_RQ=localhost
-EOF
-export SQ_TEST_SRC__SAKILA_PG12=localhost
-export SQ_TEST_SRC__SAKILA_MS19=localhost
-export SQ_TEST_SRC__SAKILA_MY8=localhost
-export SQ_TEST_SRC__SAKILA_CH25=localhost
-export SQ_TEST_SRC__SAKILA_OR23=localhost
-export SQ_TEST_SRC__SAKILA_RQ=localhost
+# Wait for every container to report healthy (images ship a HEALTHCHECK).
+echo "Waiting for containers to become healthy..." >&2
+for engine in "${engines[@]}"; do
+  c="${cname[$engine]}"
+  for _ in $(seq 1 60); do
+    status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$c" 2>/dev/null || echo missing)
+    [ "$status" = healthy ] && break
+    [ "$status" = none ] && break    # no healthcheck: don't block
+    [ "$status" = missing ] && break # container gone: stop waiting
+    sleep 5
+  done
+  echo "  $c: $(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$c" 2>/dev/null || echo '?')" >&2
+done
+
+echo >&2
+echo "# Source these into your shell, e.g.: source <(./sakila-start-local.sh)" >&2
+
+# Emit only the `export ...` lines on stdout, so the output is safe to source.
+printf '%s\n' "${exports[@]}"

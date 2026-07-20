@@ -17,6 +17,7 @@ SERVER_LOG=""
 # Values: "full" (default) | "internal"
 LINKINATOR_SCOPE="${LINKINATOR_SCOPE:-full}"
 
+# shellcheck disable=SC2329  # invoked indirectly via `trap cleanup EXIT INT TERM`.
 cleanup() {
   if [[ -n "${SERVER_PID}" ]] && kill -0 "${SERVER_PID}" >/dev/null 2>&1; then
     kill "${SERVER_PID}" >/dev/null 2>&1 || true
@@ -42,6 +43,12 @@ Environment:
     - internal: only check site served from the temporary local server
   LINKINATOR_PORT=<port>
     - optional fixed port
+  LINKINATOR_ATTEMPT_TIMEOUT=<seconds>
+    - per-attempt wall-clock ceiling (default 480); a hung crawl is killed and
+      retried instead of stalling
+  LINKINATOR_MAX_ATTEMPTS=<n>
+    - full scope only: how many times to retry the whole crawl on failure
+      (default 3) so the run only fails on links broken on every attempt
 EOF
   exit 0
 fi
@@ -126,7 +133,88 @@ if [[ "${LINKINATOR_SCOPE}" == "internal" ]]; then
   # so argv contains one `\` before each `.` (literal IPv4 dots in the URL).
   LINKINATOR_ARGS+=(-s '^http://(?!127\.0\.0\.1|localhost)')
   LINKINATOR_ARGS+=(-s '^https://(?!127\.0\.0\.1|localhost)')
+else
+  # Full scope crawls third-party hosts, which fail for reasons that are not
+  # broken links: rate limiting, bot-blocking, and transient 5xx blips. Keep
+  # genuine dead links (404/410, and 0/network errors after retries) fatal, but
+  # downgrade infrastructure noise to warnings so a red run means a real broken
+  # link, not a flaky external host.
+  #   403: forbidden / bot-blocking (many sites reject CI user agents)
+  #   429: rate limiting (e.g. wikipedia.org throttles the runner IP)
+  #   5xx: transient third-party server errors
+  #
+  # NB: deliberately no linkinator `retry` (honor-`Retry-After`) flag. Hosts can
+  # return 429 with an absurd `Retry-After` (wikipedia.org sends 1000s), which
+  # would stall the whole crawl past the per-attempt timeout below. `retryErrors`
+  # (in linkinator.config.json) still gives 429s a bounded exponential-backoff
+  # retry; whatever is still 429 afterwards lands on the `429:warn` mapping here.
+  LINKINATOR_ARGS+=(--status-code '403:warn')
+  LINKINATOR_ARGS+=(--status-code '429:warn')
+  LINKINATOR_ARGS+=(--status-code '5xx:warn')
+  # Hammering a host with many parallel requests is what provokes 429s in the
+  # first place; a gentler external crawl trips fewer rate limits. Overrides the
+  # config's `concurrency`, which stays high for the localhost-only internal
+  # crawl.
+  LINKINATOR_ARGS+=(--concurrency 4)
 fi
 
-bunx linkinator "${LINKINATOR_ARGS[@]}"
-echo "Linkinator finished"
+# Per-attempt wall-clock ceiling. linkinator's per-request `timeout` does not
+# reliably abort a connection that never responds; under Bun a wedged request
+# leaves an unsettled top-level await and the process dies with a bare exit 13
+# after a long stall. Wrap each attempt in coreutils `timeout` so a hang becomes
+# a bounded, retryable failure instead of a mystery crash.
+#
+# coreutils ships it as `timeout` (Linux/CI) or `gtimeout` (macOS via Homebrew).
+# If neither is present (a stock macOS dev box), run without the ceiling rather
+# than failing outright; CI always has GNU `timeout`.
+attempt_timeout="${LINKINATOR_ATTEMPT_TIMEOUT:-480}"
+
+if command -v timeout >/dev/null 2>&1; then
+  run_linkinator() {
+    timeout --signal=KILL "${attempt_timeout}" bunx linkinator "${LINKINATOR_ARGS[@]}"
+  }
+elif command -v gtimeout >/dev/null 2>&1; then
+  run_linkinator() {
+    gtimeout --signal=KILL "${attempt_timeout}" bunx linkinator "${LINKINATOR_ARGS[@]}"
+  }
+else
+  echo "warning: coreutils 'timeout'/'gtimeout' not found; running without a per-attempt ceiling" >&2
+  run_linkinator() {
+    bunx linkinator "${LINKINATOR_ARGS[@]}"
+  }
+fi
+
+rc=0
+if [[ "${LINKINATOR_SCOPE}" == "full" ]]; then
+  # The external crawl is network-dependent: hosts hang, rate-limit, or blip
+  # with transient errors that per-request retries don't fully absorb. Retry the
+  # whole crawl so the nightly only goes red on a link that is broken on *every*
+  # attempt: real signal, not infrastructure noise. The internal crawl
+  # (PR-gating) deliberately does not retry; a broken internal link is
+  # deterministic and should fail fast.
+  max_attempts="${LINKINATOR_MAX_ATTEMPTS:-3}"
+  attempt=1
+  while true; do
+    echo "Linkinator attempt ${attempt}/${max_attempts} (scope=full)"
+    rc=0
+    run_linkinator || rc=$?
+    if [[ "${rc}" -eq 0 ]]; then
+      break
+    fi
+    echo "Linkinator attempt ${attempt} failed (exit ${rc})." >&2
+    if [[ "${attempt}" -ge "${max_attempts}" ]]; then
+      break
+    fi
+    attempt=$((attempt + 1))
+    sleep 5
+  done
+else
+  run_linkinator || rc=$?
+fi
+
+if [[ "${rc}" -eq 0 ]]; then
+  echo "Linkinator finished"
+else
+  echo "Linkinator failed (exit ${rc})" >&2
+fi
+exit "${rc}"

@@ -24,7 +24,7 @@ linters:
     - gocyclo
     - godot
     - gomoddirectives
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     - gosec
     - govet
@@ -81,21 +81,20 @@ linters:
           skipRecvDeref: false
     gocyclo:
       min-complexity: 50
-    gomodguard:
+    gomodguard_v2:
       blocked:
-        modules:
-          - github.com/golang/protobuf:
-              recommendations:
-                - google.golang.org/protobuf
-              reason: see https://developers.google.com/protocol-buffers/docs/reference/go/faq#modules
-          - github.com/satori/go.uuid:
-              recommendations:
-                - github.com/google/uuid
-              reason: satori's package is not maintained
-          - github.com/gofrs/uuid:
-              recommendations:
-                - github.com/google/uuid
-              reason: gofrs' package is not go module
+        - module: github.com/golang/protobuf
+          recommendations:
+            - google.golang.org/protobuf
+          reason: see https://developers.google.com/protocol-buffers/docs/reference/go/faq#modules
+        - module: github.com/satori/go.uuid
+          recommendations:
+            - github.com/google/uuid
+          reason: satori's package is not maintained
+        - module: github.com/gofrs/uuid
+          recommendations:
+            - github.com/google/uuid
+          reason: gofrs' package is not go module
     govet:
       enable-all: true
       settings:
@@ -162,7 +161,7 @@ linters:
           disabled: false
         - name: context-as-argument
           arguments:
-            - allowTypesBefore: '*testing.T,*github.com/user/repo/testing.Harness'
+            - allowTypesBefore: "*testing.T,*github.com/user/repo/testing.Harness"
           disabled: false
         - name: context-keys-type
           disabled: false
@@ -293,7 +292,7 @@ linters:
             - preserveScope
           disabled: false
         - name: time-equal
-          disabled: true  # Disabled: behaves inconsistently across architectures (arm64 vs amd64)
+          disabled: true # Disabled: behaves inconsistently across architectures (arm64 vs amd64)
         - name: time-naming
           disabled: false
         - name: var-naming
@@ -389,7 +388,21 @@ linters:
           - staticcheck
         path: libsq/core/diffdoc/compute(_test)?\.go
         text: ComputeEdits is deprecated
+      # Example DSNs in command help/Example text trip gosec G101 (hardcoded
+      # credentials) under gosec v2.26. They are documentation, not real
+      # secrets. Scoped to the specific commands whose help embeds a sample
+      # connection string, so a genuine hardcoded credential elsewhere still
+      # gets flagged; add a command here if it legitimately needs the same.
+      - linters:
+          - gosec
+        path: cli/cmd_(add|db_exec|config_keyring_create|config_keyring_update)\.go
+        text: "G101"
     paths:
+      # ANTLR-generated lexer/parser packages. Their canonical "Code generated
+      # ... DO NOT EDIT." header stopped being honored by golangci-lint's
+      # generated-file detection (changed in v2.12.x), so exclude by path.
+      - libsq/ast/internal/slq
+      - drivers/sqlite3/sqlparser/sqlite
       - cli/output/jsonw/internal/jcolorenc
       - libsq/core/diffdoc/internal/go-udiff
       - cli/output/tablew/internal
@@ -401,23 +414,8 @@ linters:
       - examples$
 issues:
   max-same-issues: 3
-formatters:
-  enable:
-    - gofumpt
-    - goimports
-  settings:
-    gofumpt:
-      module-path: github.com/neilotoole/sq
-      extra-rules: true
-  exclusions:
-    generated: lax
-    paths:
-      - cli/output/jsonw/internal/jcolorenc
-      - libsq/core/diffdoc/internal/go-udiff
-      - cli/output/tablew/internal
-      - libsq/core/lg/devlog/tint
-      - libsq/core/upgrademu
-      - scratch
-      - third_party$
-      - builtin$
-      - examples$
+
+# NOTE: formatting (gofumpt + import ordering) is no longer handled by
+# golangci-lint. It moved to dprint (gofumpt plugin, modulePath +
+# extraRules, see dprint.json) plus goimports-reviser (scripts/fmt-go-imports.sh).
+# Run `make fmt` to format and `make fmt-check` (or `bunx dprint check`) to verify.

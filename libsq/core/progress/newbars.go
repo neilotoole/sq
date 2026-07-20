@@ -167,16 +167,22 @@ func (p *Progress) NewUnitCounter(msg, unit string, opts ...BarOpt) Bar {
 	}
 
 	fn := func(statistics decor.Statistics) string {
-		s := humanize.Comma(statistics.Current)
-		if unit != "" {
-			s += " " + english.PluralWord(int(statistics.Current), unit, "")
-		}
-		return s
+		return unitCounterText(statistics.Current, unit)
 	}
 
 	cfg.counterWidget = colorize(decor.Any(fn, p.align.counter), p.colors.Size)
 
 	return p.createBar(cfg, opts)
+}
+
+// unitCounterText returns the counter text for an indeterminate unit counter,
+// given the current count and an optional unit (which is pluralized).
+func unitCounterText(current int64, unit string) string {
+	s := humanize.Comma(current)
+	if unit != "" {
+		s += " " + english.PluralWord(int(current), unit, "")
+	}
+	return s
 }
 
 // NewWaiter returns a generic indeterminate spinner with a timer. This produces
@@ -233,15 +239,21 @@ func (p *Progress) NewUnitTotalCounter(msg, unit string, total int64, opts ...Ba
 	}
 
 	fn := func(statistics decor.Statistics) string {
-		s := humanize.Comma(statistics.Current) + " / " + humanize.Comma(statistics.Total)
-		if unit != "" {
-			s += " " + english.PluralWord(int(statistics.Current), unit, "")
-		}
-		return s
+		return unitTotalCounterText(statistics.Current, statistics.Total, unit)
 	}
 
 	cfg.counterWidget = colorize(decor.Any(fn, p.align.counter), p.colors.Size)
 	return p.createBar(cfg, opts)
+}
+
+// unitTotalCounterText returns the counter text for a determinate unit counter,
+// given the current and total counts and an optional unit (which is pluralized).
+func unitTotalCounterText(current, total int64, unit string) string {
+	s := humanize.Comma(current) + " / " + humanize.Comma(total)
+	if unit != "" {
+		s += " " + english.PluralWord(int(current), unit, "")
+	}
+	return s
 }
 
 // NewTimeoutWaiter returns a new indeterminate bar whose label is the
@@ -263,19 +275,7 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOp
 	}
 
 	fn := func(_ decor.Statistics) string {
-		remaining := time.Until(expires)
-		switch {
-		case remaining > 0:
-			return fmt.Sprintf("timeout in %s", remaining.Round(time.Second))
-		case remaining > -time.Second:
-			// We do the extra second to prevent a "flash" of the timeout message,
-			// and it also prevents "timeout in -1s" etc. This situation should be
-			// rare; the caller should have already called Stop() on the Progress
-			// when the timeout happened, but we'll play it safe.
-			return "timeout in 0s"
-		default:
-			return "timed out"
-		}
+		return timeoutText(time.Until(expires))
 	}
 
 	cfg.counterWidget = decor.Meta(decor.Any(fn, p.align.counter), func(s string) string {
@@ -291,4 +291,21 @@ func (p *Progress) NewTimeoutWaiter(msg string, expires time.Time, opts ...BarOp
 	defer p.mu.Unlock()
 
 	return p.createBar(cfg, opts)
+}
+
+// timeoutText returns the counter text for a timeout waiter, given the time
+// remaining until the timeout expires.
+func timeoutText(remaining time.Duration) string {
+	switch {
+	case remaining > 0:
+		return fmt.Sprintf("timeout in %s", remaining.Round(time.Second))
+	case remaining > -time.Second:
+		// We do the extra second to prevent a "flash" of the timeout message,
+		// and it also prevents "timeout in -1s" etc. This situation should be
+		// rare; the caller should have already called Stop() on the Progress
+		// when the timeout happened, but we'll play it safe.
+		return "timeout in 0s"
+	default:
+		return "timed out"
+	}
 }

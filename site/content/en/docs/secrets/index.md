@@ -1,13 +1,14 @@
 ---
 title: Secrets
 description: How sq handles passwords, the OS keyring, and ${scheme:path} placeholders.
-lead: ''
+lead: ""
 draft: false
 images: []
 weight: 1037
 toc: true
 url: /docs/secrets
 ---
+
 `sq` treats credentials with two independent mechanisms: **redaction** keeps
 secrets out of display output, and **placeholders** keep secrets out of the
 [config](../config) file itself. The two stack rather than compete. This page
@@ -57,7 +58,7 @@ location is printed. Secret-bearing query parameters, such as Postgres's
 For a source
 
 ```yaml
-- handle: '@sakila/pg'
+- handle: "@sakila/pg"
   driver: postgres
   location: postgres://alice:hunter2@db.acme.com/sakila
 ```
@@ -170,7 +171,7 @@ requires.
 ### Choosing a scheme
 
 | Environment            | Recommended scheme    | Why                                                                               |
-|------------------------|-----------------------|-----------------------------------------------------------------------------------|
+| ---------------------- | --------------------- | --------------------------------------------------------------------------------- |
 | Dev laptop             | [`keyring`](#keyring) | Plaintext never lives on disk; OS handles the storage and prompting.              |
 | CI runner              | [`env`](#env)         | CI systems already inject secrets as environment variables.                       |
 | Container / Kubernetes | [`file`](#file)       | Secrets are typically mounted into the container as files (e.g. `/run/secrets/`). |
@@ -181,7 +182,7 @@ source, `env` for another, and inline plaintext for a third.
 
 ### `keyring`
 
-An *OS keyring* is the operating system's encrypted credential store, unlocked
+An _OS keyring_ is the operating system's encrypted credential store, unlocked
 by the user's login session and reachable by apps running as that user.
 Storing a secret there keeps it off disk in plaintext while letting `sq`
 fetch it at connect time. Every major OS ships one, under a different name:
@@ -204,7 +205,7 @@ mints an opaque 10-character ID (e.g. `j2k7m3pxtz`), writes the full conn
 string to the keyring at that ID, and stores a bare placeholder in YAML:
 
 ```yaml
-- handle: '@sakila/pg'
+- handle: "@sakila/pg"
   driver: postgres
   location: ${keyring:j2k7m3pxtz}
 ```
@@ -268,10 +269,10 @@ verbatim. The user must already be signed in: biometric, `op signin`, or a
 service-account token in `OP_SERVICE_ACCOUNT_TOKEN`.
 
 ```yaml
-- handle: '@sakila'
+- handle: "@sakila"
   driver: postgres
-  location: ${op://Private/sakila/dsn}                       # whole DSN
-- handle: '@sakila/composed'
+  location: ${op://Private/sakila/dsn} # whole DSN
+- handle: "@sakila/composed"
   driver: postgres
   location: postgres://alice:${op://Private/sakila/password}@db/sakila
 ```
@@ -355,12 +356,12 @@ the per-source location.
 For a source whose YAML location is `${keyring:abc}` and whose keyring entry
 holds `postgres://alice:hunter2@db.acme.com/sakila`:
 
-| Flags                 | Displayed location                                       |
-|-----------------------|----------------------------------------------------------|
-| (none)                | `${keyring:abc}`                                         |
-| `--reveal`            | `${keyring:abc}`                                         |
-| `--expand`            | `postgres://alice:xxxxx@db.acme.com/sakila`              |
-| `--expand --reveal`   | `postgres://alice:hunter2@db.acme.com/sakila`            |
+| Flags               | Displayed location                            |
+| ------------------- | --------------------------------------------- |
+| (none)              | `${keyring:abc}`                              |
+| `--reveal`          | `${keyring:abc}`                              |
+| `--expand`          | `postgres://alice:xxxxx@db.acme.com/sakila`   |
+| `--expand --reveal` | `postgres://alice:hunter2@db.acme.com/sakila` |
 
 The display-expansion step is lenient: a per-source resolver failure
 (missing keyring entry, unset env var, unreadable file) leaves that
@@ -393,7 +394,7 @@ display commands, e.g. `sq ls -v --expand`.
 
 ```yaml
 # Live config: location uses a keyring placeholder
-- handle: '@sakila/pg'
+- handle: "@sakila/pg"
   driver: postgres
   location: postgres://alice:${keyring:j2k7m3pxtz}@db.acme.com/sakila
 ```
@@ -421,14 +422,14 @@ transfer, and a half-resolved snapshot is the wrong artifact.
 
 Both flags can produce plaintext secrets, but they're not interchangeable.
 
-| Concern                          | `--reveal`                                                                                            | `--expand`                                                                                                     |
-|----------------------------------|-------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
-| Purpose                          | Show secret data already loaded                                                                       | Fetch placeholder values and splice them in                                                                    |
-| Source of the printed value      | The current in-memory config                                                                          | External resolvers: OS keyring, env, file                                                                      |
-| Applies to                       | Any command that prints a location or keyring value                                                   | Any command that prints a source location; also [`sq config export`](/docs/cmd/config-export)                  |
-| What you see for a placeholder   | The placeholder text (e.g. `${keyring:abc}`)                                                          | The resolved value (e.g. `hunter2`)                                                                            |
-| Failure mode                     | Cannot fail; it is just a display flip                                                                | Lenient per source on display commands; strict-abort on `sq config export`                                     |
-| Risk                             | Reveals plaintext already in `sq.yml` or the keyring                                                  | Pulls plaintext **out** of resolvers into terminal, log, or exported-file output                               |
+| Concern                        | `--reveal`                                           | `--expand`                                                                                    |
+| ------------------------------ | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Purpose                        | Show secret data already loaded                      | Fetch placeholder values and splice them in                                                   |
+| Source of the printed value    | The current in-memory config                         | External resolvers: OS keyring, env, file                                                     |
+| Applies to                     | Any command that prints a location or keyring value  | Any command that prints a source location; also [`sq config export`](/docs/cmd/config-export) |
+| What you see for a placeholder | The placeholder text (e.g. `${keyring:abc}`)         | The resolved value (e.g. `hunter2`)                                                           |
+| Failure mode                   | Cannot fail; it is just a display flip               | Lenient per source on display commands; strict-abort on `sq config export`                    |
+| Risk                           | Reveals plaintext already in `sq.yml` or the keyring | Pulls plaintext **out** of resolvers into terminal, log, or exported-file output              |
 
 Use `--reveal` to read configuration; use `--expand` to take a portable
 backup or to diagnose what a source actually resolves to. Don't reach for

@@ -11,9 +11,10 @@ import (
 )
 
 // NewTemplate returns a new text template, with the sprig
-// functions already loaded.
+// functions already loaded. The full text/template sprig function
+// set is loaded via sprig.TxtFuncMap.
 func NewTemplate(name, tpl string) (*template.Template, error) {
-	t, err := template.New(name).Funcs(sprig.FuncMap()).Parse(tpl)
+	t, err := template.New(name).Funcs(sprig.TxtFuncMap()).Parse(tpl)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -37,7 +38,7 @@ func ExecuteTemplate(name, tpl string, data any) (string, error) {
 
 	buf := &bytes.Buffer{}
 	if err = t.Execute(buf, data); err != nil {
-		return "", err
+		return "", errz.Err(err)
 	}
 
 	return buf.String(), nil

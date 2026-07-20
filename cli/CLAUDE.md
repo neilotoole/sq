@@ -1,8 +1,8 @@
 # CLAUDE.md (cli package)
 
 Conventions specific to the `cli` package: cobra command construction, flags,
-shell completion, and output writers. The repo-wide rules in the root
-[`CLAUDE.md`](../CLAUDE.md) still apply here.
+shell completion, and output writers. Repo-wide rules in
+[AGENTS.md](../AGENTS.md) still apply here.
 
 ## Shell completion
 

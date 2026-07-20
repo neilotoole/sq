@@ -15,8 +15,7 @@ import (
 // tblfmt formats a table name for use in a query. The arg can be a string,
 // or a tablefq.T.
 func tblfmt[T string | tablefq.T](tbl T) string {
-	tfq := tablefq.From(tbl)
-	return tfq.Render(stringz.DoubleQuote)
+	return tablefq.Format(tbl, stringz.DoubleQuote)
 }
 
 func dbTypeNameFromKind(knd kind.Kind) string {
@@ -62,23 +61,31 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 }
 
 // buildCreateTableStmt builds a CREATE TABLE statement from tblDef.
-// The implementation is minimal: it does not honor PK, FK, etc.
+// The implementation is minimal: it honors PKColName (as an inline
+// PRIMARY KEY, which implies NOT NULL) but not FK, etc. The PRIMARY KEY
+// clause is emitted after the DEFAULT / NOT NULL block for cross-driver
+// consistency: Oracle requires DEFAULT before inline constraints, and the
+// sqlserver and oracle builders mirror this function (#1029).
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
-	sb.WriteString(`CREATE TABLE "`)
-	sb.WriteString(tblDef.Name)
-	sb.WriteString("\" (")
+	sb.WriteString("CREATE TABLE ")
+	sb.WriteString(idSanitize(tblDef.Name))
+	sb.WriteString(" (")
 
 	for i, colDef := range tblDef.Cols {
-		sb.WriteString("\n\"")
-		sb.WriteString(colDef.Name)
-		sb.WriteString("\" ")
+		sb.WriteString("\n")
+		sb.WriteString(idSanitize(colDef.Name))
+		sb.WriteString(" ")
 		sb.WriteString(dbTypeNameFromKind(colDef.Kind))
 
 		if colDef.NotNull {
 			sb.WriteRune(' ')
 			sb.WriteString(createTblKindDefaults[colDef.Kind])
 			sb.WriteString(" NOT NULL")
+		}
+
+		if colDef.Name == tblDef.PKColName {
+			sb.WriteString(" PRIMARY KEY")
 		}
 
 		if i < len(tblDef.Cols)-1 {
@@ -97,11 +104,16 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	sb := strings.Builder{}
-	sb.WriteString(`UPDATE "`)
-	sb.WriteString(tbl)
-	sb.WriteString(`" SET "`)
-	sb.WriteString(strings.Join(cols, `" = ?, "`))
-	sb.WriteString(`" = ?`)
+	sb.WriteString("UPDATE ")
+	sb.WriteString(idSanitize(tbl))
+	sb.WriteString(" SET ")
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(idSanitize(col))
+		sb.WriteString(" = ?")
+	}
 	if where != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(where)

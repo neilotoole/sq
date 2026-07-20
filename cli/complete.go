@@ -67,14 +67,14 @@ var (
 	_ completionFunc = (*handleTableCompleter)(nil).complete
 )
 
-// completeStrings completes from a slice of string.
-func completeStrings(maxVals int, a ...string) completionFunc {
-	return func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
-		if maxVals > 0 && len(args) >= maxVals {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		return a, cobra.ShellCompDirectiveNoFileComp & cobra.ShellCompDirectiveKeepOrder
+// completeStrings completes a flag value from a fixed slice of strings. It is
+// for flag values only, not positional args: a flag takes a single value
+// regardless of how many positional args precede it, so there's no positional
+// cap to apply (cf. completeHandle, whose maxVals cap is meaningful only for
+// positional completion). The candidates are returned in the given order.
+func completeStrings(a ...string) completionFunc {
+	return func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		return a, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
 	}
 }
 
@@ -83,9 +83,20 @@ func completeBool(_ *cobra.Command, _ []string, _ string) ([]string, cobra.Shell
 	return []string{"true", "false"}, cobra.ShellCompDirectiveNoFileComp
 }
 
-// completeHandle is a completionFunc that suggests handles.
-// The max arg is the maximum number of completions. Set to 0
-// for no limit.
+// completeNone is a completionFunc for a flag whose value is inherently
+// free-form, so there's nothing to enumerate (e.g. a variable name the user
+// invents, an arbitrary literal). It offers no candidates but, unlike leaving
+// the flag without a completion func, suppresses cobra's default filename
+// completion, which would be meaningless noise for such a value.
+func completeNone(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+	return nil, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeHandle is a completionFunc that suggests handles. It is for
+// positional completion: maxVals caps the number of positional args the
+// command takes, and completion is suppressed once that many are present
+// (set to 0 for no cap). For flag-value completion use completeHandleFlag,
+// which has no positional cap.
 func completeHandle(maxVals int, includeActive bool) completionFunc {
 	return func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if maxVals > 0 && len(args) >= maxVals {
@@ -108,6 +119,16 @@ func completeHandle(maxVals int, includeActive bool) completionFunc {
 
 		return handles, cobra.ShellCompDirectiveNoFileComp
 	}
+}
+
+// completeHandleFlag is the flag-value counterpart to completeHandle. It
+// suggests source handles for a flag value (e.g. --src), with no positional
+// cap: completeHandle's maxVals gates on len(args), the positional args, which
+// is correct for positional completion but would wrongly suppress a flag's
+// value once enough positionals are present. A flag takes a single value
+// regardless of preceding positionals.
+func completeHandleFlag(includeActive bool) completionFunc {
+	return completeHandle(0, includeActive)
 }
 
 // completeCatalog is a completionFunc that suggests catalogs.
@@ -213,12 +234,52 @@ func completeHandleOrGroup(cmd *cobra.Command, args []string, toComplete string)
 // completes the "table select" segment (that is, the @HANDLE.NAME)
 // segment.
 func completeSLQ(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	if len(args) != 0 {
+	// Space-form --arg pairs ("--arg NAME VALUE") leave VALUE as a fake
+	// positional because preprocessFlagArgVars doesn't run during completion,
+	// so cobra treats the next word as a positional instead of the pair's
+	// VALUE. Count those fake positionals so we can skip them.
+	//
+	// The "=" form ("--arg=NAME:VALUE") is consumed by pflag as a single token,
+	// so it contributes no fake positionals. We tell the two apart by ":": a
+	// joined NAME:VALUE always contains one, a dangling NAME never does. This
+	// assumes valid input (NAME is a bare identifier, per stringz.ValidIdent);
+	// malformed input like "--arg fo:o" or "--arg=foo" is misclassified, but
+	// such input is rejected at exec time, so the cost is only stray completion.
+	//
+	// Cobra traverses the arg list once per positional during completion (to
+	// check each intermediate word), and StringArray is cumulative, so vals may
+	// contain duplicate entries. Deduplicate before counting. This relies on
+	// each space-form pair having a distinct NAME; genuinely duplicate keys
+	// (e.g. "--arg x A --arg x B", itself a misuse warned about at exec time)
+	// undercount, at worst suppressing completion of a following query word.
+	spaceFormArgCount := 0
+	if vals, _ := cmd.Flags().GetStringArray(flag.Arg); len(vals) > 0 {
+		seen := make(map[string]struct{}, len(vals))
+		for _, v := range vals {
+			if _, dup := seen[v]; dup {
+				continue
+			}
+			seen[v] = struct{}{}
+			if !strings.Contains(v, ":") {
+				spaceFormArgCount++
+			}
+		}
+	}
+
+	// Fewer positionals than expected VALUEs: we're still in the VALUE slot.
+	if len(args) < spaceFormArgCount {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// Strip the fake positionals. If any real args remain, there is already a
+	// complete query positional and nothing more to suggest.
+	realArgs := args[spaceFormArgCount:]
+	if len(realArgs) != 0 {
 		return nil, cobra.ShellCompDirectiveError
 	}
 
 	c := &handleTableCompleter{}
-	return c.complete(cmd, args, toComplete)
+	return c.complete(cmd, realArgs, toComplete)
 }
 
 // completeDriverType is a completionFunc that suggests drivers.

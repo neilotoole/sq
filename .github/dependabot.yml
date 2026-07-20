@@ -10,7 +10,7 @@ updates:
     schedule:
       interval: "weekly"
 
-  # Bun lockfile at the repo root (markdown linting toolchain: markdownlint-cli2).
+  # Bun lockfile at the repo root (formatting + JS lint toolchain: dprint, biome).
   - package-ecosystem: "bun"
     directory: "/"
     schedule:

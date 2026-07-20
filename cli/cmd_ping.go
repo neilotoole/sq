@@ -16,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 )
@@ -130,7 +131,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 	// already-expanded clone a second time would unescape '$$' again,
 	// corrupting literal locations (e.g. those escaped by the v0.54.0
 	// config upgrade, or a resolved secret value containing '$$').
-	err = pingSources(cmd.Context(), ru.DriverRegistry, srcs, ru.Writers.Ping, timeout)
+	err = pingSources(cmd.Context(), ru.DriverRegistry, ru.SecretRegistry, srcs, ru.Writers.Ping, timeout)
 	if errors.Is(err, context.Canceled) {
 		// It's common to cancel "sq ping". We don't want to print the cancel message.
 		return errz.ErrNoMsg
@@ -146,7 +147,7 @@ func execPing(cmd *cobra.Command, args []string) error {
 // NOTE: This ping code has an ancient lineage, in that it was
 // originally laid down before context.Context was a thing. Thus,
 // the entire thing could probably be rewritten for simplicity.
-func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
+func pingSources(ctx context.Context, dp driver.Provider, reg *secret.Registry, srcs []*source.Source,
 	w output.PingWriter, timeout time.Duration,
 ) error {
 	if err := w.Open(srcs); err != nil {
@@ -164,7 +165,7 @@ func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
 	var pingErrExists bool
 
 	for _, src := range srcs {
-		go pingSource(ctx, dp, src, timeout, resultCh)
+		go pingSource(ctx, dp, reg, src, timeout, resultCh)
 	}
 
 	// This func doesn't check for context.Canceled itself; instead
@@ -209,8 +210,8 @@ func pingSources(ctx context.Context, dp driver.Provider, srcs []*source.Source,
 // resolution below), and what pingResult carries to the output
 // writers; the writer layer's expand decorator handles the --expand
 // display view.
-func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, timeout time.Duration,
-	resultCh chan<- pingResult,
+func pingSource(ctx context.Context, dp driver.Provider, reg *secret.Registry,
+	src *source.Source, timeout time.Duration, resultCh chan<- pingResult,
 ) {
 	drvr, err := dp.DriverFor(src.Type)
 	if err != nil {
@@ -225,7 +226,7 @@ func pingSource(ctx context.Context, dp driver.Provider, src *source.Source, tim
 	// the stored src to output writers, which serialize src.Location
 	// verbatim. We must not leak the resolved plaintext unless the
 	// user opted in via --expand.
-	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	resolved, err := driver.ResolveSourceSecrets(ctx, reg, src)
 	if err != nil {
 		resultCh <- pingResult{src: src, err: err}
 		return

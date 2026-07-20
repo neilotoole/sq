@@ -8,12 +8,11 @@ before:
 dist: dist-linux
 
 builds:
-  -
-    main: .
+  - main: .
     binary: sq
     flags:
       - -a
-#      - -tags=netgo
+    #      - -tags=netgo
     env:
       - CGO_ENABLED=1
       - CGO_LDFLAGS=-static
@@ -35,4 +34,4 @@ builds:
       - sqlite_json
       - sqlite_math_functions
 archives:
-  - formats: [ binary ]
+  - formats: [binary]

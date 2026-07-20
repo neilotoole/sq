@@ -10,7 +10,7 @@ menu:
 toc: false
 url: /docs/cmd/driver-ls
 aliases:
-- /docs/cmd/driver_ls
+  - /docs/cmd/driver_ls
 ---
 
 {{< readfile file="driver-ls.help.txt" code="true" lang="text" >}}

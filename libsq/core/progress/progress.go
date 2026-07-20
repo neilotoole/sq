@@ -479,8 +479,6 @@ func (lf *pcLifecycle) startStateRefreshLoop() {
 	}
 
 	go func() {
-		p := lf.p
-
 		defer func() {
 			if r := recover(); r != nil {
 				err := errz.Errorf("%v", r)
@@ -490,47 +488,56 @@ func (lf *pcLifecycle) startStateRefreshLoop() {
 		}()
 
 		for lf.next() {
-			t := time.Now()
-
-			p.mu.Lock()
-
-			if t.Before(p.notBefore) {
-				p.mu.Unlock()
-				continue
+			if lf.refreshState(time.Now()) {
+				return
 			}
-
-			allBars := slices.Clone(p.allBars)
-			p.activeVisibleBars = make([]*virtualBar, 0, p.groupThreshold)
-			p.activeInvisibleBars = make([]*virtualBar, 0)
-
-			for i := range allBars {
-				bar := allBars[i]
-				if !bar.isRenderable(t) {
-					continue
-				}
-
-				if len(p.activeVisibleBars) < p.groupThreshold {
-					bar.wantShow = true
-					p.activeVisibleBars = append(p.activeVisibleBars, bar)
-					continue
-				}
-
-				bar.wantShow = false
-				p.activeInvisibleBars = append(p.activeInvisibleBars, bar)
-			}
-
-			for i := range allBars {
-				if !lf.alive() {
-					p.mu.Unlock()
-					return
-				}
-				p.allBars[i].refresh(t)
-			}
-			p.groupBar.refresh(t)
-
-			p.mu.Unlock()
 		}
 	}()
+}
+
+// refreshState performs a single iteration of the state refresh loop at time t:
+// it partitions the renderable bars into Progress.activeVisibleBars and
+// Progress.activeInvisibleBars (overflow beyond Progress.groupThreshold), then
+// refreshes each bar and the group bar. It returns true if the caller should
+// stop the refresh loop, which happens when the lifecycle is no longer alive.
+func (lf *pcLifecycle) refreshState(t time.Time) (stop bool) {
+	p := lf.p
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if t.Before(p.notBefore) {
+		return false
+	}
+
+	allBars := slices.Clone(p.allBars)
+	p.activeVisibleBars = make([]*virtualBar, 0, p.groupThreshold)
+	p.activeInvisibleBars = make([]*virtualBar, 0)
+
+	for i := range allBars {
+		bar := allBars[i]
+		if !bar.isRenderable(t) {
+			continue
+		}
+
+		if len(p.activeVisibleBars) < p.groupThreshold {
+			bar.wantShow = true
+			p.activeVisibleBars = append(p.activeVisibleBars, bar)
+			continue
+		}
+
+		bar.wantShow = false
+		p.activeInvisibleBars = append(p.activeInvisibleBars, bar)
+	}
+
+	for i := range allBars {
+		if !lf.alive() {
+			return true
+		}
+		p.allBars[i].refresh(t)
+	}
+	p.groupBar.refresh(t)
+
+	return false
 }
 
 var _ Bar = nopBar{}

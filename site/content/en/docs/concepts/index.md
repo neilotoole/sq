@@ -8,9 +8,9 @@ weight: 1030
 toc: true
 url: /docs/concepts
 aliases:
-- /docs/terminology
-
+  - /docs/terminology
 ---
+
 ## sq
 
 `sq` is the command-line utility itself. It is free/libre open-source software, available
@@ -66,7 +66,6 @@ By default, `sq` requires that the first element of a query is the source handle
 
 ```shell
 $ sq '@sakila | .actor | .first_name, last_name'
-
 ```
 
 But if an active source is set, you can omit the handle:
@@ -178,7 +177,7 @@ but some drivers don't support the catalog mechanism. Here's a summary:
 <a name="catalog-schema-support"></a>
 
 | Driver                                 | Default schema       | Catalog support?                                                                                                        |
-|----------------------------------------|----------------------|-------------------------------------------------------------------------------------------------------------------------|
+| -------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | [Postgres](/docs/drivers/postgres)     | `public`             | Yes                                                                                                                     |
 | [SQLite](/docs/drivers/sqlite)         | `main`               | No                                                                                                                      |
 | [MySQL](/docs/drivers/mysql)           | Connection-dependent | [No](https://dev.mysql.com/doc/connector-odbc/en/connector-odbc-usagenotes-functionality-catalog-schema.html)           |

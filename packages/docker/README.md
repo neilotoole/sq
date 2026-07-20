@@ -14,7 +14,7 @@ $ docker run -it ghcr.io/neilotoole/sq zsh
 # Start container named "sq-shell" detached (in the background).
 $ docker run -d --name sq-shell ghcr.io/neilotoole/sq
 # Shell into that container.
-$ docker exec -it sq-shell zsh 
+$ docker exec -it sq-shell zsh
 ```
 
 ### Kubernetes
@@ -23,5 +23,5 @@ $ docker exec -it sq-shell zsh
 # Start pod named "sq-shell".
 $ kubectl run sq-shell --image ghcr.io/neilotoole/sq
 # Shell into the pod.
-$ kubectl exec -it sq-shell -- zsh 
+$ kubectl exec -it sq-shell -- zsh
 ```

@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -108,6 +109,137 @@ func runRecordDiffer(t *testing.T, numLines, hunkMaxSize int, equal []bool) (*fa
 	require.NoError(t, err)
 
 	return fake, string(out)
+}
+
+// TestRecordDifferExec_CancelMidLookahead is the regression test for issue
+// #906. When the context is canceled while exec is in its look-ahead loop, exec
+// has already created a hunk (via doc.NewHunk) but has not yet populated it (the
+// only path that seals it). exec must seal that orphaned hunk before returning,
+// otherwise a reader that traverses the doc's hunks blocks forever on the
+// unsealed hunk.
+func TestRecordDifferExec_CancelMidLookahead(t *testing.T) {
+	fake := &fakeHunkWriter{}
+	rd := &recordDiffer{
+		cfg: &Config{
+			// numLines=1 means the look-ahead needs two contiguous matching pairs
+			// before it stops, so a single matching pair leaves exec blocked in the
+			// look-ahead select, waiting for more.
+			Lines:            1,
+			HunkMaxSize:      100,
+			RecordHunkWriter: fake,
+		},
+		recMetaFn: func() (rm1, rm2 record.Meta) { return nil, nil },
+	}
+
+	doc := diffdoc.NewHunkDoc(
+		diffdoc.Titlef(nil, "test diff"),
+		diffdoc.Headerf(nil, "left", "right"),
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Unbuffered channel: each send completes only once exec receives it, which
+	// makes the sequence below deterministic with no timing assumptions.
+	ch := make(chan record.Pair)
+	execErrCh := make(chan error, 1)
+	go func() {
+		execErrCh <- rd.exec(ctx, ch, doc)
+	}()
+
+	// A differing pair makes exec create a hunk and enter the look-ahead loop.
+	ch <- record.NewPair(0, record.Record{"a0"}, record.Record{"b0"})
+	// A matching pair is consumed inside the look-ahead select; with numLines=1
+	// it is not enough to stop, so exec loops back to the select and waits.
+	ch <- record.NewPair(1, record.Record{"r1"}, record.Record{"r1"})
+	// Now exec is committed to the look-ahead select with an empty channel, so
+	// canceling makes it take the ctx-done branch (break LOOP) with a hunk
+	// created but not populated.
+	cancel()
+
+	err := <-execErrCh
+	require.Error(t, err, "exec should return the context error")
+
+	// The hunk was orphaned mid-look-ahead: it was created but populateHunk (the
+	// only path that calls the writer) never ran. Asserting the writer saw no
+	// hunks confirms we are exercising the orphaned-hunk path, not a normally
+	// populated one, so the test cannot pass for the wrong reason.
+	require.Empty(t, fake.hunks, "populateHunk must not have run on the cancel path")
+
+	// Seal the doc without an error to force the reader to traverse the hunks.
+	// (The production caller seals with the error, which short-circuits Read and
+	// masks an unsealed hunk; sealing nil here exposes it.)
+	doc.Seal(nil)
+
+	type readResult struct {
+		err error
+	}
+	done := make(chan readResult, 1)
+	go func() {
+		_, readErr := io.ReadAll(doc)
+		done <- readResult{err: readErr}
+	}()
+
+	select {
+	case res := <-done:
+		// Reader completed (did not hang): the orphaned hunk was sealed. It was
+		// sealed with the context error, so reading it surfaces that error, which
+		// also proves a hunk really was created and is now readable.
+		require.Error(t, res.err, "the orphaned hunk should be sealed with the context error")
+	case <-time.After(10 * time.Second):
+		t.Fatal("io.ReadAll hung: exec left a hunk unsealed (issue #906)")
+	}
+}
+
+// panicHunkWriter mimics recordHunkWriterAdapter.WriteHunk's contract: it always
+// seals the hunk via a defer (even when it panics), then panics. It is used to
+// prove that exec does not double-seal the hunk on a populateHunk panic, which
+// would replace the original panic with a confusing "already sealed" panic.
+type panicHunkWriter struct{}
+
+var _ RecordHunkWriter = panicHunkWriter{}
+
+func (panicHunkWriter) WriteHunk(_ context.Context, hunk *diffdoc.Hunk,
+	_, _ record.Meta, _ []record.Pair,
+) {
+	defer hunk.Seal(nil, nil)
+	panic("boom in WriteHunk")
+}
+
+// TestRecordDifferExec_WriteHunkPanicNoDoubleSeal guards the #906 fix against
+// regressing to a deferred seal. populateHunk (via WriteHunk) seals the hunk in
+// its own defer even on panic, so exec must not also seal it on the panic path,
+// or it double-seals and the original panic is masked.
+func TestRecordDifferExec_WriteHunkPanicNoDoubleSeal(t *testing.T) {
+	rd := &recordDiffer{
+		cfg: &Config{
+			// numLines=0 makes a single matching pair after the difference enough
+			// to close the look-ahead and reach populateHunk.
+			Lines:            0,
+			HunkMaxSize:      100,
+			RecordHunkWriter: panicHunkWriter{},
+		},
+		recMetaFn: func() (rm1, rm2 record.Meta) { return nil, nil },
+	}
+
+	doc := diffdoc.NewHunkDoc(
+		diffdoc.Titlef(nil, "test diff"),
+		diffdoc.Headerf(nil, "left", "right"),
+	)
+
+	ch := make(chan record.Pair, 2)
+	ch <- record.NewPair(0, record.Record{"a0"}, record.Record{"b0"}) // differs: creates a hunk
+	ch <- record.NewPair(1, record.Record{"r1"}, record.Record{"r1"}) // matches: closes look-ahead
+	close(ch)
+
+	defer func() {
+		r := recover()
+		require.NotNil(t, r, "exec should propagate the original WriteHunk panic")
+		require.Equal(t, "boom in WriteHunk", r,
+			"exec must not convert the WriteHunk panic into a double-seal panic")
+	}()
+
+	_ = rd.exec(context.Background(), ch, doc)
 }
 
 func TestRecordDifferExec(t *testing.T) {

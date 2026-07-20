@@ -85,7 +85,7 @@ func TestCmdTblDrop(t *testing.T) { //nolint:tparallel
 func TestCmdTblTruncate(t *testing.T) {
 	t.Parallel()
 
-	testCases := []string{sakila.MS, sakila.My, sakila.Pg9}
+	testCases := []string{sakila.MS, sakila.My, sakila.Pg}
 	for _, handle := range testCases {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()

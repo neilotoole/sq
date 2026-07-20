@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/options"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -58,9 +59,11 @@ func FKColumnSet(tbl *metadata.Table) map[string]bool {
 }
 
 // IsView reports whether tbl is a view (rather than a table). Table.TableType
-// is the driver-independent "table" / "view" value.
+// is the driver-independent canonical type; both "view" and "materialized_view"
+// are considered views.
 func IsView(tbl *metadata.Table) bool {
-	return tbl != nil && tbl.TableType == "view"
+	return tbl != nil &&
+		(tbl.TableType == sqlz.TableTypeView || tbl.TableType == sqlz.TableTypeMaterializedView)
 }
 
 // HasViews reports whether tables contains any view.
@@ -279,6 +282,39 @@ type UCRow struct {
 
 	// Columns are the constrained columns joined as "col, col".
 	Columns string
+}
+
+// ColumnAutoLabel returns the auto-population label for col: "identity" for SQL
+// IDENTITY columns, "auto_inc" for AUTO_INCREMENT columns (MySQL/SQLite), or
+// "generated" for computed/generated columns (GENERATED ALWAYS AS expr).
+// Returns "" when none of the flags are set. Priority order: identity >
+// auto_inc > generated.
+func ColumnAutoLabel(col *metadata.Column) string {
+	if col == nil {
+		return ""
+	}
+	switch {
+	case col.Identity:
+		return "identity"
+	case col.AutoIncrement:
+		return "auto_inc"
+	case col.Generated:
+		return "generated"
+	default:
+		return ""
+	}
+}
+
+// TriggerEnabledMark returns "✓" when enabled is true, "✗" when false, and
+// "" when nil (engine has no enabled/disabled concept).
+func TriggerEnabledMark(enabled *bool) string {
+	if enabled == nil {
+		return ""
+	}
+	if *enabled {
+		return "✓"
+	}
+	return "✗"
 }
 
 // UCRows flattens tbl's unique constraints into rows for tabular rendering,

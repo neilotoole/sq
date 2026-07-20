@@ -258,6 +258,14 @@ type SQLDriver interface {
 	// is often a scalar such as an int, string, or bool, but can be a nested
 	// map or array.
 	DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error)
+
+	// DBSemver returns the database server version as a canonical semver
+	// string (e.g. "v8.0.36"), comparable via golang.org/x/mod/semver. The
+	// value reflects the running server, parsed from the engine's native
+	// version string; it is distinct from the free-form
+	// metadata.Source.DBVersion display value. An error is returned if the
+	// version cannot be determined or parsed.
+	DBSemver(ctx context.Context, db sqlz.DB) (string, error)
 }
 
 // ReadOnlyConflictDetector is an optional interface implemented by
@@ -310,6 +318,14 @@ type Metadata struct {
 	// Monotable is true if this is a non-SQL document type that
 	// effectively has a single table, such as CSV.
 	Monotable bool `json:"monotable" yaml:"monotable"`
+
+	// IsEmbeddedSQL is true if this is an embedded (in-process, no separate
+	// server or network endpoint) SQL driver, such as SQLite or DuckDB. It is
+	// false for external SQL engines that connect over the network, including
+	// rqlite (which is SQLite-backed but reached over HTTP), and for all non-SQL
+	// drivers. An embedded SQL driver is exactly an [IsSQL] driver with no
+	// network endpoint.
+	IsEmbeddedSQL bool `json:"is_embedded_sql" yaml:"is_embedded_sql"`
 
 	// DefaultPort is the default port that a driver connects on. A
 	// value <= 0 indicates not applicable.

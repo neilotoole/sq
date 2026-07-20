@@ -15,6 +15,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/buildinfo"
@@ -46,6 +47,11 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/secret"
+	"github.com/neilotoole/sq/libsq/core/secret/env"
+	"github.com/neilotoole/sq/libsq/core/secret/file"
+	"github.com/neilotoole/sq/libsq/core/secret/keyring"
+	"github.com/neilotoole/sq/libsq/core/secret/op"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -95,10 +101,11 @@ type Helper struct {
 
 	Context context.Context
 
-	registry *driver.Registry
-	files    *files.Files
-	grips    *driver.Grips
-	run      *run.Run
+	registry  *driver.Registry
+	files     *files.Files
+	grips     *driver.Grips
+	secretReg *secret.Registry
+	run       *run.Run
 
 	coll     *source.Collection
 	srcCache map[string]*source.Source
@@ -179,7 +186,13 @@ func (h *Helper) init() {
 			assert.NoError(h.T, err)
 		})
 
-		h.grips = driver.NewGrips(h.registry, h.files, sqlite3.NewScratchSource)
+		// Secret registry mirrors the production CLI (see newSecretRegistry /
+		// cli/run.go). Stored on the Helper so the same instance resolves
+		// ${scheme:path} placeholders both in Grips (at connect time) and in
+		// Helper.Source (for harness helpers that bypass Grips, e.g. the
+		// file-copy logic and openNew).
+		h.secretReg = newSecretRegistry()
+		h.grips = driver.NewGrips(h.registry, h.files, h.secretReg, sqlite3.NewScratchSource)
 		h.Cleanup.AddC(h.grips)
 
 		h.registry.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: h.Log()})
@@ -260,8 +273,21 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 	require.False(h.T, h.coll.IsExistingSource(src.Handle),
 		"source {%s} already exists", src.Handle)
 
-	require.NoError(h.T, h.coll.Add(src))
+	// Resolve ${scheme:path} placeholders before storing, so the collection
+	// and cache both hold a concrete location; mirrors the resolution in
+	// Source for collection-loaded sources. init() must have run (via the
+	// h.Source(sakila.SL3) call above) before we reach here, so h.secretReg
+	// is set.
+	var err error
+	src, err = driver.ResolveSourceSecrets(h.Context, h.secretReg, src)
+	require.NoError(h.T, err, "resolve placeholders for %s", src.Handle)
 
+	// Unlike Source, Add does not make a per-test copy of file-based
+	// (SQLite/DuckDB) fixtures. A writable file source added here points at
+	// the original on-disk file, so a test that mutates it dirties the
+	// version-controlled fixture. Add a placeholder/path source only for
+	// read access, or copy the file yourself first.
+	require.NoError(h.T, h.coll.Add(src))
 	h.srcCache[src.Handle] = src
 
 	// envDiffDB is the name of the envar that controls whether the testing
@@ -276,22 +302,24 @@ func (h *Helper) Add(src *source.Source) *source.Source {
 }
 
 // Source returns a test Source with the given handle. The standard test
-// source collection is loaded from the sq config file at TestSourcesConfigPath,
-// (but additional sources can be added via Helper.Add). Variables
-// such as ${SQ_ROOT} in the config file are expanded. The same
-// instance of *source.Source will be returned for multiple invocations
-// of this method on the same Helper instance.
+// source collection is loaded from testh/testdata/test.sq.yml (but additional
+// sources can be added via Helper.Add). Placeholders such as ${env:SQ_ROOT}
+// in the config file are resolved. The same instance of *source.Source will
+// be returned for multiple invocations of this method on the same Helper instance.
 //
 // For certain file-based driver types, the returned src's Location
 // may point to a copy of the file. This helps avoid tests dirtying
 // a version-controlled data file.
 //
 // Any external database source (that is, any SQL source other than SQLite3)
-// will have its location determined from an envar. Given a source @sakila_pg12,
-// its location is derived from an envar SQ_TEST_SRC__SAKILA_PG12. If that envar
-// is not set, the test calling this method will be skipped. For @sakila_or23,
-// use SQ_TEST_SRC__SAKILA_OR23 (host:port/service_name go-ora URL fragment after
-// the @ in oracle://user:pass@…).
+// has its location supplied by an envar. The envar holds the complete DSN for
+// the source: host, port, credentials, database name, and any parameters.
+// test.sq.yml references it as the entire location via ${env:SQ_TEST_SRC__<HANDLE>}.
+// For example, @sakila_pg reads its location from SQ_TEST_SRC__SAKILA_PG,
+// which should be set to a value like postgres://sakila:p_ssW0rd@localhost:5432/sakila.
+// Similarly, @sakila_or reads from SQ_TEST_SRC__SAKILA_OR, set to a value
+// like oracle://sakila:p_ssW0rd@localhost:1521/SAKILA.
+// If the envar is not set, the test calling this method will be skipped.
 //
 // If envar SQ_TEST_DIFFDB is true, DiffDB is run on every SQL source
 // returned by Source.
@@ -336,7 +364,15 @@ func (h *Helper) Source(handle string) *source.Source {
 
 	src, err := h.coll.Get(handle)
 	require.NoError(t, err,
-		"source %s was not found in %s", handle, testsrc.PathSrcsConfig)
+		"source %s was not found in %s", handle, testsrc.PathTestConfig)
+
+	// Resolve ${scheme:path} placeholders (e.g. ${env:SQ_ROOT},
+	// ${env:SQ_TEST_SRC__*}) before the file-copy logic and caching, so every
+	// downstream path (file copy, openNew, RowCount) sees a concrete location.
+	// External sources with an unset envar were already skipped above, so this
+	// never errors on a missing ${env:SQ_TEST_SRC__*}.
+	src, err = driver.ResolveSourceSecrets(h.Context, h.secretReg, src)
+	require.NoError(t, err, "resolve placeholders for %s", handle)
 
 	if src.Type == drivertype.SQLite {
 		// This could be easily generalized for CSV/XLSX etc.
@@ -355,7 +391,7 @@ func (h *Helper) Source(handle string) *source.Source {
 		// SQLite pattern above.
 		//
 		// Skip when there is no on-disk file (e.g. duckdb://:memory: sources
-		// registered in sources.sq.yml): in-memory DBs are inherently per-
+		// registered in test.sq.yml): in-memory DBs are inherently per-
 		// connection so each test already gets its own.
 		srcPath, err := duckdb.PathFromLocation(src)
 		if err == nil {
@@ -381,8 +417,8 @@ func (h *Helper) Source(handle string) *source.Source {
 // SourceConfigured returns true if the source is configured. Note
 // that Helper.Source skips the test if the source is not configured: that
 // is to say, if the source location requires population via an envar, and
-// the envar is not set. For example, for the PostgreSQL source @sakila_pg12,
-// the envar SQ_TEST_SRC__SAKILA_PG12 is required. SourceConfigured tests
+// the envar is not set. For example, for the PostgreSQL source @sakila_pg,
+// the envar SQ_TEST_SRC__SAKILA_PG is required. SourceConfigured tests
 // if that envar is set.
 func (h *Helper) SourceConfigured(handle string) bool {
 	h.mu.Lock()
@@ -427,6 +463,23 @@ func (h *Helper) Open(src *source.Source) driver.Grip {
 
 	require.NoError(h.T, db.PingContext(ctx))
 	return grip
+}
+
+// DBSemverAtLeast reports whether the source at handle is running a server whose
+// canonical semver is >= minSemver (e.g. "v8.0.13"). It opens the source's grip
+// and reads DBSemver. Fails the test if the version cannot be determined. Use it
+// to version-guard tests that rely on features added in a specific server
+// version.
+func (h *Helper) DBSemverAtLeast(handle, minSemver string) bool {
+	h.T.Helper()
+	require.True(h.T, semver.IsValid(minSemver),
+		"DBSemverAtLeast: minSemver %q is not a valid canonical semver (e.g. \"v8.0.13\")", minSemver)
+	grip := h.Open(h.Source(handle))
+	v, err := grip.DBSemver(h.Context)
+	require.NoError(h.T, err)
+	require.True(h.T, semver.IsValid(v),
+		"DBSemverAtLeast: %s returned an invalid server semver %q", handle, v)
+	return semver.Compare(v, minSemver) >= 0
 }
 
 // OpenDB is a convenience method for getting the sql.DB for src.
@@ -614,7 +667,8 @@ func (h *Helper) CopyTable(
 		h.Cleanup.Add(func() { h.DropTable(src, toTable) })
 	}
 
-	h.Log().Debug("Copied table",
+	h.Log().Debug(
+		"Copied table",
 		lga.From, fromTable,
 		lga.To, toTable,
 		"copy_data", copyData,
@@ -875,15 +929,19 @@ func (h *Helper) DiffDB(src *source.Source) {
 }
 
 func mustLoadCollection(ctx context.Context, tb testing.TB) *source.Collection { //nolint:thelper
-	hookExpand := func(data []byte) ([]byte, error) {
-		// expand vars such as "${SQ_ROOT}"
-		return []byte(proj.Expand(string(data))), nil
+	path := proj.Abs(testsrc.PathTestConfig)
+	if override := strings.TrimSpace(os.Getenv(proj.EnvTestConfigFile)); override != "" {
+		// A relative SQ_TEST_CONFIG_FILE is resolved against the test
+		// process's working directory, which under `go test` is the package
+		// dir (so it differs per package). Prefer an absolute path.
+		abs, err := filepath.Abs(override)
+		require.NoError(tb, err)
+		path = abs
 	}
 
 	store := &yamlstore.Store{
-		Path:            proj.Abs(testsrc.PathSrcsConfig),
+		Path:            path,
 		OptionsRegistry: &options.Registry{},
-		HookLoad:        hookExpand,
 	}
 	cli.RegisterDefaultOpts(store.OptionsRegistry)
 
@@ -1045,4 +1103,19 @@ func MakeDuckDBSource(handle, path string) *source.Source {
 		Type:     drivertype.DuckDB,
 		Location: "duckdb://" + path,
 	}
+}
+
+// newSecretRegistry builds the secret.Registry used by the test harness's
+// Grips. It registers the same ${scheme:path} resolvers as the production
+// CLI (see cli/run.go) so test source Locations resolve placeholders at
+// connect time exactly as production does. Kept inline (not a shared package)
+// because the test sources realistically only use ${env:...}; if a third
+// consumer ever appears, extract a shared builder then.
+func newSecretRegistry() *secret.Registry {
+	reg := secret.NewRegistry()
+	reg.Register("keyring", keyring.NewStore())
+	reg.Register("env", env.NewResolver())
+	reg.Register("file", file.NewResolver())
+	reg.Register("op", op.NewResolver())
+	return reg
 }

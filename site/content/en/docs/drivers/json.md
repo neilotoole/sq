@@ -7,6 +7,7 @@ weight: 4055
 toc: true
 url: /docs/drivers/json
 ---
+
 The `sq` JSON drivers implement connectivity for
 [JSON](https://en.wikipedia.org/wiki/JSON), JSON Array, and
 [JSON Lines](https://en.wikipedia.org/wiki/JSON_streaming#Newline-Delimited_JSON) data sources.

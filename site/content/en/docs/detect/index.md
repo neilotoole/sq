@@ -1,13 +1,14 @@
 ---
 title: Detect
 description: Detect driver type, headers, and column kinds
-lead: ''
+lead: ""
 draft: false
 images: []
 weight: 1039
 toc: true
 url: /docs/detect
 ---
+
 In an ideal world, all data is strongly typed, and there's no ambiguity.
 Take a DB source:
 
@@ -189,22 +190,22 @@ table_type_db: BASE TABLE
 row_count: 200
 size: 73728
 columns:
-- name: actor_id
-  position: 1
-  primary_key: true
-  base_type: int4
-  column_type: integer
-  kind: int
-  nullable: false
-  default_value: nextval('actor_actor_id_seq'::regclass)
-- name: first_name
-  position: 2
-  primary_key: false
-  base_type: varchar
-  column_type: character varying
-  kind: text
-  nullable: false
-# [Truncated for brevity]
+  - name: actor_id
+    position: 1
+    primary_key: true
+    base_type: int4
+    column_type: integer
+    kind: int
+    nullable: false
+    default_value: nextval('actor_actor_id_seq'::regclass)
+  - name: first_name
+    position: 2
+    primary_key: false
+    base_type: varchar
+    column_type: character varying
+    kind: text
+    nullable: false
+  # [Truncated for brevity]
 ```
 
 Note that although the `column_type` values differ, both sources have the same `kind`
@@ -215,7 +216,7 @@ for each column.
 `sq` defines a kind for the most common data types.
 
 | Kind       | Example                |
-|------------|------------------------|
+| ---------- | ---------------------- |
 | `text`     | `seven`                |
 | `int`      | `7`                    |
 | `float`    | `7.12344556`           |
@@ -254,7 +255,7 @@ of precision: e.g. RFC3339 can accept second precision (e.g. `2006-01-02T15:04:0
 all the way down to nanosecond precision (`2006-01-02T15:04:05.999999999Z`).
 
 | Kind       | Example                                                                 | Note                                                                                              |
-|:-----------|-------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| :--------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `datetime` | <code>2006-01-02T15:04:05Z</code>                                       | [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339)                                          |
 | `datetime` | <code>Mon&nbsp;Jan&nbsp;2&nbsp;15:04:05&nbsp;2006</code>                | ANSI C                                                                                            |
 | `datetime` | <code>Mon&nbsp;Jan&nbsp;&nbsp;2&nbsp;15:04:05&nbsp;MST&nbsp;2006</code> | Unix date                                                                                         |

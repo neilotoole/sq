@@ -122,6 +122,21 @@ func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 	}
 	defer lg.WarnIfCloseError(log, lgm.CloseDB, conn)
 
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return errz.Err(err)
+	}
+	// Roll back unless we reach the explicit Commit below. Wrapping the whole
+	// ingest in one transaction collapses the per-row autocommit fsyncs that
+	// make this catastrophically slow on Windows (gh866; cache DB durability
+	// pragmas tracked in gh868).
+	committed := false
+	defer func() {
+		if !committed {
+			lg.WarnIfError(log, "Rollback JSONL ingest tx", errz.Err(tx.Rollback()))
+		}
+	}()
+
 	proc := newProcessor(job.flatten)
 	scan := newLineScanner(ctx, r, '{')
 
@@ -155,7 +170,7 @@ func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 					return err
 				}
 
-				if err = execSchemaDelta(ctx, drvr, conn, curSchema, newSchema); err != nil {
+				if err = execSchemaDelta(ctx, drvr, tx, curSchema, newSchema); err != nil {
 					return err
 				}
 
@@ -170,7 +185,7 @@ func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 					return err
 				}
 
-				if err = job.execInsertions(ctx, drvr, conn, insertions); err != nil {
+				if err = job.execInsertions(ctx, drvr, tx, insertions); err != nil {
 					return err
 				}
 			}
@@ -216,7 +231,7 @@ func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 			return err
 		}
 
-		if err = job.execInsertions(ctx, drvr, conn, insertions); err != nil {
+		if err = job.execInsertions(ctx, drvr, tx, insertions); err != nil {
 			return err
 		}
 	}
@@ -225,6 +240,12 @@ func ingestJSONL(ctx context.Context, job *ingestJob) error { //nolint:gocognit
 		return errz.New("empty JSONL input")
 	}
 
+	// tx.Commit marks the tx as done whether or not it succeeds, so the
+	// deferred rollback could only ever return ErrTxDone. Skip it either way.
+	committed = true
+	if err = tx.Commit(); err != nil {
+		return errz.Err(err)
+	}
 	return nil
 }
 

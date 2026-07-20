@@ -187,6 +187,20 @@ func TestIngestJSONL_Flat(t *testing.T) {
 			wantCols:  []string{"a", "b"},
 			wantKinds: []kind.Kind{kind.Float, kind.Int},
 		},
+		{
+			// One ingest that forces both an ALTER ADD COLUMN (new field "b"
+			// on the second line) and an ALTER COLUMN KIND (field "a" goes
+			// int -> float). With sampleSize 0 the schema is built after the
+			// first line, so the second line triggers both alters in a single
+			// execSchemaDelta while row 1 is already inserted. Guards the
+			// schema-delta-inside-transaction edge cases (gh866).
+			name: "add_col_and_kind_change",
+			input: `{"a": 1}
+{"a": 1.5, "b": 10}`,
+			wantRows:  2,
+			wantCols:  []string{"a", "b"},
+			wantKinds: []kind.Kind{kind.Float, kind.Int},
+		},
 	}
 
 	for _, tc := range testCases {

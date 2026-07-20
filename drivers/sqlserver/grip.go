@@ -17,11 +17,12 @@ import (
 
 // grip implements driver.Grip.
 type grip struct {
+	closeErr  error
 	log       *slog.Logger
-	drvr      *driveri
 	db        *sql.DB
 	src       *source.Source
-	closeErr  error
+	drvr      *driveri
+	semver    driver.SemverCache
 	closeOnce sync.Once
 }
 
@@ -60,9 +61,11 @@ WHERE TABLE_NAME = @p1`
 	progress.Incr(ctx, 1)
 	debugz.DebugSleep(ctx)
 
-	// TODO: getTableMetadata can cause deadlock in the DB. Needs further investigation.
-	// But a quick hack would be to use retry on a deadlock error.
-	return getTableMetadata(ctx, g.db, catalog, schema, tblName, tblType, true)
+	// The per-table catalog queries can lose a lock race against concurrent
+	// DDL and be chosen as a deadlock victim (error 1205); retry.
+	return loadWithRetry(ctx, func() (*metadata.Table, error) {
+		return getTableMetadata(ctx, g.db, catalog, schema, tblName, tblType, true)
+	})
 }
 
 // SourceMetadata implements driver.Grip.
@@ -72,6 +75,11 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	ctx = progress.NewBarContext(ctx, bar)
 
 	return getSourceMetadata(ctx, g.src, g.db, noSchema)
+}
+
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	return g.semver.Get(func() (string, error) { return g.drvr.DBSemver(ctx, g.db) })
 }
 
 // Close implements driver.Grip.

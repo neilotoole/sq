@@ -32,12 +32,3 @@ func TestRegistry_RegisterAndLookup(t *testing.T) {
 	_, err = reg.ResolveScheme(context.Background(), "unknown", "x")
 	require.ErrorIs(t, err, secret.ErrUnknownScheme)
 }
-
-func TestContextRoundTrip(t *testing.T) {
-	reg := secret.NewRegistry()
-	ctx := secret.NewContext(context.Background(), reg)
-	require.Same(t, reg, secret.FromContext(ctx))
-
-	// No registry on plain context → nil.
-	require.Nil(t, secret.FromContext(context.Background()))
-}

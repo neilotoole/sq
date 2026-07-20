@@ -71,7 +71,7 @@ smoke-test:
 site-test:
 	@$(LOGGER) log_separator
 	@$(LOGGER) log_info "Running site lint suite (CI-stable)"
-	@$(LOGGER) log_indent log_dim "scripts, styles, markdown, internal links"
+	@$(LOGGER) log_indent log_dim "internal link check (formatting + JS lint run at repo root via dprint/biome)"
 	bun run test:ci
 	@$(LOGGER) log_success "Lint suite passed"
 
@@ -79,7 +79,7 @@ site-test:
 site-test-full:
 	@$(LOGGER) log_separator
 	@$(LOGGER) log_info "Running full site lint suite"
-	@$(LOGGER) log_indent log_dim "scripts, styles, markdown, links (internal + external)"
+	@$(LOGGER) log_indent log_dim "links (internal + external); formatting + JS lint run at repo root via dprint/biome"
 	bun run test:full
 	@$(LOGGER) log_success "Full lint suite passed"
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -465,4 +466,53 @@ func TestDriver_CopyTable_TargetSchema(t *testing.T) {
 		"SELECT * FROM "+stringz.BacktickQuote(otherSchema)+"."+stringz.BacktickQuote(tblName))
 	require.NoError(t, err)
 	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
+}
+
+// TestCreateTable_PKColName_SortingKey verifies that CreateTable honors
+// schema.Table.PKColName as the MergeTree sorting key (#1029). ClickHouse has
+// no ANSI primary key: the ORDER BY / PRIMARY KEY key defines the sort order
+// without enforcing uniqueness, so PKColName maps to the sorting key and the
+// PK column is created non-nullable (a nullable column cannot be a sorting
+// key). This is the engine-specific counterpart to the cross-driver
+// TestDriver_CreateTable_PKColName in libsq/driver.
+func TestCreateTable_PKColName_SortingKey(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th, _, drvr, _, db := testh.NewWith(t, sakila.CH)
+	ctx := th.Context
+
+	tblName := stringz.UniqTableName("pk_col")
+	tblDef := schema.NewTable(tblName, []string{"id", "name"}, []kind.Kind{kind.Int, kind.Text})
+	tblDef.PKColName = "id"
+
+	require.NoError(t, drvr.CreateTable(ctx, db, tblDef))
+	t.Cleanup(func() { assert.NoError(t, drvr.DropTable(ctx, db, tablefq.From(tblName), true)) })
+
+	var sortingKey string
+	require.NoError(t, db.QueryRowContext(ctx,
+		"SELECT sorting_key FROM system.tables WHERE database = currentDatabase() AND name = ?",
+		tblName).Scan(&sortingKey))
+	require.Equal(t, "id", sortingKey, "PKColName must become the MergeTree sorting key")
+
+	// The PK column must be non-nullable even though the col def is nullable.
+	var idType string
+	require.NoError(t, db.QueryRowContext(ctx,
+		"SELECT type FROM system.columns WHERE database = currentDatabase() AND table = ? AND name = 'id'",
+		tblName).Scan(&idType))
+	require.Equal(t, "Int64", idType, "the PK column must not be Nullable")
+}
+
+func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+	th, src, _, grip, _ := testh.NewWith(t, sakila.CH)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
+	require.NotEqual(t, "v0.0.0", v, "want a real engine version, got degenerate %q", v)
+
+	md, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+	require.Equal(t, v, md.DBSemver, "metadata.Source.DBSemver must match Grip.DBSemver")
 }

@@ -53,7 +53,8 @@ func execConfigKeyringCreate(cmd *cobra.Command, args []string) error {
 	if _, err := kr.Resolve(cmd.Context(), path); err == nil {
 		return errz.Errorf(
 			"keyring entry already exists at %q: use 'sq config keyring update' to change its value",
-			path)
+			path,
+		)
 	} else if !errors.Is(err, secret.ErrNotFound) {
 		return err
 	}

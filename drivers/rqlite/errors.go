@@ -32,6 +32,18 @@ func errw(err error) error {
 	}
 }
 
+// stripURLError unwraps a *url.Error so its embedded raw URL, which may
+// carry inline credentials, is dropped and only the underlying cause is
+// kept. Non-*url.Error values pass through unchanged. Used wherever a
+// net/url-produced error could otherwise echo a source DSN's userinfo.
+func stripURLError(err error) error {
+	var uerr *url.Error
+	if errors.As(err, &uerr) {
+		return uerr.Err
+	}
+	return err
+}
+
 // isLoopbackHost reports whether host is a literal loopback reference.
 // Matches "localhost" (case-insensitive) and any IP whose net.IP
 // representation reports IsLoopback (covers 127.0.0.0/8, ::1, and

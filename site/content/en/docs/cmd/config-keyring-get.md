@@ -10,6 +10,7 @@ menu:
 toc: false
 url: /docs/cmd/config-keyring-get
 ---
+
 Part of the [`sq config keyring`](/docs/cmd/config-keyring) command group;
 see [Secrets](/docs/secrets) for the broader picture. By default this
 prints only that the entry exists; pass [`--reveal`](/docs/secrets#redaction)

@@ -29,6 +29,7 @@ import (
 var (
 	KindFromDBTypeName = kindFromDBTypeName
 	RTypeNullTime      = rtypeNullTime
+	GetTblRowCounts    = getTblRowCounts
 )
 
 // ExecNonTx executes query as a single non-transactional request via
@@ -236,6 +237,16 @@ func TestLocationWithDefaultPort(t *testing.T) {
 			require.Equal(t, tc.wantAdded, added)
 		})
 	}
+}
+
+// TestLocationWithDefaultPort_RedactsCreds verifies that a malformed
+// location whose url.Parse fails does not echo inline credentials: the
+// *url.Error from url.Parse embeds the raw location (password included),
+// so the error path must strip it.
+func TestLocationWithDefaultPort_RedactsCreds(t *testing.T) {
+	_, _, err := locationWithDefaultPort("rqlite://user:s3cret@\x7fbad-host:4001")
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "s3cret")
 }
 
 // TestCoerceFloat64 covers the per-kind reshaping that
@@ -790,6 +801,31 @@ func Test_rewritePeerDiscoveryError(t *testing.T) {
 			for _, sub := range tc.wantSubstrAll {
 				require.Contains(t, msg, sub, "rewritten message missing substring %q: %s", sub, msg)
 			}
+		})
+	}
+}
+
+func TestParseSemver(t *testing.T) {
+	testCases := []struct {
+		raw     string
+		want    string
+		wantErr bool
+	}{
+		{raw: "3.45.1", want: "v3.45.1"}, // rqlite reports its SQLite version
+		{raw: "3.46.0", want: "v3.46.0"},
+		{raw: "not-a-version", wantErr: true},
+		{raw: "", wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.raw, func(t *testing.T) {
+			got, err := parseSemver(tc.raw)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

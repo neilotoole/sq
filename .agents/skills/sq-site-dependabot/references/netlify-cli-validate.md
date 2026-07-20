@@ -6,11 +6,11 @@ This catches failures that `make ci` and stale GitHub checks miss.
 
 ## When to run
 
-| Mode       | Layer B                                              |
-| ---------- | ---------------------------------------------------- |
-| Audit      | No                                                   |
-| Validate   | Yes, when user asks for full local validation        |
-| Full       | **Required** before `gh pr review --approve`         |
+| Mode     | Layer B                                       |
+| -------- | --------------------------------------------- |
+| Audit    | No                                            |
+| Validate | Yes, when user asks for full local validation |
+| Full     | **Required** before `gh pr review --approve`  |
 
 ## Prerequisites
 

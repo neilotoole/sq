@@ -99,7 +99,8 @@ func TestQuerySQL_Smoke(t *testing.T) {
 			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 			require.Equal(t, len(tc.fieldTypes), len(sink.Recs[0]))
 			for i := range sink.Recs[0] {
-				require.Equal(t,
+				require.Equal(
+					t,
 					tc.fieldTypes[i].String(),
 					reflect.TypeOf(sink.Recs[0][i]).String(),
 					"expected field[%d] {%s} to have type %s but got %s",
@@ -169,7 +170,7 @@ func TestQuerySQL_Count(t *testing.T) { //nolint:tparallel
 // is the native counterpart to the SLQ coverage in TestQuery_oracle_fractionalNumber.
 func TestQuerySQL_OracleFractionalNumber(t *testing.T) {
 	th := testh.New(t)
-	src := th.Source(sakila.Ora23) // skips the test if Oracle is not configured.
+	src := th.Source(sakila.Ora) // skips the test if Oracle is not configured.
 
 	requireDecimal := func(sink *testh.RecordSink, want string) {
 		t.Helper()

@@ -7,6 +7,7 @@ weight: 4042
 toc: true
 url: /docs/drivers/duckdb
 ---
+
 `sq`'s DuckDB driver implements connectivity for
 [DuckDB](https://duckdb.org). It makes use of the backing
 [`duckdb/duckdb-go/v2`](https://github.com/duckdb/duckdb-go) library,
@@ -54,7 +55,7 @@ The driver statically links the standard set of in-tree DuckDB extensions.
 They are available immediately — no `INSTALL` or `LOAD` required:
 
 | Extension      | Purpose                               |
-|----------------|---------------------------------------|
+| -------------- | ------------------------------------- |
 | `json`         | JSON read/write functions             |
 | `parquet`      | Parquet read/write (`read_parquet()`) |
 | `icu`          | ICU collations and Unicode functions  |
@@ -88,17 +89,17 @@ Pass parameters as URL query strings after the file path:
 $ sq add 'duckdb:///path/db.duckdb?memory_limit=4GB&threads=4'
 ```
 
-| Parameter                | Values                       | Description                            |
-|--------------------------|------------------------------|----------------------------------------|
-| `access_mode`            | `READ_WRITE`, `READ_ONLY`    | Open the database read-only            |
-| `memory_limit`           | e.g. `4GB`                   | Maximum memory DuckDB may use          |
-| `threads`                | integer                      | Number of threads                      |
-| `default_order`          | `ASC`, `DESC`                | Default sort order                     |
-| `default_null_order`     | `NULLS_FIRST`, `NULLS_LAST`  | Default NULL sort position             |
-| `enable_external_access` | `true`, `false`              | Allow reading from external files/URLs |
-| `enable_object_cache`    | `true`, `false`              | Cache metadata for remote objects      |
-| `temp_directory`         | path                         | Directory for temporary files          |
-| `wal_autocheckpoint`     | e.g. `1000`                  | WAL autocheckpoint threshold (pages)   |
+| Parameter                | Values                      | Description                            |
+| ------------------------ | --------------------------- | -------------------------------------- |
+| `access_mode`            | `READ_WRITE`, `READ_ONLY`   | Open the database read-only            |
+| `memory_limit`           | e.g. `4GB`                  | Maximum memory DuckDB may use          |
+| `threads`                | integer                     | Number of threads                      |
+| `default_order`          | `ASC`, `DESC`               | Default sort order                     |
+| `default_null_order`     | `NULLS_FIRST`, `NULLS_LAST` | Default NULL sort position             |
+| `enable_external_access` | `true`, `false`             | Allow reading from external files/URLs |
+| `enable_object_cache`    | `true`, `false`             | Cache metadata for remote objects      |
+| `temp_directory`         | path                        | Directory for temporary files          |
+| `wal_autocheckpoint`     | e.g. `1000`                 | WAL autocheckpoint threshold (pages)   |
 
 DuckDB supports [many more settings](https://duckdb.org/docs/configuration/overview);
 the list above covers the parameters most commonly used from the CLI.
@@ -137,7 +138,7 @@ writes", and the user has to resolve the ambiguity before any open happens.
 ## Type mapping
 
 | DuckDB type                                               | `sq` kind  | Notes                                                                                                    |
-|-----------------------------------------------------------|------------|----------------------------------------------------------------------------------------------------------|
+| --------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------- |
 | `BOOLEAN`                                                 | `bool`     |                                                                                                          |
 | `TINYINT` … `BIGINT`, `UTINYINT`, `USMALLINT`, `UINTEGER` | `int`      |                                                                                                          |
 | `HUGEINT`, `UHUGEINT`, `UBIGINT`, `INT128`                | `decimal`  | Promoted to `decimal` because values can exceed `int64`.                                                 |

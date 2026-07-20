@@ -479,7 +479,7 @@ Values
 Insert into country
  (country_id,country,last_update)
 Values
-('79','Runion','2006-02-15 04:44:00.000')
+('79','Réunion','2006-02-15 04:44:00.000')
 ;
 Insert into country
  (country_id,country,last_update)
@@ -641,7 +641,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('1','A Corua (La Corua)','87','2006-02-15 04:45:25.000')
+('1','A Coruña (La Coruña)','87','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -656,7 +656,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('4','Acua','60','2006-02-15 04:45:25.000')
+('4','Acuña','60','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -766,7 +766,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('26','Anpolis','15','2006-02-15 04:45:25.000')
+('26','Anápolis','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -776,7 +776,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('28','Aparecida de Goinia','15','2006-02-15 04:45:25.000')
+('28','Aparecida de Goiânia','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -786,7 +786,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('30','Araatuba','15','2006-02-15 04:45:25.000')
+('30','Araçatuba','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -821,7 +821,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('37','Asuncin','73','2006-02-15 04:45:25.000')
+('37','Asunción','73','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -831,7 +831,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('39','Atinsk','80','2006-02-15 04:45:25.000')
+('39','Atšinsk','80','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -856,12 +856,12 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('44','Bag','15','2006-02-15 04:45:25.000')
+('44','Bagé','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('45','Baha Blanca','6','2006-02-15 04:45:25.000')
+('45','Bahía Blanca','6','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -881,7 +881,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('49','Balaiha','80','2006-02-15 04:45:25.000')
+('49','Balašiha','80','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -951,7 +951,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('63','Bchar','2','2006-02-15 04:45:25.000')
+('63','Béchar','2','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -966,7 +966,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('66','Belm','15','2006-02-15 04:45:25.000')
+('66','Belém','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1081,7 +1081,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('89','Braslia','15','2006-02-15 04:45:25.000')
+('89','Brasília','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1241,7 +1241,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('121','Citt del Vaticano','41','2006-02-15 04:45:25.000')
+('121','Città del Vaticano','41','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1256,7 +1256,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('124','Coacalco de Berriozbal','60','2006-02-15 04:45:25.000')
+('124','Coacalco de Berriozábal','60','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1276,12 +1276,12 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('128','Crdoba','6','2006-02-15 04:45:25.000')
+('128','Córdoba','6','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('129','Cuauhtmoc','60','2006-02-15 04:45:25.000')
+('129','Cuauhtémoc','60','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1296,7 +1296,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('132','Cuman','104','2006-02-15 04:45:25.000')
+('132','Cumaná','104','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1366,7 +1366,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('146','Donostia-San Sebastin','87','2006-02-15 04:45:25.000')
+('146','Donostia-San Sebastián','87','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1541,7 +1541,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('181','Gijn','87','2006-02-15 04:45:25.000')
+('181','Gijón','87','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1551,7 +1551,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('183','Goinia','15','2006-02-15 04:45:25.000')
+('183','Goiânia','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1581,12 +1581,12 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('189','Guaruj','15','2006-02-15 04:45:25.000')
+('189','Guarujá','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('190','guas Lindas de Gois','15','2006-02-15 04:45:25.000')
+('190','Águas Lindas de Goiás','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1686,7 +1686,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('210','Huaian','23','2006-02-15 04:45:25.000')
+('210','Huai´an','23','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1706,12 +1706,12 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('214','Hunuco','74','2006-02-15 04:45:25.000')
+('214','Huánuco','74','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('215','Ibirit','15','2006-02-15 04:45:25.000')
+('215','Ibirité','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1746,7 +1746,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('222','Inegl','97','2006-02-15 04:45:25.000')
+('222','Inegöl','97','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1816,7 +1816,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('236','Jastrzebie-Zdrj','76','2006-02-15 04:45:25.000')
+('236','Jastrzebie-Zdrój','76','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1866,7 +1866,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('246','Jos Azueta','60','2006-02-15 04:45:25.000')
+('246','José Azueta','60','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1886,7 +1886,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('250','Jurez','60','2006-02-15 04:45:25.000')
+('250','Juárez','60','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1931,7 +1931,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('259','Kamyin','80','2006-02-15 04:45:25.000')
+('259','Kamyšin','80','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -1986,7 +1986,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('270','Kirovo-Tepetsk','80','2006-02-15 04:45:25.000')
+('270','Kirovo-Tšepetsk','80','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2041,7 +2041,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('281','Ktahya','97','2006-02-15 04:45:25.000')
+('281','Kütahya','97','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2221,7 +2221,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('317','Luzinia','15','2006-02-15 04:45:25.000')
+('317','Luziânia','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2241,7 +2241,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('321','Malm','90','2006-02-15 04:45:25.000')
+('321','Malmö','90','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2266,7 +2266,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('326','Maracabo','104','2006-02-15 04:45:25.000')
+('326','Maracaíbo','104','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2276,7 +2276,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('328','Maring','15','2006-02-15 04:45:25.000')
+('328','Maringá','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2336,7 +2336,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('340','Molodetno','13','2006-02-15 04:45:25.000')
+('340','Molodetšno','13','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2361,7 +2361,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('345','Mukateve','100','2006-02-15 04:45:25.000')
+('345','Mukatševe','100','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2391,12 +2391,12 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('351','Naala-Porto','63','2006-02-15 04:45:25.000')
+('351','Naçala-Porto','63','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('352','Nabereznyje Telny','80','2006-02-15 04:45:25.000')
+('352','Nabereznyje Tšelny','80','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2461,7 +2461,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('365','Nezahualcyotl','60','2006-02-15 04:45:25.000')
+('365','Nezahualcóyotl','60','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2481,12 +2481,12 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('369','Novoterkassk','80','2006-02-15 04:45:25.000')
+('369','Novotšerkassk','80','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('370','Nukualofa','95','2006-02-15 04:45:25.000')
+('370','Nuku´alofa','95','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2561,7 +2561,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('385','ostka','100','2006-02-15 04:45:25.000')
+('385','Šostka','100','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2686,7 +2686,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('410','Po','15','2006-02-15 04:45:25.000')
+('410','Poá','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2701,7 +2701,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('413','Poos de Caldas','15','2006-02-15 04:45:25.000')
+('413','Poços de Caldas','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2806,7 +2806,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('434','Robamba','28','2006-02-15 04:45:25.000')
+('434','Ríobamba','28','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2826,12 +2826,12 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('438','s-Hertogenbosch','67','2006-02-15 04:45:25.000')
+('438','´s-Hertogenbosch','67','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('439','Saarbrcken','38','2006-02-15 04:45:25.000')
+('439','Saarbrücken','38','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2851,7 +2851,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('443','Sal','62','2006-02-15 04:45:25.000')
+('443','Salé','62','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2906,7 +2906,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('454','San Miguel de Tucumn','6','2006-02-15 04:45:25.000')
+('454','San Miguel de Tucumán','6','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2916,12 +2916,12 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('456','Santa Brbara dOeste','15','2006-02-15 04:45:25.000')
+('456','Santa Bárbara d´Oeste','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('457','Santa F','6','2006-02-15 04:45:25.000')
+('457','Santa Fé','6','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -2941,7 +2941,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('461','Santo Andr','15','2006-02-15 04:45:25.000')
+('461','Santo André','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -3061,12 +3061,12 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('485','So Bernardo do Campo','15','2006-02-15 04:45:25.000')
+('485','São Bernardo do Campo','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('486','So Leopoldo','15','2006-02-15 04:45:25.000')
+('486','São Leopoldo','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -3196,7 +3196,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('512','Szkesfehrvr','43','2006-02-15 04:45:25.000')
+('512','Székesfehérvár','43','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -3291,7 +3291,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('531','Teboksary','80','2006-02-15 04:45:25.000')
+('531','Tšeboksary','80','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -3341,7 +3341,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('541','Torren','60','2006-02-15 04:45:25.000')
+('541','Torreón','60','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -3361,7 +3361,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('545','Trshavn','32','2006-02-15 04:45:25.000')
+('545','Tórshavn','32','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -3471,7 +3471,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('567','Vicente Lpez','6','2006-02-15 04:45:25.000')
+('567','Vicente López','6','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -3496,7 +3496,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('572','Vitria de Santo Anto','15','2006-02-15 04:45:25.000')
+('572','Vitória de Santo Antão','15','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -3526,12 +3526,12 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('578','Xiangfan','23','2006-02-15 04:45:25.000')
+('578','Xi´angfan','23','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('579','Xiangtan','23','2006-02-15 04:45:25.000')
+('579','Xi´angtan','23','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -3561,7 +3561,7 @@ Values
 Insert into city
  (city_id,city,country_id,last_update)
 Values
-('585','Yaound','19','2006-02-15 04:45:25.000')
+('585','Yaoundé','19','2006-02-15 04:45:25.000')
 ;
 Insert into city
  (city_id,city,country_id,last_update)
@@ -3644,3017 +3644,3017 @@ Values
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('1','47 MySakila Drive',NULL,' ','300',NULL,' ','2006-02-15 04:45:30.000')
+ ('1','47 MySakila Drive',NULL,'Alberta','300',NULL,'','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('2','28 MySQL Boulevard',NULL,' ','576',NULL,' ','2006-02-15 04:45:30.000')
+ ('2','28 MySQL Boulevard',NULL,'QLD','576',NULL,'','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('3','23 Workhaven Lane',NULL,' ','300',NULL,' ','2006-02-15 04:45:30.000')
+ ('3','23 Workhaven Lane',NULL,'Alberta','300',NULL,'14033335568','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('4','1411 Lillydale Drive',NULL,' ','576',NULL,' ','2006-02-15 04:45:30.000')
+ ('4','1411 Lillydale Drive',NULL,'QLD','576',NULL,'6172235589','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('5','1913 Hanoi Way',NULL,' ','463','35200',' ','2006-02-15 04:45:30.000')
+ ('5','1913 Hanoi Way',NULL,'Nagasaki','463','35200','28303384290','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('6','1121 Loja Avenue',NULL,' ','449','17886',' ','2006-02-15 04:45:30.000')
+ ('6','1121 Loja Avenue',NULL,'California','449','17886','838635286649','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('7','692 Joliet Street',NULL,' ','38','83579',' ','2006-02-15 04:45:30.000')
+ ('7','692 Joliet Street',NULL,'Attika','38','83579','448477190408','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('8','1566 Inegl Manor',NULL,' ','349','53561',' ','2006-02-15 04:45:30.000')
+ ('8','1566 Inegöl Manor',NULL,'Mandalay','349','53561','705814003527','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('9','53 Idfu Parkway',NULL,' ','361','42399',' ','2006-02-15 04:45:30.000')
+ ('9','53 Idfu Parkway',NULL,'Nantou','361','42399','10655648674','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('10','1795 Santiago de Compostela Way',NULL,' ','295','18743',' ','2006-02-15 04:45:30.000')
+ ('10','1795 Santiago de Compostela Way',NULL,'Texas','295','18743','860452626434','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('11','900 Santiago de Compostela Parkway',NULL,' ','280','93896',' ','2006-02-15 04:45:30.000')
+ ('11','900 Santiago de Compostela Parkway',NULL,'Central Serbia','280','93896','716571220373','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('12','478 Joliet Way',NULL,' ','200','77948',' ','2006-02-15 04:45:30.000')
+ ('12','478 Joliet Way',NULL,'Hamilton','200','77948','657282285970','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('13','613 Korolev Drive',NULL,' ','329','45844',' ','2006-02-15 04:45:30.000')
+ ('13','613 Korolev Drive',NULL,'Masqat','329','45844','380657522649','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('14','1531 Sal Drive',NULL,' ','162','53628',' ','2006-02-15 04:45:30.000')
+ ('14','1531 Salé Drive',NULL,'Esfahan','162','53628','648856936185','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('15','1542 Tarlac Parkway',NULL,' ','440','1027',' ','2006-02-15 04:45:30.000')
+ ('15','1542 Tarlac Parkway',NULL,'Kanagawa','440','1027','635297277345','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('16','808 Bhopal Manor',NULL,' ','582','10672',' ','2006-02-15 04:45:30.000')
+ ('16','808 Bhopal Manor',NULL,'Haryana','582','10672','465887807014','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('17','270 Amroha Parkway',NULL,' ','384','29610',' ','2006-02-15 04:45:30.000')
+ ('17','270 Amroha Parkway',NULL,'Osmaniye','384','29610','695479687538','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('18','770 Bydgoszcz Avenue',NULL,' ','120','16266',' ','2006-02-15 04:45:30.000')
+ ('18','770 Bydgoszcz Avenue',NULL,'California','120','16266','517338314235','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('19','419 Iligan Lane',NULL,' ','76','72878',' ','2006-02-15 04:45:30.000')
+ ('19','419 Iligan Lane',NULL,'Madhya Pradesh','76','72878','990911107354','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('20','360 Toulouse Parkway',NULL,' ','495','54308',' ','2006-02-15 04:45:30.000')
+ ('20','360 Toulouse Parkway',NULL,'England','495','54308','949312333307','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('21','270 Toulon Boulevard',NULL,' ','156','81766',' ','2006-02-15 04:45:30.000')
+ ('21','270 Toulon Boulevard',NULL,'Kalmykia','156','81766','407752414682','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('22','320 Brest Avenue',NULL,' ','252','43331',' ','2006-02-15 04:45:30.000')
+ ('22','320 Brest Avenue',NULL,'Kaduna','252','43331','747791594069','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('23','1417 Lancaster Avenue',NULL,' ','267','72192',' ','2006-02-15 04:45:30.000')
+ ('23','1417 Lancaster Avenue',NULL,'Northern Cape','267','72192','272572357893','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('24','1688 Okara Way',NULL,' ','327','21954',' ','2006-02-15 04:45:30.000')
+ ('24','1688 Okara Way',NULL,'Nothwest Border Prov','327','21954','144453869132','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('25','262 A Corua (La Corua) Parkway',NULL,' ','525','34418',' ','2006-02-15 04:45:30.000')
+ ('25','262 A Coruña (La Coruña) Parkway',NULL,'Dhaka','525','34418','892775750063','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('26','28 Charlotte Amalie Street',NULL,' ','443','37551',' ','2006-02-15 04:45:30.000')
+ ('26','28 Charlotte Amalie Street',NULL,'Rabat-Sal-Zammour-Z','443','37551','161968374323','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('27','1780 Hino Boulevard',NULL,' ','303','7716',' ','2006-02-15 04:45:30.000')
+ ('27','1780 Hino Boulevard',NULL,'Liepaja','303','7716','902731229323','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('28','96 Tafuna Way',NULL,' ','128','99865',' ','2006-02-15 04:45:30.000')
+ ('28','96 Tafuna Way',NULL,'Córdoba','128','99865','934730187245','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('29','934 San Felipe de Puerto Plata Street',NULL,' ','472','99780',' ','2006-02-15 04:45:30.000')
+ ('29','934 San Felipe de Puerto Plata Street',NULL,'Sind','472','99780','196495945706','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('30','18 Duisburg Boulevard',NULL,' ','121','58327',' ','2006-02-15 04:45:30.000')
+ ('30','18 Duisburg Boulevard',NULL,'','121','58327','998009777982','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('31','217 Botshabelo Place',NULL,' ','138','49521',' ','2006-02-15 04:45:30.000')
+ ('31','217 Botshabelo Place',NULL,'Southern Mindanao','138','49521','665356572025','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('32','1425 Shikarpur Manor',NULL,' ','346','65599',' ','2006-02-15 04:45:30.000')
+ ('32','1425 Shikarpur Manor',NULL,'Bihar','346','65599','678220867005','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('33','786 Aurora Avenue',NULL,' ','474','65750',' ','2006-02-15 04:45:30.000')
+ ('33','786 Aurora Avenue',NULL,'Yamaguchi','474','65750','18461860151','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('34','1668 Anpolis Street',NULL,' ','316','50199',' ','2006-02-15 04:45:30.000')
+ ('34','1668 Anápolis Street',NULL,'Taipei','316','50199','525255540978','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('35','33 Gorontalo Way',NULL,' ','257','30348',' ','2006-02-15 04:45:30.000')
+ ('35','33 Gorontalo Way',NULL,'West Bengali','257','30348','745994947458','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('36','176 Mandaluyong Place',NULL,' ','239','65213',' ','2006-02-15 04:45:30.000')
+ ('36','176 Mandaluyong Place',NULL,'Uttar Pradesh','239','65213','627705991774','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('37','127 Purnea (Purnia) Manor',NULL,' ','17','79388',' ','2006-02-15 04:45:30.000')
+ ('37','127 Purnea (Purnia) Manor',NULL,'Piemonte','17','79388','911872220378','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('38','61 Tama Street',NULL,' ','284','94065',' ','2006-02-15 04:45:30.000')
+ ('38','61 Tama Street',NULL,'Okayama','284','94065','708403338270','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('39','391 Callao Drive',NULL,' ','544','34021',' ','2006-02-15 04:45:30.000')
+ ('39','391 Callao Drive',NULL,'Midi-Pyrnes','544','34021','440512153169','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('40','334 Munger (Monghyr) Lane',NULL,' ','31','38145',' ','2006-02-15 04:45:30.000')
+ ('40','334 Munger (Monghyr) Lane',NULL,'Markazi','31','38145','481183273622','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('41','1440 Fukuyama Loop',NULL,' ','362','47929',' ','2006-02-15 04:45:30.000')
+ ('41','1440 Fukuyama Loop',NULL,'Henan','362','47929','912257250465','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('42','269 Cam Ranh Parkway',NULL,' ','115','34689',' ','2006-02-15 04:45:30.000')
+ ('42','269 Cam Ranh Parkway',NULL,'Chisinau','115','34689','489783829737','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('43','306 Antofagasta Place',NULL,' ','569','3989',' ','2006-02-15 04:45:30.000')
+ ('43','306 Antofagasta Place',NULL,'Esprito Santo','569','3989','378318851631','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('44','671 Graz Street',NULL,' ','353','94399',' ','2006-02-15 04:45:30.000')
+ ('44','671 Graz Street',NULL,'Oriental','353','94399','680768868518','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('45','42 Brindisi Place',NULL,' ','586','16744',' ','2006-02-15 04:45:30.000')
+ ('45','42 Brindisi Place',NULL,'Yerevan','586','16744','42384721397','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('46','1632 Bislig Avenue',NULL,' ','394','61117',' ','2006-02-15 04:45:30.000')
+ ('46','1632 Bislig Avenue',NULL,'Nonthaburi','394','61117','471675840679','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('47','1447 Imus Way',NULL,' ','167','48942',' ','2006-02-15 04:45:30.000')
+ ('47','1447 Imus Way',NULL,'Tahiti','167','48942','539758313890','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('48','1998 Halifax Drive',NULL,' ','308','76022',' ','2006-02-15 04:45:30.000')
+ ('48','1998 Halifax Drive',NULL,'Lipetsk','308','76022','177727722820','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('49','1718 Valencia Street',NULL,' ','27','37359',' ','2006-02-15 04:45:30.000')
+ ('49','1718 Valencia Street',NULL,'Antofagasta','27','37359','675292816413','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('50','46 Pjatigorsk Lane',NULL,' ','343','23616',' ','2006-02-15 04:45:30.000')
+ ('50','46 Pjatigorsk Lane',NULL,'Moscow (City)','343','23616','262076994845','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('51','686 Garland Manor',NULL,' ','247','52535',' ','2006-02-15 04:45:30.000')
+ ('51','686 Garland Manor',NULL,'Cear','247','52535','69493378813','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('52','909 Garland Manor',NULL,' ','367','69367',' ','2006-02-15 04:45:30.000')
+ ('52','909 Garland Manor',NULL,'Tatarstan','367','69367','705800322606','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('53','725 Isesaki Place',NULL,' ','237','74428',' ','2006-02-15 04:45:30.000')
+ ('53','725 Isesaki Place',NULL,'Mekka','237','74428','876295323994','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('54','115 Hidalgo Parkway',NULL,' ','379','80168',' ','2006-02-15 04:45:30.000')
+ ('54','115 Hidalgo Parkway',NULL,'Khartum','379','80168','307703950263','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('55','1135 Izumisano Parkway',NULL,' ','171','48150',' ','2006-02-15 04:45:30.000')
+ ('55','1135 Izumisano Parkway',NULL,'California','171','48150','171822533480','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('56','939 Probolinggo Loop',NULL,' ','1','4166',' ','2006-02-15 04:45:30.000')
+ ('56','939 Probolinggo Loop',NULL,'Galicia','1','4166','680428310138','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('57','17 Kabul Boulevard',NULL,' ','355','38594',' ','2006-02-15 04:45:30.000')
+ ('57','17 Kabul Boulevard',NULL,'Chiba','355','38594','697760867968','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('58','1964 Allappuzha (Alleppey) Street',NULL,' ','227','48980',' ','2006-02-15 04:45:30.000')
+ ('58','1964 Allappuzha (Alleppey) Street',NULL,'Yamaguchi','227','48980','920811325222','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('59','1697 Kowloon and New Kowloon Loop',NULL,' ','49','57807',' ','2006-02-15 04:45:30.000')
+ ('59','1697 Kowloon and New Kowloon Loop',NULL,'Moskova','49','57807','499352017190','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('60','1668 Saint Louis Place',NULL,' ','397','39072',' ','2006-02-15 04:45:30.000')
+ ('60','1668 Saint Louis Place',NULL,'Tahiti','397','39072','347487831378','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('61','943 Tokat Street',NULL,' ','560','45428',' ','2006-02-15 04:45:30.000')
+ ('61','943 Tokat Street',NULL,'Vaduz','560','45428','889318963672','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('62','1114 Liepaja Street',NULL,' ','282','69226',' ','2006-02-15 04:45:30.000')
+ ('62','1114 Liepaja Street',NULL,'Sarawak','282','69226','212869228936','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('63','1213 Ranchi Parkway',NULL,' ','350','94352',' ','2006-02-15 04:45:30.000')
+ ('63','1213 Ranchi Parkway',NULL,'Karnataka','350','94352','800024380485','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('64','81 Hodeida Way',NULL,' ','231','55561',' ','2006-02-15 04:45:30.000')
+ ('64','81 Hodeida Way',NULL,'Rajasthan','231','55561','250767749542','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('65','915 Ponce Place',NULL,' ','56','83980',' ','2006-02-15 04:45:30.000')
+ ('65','915 Ponce Place',NULL,'Basel-Stadt','56','83980','1395251317','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('66','1717 Guadalajara Lane',NULL,' ','441','85505',' ','2006-02-15 04:45:30.000')
+ ('66','1717 Guadalajara Lane',NULL,'Missouri','441','85505','914090181665','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('67','1214 Hanoi Way',NULL,' ','306','67055',' ','2006-02-15 04:45:30.000')
+ ('67','1214 Hanoi Way',NULL,'Nebraska','306','67055','491001136577','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('68','1966 Amroha Avenue',NULL,' ','139','70385',' ','2006-02-15 04:45:30.000')
+ ('68','1966 Amroha Avenue',NULL,'Sichuan','139','70385','333489324603','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('69','698 Otsu Street',NULL,' ','105','71110',' ','2006-02-15 04:45:30.000')
+ ('69','698 Otsu Street',NULL,'Cayenne','105','71110','409983924481','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('70','1150 Kimchon Manor',NULL,' ','321','96109',' ','2006-02-15 04:45:30.000')
+ ('70','1150 Kimchon Manor',NULL,'Skne ln','321','96109','663449333709','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('71','1586 Guaruj Place',NULL,' ','579','5135',' ','2006-02-15 04:45:30.000')
+ ('71','1586 Guarujá Place',NULL,'Hunan','579','5135','947233365992','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('72','57 Arlington Manor',NULL,' ','475','48960',' ','2006-02-15 04:45:30.000')
+ ('72','57 Arlington Manor',NULL,'Madhya Pradesh','475','48960','990214419142','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('73','1031 Daugavpils Parkway',NULL,' ','63','59025',' ','2006-02-15 04:45:30.000')
+ ('73','1031 Daugavpils Parkway',NULL,'Béchar','63','59025','107137400143','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('74','1124 Buenaventura Drive',NULL,' ','13','6856',' ','2006-02-15 04:45:30.000')
+ ('74','1124 Buenaventura Drive',NULL,'Mekka','13','6856','407733804223','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('75','492 Cam Ranh Street',NULL,' ','61','50805',' ','2006-02-15 04:45:30.000')
+ ('75','492 Cam Ranh Street',NULL,'Eastern Visayas','61','50805','565018274456','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('76','89 Allappuzha (Alleppey) Manor',NULL,' ','517','75444',' ','2006-02-15 04:45:30.000')
+ ('76','89 Allappuzha (Alleppey) Manor',NULL,'National Capital Reg','517','75444','255800440636','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('77','1947 Poos de Caldas Boulevard',NULL,' ','114','60951',' ','2006-02-15 04:45:30.000')
+ ('77','1947 Poços de Caldas Boulevard',NULL,'Chiayi','114','60951','427454485876','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('78','1206 Dos Quebradas Place',NULL,' ','431','20207',' ','2006-02-15 04:45:30.000')
+ ('78','1206 Dos Quebradas Place',NULL,'São Paulo','431','20207','241832790687','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('79','1551 Rampur Lane',NULL,' ','108','72394',' ','2006-02-15 04:45:30.000')
+ ('79','1551 Rampur Lane',NULL,'Changhwa','108','72394','251164340471','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('80','602 Paarl Street',NULL,' ','402','98889',' ','2006-02-15 04:45:30.000')
+ ('80','602 Paarl Street',NULL,'Pavlodar','402','98889','896314772871','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('81','1692 Ede Loop',NULL,' ','30','9223',' ','2006-02-15 04:45:30.000')
+ ('81','1692 Ede Loop',NULL,'São Paulo','30','9223','918711376618','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('82','936 Salzburg Lane',NULL,' ','425','96709',' ','2006-02-15 04:45:30.000')
+ ('82','936 Salzburg Lane',NULL,'Uttar Pradesh','425','96709','875756771675','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('83','586 Tete Way',NULL,' ','256','1079',' ','2006-02-15 04:45:30.000')
+ ('83','586 Tete Way',NULL,'Kanagawa','256','1079','18581624103','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('84','1888 Kabul Drive',NULL,' ','217','20936',' ','2006-02-15 04:45:30.000')
+ ('84','1888 Kabul Drive',NULL,'Oyo & Osun','217','20936','701457319790','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('85','320 Baiyin Parkway',NULL,' ','319','37307',' ','2006-02-15 04:45:30.000')
+ ('85','320 Baiyin Parkway',NULL,'Mahajanga','319','37307','223664661973','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('86','927 Baha Blanca Parkway',NULL,' ','479','9495',' ','2006-02-15 04:45:30.000')
+ ('86','927 Bahía Blanca Parkway',NULL,'Krim','479','9495','821972242086','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('87','929 Tallahassee Loop',NULL,' ','497','74671',' ','2006-02-15 04:45:30.000')
+ ('87','929 Tallahassee Loop',NULL,'Gauteng','497','74671','800716535041','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('88','125 Citt del Vaticano Boulevard',NULL,' ','40','67912',' ','2006-02-15 04:45:30.000')
+ ('88','125 Città del Vaticano Boulevard',NULL,'Puebla','40','67912','48417642933','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('89','1557 Ktahya Boulevard',NULL,' ','88','88002',' ','2006-02-15 04:45:30.000')
+ ('89','1557 Kütahya Boulevard',NULL,'England','88','88002','720998247660','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('90','870 Ashqelon Loop',NULL,' ','489','84931',' ','2006-02-15 04:45:30.000')
+ ('90','870 Ashqelon Loop',NULL,'Songkhla','489','84931','135117278909','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('91','1740 Portoviejo Avenue',NULL,' ','480','29932',' ','2006-02-15 04:45:30.000')
+ ('91','1740 Portoviejo Avenue',NULL,'Sucre','480','29932','198123170793','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('92','1942 Ciparay Parkway',NULL,' ','113','82624',' ','2006-02-15 04:45:30.000')
+ ('92','1942 Ciparay Parkway',NULL,'Cheju','113','82624','978987363654','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('93','1926 El Alto Avenue',NULL,' ','289','75543',' ','2006-02-15 04:45:30.000')
+ ('93','1926 El Alto Avenue',NULL,'Buenos Aires','289','75543','846225459260','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('94','1952 Chatsworth Drive',NULL,' ','332','25958',' ','2006-02-15 04:45:30.000')
+ ('94','1952 Chatsworth Drive',NULL,'Guangdong','332','25958','991562402283','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('95','1370 Le Mans Avenue',NULL,' ','53','52163',' ','2006-02-15 04:45:30.000')
+ ('95','1370 Le Mans Avenue',NULL,'Brunei and Muara','53','52163','345679835036','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('96','984 Effon-Alaiye Avenue',NULL,' ','183','17119',' ','2006-02-15 04:45:30.000')
+ ('96','984 Effon-Alaiye Avenue',NULL,'Gois','183','17119','132986892228','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('97','832 Nakhon Sawan Manor',NULL,' ','592','49021',' ','2006-02-15 04:45:30.000')
+ ('97','832 Nakhon Sawan Manor',NULL,'Inner Mongolia','592','49021','275595571388','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('98','152 Kitwe Parkway',NULL,' ','82','53182',' ','2006-02-15 04:45:30.000')
+ ('98','152 Kitwe Parkway',NULL,'Caraga','82','53182','835433605312','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('99','1697 Tanauan Lane',NULL,' ','399','22870',' ','2006-02-15 04:45:30.000')
+ ('99','1697 Tanauan Lane',NULL,'Punjab','399','22870','4764773857','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('100','1308 Arecibo Way',NULL,' ','41','30695',' ','2006-02-15 04:45:30.000')
+ ('100','1308 Arecibo Way',NULL,'Georgia','41','30695','6171054059','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('101','1599 Plock Drive',NULL,' ','534','71986',' ','2006-02-15 04:45:30.000')
+ ('101','1599 Plock Drive',NULL,'Tete','534','71986','817248913162','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('102','669 Firozabad Loop',NULL,' ','12','92265',' ','2006-02-15 04:45:30.000')
+ ('102','669 Firozabad Loop',NULL,'Abu Dhabi','12','92265','412903167998','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('103','588 Vila Velha Manor',NULL,' ','268','51540',' ','2006-02-15 04:45:30.000')
+ ('103','588 Vila Velha Manor',NULL,'Kyongsangbuk','268','51540','333339908719','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('104','1913 Kamakura Place',NULL,' ','238','97287',' ','2006-02-15 04:45:30.000')
+ ('104','1913 Kamakura Place',NULL,'Lipetsk','238','97287','942570536750','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('105','733 Mandaluyong Place',NULL,' ','2','77459',' ','2006-02-15 04:45:30.000')
+ ('105','733 Mandaluyong Place',NULL,'Asir','2','77459','196568435814','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('106','659 Vaduz Drive',NULL,' ','34','49708',' ','2006-02-15 04:45:30.000')
+ ('106','659 Vaduz Drive',NULL,'Ha Darom','34','49708','709935135487','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('107','1177 Jelets Way',NULL,' ','220','3305',' ','2006-02-15 04:45:30.000')
+ ('107','1177 Jelets Way',NULL,'Kwara & Kogi','220','3305','484292626944','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('108','1386 Yangor Avenue',NULL,' ','543','80720',' ','2006-02-15 04:45:30.000')
+ ('108','1386 Yangor Avenue',NULL,'Provence-Alpes-Cte','543','80720','449216226468','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('109','454 Nakhon Sawan Boulevard',NULL,' ','173','76383',' ','2006-02-15 04:45:30.000')
+ ('109','454 Nakhon Sawan Boulevard',NULL,'Funafuti','173','76383','963887147572','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('110','1867 San Juan Bautista Tuxtepec Avenue',NULL,' ','225','78311',' ','2006-02-15 04:45:30.000')
+ ('110','1867 San Juan Bautista Tuxtepec Avenue',NULL,'Ivanovo','225','78311','547003310357','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('111','1532 Dzerzinsk Way',NULL,' ','334','9599',' ','2006-02-15 04:45:30.000')
+ ('111','1532 Dzerzinsk Way',NULL,'Buenos Aires','334','9599','330838016880','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('112','1002 Ahmadnagar Manor',NULL,' ','213','93026',' ','2006-02-15 04:45:30.000')
+ ('112','1002 Ahmadnagar Manor',NULL,'Mxico','213','93026','371490777743','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('113','682 Junan Way',NULL,' ','273','30418',' ','2006-02-15 04:45:30.000')
+ ('113','682 Junan Way',NULL,'North West','273','30418','622255216127','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('114','804 Elista Drive',NULL,' ','159','61069',' ','2006-02-15 04:45:30.000')
+ ('114','804 Elista Drive',NULL,'Hubei','159','61069','379804592943','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('115','1378 Alvorada Avenue',NULL,' ','102','75834',' ','2006-02-15 04:45:30.000')
+ ('115','1378 Alvorada Avenue',NULL,'Distrito Federal','102','75834','272234298332','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('116','793 Cam Ranh Avenue',NULL,' ','292','87057',' ','2006-02-15 04:45:30.000')
+ ('116','793 Cam Ranh Avenue',NULL,'California','292','87057','824370924746','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('117','1079 Tel Aviv-Jaffa Boulevard',NULL,' ','132','10885',' ','2006-02-15 04:45:30.000')
+ ('117','1079 Tel Aviv-Jaffa Boulevard',NULL,'Sucre','132','10885','358178933857','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('118','442 Rae Bareli Place',NULL,' ','148','24321',' ','2006-02-15 04:45:30.000')
+ ('118','442 Rae Bareli Place',NULL,'Nordrhein-Westfalen','148','24321','886636413768','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('119','1107 Nakhon Sawan Avenue',NULL,' ','365','75149',' ','2006-02-15 04:45:30.000')
+ ('119','1107 Nakhon Sawan Avenue',NULL,'Mxico','365','75149','867546627903','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('120','544 Malm Parkway',NULL,' ','403','63502',' ','2006-02-15 04:45:30.000')
+ ('120','544 Malmö Parkway',NULL,'Central Java','403','63502','386759646229','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('121','1967 Sincelejo Place',NULL,' ','176','73644',' ','2006-02-15 04:45:30.000')
+ ('121','1967 Sincelejo Place',NULL,'Gujarat','176','73644','577812616052','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('122','333 Goinia Way',NULL,' ','185','78625',' ','2006-02-15 04:45:30.000')
+ ('122','333 Goiânia Way',NULL,'Texas','185','78625','909029256431','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('123','1987 Coacalco de Berriozbal Loop',NULL,' ','476','96065',' ','2006-02-15 04:45:30.000')
+ ('123','1987 Coacalco de Berriozábal Loop',NULL,'al-Qalyubiya','476','96065','787654415858','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('124','241 Mosul Lane',NULL,' ','147','76157',' ','2006-02-15 04:45:30.000')
+ ('124','241 Mosul Lane',NULL,'Risaralda','147','76157','765345144779','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('125','211 Chiayi Drive',NULL,' ','164','58186',' ','2006-02-15 04:45:30.000')
+ ('125','211 Chiayi Drive',NULL,'Uttar Pradesh','164','58186','665993880048','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('126','1175 Tanauan Way',NULL,' ','305','64615',' ','2006-02-15 04:45:30.000')
+ ('126','1175 Tanauan Way',NULL,'Lima','305','64615','937222955822','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('127','117 Boa Vista Way',NULL,' ','566','6804',' ','2006-02-15 04:45:30.000')
+ ('127','117 Boa Vista Way',NULL,'Uttar Pradesh','566','6804','677976133614','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('128','848 Tafuna Manor',NULL,' ','281','45142',' ','2006-02-15 04:45:30.000')
+ ('128','848 Tafuna Manor',NULL,'Kütahya','281','45142','614935229095','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('129','569 Baicheng Lane',NULL,' ','85','60304',' ','2006-02-15 04:45:30.000')
+ ('129','569 Baicheng Lane',NULL,'Gauteng','85','60304','490211944645','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('130','1666 Qomsheh Drive',NULL,' ','410','66255',' ','2006-02-15 04:45:30.000')
+ ('130','1666 Qomsheh Drive',NULL,'São Paulo','410','66255','582835362905','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('131','801 Hagonoy Drive',NULL,' ','484','8439',' ','2006-02-15 04:45:30.000')
+ ('131','801 Hagonoy Drive',NULL,'Smolensk','484','8439','237426099212','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('132','1050 Garden Grove Avenue',NULL,' ','236','4999',' ','2006-02-15 04:45:30.000')
+ ('132','1050 Garden Grove Avenue',NULL,'Slaskie','236','4999','973047364353','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('133','1854 Tieli Street',NULL,' ','302','15819',' ','2006-02-15 04:45:30.000')
+ ('133','1854 Tieli Street',NULL,'Shandong','302','15819','509492324775','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('134','758 Junan Lane',NULL,' ','190','82639',' ','2006-02-15 04:45:30.000')
+ ('134','758 Junan Lane',NULL,'Gois','190','82639','935448624185','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('135','1752 So Leopoldo Parkway',NULL,' ','345','14014',' ','2006-02-15 04:45:30.000')
+ ('135','1752 São Leopoldo Parkway',NULL,'Taka-Karpatia','345','14014','252265130067','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('136','898 Belm Manor',NULL,' ','87','49757',' ','2006-02-15 04:45:30.000')
+ ('136','898 Belém Manor',NULL,'Free State','87','49757','707169393853','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('137','261 Saint Louis Way',NULL,' ','541','83401',' ','2006-02-15 04:45:30.000')
+ ('137','261 Saint Louis Way',NULL,'Coahuila de Zaragoza','541','83401','321944036800','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('138','765 Southampton Drive',NULL,' ','421','4285',' ','2006-02-15 04:45:30.000')
+ ('138','765 Southampton Drive',NULL,'al-Qalyubiya','421','4285','23712411567','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('139','943 Johannesburg Avenue',NULL,' ','417','5892',' ','2006-02-15 04:45:30.000')
+ ('139','943 Johannesburg Avenue',NULL,'Maharashtra','417','5892','90921003005','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('140','788 Atinsk Street',NULL,' ','211','81691',' ','2006-02-15 04:45:30.000')
+ ('140','788 Atšinsk Street',NULL,'Karnataka','211','81691','146497509724','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('141','1749 Daxian Place',NULL,' ','29','11044',' ','2006-02-15 04:45:30.000')
+ ('141','1749 Daxian Place',NULL,'Gelderland','29','11044','963369996279','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('142','1587 Sullana Lane',NULL,' ','207','85769',' ','2006-02-15 04:45:30.000')
+ ('142','1587 Sullana Lane',NULL,'Inner Mongolia','207','85769','468060467018','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('143','1029 Dzerzinsk Manor',NULL,' ','542','57519',' ','2006-02-15 04:45:30.000')
+ ('143','1029 Dzerzinsk Manor',NULL,'Ynlin','542','57519','33173584456','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('144','1666 Beni-Mellal Place',NULL,' ','123','13377',' ','2006-02-15 04:45:30.000')
+ ('144','1666 Beni-Mellal Place',NULL,'Tennessee','123','13377','9099941466','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('145','928 Jaffna Loop',NULL,' ','172','93762',' ','2006-02-15 04:45:30.000')
+ ('145','928 Jaffna Loop',NULL,'Hiroshima','172','93762','581852137991','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('146','483 Ljubertsy Parkway',NULL,' ','149','60562',' ','2006-02-15 04:45:30.000')
+ ('146','483 Ljubertsy Parkway',NULL,'Scotland','149','60562','581174211853','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('147','374 Bat Yam Boulevard',NULL,' ','266','97700',' ','2006-02-15 04:45:30.000')
+ ('147','374 Bat Yam Boulevard',NULL,'Kilis','266','97700','923261616249','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('148','1027 Songkhla Manor',NULL,' ','340','30861',' ','2006-02-15 04:45:30.000')
+ ('148','1027 Songkhla Manor',NULL,'Minsk','340','30861','563660187896','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('149','999 Sanaa Loop',NULL,' ','491','3439',' ','2006-02-15 04:45:30.000')
+ ('149','999 Sanaa Loop',NULL,'Gauteng','491','3439','918032330119','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('150','879 Newcastle Way',NULL,' ','499','90732',' ','2006-02-15 04:45:30.000')
+ ('150','879 Newcastle Way',NULL,'Michigan','499','90732','206841104594','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('151','1337 Lincoln Parkway',NULL,' ','555','99457',' ','2006-02-15 04:45:30.000')
+ ('151','1337 Lincoln Parkway',NULL,'Saitama','555','99457','597815221267','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('152','1952 Pune Lane',NULL,' ','442','92150',' ','2006-02-15 04:45:30.000')
+ ('152','1952 Pune Lane',NULL,'Saint-Denis','442','92150','354615066969','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('153','782 Mosul Street',NULL,' ','94','25545',' ','2006-02-15 04:45:30.000')
+ ('153','782 Mosul Street',NULL,'Massachusetts','94','25545','885899703621','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('154','781 Shimonoseki Drive',NULL,' ','202','95444',' ','2006-02-15 04:45:30.000')
+ ('154','781 Shimonoseki Drive',NULL,'Michoacn de Ocampo','202','95444','632316273199','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('155','1560 Jelets Boulevard',NULL,' ','291','77777',' ','2006-02-15 04:45:30.000')
+ ('155','1560 Jelets Boulevard',NULL,'Shandong','291','77777','189446090264','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('156','1963 Moscow Place',NULL,' ','354','64863',' ','2006-02-15 04:45:30.000')
+ ('156','1963 Moscow Place',NULL,'Assam','354','64863','761379480249','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('157','456 Escobar Way',NULL,' ','232','36061',' ','2006-02-15 04:45:30.000')
+ ('157','456 Escobar Way',NULL,'Jakarta Raya','232','36061','719202533520','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('158','798 Cianjur Avenue',NULL,' ','590','76990',' ','2006-02-15 04:45:30.000')
+ ('158','798 Cianjur Avenue',NULL,'Shanxi','590','76990','499408708580','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('159','185 Novi Sad Place',NULL,' ','72','41778',' ','2006-02-15 04:45:30.000')
+ ('159','185 Novi Sad Place',NULL,'Bern','72','41778','904253967161','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('160','1367 Yantai Manor',NULL,' ','381','21294',' ','2006-02-15 04:45:30.000')
+ ('160','1367 Yantai Manor',NULL,'Ondo & Ekiti','381','21294','889538496300','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('161','1386 Nakhon Sawan Boulevard',NULL,' ','420','53502',' ','2006-02-15 04:45:30.000')
+ ('161','1386 Nakhon Sawan Boulevard',NULL,'Pyongyang-si','420','53502','368899174225','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('162','369 Papeete Way',NULL,' ','187','66639',' ','2006-02-15 04:45:30.000')
+ ('162','369 Papeete Way',NULL,'North Carolina','187','66639','170117068815','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('163','1440 Compton Place',NULL,' ','307','81037',' ','2006-02-15 04:45:30.000')
+ ('163','1440 Compton Place',NULL,'North Austria','307','81037','931059836497','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('164','1623 Baha Blanca Manor',NULL,' ','310','81511',' ','2006-02-15 04:45:30.000')
+ ('164','1623 Bahía Blanca Manor',NULL,'Moskova','310','81511','149981248346','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('165','97 Shimoga Avenue',NULL,' ','533','44660',' ','2006-02-15 04:45:30.000')
+ ('165','97 Shimoga Avenue',NULL,'Tel Aviv','533','44660','177167004331','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('166','1740 Le Mans Loop',NULL,' ','297','22853',' ','2006-02-15 04:45:30.000')
+ ('166','1740 Le Mans Loop',NULL,'Pays de la Loire','297','22853','168476538960','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('167','1287 Xiangfan Boulevard',NULL,' ','253','57844',' ','2006-02-15 04:45:30.000')
+ ('167','1287 Xi´angfan Boulevard',NULL,'Gifu','253','57844','819416131190','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('168','842 Salzburg Lane',NULL,' ','529','3313',' ','2006-02-15 04:45:30.000')
+ ('168','842 Salzburg Lane',NULL,'Adana','529','3313','697151428760','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('169','154 Tallahassee Loop',NULL,' ','199','62250',' ','2006-02-15 04:45:30.000')
+ ('169','154 Tallahassee Loop',NULL,'Xinxiang','199','62250','935508855935','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('170','710 San Felipe del Progreso Avenue',NULL,' ','304','76901',' ','2006-02-15 04:45:30.000')
+ ('170','710 San Felipe del Progreso Avenue',NULL,'Lilongwe','304','76901','843801144113','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('171','1540 Wroclaw Drive',NULL,' ','107','62686',' ','2006-02-15 04:45:30.000')
+ ('171','1540 Wroclaw Drive',NULL,'Maharashtra','107','62686','182363341674','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('172','475 Atinsk Way',NULL,' ','240','59571',' ','2006-02-15 04:45:30.000')
+ ('172','475 Atšinsk Way',NULL,'Gansu','240','59571','201705577290','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('173','1294 Firozabad Drive',NULL,' ','407','70618',' ','2006-02-15 04:45:30.000')
+ ('173','1294 Firozabad Drive',NULL,'Ji´angxi','407','70618','161801569569','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('174','1877 Ezhou Lane',NULL,' ','550','63337',' ','2006-02-15 04:45:30.000')
+ ('174','1877 Ezhou Lane',NULL,'Rajasthan','550','63337','264541743403','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('175','316 Uruapan Street',NULL,' ','223','58194',' ','2006-02-15 04:45:30.000')
+ ('175','316 Uruapan Street',NULL,'Perak','223','58194','275788967899','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('176','29 Pyongyang Loop',NULL,' ','58','47753',' ','2006-02-15 04:45:30.000')
+ ('176','29 Pyongyang Loop',NULL,'Batman','58','47753','734780743462','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('177','1010 Klerksdorp Way',NULL,' ','186','6802',' ','2006-02-15 04:45:30.000')
+ ('177','1010 Klerksdorp Way',NULL,'Steiermark','186','6802','493008546874','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('178','1848 Salala Boulevard',NULL,' ','373','25220',' ','2006-02-15 04:45:30.000')
+ ('178','1848 Salala Boulevard',NULL,'Miranda','373','25220','48265851133','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('179','431 Xiangtan Avenue',NULL,' ','18','4854',' ','2006-02-15 04:45:30.000')
+ ('179','431 Xi´angtan Avenue',NULL,'Kerala','18','4854','230250973122','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('180','757 Rustenburg Avenue',NULL,' ','483','89668',' ','2006-02-15 04:45:30.000')
+ ('180','757 Rustenburg Avenue',NULL,'Skikda','483','89668','506134035434','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('181','146 Johannesburg Way',NULL,' ','330','54132',' ','2006-02-15 04:45:30.000')
+ ('181','146 Johannesburg Way',NULL,'Tamaulipas','330','54132','953689007081','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('182','1891 Rizhao Boulevard',NULL,' ','456','47288',' ','2006-02-15 04:45:30.000')
+ ('182','1891 Rizhao Boulevard',NULL,'São Paulo','456','47288','391065549876','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('183','1089 Iwatsuki Avenue',NULL,' ','270','35109',' ','2006-02-15 04:45:30.000')
+ ('183','1089 Iwatsuki Avenue',NULL,'Kirov','270','35109','866092335135','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('184','1410 Benin City Parkway',NULL,' ','405','29747',' ','2006-02-15 04:45:30.000')
+ ('184','1410 Benin City Parkway',NULL,'Risaralda','405','29747','104150372603','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('185','682 Garden Grove Place',NULL,' ','333','67497',' ','2006-02-15 04:45:30.000')
+ ('185','682 Garden Grove Place',NULL,'Tennessee','333','67497','72136330362','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('186','533 al-Ayn Boulevard',NULL,' ','126','8862',' ','2006-02-15 04:45:30.000')
+ ('186','533 al-Ayn Boulevard',NULL,'California','126','8862','662227486184','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('187','1839 Szkesfehrvr Parkway',NULL,' ','317','55709',' ','2006-02-15 04:45:30.000')
+ ('187','1839 Székesfehérvár Parkway',NULL,'Gois','317','55709','947468818183','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('188','741 Ambattur Manor',NULL,' ','438','43310',' ','2006-02-15 04:45:30.000')
+ ('188','741 Ambattur Manor',NULL,'Noord-Brabant','438','43310','302590383819','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('189','927 Barcelona Street',NULL,' ','467','65121',' ','2006-02-15 04:45:30.000')
+ ('189','927 Barcelona Street',NULL,'Chaharmahal va Bakht','467','65121','951486492670','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('190','435 0 Way',NULL,' ','195','74750',' ','2006-02-15 04:45:30.000')
+ ('190','435 0 Way',NULL,'West Bengali','195','74750','760171523969','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('191','140 Chiayi Parkway',NULL,' ','506','38982',' ','2006-02-15 04:45:30.000')
+ ('191','140 Chiayi Parkway',NULL,'Sumy','506','38982','855863906434','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('192','1166 Changhwa Street',NULL,' ','62','58852',' ','2006-02-15 04:45:30.000')
+ ('192','1166 Changhwa Street',NULL,'Caraga','62','58852','650752094490','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('193','891 Novi Sad Manor',NULL,' ','383','5379',' ','2006-02-15 04:45:30.000')
+ ('193','891 Novi Sad Manor',NULL,'Ontario','383','5379','247646995453','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('194','605 Rio Claro Parkway',NULL,' ','513','49348',' ','2006-02-15 04:45:30.000')
+ ('194','605 Rio Claro Parkway',NULL,'Tabora','513','49348','352469351088','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('195','1077 San Felipe de Puerto Plata Place',NULL,' ','369','65387',' ','2006-02-15 04:45:30.000')
+ ('195','1077 San Felipe de Puerto Plata Place',NULL,'Rostov-na-Donu','369','65387','812824036424','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('196','9 San Miguel de Tucumn Manor',NULL,' ','169','90845',' ','2006-02-15 04:45:30.000')
+ ('196','9 San Miguel de Tucumán Manor',NULL,'Uttar Pradesh','169','90845','956188728558','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('197','447 Surakarta Loop',NULL,' ','271','10428',' ','2006-02-15 04:45:30.000')
+ ('197','447 Surakarta Loop',NULL,'Nyanza','271','10428','940830176580','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('198','345 Oshawa Boulevard',NULL,' ','204','32114',' ','2006-02-15 04:45:30.000')
+ ('198','345 Oshawa Boulevard',NULL,'Tokyo-to','204','32114','104491201771','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('199','1792 Valle de la Pascua Place',NULL,' ','477','15540',' ','2006-02-15 04:45:30.000')
+ ('199','1792 Valle de la Pascua Place',NULL,'Nordrhein-Westfalen','477','15540','419419591240','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('200','1074 Binzhou Manor',NULL,' ','325','36490',' ','2006-02-15 04:45:30.000')
+ ('200','1074 Binzhou Manor',NULL,'Baden-Wrttemberg','325','36490','331132568928','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('201','817 Bradford Loop',NULL,' ','109','89459',' ','2006-02-15 04:45:30.000')
+ ('201','817 Bradford Loop',NULL,'Ji´angsu','109','89459','264286442804','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('202','955 Bamenda Way',NULL,' ','218','1545',' ','2006-02-15 04:45:30.000')
+ ('202','955 Bamenda Way',NULL,'Ondo & Ekiti','218','1545','768481779568','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('203','1149 A Corua (La Corua) Boulevard',NULL,' ','194','95824',' ','2006-02-15 04:45:30.000')
+ ('203','1149 A Coruña (La Coruña) Boulevard',NULL,'Haiphong','194','95824','470884141195','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('204','387 Mwene-Ditu Drive',NULL,' ','35','8073',' ','2006-02-15 04:45:30.000')
+ ('204','387 Mwene-Ditu Drive',NULL,'Ahal','35','8073','764477681869','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('205','68 Molodetno Manor',NULL,' ','575','4662',' ','2006-02-15 04:45:30.000')
+ ('205','68 Molodetšno Manor',NULL,'Nordrhein-Westfalen','575','4662','146640639760','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('206','642 Nador Drive',NULL,' ','77','3924',' ','2006-02-15 04:45:30.000')
+ ('206','642 Nador Drive',NULL,'Maharashtra','77','3924','369050085652','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('207','1688 Nador Lane',NULL,' ','184','61613',' ','2006-02-15 04:45:30.000')
+ ('207','1688 Nador Lane',NULL,'Sulawesi Utara','184','61613','652218196731','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('208','1215 Pyongyang Parkway',NULL,' ','557','25238',' ','2006-02-15 04:45:30.000')
+ ('208','1215 Pyongyang Parkway',NULL,'Usak','557','25238','646237101779','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('209','1679 Antofagasta Street',NULL,' ','122','86599',' ','2006-02-15 04:45:30.000')
+ ('209','1679 Antofagasta Street',NULL,'Alto Paran','122','86599','905903574913','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('210','1304 s-Hertogenbosch Way',NULL,' ','83','10925',' ','2006-02-15 04:45:30.000')
+ ('210','1304 ´s-Hertogenbosch Way',NULL,'Santa Catarina','83','10925','90336226227','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('211','850 Salala Loop',NULL,' ','371','10800',' ','2006-02-15 04:45:30.000')
+ ('211','850 Salala Loop',NULL,'Kitaa','371','10800','403404780639','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('212','624 Oshawa Boulevard',NULL,' ','51','89959',' ','2006-02-15 04:45:30.000')
+ ('212','624 Oshawa Boulevard',NULL,'West Bengali','51','89959','49677664184','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('213','43 Dadu Avenue',NULL,' ','74','4855',' ','2006-02-15 04:45:30.000')
+ ('213','43 Dadu Avenue',NULL,'Rajasthan','74','4855','95666951770','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('214','751 Lima Loop',NULL,' ','7','99405',' ','2006-02-15 04:45:30.000')
+ ('214','751 Lima Loop',NULL,'Aden','7','99405','756460337785','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('215','1333 Haldia Street',NULL,' ','174','82161',' ','2006-02-15 04:45:30.000')
+ ('215','1333 Haldia Street',NULL,'Jilin','174','82161','408304391718','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('216','660 Jedda Boulevard',NULL,' ','65','25053',' ','2006-02-15 04:45:30.000')
+ ('216','660 Jedda Boulevard',NULL,'Washington','65','25053','168758068397','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('217','1001 Miyakonojo Lane',NULL,' ','518','67924',' ','2006-02-15 04:45:30.000')
+ ('217','1001 Miyakonojo Lane',NULL,'Taizz','518','67924','584316724815','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('218','226 Brest Manor',NULL,' ','508','2299',' ','2006-02-15 04:45:30.000')
+ ('218','226 Brest Manor',NULL,'California','508','2299','785881412500','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('219','1229 Valencia Parkway',NULL,' ','498','99124',' ','2006-02-15 04:45:30.000')
+ ('219','1229 Valencia Parkway',NULL,'Haskovo','498','99124','352679173732','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('220','1201 Qomsheh Manor',NULL,' ','28','21464',' ','2006-02-15 04:45:30.000')
+ ('220','1201 Qomsheh Manor',NULL,'Gois','28','21464','873492228462','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('221','866 Shivapuri Manor',NULL,' ','448','22474',' ','2006-02-15 04:45:30.000')
+ ('221','866 Shivapuri Manor',NULL,'Uttar Pradesh','448','22474','778502731092','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('222','1168 Najafabad Parkway',NULL,' ','251','40301',' ','2006-02-15 04:45:30.000')
+ ('222','1168 Najafabad Parkway',NULL,'Kabol','251','40301','886649065861','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('223','1244 Allappuzha (Alleppey) Place',NULL,' ','567','20657',' ','2006-02-15 04:45:30.000')
+ ('223','1244 Allappuzha (Alleppey) Place',NULL,'Buenos Aires','567','20657','991802825778','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('224','1842 Luzinia Boulevard',NULL,' ','593','94420',' ','2006-02-15 04:45:30.000')
+ ('224','1842 Luziânia Boulevard',NULL,'Zanzibar West','593','94420','706878974831','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('225','1926 Gingoog Street',NULL,' ','511','22824',' ','2006-02-15 04:45:30.000')
+ ('225','1926 Gingoog Street',NULL,'Sisilia','511','22824','469738825391','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('226','810 Palghat (Palakkad) Boulevard',NULL,' ','235','73431',' ','2006-02-15 04:45:30.000')
+ ('226','810 Palghat (Palakkad) Boulevard',NULL,'Jaroslavl','235','73431','516331171356','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('227','1820 Maring Parkway',NULL,' ','324','88307',' ','2006-02-15 04:45:30.000')
+ ('227','1820 Maringá Parkway',NULL,'Punjab','324','88307','99760893676','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('228','60 Poos de Caldas Street',NULL,' ','243','82338',' ','2006-02-15 04:45:30.000')
+ ('228','60 Poços de Caldas Street',NULL,'Rajasthan','243','82338','963063788669','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('229','1014 Loja Manor',NULL,' ','22','66851',' ','2006-02-15 04:45:30.000')
+ ('229','1014 Loja Manor',NULL,'Tamil Nadu','22','66851','460795526514','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('230','201 Effon-Alaiye Way',NULL,' ','37','64344',' ','2006-02-15 04:45:30.000')
+ ('230','201 Effon-Alaiye Way',NULL,'Asunción','37','64344','684192903087','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('231','430 Alessandria Loop',NULL,' ','439','47446',' ','2006-02-15 04:45:30.000')
+ ('231','430 Alessandria Loop',NULL,'Saarland','439','47446','669828224459','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('232','754 Valencia Place',NULL,' ','406','87911',' ','2006-02-15 04:45:30.000')
+ ('232','754 Valencia Place',NULL,'Phnom Penh','406','87911','594319417514','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('233','356 Olomouc Manor',NULL,' ','26','93323',' ','2006-02-15 04:45:30.000')
+ ('233','356 Olomouc Manor',NULL,'Gois','26','93323','22326410776','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('234','1256 Bislig Boulevard',NULL,' ','86','50598',' ','2006-02-15 04:45:30.000')
+ ('234','1256 Bislig Boulevard',NULL,'Botosani','86','50598','479007229460','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('235','954 Kimchon Place',NULL,' ','559','42420',' ','2006-02-15 04:45:30.000')
+ ('235','954 Kimchon Place',NULL,'West Bengali','559','42420','541327526474','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('236','885 Yingkou Manor',NULL,' ','596','31390',' ','2006-02-15 04:45:30.000')
+ ('236','885 Yingkou Manor',NULL,'Kaduna','596','31390','588964509072','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('237','1736 Cavite Place',NULL,' ','216','98775',' ','2006-02-15 04:45:30.000')
+ ('237','1736 Cavite Place',NULL,'Qina','216','98775','431770603551','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('238','346 Skikda Parkway',NULL,' ','233','90628',' ','2006-02-15 04:45:30.000')
+ ('238','346 Skikda Parkway',NULL,'Hawalli','233','90628','630424482919','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('239','98 Stara Zagora Boulevard',NULL,' ','96','76448',' ','2006-02-15 04:45:30.000')
+ ('239','98 Stara Zagora Boulevard',NULL,'Valle','96','76448','610173756082','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('240','1479 Rustenburg Boulevard',NULL,' ','527','18727',' ','2006-02-15 04:45:30.000')
+ ('240','1479 Rustenburg Boulevard',NULL,'Southern Tagalog','527','18727','727785483194','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('241','647 A Corua (La Corua) Street',NULL,' ','357','36971',' ','2006-02-15 04:45:30.000')
+ ('241','647 A Coruña (La Coruña) Street',NULL,'Chollanam','357','36971','792557457753','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('242','1964 Gijn Manor',NULL,' ','473','14408',' ','2006-02-15 04:45:30.000')
+ ('242','1964 Gijón Manor',NULL,'Karnataka','473','14408','918119601885','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('243','47 Syktyvkar Lane',NULL,' ','118','22236',' ','2006-02-15 04:45:30.000')
+ ('243','47 Syktyvkar Lane',NULL,'West Java','118','22236','63937119031','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('244','1148 Saarbrcken Parkway',NULL,' ','226','1921',' ','2006-02-15 04:45:30.000')
+ ('244','1148 Saarbrücken Parkway',NULL,'Fukushima','226','1921','137773001988','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('245','1103 Bilbays Parkway',NULL,' ','578','87660',' ','2006-02-15 04:45:30.000')
+ ('245','1103 Bilbays Parkway',NULL,'Hubei','578','87660','279979529227','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('246','1246 Boksburg Parkway',NULL,' ','422','28349',' ','2006-02-15 04:45:30.000')
+ ('246','1246 Boksburg Parkway',NULL,'Hebei','422','28349','890283544295','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('247','1483 Pathankot Street',NULL,' ','454','37288',' ','2006-02-15 04:45:30.000')
+ ('247','1483 Pathankot Street',NULL,'Tucumn','454','37288','686015532180','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('248','582 Papeete Loop',NULL,' ','294','27722',' ','2006-02-15 04:45:30.000')
+ ('248','582 Papeete Loop',NULL,'Central Visayas','294','27722','569868543137','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('249','300 Junan Street',NULL,' ','553','81314',' ','2006-02-15 04:45:30.000')
+ ('249','300 Junan Street',NULL,'Kyonggi','553','81314','890289150158','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('250','829 Grand Prairie Way',NULL,' ','328','6461',' ','2006-02-15 04:45:30.000')
+ ('250','829 Grand Prairie Way',NULL,'Paraná','328','6461','741070712873','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('251','1473 Changhwa Parkway',NULL,' ','124','75933',' ','2006-02-15 04:45:30.000')
+ ('251','1473 Changhwa Parkway',NULL,'Mxico','124','75933','266798132374','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('252','1309 Weifang Street',NULL,' ','520','57338',' ','2006-02-15 04:45:30.000')
+ ('252','1309 Weifang Street',NULL,'Florida','520','57338','435785045362','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('253','1760 Oshawa Manor',NULL,' ','535','38140',' ','2006-02-15 04:45:30.000')
+ ('253','1760 Oshawa Manor',NULL,'Tianjin','535','38140','56257502250','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('254','786 Stara Zagora Way',NULL,' ','390','98332',' ','2006-02-15 04:45:30.000')
+ ('254','786 Stara Zagora Way',NULL,'Oyo & Osun','390','98332','716256596301','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('255','1966 Tonghae Street',NULL,' ','198','36481',' ','2006-02-15 04:45:30.000')
+ ('255','1966 Tonghae Street',NULL,'Anhalt Sachsen','198','36481','567359279425','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('256','1497 Yuzhou Drive',NULL,' ','312','3433',' ','2006-02-15 04:45:30.000')
+ ('256','1497 Yuzhou Drive',NULL,'England','312','3433','246810237916','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('258','752 Ondo Loop',NULL,' ','338','32474',' ','2006-02-15 04:45:30.000')
+ ('258','752 Ondo Loop',NULL,'Miyazaki','338','32474','134673576619','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('259','1338 Zalantun Lane',NULL,' ','413','45403',' ','2006-02-15 04:45:30.000')
+ ('259','1338 Zalantun Lane',NULL,'Minas Gerais','413','45403','840522972766','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('260','127 Iwakuni Boulevard',NULL,' ','192','20777',' ','2006-02-15 04:45:30.000')
+ ('260','127 Iwakuni Boulevard',NULL,'Central Luzon','192','20777','987442542471','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('261','51 Laredo Avenue',NULL,' ','342','68146',' ','2006-02-15 04:45:30.000')
+ ('261','51 Laredo Avenue',NULL,'Sagaing','342','68146','884536620568','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('262','771 Yaound Manor',NULL,' ','64','86768',' ','2006-02-15 04:45:30.000')
+ ('262','771 Yaoundé Manor',NULL,'Sofala','64','86768','245477603573','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('263','532 Toulon Street',NULL,' ','460','69517',' ','2006-02-15 04:45:30.000')
+ ('263','532 Toulon Street',NULL,'Santiago','460','69517','46871694740','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('264','1027 Banjul Place',NULL,' ','197','50390',' ','2006-02-15 04:45:30.000')
+ ('264','1027 Banjul Place',NULL,'West Bengali','197','50390','538241037443','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('265','1158 Mandi Bahauddin Parkway',NULL,' ','136','98484',' ','2006-02-15 04:45:30.000')
+ ('265','1158 Mandi Bahauddin Parkway',NULL,'Shanxi','136','98484','276555730211','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('266','862 Xintai Lane',NULL,' ','548','30065',' ','2006-02-15 04:45:30.000')
+ ('266','862 Xintai Lane',NULL,'Cagayan Valley','548','30065','265153400632','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('267','816 Cayenne Parkway',NULL,' ','414','93629',' ','2006-02-15 04:45:30.000')
+ ('267','816 Cayenne Parkway',NULL,'Manab','414','93629','282874611748','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('268','1831 Nam Dinh Loop',NULL,' ','323','51990',' ','2006-02-15 04:45:30.000')
+ ('268','1831 Nam Dinh Loop',NULL,'National Capital Reg','323','51990','322888976727','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('269','446 Kirovo-Tepetsk Lane',NULL,' ','203','19428',' ','2006-02-15 04:45:30.000')
+ ('269','446 Kirovo-Tšepetsk Lane',NULL,'Osaka','203','19428','303967439816','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('270','682 Halisahar Place',NULL,' ','378','20536',' ','2006-02-15 04:45:30.000')
+ ('270','682 Halisahar Place',NULL,'Severn Morava','378','20536','475553436330','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('271','1587 Loja Manor',NULL,' ','447','5410',' ','2006-02-15 04:45:30.000')
+ ('271','1587 Loja Manor',NULL,'Salzburg','447','5410','621625204422','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('272','1762 Paarl Parkway',NULL,' ','298','53928',' ','2006-02-15 04:45:30.000')
+ ('272','1762 Paarl Parkway',NULL,'Hunan','298','53928','192459639410','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('273','1519 Ilorin Place',NULL,' ','395','49298',' ','2006-02-15 04:45:30.000')
+ ('273','1519 Ilorin Place',NULL,'Kerala','395','49298','357445645426','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('274','920 Kumbakonam Loop',NULL,' ','446','75090',' ','2006-02-15 04:45:30.000')
+ ('274','920 Kumbakonam Loop',NULL,'California','446','75090','685010736240','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('275','906 Goinia Way',NULL,' ','255','83565',' ','2006-02-15 04:45:30.000')
+ ('275','906 Goiânia Way',NULL,'Wielkopolskie','255','83565','701767622697','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('276','1675 Xiangfan Manor',NULL,' ','283','11763',' ','2006-02-15 04:45:30.000')
+ ('276','1675 Xi´angfan Manor',NULL,'Tamil Nadu','283','11763','271149517630','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('277','85 San Felipe de Puerto Plata Drive',NULL,' ','584','46063',' ','2006-02-15 04:45:30.000')
+ ('277','85 San Felipe de Puerto Plata Drive',NULL,'Shandong','584','46063','170739645687','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('278','144 South Hill Loop',NULL,' ','445','2012',' ','2006-02-15 04:45:30.000')
+ ('278','144 South Hill Loop',NULL,'Guanajuato','445','2012','45387294817','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('279','1884 Shikarpur Avenue',NULL,' ','263','85548',' ','2006-02-15 04:45:30.000')
+ ('279','1884 Shikarpur Avenue',NULL,'Haryana','263','85548','959949395183','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('280','1980 Kamjanets-Podilskyi Street',NULL,' ','404','89502',' ','2006-02-15 04:45:30.000')
+ ('280','1980 Kamjanets-Podilskyi Street',NULL,'Illinois','404','89502','874337098891','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('281','1944 Bamenda Way',NULL,' ','573','24645',' ','2006-02-15 04:45:30.000')
+ ('281','1944 Bamenda Way',NULL,'Michigan','573','24645','75975221996','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('282','556 Baybay Manor',NULL,' ','374','55802',' ','2006-02-15 04:45:30.000')
+ ('282','556 Baybay Manor',NULL,'Oyo & Osun','374','55802','363982224739','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('283','457 Tongliao Loop',NULL,' ','222','56254',' ','2006-02-15 04:45:30.000')
+ ('283','457 Tongliao Loop',NULL,'Bursa','222','56254','880756161823','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('284','600 Bradford Street',NULL,' ','514','96204',' ','2006-02-15 04:45:30.000')
+ ('284','600 Bradford Street',NULL,'East Azerbaidzan','514','96204','117592274996','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('285','1006 Santa Brbara dOeste Manor',NULL,' ','389','36229',' ','2006-02-15 04:45:30.000')
+ ('285','1006 Santa Bárbara d´Oeste Manor',NULL,'Ondo & Ekiti','389','36229','85059738746','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('286','1308 Sumy Loop',NULL,' ','175','30657',' ','2006-02-15 04:45:30.000')
+ ('286','1308 Sumy Loop',NULL,'Fujian','175','30657','583021225407','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('287','1405 Chisinau Place',NULL,' ','411','8160',' ','2006-02-15 04:45:30.000')
+ ('287','1405 Chisinau Place',NULL,'Ponce','411','8160','62781725285','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('288','226 Halifax Street',NULL,' ','277','58492',' ','2006-02-15 04:45:30.000')
+ ('288','226 Halifax Street',NULL,'Xinxiang','277','58492','790651020929','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('289','1279 Udine Parkway',NULL,' ','69','75860',' ','2006-02-15 04:45:30.000')
+ ('289','1279 Udine Parkway',NULL,'Edo & Delta','69','75860','195003555232','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('290','1336 Benin City Drive',NULL,' ','386','46044',' ','2006-02-15 04:45:30.000')
+ ('290','1336 Benin City Drive',NULL,'Shiga','386','46044','341242939532','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('291','1155 Liaocheng Place',NULL,' ','152','22650',' ','2006-02-15 04:45:30.000')
+ ('291','1155 Liaocheng Place',NULL,'Oyo & Osun','152','22650','558236142492','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('292','1993 Tabuk Lane',NULL,' ','522','64221',' ','2006-02-15 04:45:30.000')
+ ('292','1993 Tabuk Lane',NULL,'Tamil Nadu','522','64221','648482415405','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('293','86 Higashiosaka Lane',NULL,' ','563','33768',' ','2006-02-15 04:45:30.000')
+ ('293','86 Higashiosaka Lane',NULL,'Guanajuato','563','33768','957128697225','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('294','1912 Allende Manor',NULL,' ','279','58124',' ','2006-02-15 04:45:30.000')
+ ('294','1912 Allende Manor',NULL,'Kowloon and New Kowl','279','58124','172262454487','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('295','544 Tarsus Boulevard',NULL,' ','562','53145',' ','2006-02-15 04:45:30.000')
+ ('295','544 Tarsus Boulevard',NULL,'Gurico','562','53145','892523334','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('296','1936 Cuman Avenue',NULL,' ','433','61195',' ','2006-02-15 04:45:30.000')
+ ('296','1936 Cumaná Avenue',NULL,'Virginia','433','61195','976798660411','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('297','1192 Tongliao Street',NULL,' ','470','19065',' ','2006-02-15 04:45:30.000')
+ ('297','1192 Tongliao Street',NULL,'Sharja','470','19065','350970907017','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('298','44 Najafabad Way',NULL,' ','146','61391',' ','2006-02-15 04:45:30.000')
+ ('298','44 Najafabad Way',NULL,'Baskimaa','146','61391','96604821070','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('299','32 Pudukkottai Lane',NULL,' ','140','38834',' ','2006-02-15 04:45:30.000')
+ ('299','32 Pudukkottai Lane',NULL,'Ohio','140','38834','967274728547','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('300','661 Chisinau Lane',NULL,' ','274','8856',' ','2006-02-15 04:45:30.000')
+ ('300','661 Chisinau Lane',NULL,'Pietari','274','8856','816436065431','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('301','951 Stara Zagora Manor',NULL,' ','400','98573',' ','2006-02-15 04:45:30.000')
+ ('301','951 Stara Zagora Manor',NULL,'Punjab','400','98573','429925609431','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('302','922 Vila Velha Loop',NULL,' ','9','4085',' ','2006-02-15 04:45:30.000')
+ ('302','922 Vila Velha Loop',NULL,'Maharashtra','9','4085','510737228015','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('303','898 Jining Lane',NULL,' ','387','40070',' ','2006-02-15 04:45:30.000')
+ ('303','898 Jining Lane',NULL,'Pohjois-Pohjanmaa','387','40070','161643343536','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('304','1635 Kuwana Boulevard',NULL,' ','205','52137',' ','2006-02-15 04:45:30.000')
+ ('304','1635 Kuwana Boulevard',NULL,'Hiroshima','205','52137','710603868323','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('305','41 El Alto Parkway',NULL,' ','398','56883',' ','2006-02-15 04:45:30.000')
+ ('305','41 El Alto Parkway',NULL,'Maharashtra','398','56883','51917807050','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('306','1883 Maikop Lane',NULL,' ','254','68469',' ','2006-02-15 04:45:30.000')
+ ('306','1883 Maikop Lane',NULL,'Kaliningrad','254','68469','96110042435','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('307','1908 Gaziantep Place',NULL,' ','536','58979',' ','2006-02-15 04:45:30.000')
+ ('307','1908 Gaziantep Place',NULL,'Liaoning','536','58979','108053751300','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('308','687 Alessandria Parkway',NULL,' ','455','57587',' ','2006-02-15 04:45:30.000')
+ ('308','687 Alessandria Parkway',NULL,'Sanaa','455','57587','407218522294','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('309','827 Yuncheng Drive',NULL,' ','99','79047',' ','2006-02-15 04:45:30.000')
+ ('309','827 Yuncheng Drive',NULL,'Callao','99','79047','504434452842','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('310','913 Coacalco de Berriozbal Loop',NULL,' ','33','42141',' ','2006-02-15 04:45:30.000')
+ ('310','913 Coacalco de Berriozábal Loop',NULL,'Texas','33','42141','262088367001','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('311','715 So Bernardo do Campo Lane',NULL,' ','507','84804',' ','2006-02-15 04:45:30.000')
+ ('311','715 São Bernardo do Campo Lane',NULL,'Kedah','507','84804','181179321332','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('312','1354 Siegen Street',NULL,' ','25','80184',' ','2006-02-15 04:45:30.000')
+ ('312','1354 Siegen Street',NULL,'Rio de Janeiro','25','80184','573441801529','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('313','1191 Sungai Petani Boulevard',NULL,' ','262','9668',' ','2006-02-15 04:45:30.000')
+ ('313','1191 Sungai Petani Boulevard',NULL,'Missouri','262','9668','983259819766','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('314','1224 Huejutla de Reyes Boulevard',NULL,' ','91','70923',' ','2006-02-15 04:45:30.000')
+ ('314','1224 Huejutla de Reyes Boulevard',NULL,'Lombardia','91','70923','806016930576','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('315','543 Bergamo Avenue',NULL,' ','215','59686',' ','2006-02-15 04:45:30.000')
+ ('315','543 Bergamo Avenue',NULL,'Minas Gerais','215','59686','103602195112','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('316','746 Joliet Lane',NULL,' ','286','94878',' ','2006-02-15 04:45:30.000')
+ ('316','746 Joliet Lane',NULL,'Kursk','286','94878','688485191923','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('317','780 Kimberley Way',NULL,' ','515','17032',' ','2006-02-15 04:45:30.000')
+ ('317','780 Kimberley Way',NULL,'Tabuk','515','17032','824396883951','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('318','1774 Yaound Place',NULL,' ','166','91400',' ','2006-02-15 04:45:30.000')
+ ('318','1774 Yaoundé Place',NULL,'Hubei','166','91400','613124286867','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('319','1957 Yantai Lane',NULL,' ','490','59255',' ','2006-02-15 04:45:30.000')
+ ('319','1957 Yantai Lane',NULL,'São Paulo','490','59255','704948322302','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('320','1542 Lubumbashi Boulevard',NULL,' ','57','62472',' ','2006-02-15 04:45:30.000')
+ ('320','1542 Lubumbashi Boulevard',NULL,'Tel Aviv','57','62472','508800331065','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('321','651 Pathankot Loop',NULL,' ','336','59811',' ','2006-02-15 04:45:30.000')
+ ('321','651 Pathankot Loop',NULL,'Maharashtra','336','59811','139378397418','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('322','1359 Zhoushan Parkway',NULL,' ','545','29763',' ','2006-02-15 04:45:30.000')
+ ('322','1359 Zhoushan Parkway',NULL,'Streymoyar','545','29763','46568045367','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('323','1769 Iwaki Lane',NULL,' ','97','25787',' ','2006-02-15 04:45:30.000')
+ ('323','1769 Iwaki Lane',NULL,'Kujawsko-Pomorskie','97','25787','556100547674','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('324','1145 Vilnius Manor',NULL,' ','451','73170',' ','2006-02-15 04:45:30.000')
+ ('324','1145 Vilnius Manor',NULL,'Mxico','451','73170','674805712553','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('325','1892 Nabereznyje Telny Lane',NULL,' ','516','28396',' ','2006-02-15 04:45:30.000')
+ ('325','1892 Nabereznyje Tšelny Lane',NULL,'Tutuila','516','28396','478229987054','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('326','470 Boksburg Street',NULL,' ','81','97960',' ','2006-02-15 04:45:30.000')
+ ('326','470 Boksburg Street',NULL,'Central','81','97960','908029859266','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('327','1427 A Corua (La Corua) Place',NULL,' ','45','85799',' ','2006-02-15 04:45:30.000')
+ ('327','1427 A Coruña (La Coruña) Place',NULL,'Buenos Aires','45','85799','972574862516','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('328','479 San Felipe del Progreso Avenue',NULL,' ','130','54949',' ','2006-02-15 04:45:30.000')
+ ('328','479 San Felipe del Progreso Avenue',NULL,'Morelos','130','54949','869051782691','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('329','867 Benin City Avenue',NULL,' ','591','78543',' ','2006-02-15 04:45:30.000')
+ ('329','867 Benin City Avenue',NULL,'Henan','591','78543','168884817145','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('330','981 Kumbakonam Place',NULL,' ','89','87611',' ','2006-02-15 04:45:30.000')
+ ('330','981 Kumbakonam Place',NULL,'Distrito Federal','89','87611','829116184079','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('331','1016 Iwakuni Street',NULL,' ','269','49833',' ','2006-02-15 04:45:30.000')
+ ('331','1016 Iwakuni Street',NULL,'St George','269','49833','961370847344','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('332','663 Baha Blanca Parkway',NULL,' ','5','33463',' ','2006-02-15 04:45:30.000')
+ ('332','663 Bahía Blanca Parkway',NULL,'Adana','5','33463','834418779292','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('333','1860 Taguig Loop',NULL,' ','119','59550',' ','2006-02-15 04:45:30.000')
+ ('333','1860 Taguig Loop',NULL,'West Java','119','59550','38158430589','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('334','1816 Bydgoszcz Loop',NULL,' ','234','64308',' ','2006-02-15 04:45:30.000')
+ ('334','1816 Bydgoszcz Loop',NULL,'Dhaka','234','64308','965273813662','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('335','587 Benguela Manor',NULL,' ','42','91590',' ','2006-02-15 04:45:30.000')
+ ('335','587 Benguela Manor',NULL,'Illinois','42','91590','165450987037','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('336','430 Kumbakonam Drive',NULL,' ','457','28814',' ','2006-02-15 04:45:30.000')
+ ('336','430 Kumbakonam Drive',NULL,'Santa Fé','457','28814','105470691550','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('337','1838 Tabriz Lane',NULL,' ','143','1195',' ','2006-02-15 04:45:30.000')
+ ('337','1838 Tabriz Lane',NULL,'Dhaka','143','1195','38988715447','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('338','431 Szkesfehrvr Avenue',NULL,' ','48','57828',' ','2006-02-15 04:45:30.000')
+ ('338','431 Székesfehérvár Avenue',NULL,'Baki','48','57828','119501405123','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('339','503 Sogamoso Loop',NULL,' ','505','49812',' ','2006-02-15 04:45:30.000')
+ ('339','503 Sogamoso Loop',NULL,'Sumqayit','505','49812','834626715837','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('340','507 Smolensk Loop',NULL,' ','492','22971',' ','2006-02-15 04:45:30.000')
+ ('340','507 Smolensk Loop',NULL,'Sousse','492','22971','80303246192','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('341','1920 Weifang Avenue',NULL,' ','427','15643',' ','2006-02-15 04:45:30.000')
+ ('341','1920 Weifang Avenue',NULL,'Uttar Pradesh','427','15643','869507847714','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('342','124 al-Manama Way',NULL,' ','382','52368',' ','2006-02-15 04:45:30.000')
+ ('342','124 al-Manama Way',NULL,'Hiroshima','382','52368','647899404952','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('343','1443 Mardan Street',NULL,' ','392','31483',' ','2006-02-15 04:45:30.000')
+ ('343','1443 Mardan Street',NULL,'Western Cape','392','31483','231383037471','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('344','1909 Benguela Lane',NULL,' ','581','19913',' ','2006-02-15 04:45:30.000')
+ ('344','1909 Benguela Lane',NULL,'Henan','581','19913','624138001031','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('345','68 Ponce Parkway',NULL,' ','201','85926',' ','2006-02-15 04:45:30.000')
+ ('345','68 Ponce Parkway',NULL,'Hanoi','201','85926','870635127812','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('346','1217 Konotop Avenue',NULL,' ','151','504',' ','2006-02-15 04:45:30.000')
+ ('346','1217 Konotop Avenue',NULL,'Gelderland','151','504','718917251754','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('347','1293 Nam Dinh Way',NULL,' ','84','71583',' ','2006-02-15 04:45:30.000')
+ ('347','1293 Nam Dinh Way',NULL,'Roraima','84','71583','697656479977','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('348','785 Vaduz Street',NULL,' ','335','36170',' ','2006-02-15 04:45:30.000')
+ ('348','785 Vaduz Street',NULL,'Baja California','335','36170','895616862749','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('349','1516 Escobar Drive',NULL,' ','370','46069',' ','2006-02-15 04:45:30.000')
+ ('349','1516 Escobar Drive',NULL,'Tongatapu','370','46069','64536069371','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('350','1628 Nagareyama Lane',NULL,' ','453','60079',' ','2006-02-15 04:45:30.000')
+ ('350','1628 Nagareyama Lane',NULL,'Central','453','60079','20064292617','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('351','1157 Nyeri Loop',NULL,' ','320','56380',' ','2006-02-15 04:45:30.000')
+ ('351','1157 Nyeri Loop',NULL,'Adygea','320','56380','262744791493','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('352','1673 Tangail Drive',NULL,' ','137','26857',' ','2006-02-15 04:45:30.000')
+ ('352','1673 Tangail Drive',NULL,'Daugavpils','137','26857','627924259271','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('353','381 Kabul Way',NULL,' ','209','87272',' ','2006-02-15 04:45:30.000')
+ ('353','381 Kabul Way',NULL,'Taipei','209','87272','55477302294','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('354','953 Hodeida Street',NULL,' ','221','18841',' ','2006-02-15 04:45:30.000')
+ ('354','953 Hodeida Street',NULL,'Southern Tagalog','221','18841','53912826864','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('355','469 Nakhon Sawan Street',NULL,' ','531','58866',' ','2006-02-15 04:45:30.000')
+ ('355','469 Nakhon Sawan Street',NULL,'Tuvassia','531','58866','689199636560','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('356','1378 Beira Loop',NULL,' ','597','40792',' ','2006-02-15 04:45:30.000')
+ ('356','1378 Beira Loop',NULL,'Krasnojarsk','597','40792','840957664136','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('357','1641 Changhwa Place',NULL,' ','52','37636',' ','2006-02-15 04:45:30.000')
+ ('357','1641 Changhwa Place',NULL,'Nord-Ouest','52','37636','256546485220','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('358','1698 Southport Loop',NULL,' ','393','49009',' ','2006-02-15 04:45:30.000')
+ ('358','1698 Southport Loop',NULL,'Hidalgo','393','49009','754358349853','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('359','519 Nyeri Manor',NULL,' ','461','37650',' ','2006-02-15 04:45:30.000')
+ ('359','519 Nyeri Manor',NULL,'São Paulo','461','37650','764680915323','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('360','619 Hunuco Avenue',NULL,' ','331','81508',' ','2006-02-15 04:45:30.000')
+ ('360','619 Huánuco Avenue',NULL,'Shimane','331','81508','142596392389','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('361','45 Aparecida de Goinia Place',NULL,' ','464','7431',' ','2006-02-15 04:45:30.000')
+ ('361','45 Aparecida de Goiânia Place',NULL,'Madhya Pradesh','464','7431','650496654258','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('362','482 Kowloon and New Kowloon Manor',NULL,' ','90','97056',' ','2006-02-15 04:45:30.000')
+ ('362','482 Kowloon and New Kowloon Manor',NULL,'Bratislava','90','97056','738968474939','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('363','604 Bern Place',NULL,' ','429','5373',' ','2006-02-15 04:45:30.000')
+ ('363','604 Bern Place',NULL,'Jharkhand','429','5373','620719383725','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('364','1623 Kingstown Drive',NULL,' ','20','91299',' ','2006-02-15 04:45:30.000')
+ ('364','1623 Kingstown Drive',NULL,'Buenos Aires','20','91299','296394569728','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('365','1009 Zanzibar Lane',NULL,' ','32','64875',' ','2006-02-15 04:45:30.000')
+ ('365','1009 Zanzibar Lane',NULL,'Arecibo','32','64875','102396298916','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('366','114 Jalib al-Shuyukh Manor',NULL,' ','585','60440',' ','2006-02-15 04:45:30.000')
+ ('366','114 Jalib al-Shuyukh Manor',NULL,'Centre','585','60440','845378657301','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('367','1163 London Parkway',NULL,' ','66','6066',' ','2006-02-15 04:45:30.000')
+ ('367','1163 London Parkway',NULL,'Par','66','6066','675120358494','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('368','1658 Jastrzebie-Zdrj Loop',NULL,' ','372','96584',' ','2006-02-15 04:45:30.000')
+ ('368','1658 Jastrzebie-Zdrój Loop',NULL,'Central','372','96584','568367775448','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('369','817 Laredo Avenue',NULL,' ','188','77449',' ','2006-02-15 04:45:30.000')
+ ('369','817 Laredo Avenue',NULL,'Jalisco','188','77449','151249681135','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('370','1565 Tangail Manor',NULL,' ','377','45750',' ','2006-02-15 04:45:30.000')
+ ('370','1565 Tangail Manor',NULL,'Okinawa','377','45750','634445428822','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('371','1912 Emeishan Drive',NULL,' ','50','33050',' ','2006-02-15 04:45:30.000')
+ ('371','1912 Emeishan Drive',NULL,'Balikesir','50','33050','99883471275','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('372','230 Urawa Drive',NULL,' ','8','2738',' ','2006-02-15 04:45:30.000')
+ ('372','230 Urawa Drive',NULL,'Andhra Pradesh','8','2738','166898395731','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('373','1922 Miraj Way',NULL,' ','356','13203',' ','2006-02-15 04:45:30.000')
+ ('373','1922 Miraj Way',NULL,'Esfahan','356','13203','320471479776','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('374','433 Florencia Street',NULL,' ','250','91330',' ','2006-02-15 04:45:30.000')
+ ('374','433 Florencia Street',NULL,'Chihuahua','250','91330','561729882725','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('375','1049 Matamoros Parkway',NULL,' ','191','69640',' ','2006-02-15 04:45:30.000')
+ ('375','1049 Matamoros Parkway',NULL,'Karnataka','191','69640','960505250340','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('376','1061 Ede Avenue',NULL,' ','98','57810',' ','2006-02-15 04:45:30.000')
+ ('376','1061 Ede Avenue',NULL,'Southern Tagalog','98','57810','333390595558','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('377','154 Oshawa Manor',NULL,' ','415','72771',' ','2006-02-15 04:45:30.000')
+ ('377','154 Oshawa Manor',NULL,'East Java','415','72771','440365973660','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('378','1191 Tandil Drive',NULL,' ','523','6362',' ','2006-02-15 04:45:30.000')
+ ('378','1191 Tandil Drive',NULL,'Southern Tagalog','523','6362','45554316010','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('379','1133 Rizhao Avenue',NULL,' ','572','2800',' ','2006-02-15 04:45:30.000')
+ ('379','1133 Rizhao Avenue',NULL,'Pernambuco','572','2800','600264533987','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('380','1519 Santiago de los Caballeros Loop',NULL,' ','348','22025',' ','2006-02-15 04:45:30.000')
+ ('380','1519 Santiago de los Caballeros Loop',NULL,'East Kasai','348','22025','409315295763','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('381','1618 Olomouc Manor',NULL,' ','285','26385',' ','2006-02-15 04:45:30.000')
+ ('381','1618 Olomouc Manor',NULL,'Kurgan','285','26385','96846695220','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('382','220 Hidalgo Drive',NULL,' ','265','45298',' ','2006-02-15 04:45:30.000')
+ ('382','220 Hidalgo Drive',NULL,'Kermanshah','265','45298','342720754566','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('383','686 Donostia-San Sebastin Lane',NULL,' ','471','97390',' ','2006-02-15 04:45:30.000')
+ ('383','686 Donostia-San Sebastián Lane',NULL,'Guangdong','471','97390','71857599858','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('384','97 Mogiljov Lane',NULL,' ','73','89294',' ','2006-02-15 04:45:30.000')
+ ('384','97 Mogiljov Lane',NULL,'Gujarat','73','89294','924815207181','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('385','1642 Charlotte Amalie Drive',NULL,' ','549','75442',' ','2006-02-15 04:45:30.000')
+ ('385','1642 Charlotte Amalie Drive',NULL,'Slaskie','549','75442','821476736117','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('386','1368 Maracabo Boulevard',NULL,' ','493','32716',' ','2006-02-15 04:45:30.000')
+ ('386','1368 Maracaíbo Boulevard',NULL,'','493','32716','934352415130','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('387','401 Sucre Boulevard',NULL,' ','322','25007',' ','2006-02-15 04:45:30.000')
+ ('387','401 Sucre Boulevard',NULL,'New Hampshire','322','25007','486395999608','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('388','368 Hunuco Boulevard',NULL,' ','360','17165',' ','2006-02-15 04:45:30.000')
+ ('388','368 Huánuco Boulevard',NULL,'Namibe','360','17165','106439158941','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('389','500 Lincoln Parkway',NULL,' ','210','95509',' ','2006-02-15 04:45:30.000')
+ ('389','500 Lincoln Parkway',NULL,'Ji´angsu','210','95509','550306965159','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('390','102 Chapra Drive',NULL,' ','521','14073',' ','2006-02-15 04:45:30.000')
+ ('390','102 Chapra Drive',NULL,'Ibaragi','521','14073','776031833752','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('391','1793 Meixian Place',NULL,' ','258','33535',' ','2006-02-15 04:45:30.000')
+ ('391','1793 Meixian Place',NULL,'Hmelnytskyi','258','33535','619966287415','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('392','514 Ife Way',NULL,' ','315','69973',' ','2006-02-15 04:45:30.000')
+ ('392','514 Ife Way',NULL,'Shaba','315','69973','900235712074','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('393','717 Changzhou Lane',NULL,' ','104','21615',' ','2006-02-15 04:45:30.000')
+ ('393','717 Changzhou Lane',NULL,'Southern Tagalog','104','21615','426255288071','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('394','753 Ilorin Avenue',NULL,' ','157','3656',' ','2006-02-15 04:45:30.000')
+ ('394','753 Ilorin Avenue',NULL,'Sichuan','157','3656','464511145118','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('395','1337 Mit Ghamr Avenue',NULL,' ','358','29810',' ','2006-02-15 04:45:30.000')
+ ('395','1337 Mit Ghamr Avenue',NULL,'Nakhon Sawan','358','29810','175283210378','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('396','767 Pyongyang Drive',NULL,' ','229','83536',' ','2006-02-15 04:45:30.000')
+ ('396','767 Pyongyang Drive',NULL,'Osaka','229','83536','667736124769','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('397','614 Pak Kret Street',NULL,' ','6','27796',' ','2006-02-15 04:45:30.000')
+ ('397','614 Pak Kret Street',NULL,'Addis Abeba','6','27796','47808359842','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('398','954 Lapu-Lapu Way',NULL,' ','278','8816',' ','2006-02-15 04:45:30.000')
+ ('398','954 Lapu-Lapu Way',NULL,'Moskova','278','8816','737229003916','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('399','331 Bydgoszcz Parkway',NULL,' ','181','966',' ','2006-02-15 04:45:30.000')
+ ('399','331 Bydgoszcz Parkway',NULL,'Asturia','181','966','537374465982','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('400','1152 Citrus Heights Manor',NULL,' ','15','5239',' ','2006-02-15 04:45:30.000')
+ ('400','1152 Citrus Heights Manor',NULL,'al-Qadarif','15','5239','765957414528','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('401','168 Cianjur Manor',NULL,' ','228','73824',' ','2006-02-15 04:45:30.000')
+ ('401','168 Cianjur Manor',NULL,'Saitama','228','73824','679095087143','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('402','616 Hagonoy Avenue',NULL,' ','39','46043',' ','2006-02-15 04:45:30.000')
+ ('402','616 Hagonoy Avenue',NULL,'Krasnojarsk','39','46043','604177838256','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('403','1190 0 Place',NULL,' ','44','10417',' ','2006-02-15 04:45:30.000')
+ ('403','1190 0 Place',NULL,'Rio Grande do Sul','44','10417','841876514789','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('404','734 Bchar Place',NULL,' ','375','30586',' ','2006-02-15 04:45:30.000')
+ ('404','734 Béchar Place',NULL,'Punjab','375','30586','280578750435','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('405','530 Lausanne Lane',NULL,' ','135','11067',' ','2006-02-15 04:45:30.000')
+ ('405','530 Lausanne Lane',NULL,'Texas','135','11067','775235029633','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('406','454 Patiala Lane',NULL,' ','276','13496',' ','2006-02-15 04:45:30.000')
+ ('406','454 Patiala Lane',NULL,'Fukushima','276','13496','794553031307','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('407','1346 Mysore Drive',NULL,' ','92','61507',' ','2006-02-15 04:45:30.000')
+ ('407','1346 Mysore Drive',NULL,'Bretagne','92','61507','516647474029','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('408','990 Etawah Loop',NULL,' ','564','79940',' ','2006-02-15 04:45:30.000')
+ ('408','990 Etawah Loop',NULL,'Tamil Nadu','564','79940','206169448769','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('409','1266 Laredo Parkway',NULL,' ','380','7664',' ','2006-02-15 04:45:30.000')
+ ('409','1266 Laredo Parkway',NULL,'Saitama','380','7664','1483365694','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('410','88 Nagaon Manor',NULL,' ','524','86868',' ','2006-02-15 04:45:30.000')
+ ('410','88 Nagaon Manor',NULL,'Buenos Aires','524','86868','779461480495','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('411','264 Bhimavaram Manor',NULL,' ','111','54749',' ','2006-02-15 04:45:30.000')
+ ('411','264 Bhimavaram Manor',NULL,'St Thomas','111','54749','302526949177','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('412','1639 Saarbrcken Drive',NULL,' ','437','9827',' ','2006-02-15 04:45:30.000')
+ ('412','1639 Saarbrücken Drive',NULL,'North West','437','9827','328494873422','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('413','692 Amroha Drive',NULL,' ','230','35575',' ','2006-02-15 04:45:30.000')
+ ('413','692 Amroha Drive',NULL,'Northern','230','35575','359478883004','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('414','1936 Lapu-Lapu Parkway',NULL,' ','141','7122',' ','2006-02-15 04:45:30.000')
+ ('414','1936 Lapu-Lapu Parkway',NULL,'Bauchi & Gombe','141','7122','653436985797','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('415','432 Garden Grove Street',NULL,' ','430','65630',' ','2006-02-15 04:45:30.000')
+ ('415','432 Garden Grove Street',NULL,'Ontario','430','65630','615964523510','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('416','1445 Carmen Parkway',NULL,' ','117','70809',' ','2006-02-15 04:45:30.000')
+ ('416','1445 Carmen Parkway',NULL,'West Java','117','70809','598912394463','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('417','791 Salinas Street',NULL,' ','208','40509',' ','2006-02-15 04:45:30.000')
+ ('417','791 Salinas Street',NULL,'Punjab','208','40509','129953030512','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('418','126 Acua Parkway',NULL,' ','71','58888',' ','2006-02-15 04:45:30.000')
+ ('418','126 Acuña Parkway',NULL,'West Bengali','71','58888','480039662421','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('419','397 Sunnyvale Avenue',NULL,' ','19','55566',' ','2006-02-15 04:45:30.000')
+ ('419','397 Sunnyvale Avenue',NULL,'Guanajuato','19','55566','680851640676','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('420','992 Klerksdorp Loop',NULL,' ','23','33711',' ','2006-02-15 04:45:30.000')
+ ('420','992 Klerksdorp Loop',NULL,'Utrecht','23','33711','855290087237','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('421','966 Arecibo Loop',NULL,' ','134','94018',' ','2006-02-15 04:45:30.000')
+ ('421','966 Arecibo Loop',NULL,'Sind','134','94018','15273765306','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('422','289 Santo Andr Manor',NULL,' ','16','72410',' ','2006-02-15 04:45:30.000')
+ ('422','289 Santo André Manor',NULL,'al-Sharqiya','16','72410','214976066017','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('423','437 Chungho Drive',NULL,' ','450','59489',' ','2006-02-15 04:45:30.000')
+ ('423','437 Chungho Drive',NULL,'Puerto Plata','450','59489','491271355190','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('424','1948 Bayugan Parkway',NULL,' ','264','60622',' ','2006-02-15 04:45:30.000')
+ ('424','1948 Bayugan Parkway',NULL,'Bihar','264','60622','987306329957','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('425','1866 al-Qatif Avenue',NULL,' ','155','89420',' ','2006-02-15 04:45:30.000')
+ ('425','1866 al-Qatif Avenue',NULL,'California','155','89420','546793516940','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('426','1661 Abha Drive',NULL,' ','416','14400',' ','2006-02-15 04:45:30.000')
+ ('426','1661 Abha Drive',NULL,'Tamil Nadu','416','14400','270456873752','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('427','1557 Cape Coral Parkway',NULL,' ','293','46875',' ','2006-02-15 04:45:30.000')
+ ('427','1557 Cape Coral Parkway',NULL,'Hubei','293','46875','368284120423','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('428','1727 Matamoros Place',NULL,' ','465','78813',' ','2006-02-15 04:45:30.000')
+ ('428','1727 Matamoros Place',NULL,'Sawhaj','465','78813','129673677866','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('429','1269 Botosani Manor',NULL,' ','468','47394',' ','2006-02-15 04:45:30.000')
+ ('429','1269 Botosani Manor',NULL,'Guangdong','468','47394','736517327853','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('430','355 Vitria de Santo Anto Way',NULL,' ','452','81758',' ','2006-02-15 04:45:30.000')
+ ('430','355 Vitória de Santo Antão Way',NULL,'Oaxaca','452','81758','548003849552','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('431','1596 Acua Parkway',NULL,' ','418','70425',' ','2006-02-15 04:45:30.000')
+ ('431','1596 Acuña Parkway',NULL,'Jharkhand','418','70425','157133457169','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('432','259 Ipoh Drive',NULL,' ','189','64964',' ','2006-02-15 04:45:30.000')
+ ('432','259 Ipoh Drive',NULL,'São Paulo','189','64964','419009857119','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('433','1823 Hoshiarpur Lane',NULL,' ','510','33191',' ','2006-02-15 04:45:30.000')
+ ('433','1823 Hoshiarpur Lane',NULL,'Komi','510','33191','307133768620','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('434','1404 Taguig Drive',NULL,' ','547','87212',' ','2006-02-15 04:45:30.000')
+ ('434','1404 Taguig Drive',NULL,'Okayama','547','87212','572068624538','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('435','740 Udaipur Lane',NULL,' ','150','33505',' ','2006-02-15 04:45:30.000')
+ ('435','740 Udaipur Lane',NULL,'Nizni Novgorod','150','33505','497288595103','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('436','287 Cuautla Boulevard',NULL,' ','501','72736',' ','2006-02-15 04:45:30.000')
+ ('436','287 Cuautla Boulevard',NULL,'Chuquisaca','501','72736','82619513349','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('437','1766 Almirante Brown Street',NULL,' ','364','63104',' ','2006-02-15 04:45:30.000')
+ ('437','1766 Almirante Brown Street',NULL,'KwaZulu-Natal','364','63104','617567598243','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('438','596 Huixquilucan Place',NULL,' ','351','65892',' ','2006-02-15 04:45:30.000')
+ ('438','596 Huixquilucan Place',NULL,'Nampula','351','65892','342709348083','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('439','1351 Aparecida de Goinia Parkway',NULL,' ','391','41775',' ','2006-02-15 04:45:30.000')
+ ('439','1351 Aparecida de Goiânia Parkway',NULL,'Northern Mindanao','391','41775','959834530529','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('440','722 Bradford Lane',NULL,' ','249','90920',' ','2006-02-15 04:45:30.000')
+ ('440','722 Bradford Lane',NULL,'Shandong','249','90920','746251338300','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('441','983 Santa F Way',NULL,' ','565','47472',' ','2006-02-15 04:45:30.000')
+ ('441','983 Santa Fé Way',NULL,'British Colombia','565','47472','145720452260','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('442','1245 Ibirit Way',NULL,' ','290','40926',' ','2006-02-15 04:45:30.000')
+ ('442','1245 Ibirité Way',NULL,'La Romana','290','40926','331888642162','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('443','1836 Korla Parkway',NULL,' ','272','55405',' ','2006-02-15 04:45:30.000')
+ ('443','1836 Korla Parkway',NULL,'Copperbelt','272','55405','689681677428','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('444','231 Kaliningrad Place',NULL,' ','70','57833',' ','2006-02-15 04:45:30.000')
+ ('444','231 Kaliningrad Place',NULL,'Lombardia','70','57833','575081026569','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('445','495 Bhimavaram Lane',NULL,' ','144','3',' ','2006-02-15 04:45:30.000')
+ ('445','495 Bhimavaram Lane',NULL,'Maharashtra','144','3','82088937724','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('446','1924 Shimonoseki Drive',NULL,' ','59','52625',' ','2006-02-15 04:45:30.000')
+ ('446','1924 Shimonoseki Drive',NULL,'Batna','59','52625','406784385440','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('447','105 Dzerzinsk Manor',NULL,' ','540','48570',' ','2006-02-15 04:45:30.000')
+ ('447','105 Dzerzinsk Manor',NULL,'Inner Mongolia','540','48570','240776414296','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('448','614 Denizli Parkway',NULL,' ','486','29444',' ','2006-02-15 04:45:30.000')
+ ('448','614 Denizli Parkway',NULL,'Rio Grande do Sul','486','29444','876491807547','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('449','1289 Belm Boulevard',NULL,' ','530','88306',' ','2006-02-15 04:45:30.000')
+ ('449','1289 Belém Boulevard',NULL,'Tartumaa','530','88306','237368926031','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('450','203 Tambaram Street',NULL,' ','161','73942',' ','2006-02-15 04:45:30.000')
+ ('450','203 Tambaram Street',NULL,'Buenos Aires','161','73942','411549550611','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('451','1704 Tambaram Manor',NULL,' ','554','2834',' ','2006-02-15 04:45:30.000')
+ ('451','1704 Tambaram Manor',NULL,'West Bengali','554','2834','39463554936','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('452','207 Cuernavaca Loop',NULL,' ','352','52671',' ','2006-02-15 04:45:30.000')
+ ('452','207 Cuernavaca Loop',NULL,'Tatarstan','352','52671','782900030287','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('453','319 Springs Loop',NULL,' ','160','99552',' ','2006-02-15 04:45:30.000')
+ ('453','319 Springs Loop',NULL,'Baijeri','160','99552','72524459905','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('454','956 Nam Dinh Manor',NULL,' ','481','21872',' ','2006-02-15 04:45:30.000')
+ ('454','956 Nam Dinh Manor',NULL,'Kerman','481','21872','474047727727','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('455','1947 Paarl Way',NULL,' ','509','23636',' ','2006-02-15 04:45:30.000')
+ ('455','1947 Paarl Way',NULL,'Central Java','509','23636','834061016202','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('456','814 Simferopol Loop',NULL,' ','154','48745',' ','2006-02-15 04:45:30.000')
+ ('456','814 Simferopol Loop',NULL,'Sinaloa','154','48745','524567129902','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('457','535 Ahmadnagar Manor',NULL,' ','3','41136',' ','2006-02-15 04:45:30.000')
+ ('457','535 Ahmadnagar Manor',NULL,'Abu Dhabi','3','41136','985109775584','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('458','138 Caracas Boulevard',NULL,' ','326','16790',' ','2006-02-15 04:45:30.000')
+ ('458','138 Caracas Boulevard',NULL,'Zulia','326','16790','974433019532','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('459','251 Florencia Drive',NULL,' ','556','16119',' ','2006-02-15 04:45:30.000')
+ ('459','251 Florencia Drive',NULL,'Michoacn de Ocampo','556','16119','118011831565','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('460','659 Gatineau Boulevard',NULL,' ','153','28587',' ','2006-02-15 04:45:30.000')
+ ('460','659 Gatineau Boulevard',NULL,'La Paz','153','28587','205524798287','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('461','1889 Valparai Way',NULL,' ','600','75559',' ','2006-02-15 04:45:30.000')
+ ('461','1889 Valparai Way',NULL,'Ziguinchor','600','75559','670370974122','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('462','1485 Bratislava Place',NULL,' ','435','83183',' ','2006-02-15 04:45:30.000')
+ ('462','1485 Bratislava Place',NULL,'Illinois','435','83183','924663855568','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('463','935 Aden Boulevard',NULL,' ','532','64709',' ','2006-02-15 04:45:30.000')
+ ('463','935 Aden Boulevard',NULL,'Central Java','532','64709','335052544020','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('464','76 Kermanshah Manor',NULL,' ','423','23343',' ','2006-02-15 04:45:30.000')
+ ('464','76 Kermanshah Manor',NULL,'Esfahan','423','23343','762361821578','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('465','734 Tanshui Avenue',NULL,' ','170','70664',' ','2006-02-15 04:45:30.000')
+ ('465','734 Tanshui Avenue',NULL,'Caquet','170','70664','366776723320','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('466','118 Jaffna Loop',NULL,' ','182','10447',' ','2006-02-15 04:45:30.000')
+ ('466','118 Jaffna Loop',NULL,'Northern Mindanao','182','10447','325526730021','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('467','1621 Tongliao Avenue',NULL,' ','558','22173',' ','2006-02-15 04:45:30.000')
+ ('467','1621 Tongliao Avenue',NULL,'Irkutsk','558','22173','209342540247','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('468','1844 Usak Avenue',NULL,' ','196','84461',' ','2006-02-15 04:45:30.000')
+ ('468','1844 Usak Avenue',NULL,'Nova Scotia','196','84461','164414772677','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('469','1872 Toulon Loop',NULL,' ','428','7939',' ','2006-02-15 04:45:30.000')
+ ('469','1872 Toulon Loop',NULL,'OHiggins','428','7939','928809465153','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('470','1088 Ibirit Place',NULL,' ','595','88502',' ','2006-02-15 04:45:30.000')
+ ('470','1088 Ibirité Place',NULL,'Jalisco','595','88502','49084281333','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('471','1322 Mosul Parkway',NULL,' ','145','95400',' ','2006-02-15 04:45:30.000')
+ ('471','1322 Mosul Parkway',NULL,'Shandong','145','95400','268053970382','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('472','1447 Chatsworth Place',NULL,' ','129','41545',' ','2006-02-15 04:45:30.000')
+ ('472','1447 Chatsworth Place',NULL,'Chihuahua','129','41545','769370126331','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('473','1257 Guadalajara Street',NULL,' ','78','33599',' ','2006-02-15 04:45:30.000')
+ ('473','1257 Guadalajara Street',NULL,'Karnataka','78','33599','195337700615','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('474','1469 Plock Lane',NULL,' ','388','95835',' ','2006-02-15 04:45:30.000')
+ ('474','1469 Plock Lane',NULL,'Galicia','388','95835','622884741180','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('475','434 Ourense (Orense) Manor',NULL,' ','206','14122',' ','2006-02-15 04:45:30.000')
+ ('475','434 Ourense (Orense) Manor',NULL,'Hodeida','206','14122','562370137426','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('476','270 Tambaram Parkway',NULL,' ','244','9668',' ','2006-02-15 04:45:30.000')
+ ('476','270 Tambaram Parkway',NULL,'Gauteng','244','9668','248446668735','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('477','1786 Salinas Place',NULL,' ','359','66546',' ','2006-02-15 04:45:30.000')
+ ('477','1786 Salinas Place',NULL,'Nam Ha','359','66546','206060652238','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('478','1078 Stara Zagora Drive',NULL,' ','301','69221',' ','2006-02-15 04:45:30.000')
+ ('478','1078 Stara Zagora Drive',NULL,'Aceh','301','69221','932992626595','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('479','1854 Okara Boulevard',NULL,' ','158','42123',' ','2006-02-15 04:45:30.000')
+ ('479','1854 Okara Boulevard',NULL,'Drenthe','158','42123','131912793873','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('480','421 Yaound Street',NULL,' ','385','11363',' ','2006-02-15 04:45:30.000')
+ ('480','421 Yaoundé Street',NULL,'Sumy','385','11363','726875628268','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('481','1153 Allende Way',NULL,' ','179','20336',' ','2006-02-15 04:45:30.000')
+ ('481','1153 Allende Way',NULL,'Québec','179','20336','856872225376','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('482','808 Naala-Porto Parkway',NULL,' ','500','41060',' ','2006-02-15 04:45:30.000')
+ ('482','808 Naçala-Porto Parkway',NULL,'England','500','41060','553452430707','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('483','632 Usolje-Sibirskoje Parkway',NULL,' ','36','73085',' ','2006-02-15 04:45:30.000')
+ ('483','632 Usolje-Sibirskoje Parkway',NULL,'Ha Darom','36','73085','667648979883','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('484','98 Pyongyang Boulevard',NULL,' ','11','88749',' ','2006-02-15 04:45:30.000')
+ ('484','98 Pyongyang Boulevard',NULL,'Ohio','11','88749','191958435142','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('485','984 Novoterkassk Loop',NULL,' ','180','28165',' ','2006-02-15 04:45:30.000')
+ ('485','984 Novotšerkassk Loop',NULL,'Gaziantep','180','28165','435118527255','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('486','64 Korla Street',NULL,' ','347','25145',' ','2006-02-15 04:45:30.000')
+ ('486','64 Korla Street',NULL,'Mwanza','347','25145','510383179153','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('487','1785 So Bernardo do Campo Street',NULL,' ','125','71182',' ','2006-02-15 04:45:30.000')
+ ('487','1785 São Bernardo do Campo Street',NULL,'Veracruz','125','71182','684529463244','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('488','698 Jelets Boulevard',NULL,' ','142','2596',' ','2006-02-15 04:45:30.000')
+ ('488','698 Jelets Boulevard',NULL,'Denizli','142','2596','975185523021','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('489','1297 Alvorada Parkway',NULL,' ','587','11839',' ','2006-02-15 04:45:30.000')
+ ('489','1297 Alvorada Parkway',NULL,'Ningxia','587','11839','508348602835','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('490','1909 Dayton Avenue',NULL,' ','469','88513',' ','2006-02-15 04:45:30.000')
+ ('490','1909 Dayton Avenue',NULL,'Guangdong','469','88513','702955450528','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('491','1789 Saint-Denis Parkway',NULL,' ','4','8268',' ','2006-02-15 04:45:30.000')
+ ('491','1789 Saint-Denis Parkway',NULL,'Coahuila de Zaragoza','4','8268','936806643983','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('492','185 Mannheim Lane',NULL,' ','408','23661',' ','2006-02-15 04:45:30.000')
+ ('492','185 Mannheim Lane',NULL,'Stavropol','408','23661','589377568313','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('493','184 Mandaluyong Street',NULL,' ','288','94239',' ','2006-02-15 04:45:30.000')
+ ('493','184 Mandaluyong Street',NULL,'Baja California Sur','288','94239','488425406814','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('494','591 Sungai Petani Drive',NULL,' ','376','46400',' ','2006-02-15 04:45:30.000')
+ ('494','591 Sungai Petani Drive',NULL,'Okayama','376','46400','37247325001','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('495','656 Matamoros Drive',NULL,' ','487','19489',' ','2006-02-15 04:45:30.000')
+ ('495','656 Matamoros Drive',NULL,'Boyac','487','19489','17305839123','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('496','775 ostka Drive',NULL,' ','337','22358',' ','2006-02-15 04:45:30.000')
+ ('496','775 Šostka Drive',NULL,'al-Daqahliya','337','22358','171973024401','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('497','1013 Tabuk Boulevard',NULL,' ','261','96203',' ','2006-02-15 04:45:30.000')
+ ('497','1013 Tabuk Boulevard',NULL,'West Bengali','261','96203','158399646978','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('498','319 Plock Parkway',NULL,' ','504','26101',' ','2006-02-15 04:45:30.000')
+ ('498','319 Plock Parkway',NULL,'Istanbul','504','26101','854259976812','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('499','1954 Kowloon and New Kowloon Way',NULL,' ','434','63667',' ','2006-02-15 04:45:30.000')
+ ('499','1954 Kowloon and New Kowloon Way',NULL,'Chimborazo','434','63667','898559280434','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('500','362 Rajkot Lane',NULL,' ','47','98030',' ','2006-02-15 04:45:30.000')
+ ('500','362 Rajkot Lane',NULL,'Gansu','47','98030','962020153680','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('501','1060 Tandil Lane',NULL,' ','432','72349',' ','2006-02-15 04:45:30.000')
+ ('501','1060 Tandil Lane',NULL,'Shandong','432','72349','211256301880','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('502','1515 Korla Way',NULL,' ','589','57197',' ','2006-02-15 04:45:30.000')
+ ('502','1515 Korla Way',NULL,'England','589','57197','959467760895','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('503','1416 San Juan Bautista Tuxtepec Avenue',NULL,' ','444','50592',' ','2006-02-15 04:45:30.000')
+ ('503','1416 San Juan Bautista Tuxtepec Avenue',NULL,'Zufar','444','50592','144206758053','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('504','1 Valle de Santiago Avenue',NULL,' ','93','86208',' ','2006-02-15 04:45:30.000')
+ ('504','1 Valle de Santiago Avenue',NULL,'Apulia','93','86208','465897838272','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('505','519 Brescia Parkway',NULL,' ','318','69504',' ','2006-02-15 04:45:30.000')
+ ('505','519 Brescia Parkway',NULL,'East Java','318','69504','793996678771','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('506','414 Mandaluyong Street',NULL,' ','314','16370',' ','2006-02-15 04:45:30.000')
+ ('506','414 Mandaluyong Street',NULL,'Lubelskie','314','16370','52709222667','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('507','1197 Sokoto Boulevard',NULL,' ','478','87687',' ','2006-02-15 04:45:30.000')
+ ('507','1197 Sokoto Boulevard',NULL,'West Bengali','478','87687','868602816371','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('508','496 Celaya Drive',NULL,' ','552','90797',' ','2006-02-15 04:45:30.000')
+ ('508','496 Celaya Drive',NULL,'Nagano','552','90797','759586584889','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('509','786 Matsue Way',NULL,' ','245','37469',' ','2006-02-15 04:45:30.000')
+ ('509','786 Matsue Way',NULL,'Illinois','245','37469','111177206479','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('510','48 Maracabo Place',NULL,' ','519','1570',' ','2006-02-15 04:45:30.000')
+ ('510','48 Maracaíbo Place',NULL,'Central Luzon','519','1570','82671830126','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('511','1152 al-Qatif Lane',NULL,' ','412','44816',' ','2006-02-15 04:45:30.000')
+ ('511','1152 al-Qatif Lane',NULL,'Kalimantan Barat','412','44816','131370665218','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('512','1269 Ipoh Avenue',NULL,' ','163','54674',' ','2006-02-15 04:45:30.000')
+ ('512','1269 Ipoh Avenue',NULL,'Eskisehir','163','54674','402630109080','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('513','758 Korolev Parkway',NULL,' ','568','75474',' ','2006-02-15 04:45:30.000')
+ ('513','758 Korolev Parkway',NULL,'Andhra Pradesh','568','75474','441628280920','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('514','1747 Rustenburg Place',NULL,' ','110','51369',' ','2006-02-15 04:45:30.000')
+ ('514','1747 Rustenburg Place',NULL,'Bihar','110','51369','442673923363','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('515','886 Tonghae Place',NULL,' ','259','19450',' ','2006-02-15 04:45:30.000')
+ ('515','886 Tonghae Place',NULL,'Volgograd','259','19450','711928348157','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('516','1574 Goinia Boulevard',NULL,' ','502','39529',' ','2006-02-15 04:45:30.000')
+ ('516','1574 Goiânia Boulevard',NULL,'Heilongjiang','502','39529','59634255214','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('517','548 Uruapan Street',NULL,' ','312','35653',' ','2006-02-15 04:45:30.000')
+ ('517','548 Uruapan Street',NULL,'Ontario','312','35653','879347453467','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('519','962 Tama Loop',NULL,' ','583','65952',' ','2006-02-15 04:45:30.000')
+ ('519','962 Tama Loop',NULL,'','583','65952','282667506728','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('520','1778 Gijn Manor',NULL,' ','594','35156',' ','2006-02-15 04:45:30.000')
+ ('520','1778 Gijón Manor',NULL,'Hubei','594','35156','288910576761','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('521','568 Dhule (Dhulia) Loop',NULL,' ','127','92568',' ','2006-02-15 04:45:30.000')
+ ('521','568 Dhule (Dhulia) Loop',NULL,'Coquimbo','127','92568','602101369463','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('522','1768 Udine Loop',NULL,' ','60','32347',' ','2006-02-15 04:45:30.000')
+ ('522','1768 Udine Loop',NULL,'Battambang','60','32347','448876499197','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('523','608 Birgunj Parkway',NULL,' ','116','400',' ','2006-02-15 04:45:30.000')
+ ('523','608 Birgunj Parkway',NULL,'Taipei','116','400','627425618482','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('524','680 A Corua (La Corua) Manor',NULL,' ','482','49806',' ','2006-02-15 04:45:30.000')
+ ('524','680 A Coruña (La Coruña) Manor',NULL,'Sivas','482','49806','158326114853','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('525','1949 Sanya Street',NULL,' ','224','61244',' ','2006-02-15 04:45:30.000')
+ ('525','1949 Sanya Street',NULL,'Gumma','224','61244','132100972047','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('526','617 Klerksdorp Place',NULL,' ','366','94707',' ','2006-02-15 04:45:30.000')
+ ('526','617 Klerksdorp Place',NULL,'Khanh Hoa','366','94707','574973479129','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('527','1993 0 Loop',NULL,' ','588','41214',' ','2006-02-15 04:45:30.000')
+ ('527','1993 0 Loop',NULL,'Liaoning','588','41214','25865528181','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('528','1176 Southend-on-Sea Manor',NULL,' ','458','81651',' ','2006-02-15 04:45:30.000')
+ ('528','1176 Southend-on-Sea Manor',NULL,'Southern Tagalog','458','81651','236679267178','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('529','600 Purnea (Purnia) Avenue',NULL,' ','571','18043',' ','2006-02-15 04:45:30.000')
+ ('529','600 Purnea (Purnia) Avenue',NULL,'Nghe An','571','18043','638409958875','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('530','1003 Qinhuangdao Street',NULL,' ','419','25972',' ','2006-02-15 04:45:30.000')
+ ('530','1003 Qinhuangdao Street',NULL,'West Java','419','25972','35533115997','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('531','1986 Sivas Place',NULL,' ','551','95775',' ','2006-02-15 04:45:30.000')
+ ('531','1986 Sivas Place',NULL,'Friuli-Venezia Giuli','551','95775','182059202712','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('532','1427 Tabuk Place',NULL,' ','101','31342',' ','2006-02-15 04:45:30.000')
+ ('532','1427 Tabuk Place',NULL,'Florida','101','31342','214756839122','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('533','556 Asuncin Way',NULL,' ','339','35364',' ','2006-02-15 04:45:30.000')
+ ('533','556 Asunción Way',NULL,'Mogiljov','339','35364','338244023543','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('534','486 Ondo Parkway',NULL,' ','67','35202',' ','2006-02-15 04:45:30.000')
+ ('534','486 Ondo Parkway',NULL,'Benguela','67','35202','105882218332','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('535','635 Brest Manor',NULL,' ','75','40899',' ','2006-02-15 04:45:30.000')
+ ('535','635 Brest Manor',NULL,'Andhra Pradesh','75','40899','80593242951','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('536','166 Jinchang Street',NULL,' ','165','86760',' ','2006-02-15 04:45:30.000')
+ ('536','166 Jinchang Street',NULL,'Buenos Aires','165','86760','717566026669','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('537','958 Sagamihara Lane',NULL,' ','287','88408',' ','2006-02-15 04:45:30.000')
+ ('537','958 Sagamihara Lane',NULL,'Mie','287','88408','427274926505','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('538','1817 Livorno Way',NULL,' ','100','79401',' ','2006-02-15 04:45:30.000')
+ ('538','1817 Livorno Way',NULL,'Khanh Hoa','100','79401','478380208348','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('539','1332 Gaziantep Lane',NULL,' ','80','22813',' ','2006-02-15 04:45:30.000')
+ ('539','1332 Gaziantep Lane',NULL,'Shandong','80','22813','383353187467','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('540','949 Allende Lane',NULL,' ','24','67521',' ','2006-02-15 04:45:30.000')
+ ('540','949 Allende Lane',NULL,'Uttar Pradesh','24','67521','122981120653','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('541','195 Ilorin Street',NULL,' ','363','49250',' ','2006-02-15 04:45:30.000')
+ ('541','195 Ilorin Street',NULL,'Chari-Baguirmi','363','49250','8912935608','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('542','193 Bhusawal Place',NULL,' ','539','9750',' ','2006-02-15 04:45:30.000')
+ ('542','193 Bhusawal Place',NULL,'Kang-won','539','9750','745267607502','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('543','43 Vilnius Manor',NULL,' ','42','79814',' ','2006-02-15 04:45:30.000')
+ ('543','43 Vilnius Manor',NULL,'Colorado','42','79814','484500282381','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('544','183 Haiphong Street',NULL,' ','46','69953',' ','2006-02-15 04:45:30.000')
+ ('544','183 Haiphong Street',NULL,'Jilin','46','69953','488600270038','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('545','163 Augusta-Richmond County Loop',NULL,' ','561','33030',' ','2006-02-15 04:45:30.000')
+ ('545','163 Augusta-Richmond County Loop',NULL,'Carabobo','561','33030','754579047924','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('546','191 Jos Azueta Parkway',NULL,' ','436','13629',' ','2006-02-15 04:45:30.000')
+ ('546','191 José Azueta Parkway',NULL,'Ruse','436','13629','932156667696','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('547','379 Lublin Parkway',NULL,' ','309','74568',' ','2006-02-15 04:45:30.000')
+ ('547','379 Lublin Parkway',NULL,'Toscana','309','74568','921960450089','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('548','1658 Cuman Loop',NULL,' ','396','51309',' ','2006-02-15 04:45:30.000')
+ ('548','1658 Cumaná Loop',NULL,'Sumatera Selatan','396','51309','784907335610','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('549','454 Qinhuangdao Drive',NULL,' ','68','25866',' ','2006-02-15 04:45:30.000')
+ ('549','454 Qinhuangdao Drive',NULL,'Tadla-Azilal','68','25866','786270036240','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('550','1715 Okayama Street',NULL,' ','485','55676',' ','2006-02-15 04:45:30.000')
+ ('550','1715 Okayama Street',NULL,'São Paulo','485','55676','169352919175','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('551','182 Nukualofa Drive',NULL,' ','275','15414',' ','2006-02-15 04:45:30.000')
+ ('551','182 Nuku´alofa Drive',NULL,'Sumy','275','15414','426346224043','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('552','390 Wroclaw Way',NULL,' ','462','5753',' ','2006-02-15 04:45:30.000')
+ ('552','390 Wroclaw Way',NULL,'Hainan','462','5753','357593328658','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('553','1421 Quilmes Lane',NULL,' ','260','19151',' ','2006-02-15 04:45:30.000')
+ ('553','1421 Quilmes Lane',NULL,'Ishikawa','260','19151','135407755975','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('554','947 Trshavn Place',NULL,' ','528','841',' ','2006-02-15 04:45:30.000')
+ ('554','947 Tórshavn Place',NULL,'Central Luzon','528','841','50898428626','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('555','1764 Jalib al-Shuyukh Parkway',NULL,' ','459','77642',' ','2006-02-15 04:45:30.000')
+ ('555','1764 Jalib al-Shuyukh Parkway',NULL,'Galicia','459','77642','84794532510','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('556','346 Cam Ranh Avenue',NULL,' ','599','39976',' ','2006-02-15 04:45:30.000')
+ ('556','346 Cam Ranh Avenue',NULL,'Zhejiang','599','39976','978430786151','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('557','1407 Pachuca de Soto Place',NULL,' ','21','26284',' ','2006-02-15 04:45:30.000')
+ ('557','1407 Pachuca de Soto Place',NULL,'Rio Grande do Sul','21','26284','380077794770','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('558','904 Clarksville Drive',NULL,' ','193','52234',' ','2006-02-15 04:45:30.000')
+ ('558','904 Clarksville Drive',NULL,'Zhejiang','193','52234','955349440539','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('559','1917 Kumbakonam Parkway',NULL,' ','368','11892',' ','2006-02-15 04:45:30.000')
+ ('559','1917 Kumbakonam Parkway',NULL,'Vojvodina','368','11892','698182547686','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('560','1447 Imus Place',NULL,' ','426','12905',' ','2006-02-15 04:45:30.000')
+ ('560','1447 Imus Place',NULL,'Gujarat','426','12905','62127829280','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('561','1497 Fengshan Drive',NULL,' ','112','63022',' ','2006-02-15 04:45:30.000')
+ ('561','1497 Fengshan Drive',NULL,'KwaZulu-Natal','112','63022','368738360376','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('562','869 Shikarpur Way',NULL,' ','496','57380',' ','2006-02-15 04:45:30.000')
+ ('562','869 Shikarpur Way',NULL,'England','496','57380','590764256785','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('563','1059 Yuncheng Avenue',NULL,' ','570','47498',' ','2006-02-15 04:45:30.000')
+ ('563','1059 Yuncheng Avenue',NULL,'Vilna','570','47498','107092893983','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('564','505 Madiun Boulevard',NULL,' ','577','97271',' ','2006-02-15 04:45:30.000')
+ ('564','505 Madiun Boulevard',NULL,'Dolnoslaskie','577','97271','970638808606','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('565','1741 Hoshiarpur Boulevard',NULL,' ','79','22372',' ','2006-02-15 04:45:30.000')
+ ('565','1741 Hoshiarpur Boulevard',NULL,'al-Sharqiya','79','22372','855066328617','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('566','1229 Varanasi (Benares) Manor',NULL,' ','43','40195',' ','2006-02-15 04:45:30.000')
+ ('566','1229 Varanasi (Benares) Manor',NULL,'Buenos Aires','43','40195','817740355461','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('567','1894 Boa Vista Way',NULL,' ','178','77464',' ','2006-02-15 04:45:30.000')
+ ('567','1894 Boa Vista Way',NULL,'Texas','178','77464','239357986667','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('568','1342 Sharja Way',NULL,' ','488','93655',' ','2006-02-15 04:45:30.000')
+ ('568','1342 Sharja Way',NULL,'Sokoto & Kebbi & Zam','488','93655','946114054231','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('569','1342 Abha Boulevard',NULL,' ','95','10714',' ','2006-02-15 04:45:30.000')
+ ('569','1342 Abha Boulevard',NULL,'Bukarest','95','10714','997453607116','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('570','415 Pune Avenue',NULL,' ','580','44274',' ','2006-02-15 04:45:30.000')
+ ('570','415 Pune Avenue',NULL,'Shandong','580','44274','203202500108','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('571','1746 Faaa Way',NULL,' ','214','32515',' ','2006-02-15 04:45:30.000')
+ ('571','1746 Faaa Way',NULL,'Huánuco','214','32515','863080561151','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('572','539 Hami Way',NULL,' ','538','52196',' ','2006-02-15 04:45:30.000')
+ ('572','539 Hami Way',NULL,'Tokat','538','52196','525518075499','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('573','1407 Surakarta Manor',NULL,' ','466','33224',' ','2006-02-15 04:45:30.000')
+ ('573','1407 Surakarta Manor',NULL,'Moskova','466','33224','324346485054','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('574','502 Mandi Bahauddin Parkway',NULL,' ','55','15992',' ','2006-02-15 04:45:30.000')
+ ('574','502 Mandi Bahauddin Parkway',NULL,'Anzotegui','55','15992','618156722572','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('575','1052 Pathankot Avenue',NULL,' ','299','77397',' ','2006-02-15 04:45:30.000')
+ ('575','1052 Pathankot Avenue',NULL,'Sichuan','299','77397','128499386727','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('576','1351 Sousse Lane',NULL,' ','341','37815',' ','2006-02-15 04:45:30.000')
+ ('576','1351 Sousse Lane',NULL,'Coahuila de Zaragoza','341','37815','203804046132','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('577','1501 Pangkal Pinang Avenue',NULL,' ','409','943',' ','2006-02-15 04:45:30.000')
+ ('577','1501 Pangkal Pinang Avenue',NULL,'Mazowieckie','409','943','770864062795','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('578','1405 Hagonoy Avenue',NULL,' ','133','86587',' ','2006-02-15 04:45:30.000')
+ ('578','1405 Hagonoy Avenue',NULL,'Slaskie','133','86587','867287719310','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('579','521 San Juan Bautista Tuxtepec Place',NULL,' ','598','95093',' ','2006-02-15 04:45:30.000')
+ ('579','521 San Juan Bautista Tuxtepec Place',NULL,'Qaraghandy','598','95093','844018348565','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('580','923 Tangail Boulevard',NULL,' ','10','33384',' ','2006-02-15 04:45:30.000')
+ ('580','923 Tangail Boulevard',NULL,'Tokyo-to','10','33384','315528269898','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('581','186 Skikda Lane',NULL,' ','131','89422',' ','2006-02-15 04:45:30.000')
+ ('581','186 Skikda Lane',NULL,'Morelos','131','89422','14465669789','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('582','1568 Celaya Parkway',NULL,' ','168','34750',' ','2006-02-15 04:45:30.000')
+ ('582','1568 Celaya Parkway',NULL,'Kaohsiung','168','34750','278669994384','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('583','1489 Kakamigahara Lane',NULL,' ','526','98883',' ','2006-02-15 04:45:30.000')
+ ('583','1489 Kakamigahara Lane',NULL,'Taipei','526','98883','29341849811','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('584','1819 Alessandria Loop',NULL,' ','103','53829',' ','2006-02-15 04:45:30.000')
+ ('584','1819 Alessandria Loop',NULL,'Campeche','103','53829','377633994405','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('585','1208 Tama Loop',NULL,' ','344','73605',' ','2006-02-15 04:45:30.000')
+ ('585','1208 Tama Loop',NULL,'Ninawa','344','73605','954786054144','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('586','951 Springs Lane',NULL,' ','219','96115',' ','2006-02-15 04:45:30.000')
+ ('586','951 Springs Lane',NULL,'Central Mindanao','219','96115','165164761435','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('587','760 Miyakonojo Drive',NULL,' ','246','64682',' ','2006-02-15 04:45:30.000')
+ ('587','760 Miyakonojo Drive',NULL,'Guerrero','246','64682','294449058179','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('588','966 Asuncin Way',NULL,' ','212','62703',' ','2006-02-15 04:45:30.000')
+ ('588','966 Asunción Way',NULL,'Hidalgo','212','62703','995527378381','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('589','1584 Ljubertsy Lane',NULL,' ','494','22954',' ','2006-02-15 04:45:30.000')
+ ('589','1584 Ljubertsy Lane',NULL,'England','494','22954','285710089439','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('590','247 Jining Parkway',NULL,' ','54','53446',' ','2006-02-15 04:45:30.000')
+ ('590','247 Jining Parkway',NULL,'Banjul','54','53446','170115379190','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('591','773 Dallas Manor',NULL,' ','424','12664',' ','2006-02-15 04:45:30.000')
+ ('591','773 Dallas Manor',NULL,'Buenos Aires','424','12664','914466027044','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('592','1923 Stara Zagora Lane',NULL,' ','546','95179',' ','2006-02-15 04:45:30.000')
+ ('592','1923 Stara Zagora Lane',NULL,'Nantou','546','95179','182178609211','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('593','1402 Zanzibar Boulevard',NULL,' ','106','71102',' ','2006-02-15 04:45:30.000')
+ ('593','1402 Zanzibar Boulevard',NULL,'Guanajuato','106','71102','387448063440','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('594','1464 Kursk Parkway',NULL,' ','574','17381',' ','2006-02-15 04:45:30.000')
+ ('594','1464 Kursk Parkway',NULL,'Shandong','574','17381','338758048786','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('595','1074 Sanaa Parkway',NULL,' ','311','22474',' ','2006-02-15 04:45:30.000')
+ ('595','1074 Sanaa Parkway',NULL,'Loja','311','22474','154124128457','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('596','1759 Niznekamsk Avenue',NULL,' ','14','39414',' ','2006-02-15 04:45:30.000')
+ ('596','1759 Niznekamsk Avenue',NULL,'al-Manama','14','39414','864392582257','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('597','32 Liaocheng Way',NULL,' ','248','1944',' ','2006-02-15 04:45:30.000')
+ ('597','32 Liaocheng Way',NULL,'Minas Gerais','248','1944','410877354933','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('598','42 Fontana Avenue',NULL,' ','512','14684',' ','2006-02-15 04:45:30.000')
+ ('598','42 Fontana Avenue',NULL,'Fejr','512','14684','437829801725','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('599','1895 Zhezqazghan Drive',NULL,' ','177','36693',' ','2006-02-15 04:45:30.000')
+ ('599','1895 Zhezqazghan Drive',NULL,'California','177','36693','137809746111','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('600','1837 Kaduna Parkway',NULL,' ','241','82580',' ','2006-02-15 04:45:30.000')
+ ('600','1837 Kaduna Parkway',NULL,'Inner Mongolia','241','82580','640843562301','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('601','844 Bucuresti Place',NULL,' ','242','36603',' ','2006-02-15 04:45:30.000')
+ ('601','844 Bucuresti Place',NULL,'Liaoning','242','36603','935952366111','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('602','1101 Bucuresti Boulevard',NULL,' ','401','97661',' ','2006-02-15 04:45:30.000')
+ ('602','1101 Bucuresti Boulevard',NULL,'West Greece','401','97661','199514580428','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('603','1103 Quilmes Boulevard',NULL,' ','503','52137',' ','2006-02-15 04:45:30.000')
+ ('603','1103 Quilmes Boulevard',NULL,'Piura','503','52137','644021380889','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('604','1331 Usak Boulevard',NULL,' ','296','61960',' ','2006-02-15 04:45:30.000')
+ ('604','1331 Usak Boulevard',NULL,'Vaud','296','61960','145308717464','2006-02-15 04:45:30.000')
 ;
 Insert into address
  (address_id,address,address2,district,city_id,postal_code,phone,last_update)
 Values
- ('605','1325 Fukuyama Street',NULL,' ','537','27107',' ','2006-02-15 04:45:30.000')
+ ('605','1325 Fukuyama Street',NULL,'Heilongjiang','537','27107','288241215394','2006-02-15 04:45:30.000')
 ;
 -- Automatically generated by Advanced ETl Processor
 -- http://www.etl-tools.com/
@@ -7784,7 +7784,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('1','ACADEMY DINOSAUR','An Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies','2006','1',NULL,'6','0.99','86','20.99','PG','Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
+('1','ACADEMY DINOSAUR','A Epic Drama of a Feminist And a Mad Scientist who must Battle a Teacher in The Canadian Rockies','2006','1',NULL,'6','0.99','86','20.99','PG','Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -7819,7 +7819,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('8','AIRPORT POLLOCK','An Epic Tale of a Moose And a Girl who must Confront a Monkey in Ancient India','2006','1',NULL,'6','4.99','54','15.99','R','Trailers','2006-02-15 05:03:42.000')
+('8','AIRPORT POLLOCK','A Epic Tale of a Moose And a Girl who must Confront a Monkey in Ancient India','2006','1',NULL,'6','4.99','54','15.99','R','Trailers','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -7929,7 +7929,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('30','ANYTHING SAVANNAH','An Epic Story of a Pastry Chef And a Woman who must Chase a Feminist in An Abandoned Fun House','2006','1',NULL,'4','2.99','82','27.99','R','Trailers,Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
+('30','ANYTHING SAVANNAH','A Epic Story of a Pastry Chef And a Woman who must Chase a Feminist in An Abandoned Fun House','2006','1',NULL,'4','2.99','82','27.99','R','Trailers,Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -8044,7 +8044,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('53','BANG KWAI','An Epic Drama of a Madman And a Cat who must Face a A Shark in An Abandoned Amusement Park','2006','1',NULL,'5','2.99','87','25.99','NC-17','Commentaries,Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
+('53','BANG KWAI','A Epic Drama of a Madman And a Cat who must Face a A Shark in An Abandoned Amusement Park','2006','1',NULL,'5','2.99','87','25.99','NC-17','Commentaries,Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -8099,7 +8099,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('64','BEETHOVEN EXORCIST','An Epic Display of a Pioneer And a Student who must Challenge a Butler in The Gulf of Mexico','2006','1',NULL,'6','0.99','151','26.99','PG-13','Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
+('64','BEETHOVEN EXORCIST','A Epic Display of a Pioneer And a Student who must Challenge a Butler in The Gulf of Mexico','2006','1',NULL,'6','0.99','151','26.99','PG-13','Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -8264,7 +8264,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('97','BRIDE INTRIGUE','An Epic Tale of a Robot And a Monkey who must Vanquish a Man in New Orleans','2006','1',NULL,'7','0.99','56','24.99','G','Trailers,Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
+('97','BRIDE INTRIGUE','A Epic Tale of a Robot And a Monkey who must Vanquish a Man in New Orleans','2006','1',NULL,'7','0.99','56','24.99','G','Trailers,Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -8504,7 +8504,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('145','CHISUM BEHAVIOR','An Epic Documentary of a Sumo Wrestler And a Butler who must Kill a Car in Ancient India','2006','1',NULL,'5','4.99','124','25.99','G','Trailers,Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
+('145','CHISUM BEHAVIOR','A Epic Documentary of a Sumo Wrestler And a Butler who must Kill a Car in Ancient India','2006','1',NULL,'5','4.99','124','25.99','G','Trailers,Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -8579,7 +8579,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('160','CLUB GRAFFITI','An Epic Tale of a Pioneer And a Hunter who must Escape a Girl in A U-Boat','2006','1',NULL,'4','0.99','65','12.99','PG-13','Trailers,Deleted Scenes','2006-02-15 05:03:42.000')
+('160','CLUB GRAFFITI','A Epic Tale of a Pioneer And a Hunter who must Escape a Girl in A U-Boat','2006','1',NULL,'4','0.99','65','12.99','PG-13','Trailers,Deleted Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -8789,7 +8789,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('202','DADDY PITTSBURGH','An Epic Story of a A Shark And a Student who must Confront a Explorer in The Gulf of Mexico','2006','1',NULL,'5','4.99','161','26.99','G','Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
+('202','DADDY PITTSBURGH','A Epic Story of a A Shark And a Student who must Confront a Explorer in The Gulf of Mexico','2006','1',NULL,'5','4.99','161','26.99','G','Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -8899,7 +8899,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('224','DESPERATE TRAINSPOTTING','An Epic Yarn of a Forensic Psychologist And a Teacher who must Face a Lumberjack in California','2006','1',NULL,'7','4.99','81','29.99','G','Deleted Scenes','2006-02-15 05:03:42.000')
+('224','DESPERATE TRAINSPOTTING','A Epic Yarn of a Forensic Psychologist And a Teacher who must Face a Lumberjack in California','2006','1',NULL,'7','4.99','81','29.99','G','Deleted Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -8914,7 +8914,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('227','DETAILS PACKER','An Epic Saga of a Waitress And a Composer who must Face a Boat in A U-Boat','2006','1',NULL,'4','4.99','88','17.99','R','Commentaries,Deleted Scenes','2006-02-15 05:03:42.000')
+('227','DETAILS PACKER','A Epic Saga of a Waitress And a Composer who must Face a Boat in A U-Boat','2006','1',NULL,'4','4.99','88','17.99','R','Commentaries,Deleted Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -9039,12 +9039,12 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('252','DREAM PICKUP','An Epic Display of a Car And a Composer who must Overcome a Forensic Psychologist in The Gulf of Mexico','2006','1',NULL,'6','2.99','135','18.99','PG','Trailers,Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
+('252','DREAM PICKUP','A Epic Display of a Car And a Composer who must Overcome a Forensic Psychologist in The Gulf of Mexico','2006','1',NULL,'6','2.99','135','18.99','PG','Trailers,Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('253','DRIFTER COMMANDMENTS','An Epic Reflection of a Womanizer And a Squirrel who must Discover a Husband in A Jet Boat','2006','1',NULL,'5','4.99','61','18.99','PG-13','Trailers,Behind the Scenes','2006-02-15 05:03:42.000')
+('253','DRIFTER COMMANDMENTS','A Epic Reflection of a Womanizer And a Squirrel who must Discover a Husband in A Jet Boat','2006','1',NULL,'5','4.99','61','18.99','PG-13','Trailers,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -9069,7 +9069,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('258','DRUMS DYNAMITE','An Epic Display of a Crocodile And a Crocodile who must Confront a Dog in An Abandoned Amusement Park','2006','1',NULL,'6','0.99','96','11.99','PG','Trailers','2006-02-15 05:03:42.000')
+('258','DRUMS DYNAMITE','A Epic Display of a Crocodile And a Crocodile who must Confront a Dog in An Abandoned Amusement Park','2006','1',NULL,'6','0.99','96','11.99','PG','Trailers','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -9284,7 +9284,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('301','FAMILY SWEET','An Epic Documentary of a Teacher And a Boy who must Escape a Woman in Berlin','2006','1',NULL,'4','0.99','155','24.99','R','Trailers','2006-02-15 05:03:42.000')
+('301','FAMILY SWEET','A Epic Documentary of a Teacher And a Boy who must Escape a Woman in Berlin','2006','1',NULL,'4','0.99','155','24.99','R','Trailers','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -9634,7 +9634,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('371','GOSFORD DONNIE','An Epic Panorama of a Mad Scientist And a Monkey who must Redeem a Secret Agent in Berlin','2006','1',NULL,'5','4.99','129','17.99','G','Commentaries','2006-02-15 05:03:42.000')
+('371','GOSFORD DONNIE','A Epic Panorama of a Mad Scientist And a Monkey who must Redeem a Secret Agent in Berlin','2006','1',NULL,'5','4.99','129','17.99','G','Commentaries','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -9699,7 +9699,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('384','GROSSE WONDERFUL','An Epic Drama of a Cat And a Explorer who must Redeem a Moose in Australia','2006','1',NULL,'5','4.99','49','19.99','R','Behind the Scenes','2006-02-15 05:03:42.000')
+('384','GROSSE WONDERFUL','A Epic Drama of a Cat And a Explorer who must Redeem a Moose in Australia','2006','1',NULL,'5','4.99','49','19.99','R','Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -9719,7 +9719,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('388','GUNFIGHT MOON','An Epic Reflection of a Pastry Chef And a Explorer who must Reach a Dentist in The Sahara Desert','2006','1',NULL,'5','0.99','70','16.99','NC-17','Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
+('388','GUNFIGHT MOON','A Epic Reflection of a Pastry Chef And a Explorer who must Reach a Dentist in The Sahara Desert','2006','1',NULL,'5','0.99','70','16.99','NC-17','Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -9734,7 +9734,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('391','HALF OUTFIELD','An Epic Epistle of a Database Administrator And a Crocodile who must Face a Madman in A Jet Boat','2006','1',NULL,'6','2.99','146','25.99','PG-13','Trailers,Commentaries,Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
+('391','HALF OUTFIELD','A Epic Epistle of a Database Administrator And a Crocodile who must Face a Madman in A Jet Boat','2006','1',NULL,'6','2.99','146','25.99','PG-13','Trailers,Commentaries,Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -9864,7 +9864,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('417','HILLS NEIGHBORS','An Epic Display of a Hunter And a Feminist who must Sink a Car in A U-Boat','2006','1',NULL,'5','0.99','93','29.99','G','Trailers,Commentaries,Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
+('417','HILLS NEIGHBORS','A Epic Display of a Hunter And a Feminist who must Sink a Car in A U-Boat','2006','1',NULL,'5','0.99','93','29.99','G','Trailers,Commentaries,Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -10034,7 +10034,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('451','IGBY MAKER','An Epic Documentary of a Hunter And a Dog who must Outgun a Dog in A Baloon Factory','2006','1',NULL,'7','4.99','160','12.99','NC-17','Trailers,Behind the Scenes','2006-02-15 05:03:42.000')
+('451','IGBY MAKER','A Epic Documentary of a Hunter And a Dog who must Outgun a Dog in A Baloon Factory','2006','1',NULL,'7','4.99','160','12.99','NC-17','Trailers,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -10049,7 +10049,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('454','IMPACT ALADDIN','An Epic Character Study of a Frisbee And a Moose who must Outgun a Technical Writer in A Shark Tank','2006','1',NULL,'6','0.99','180','20.99','PG-13','Trailers,Deleted Scenes','2006-02-15 05:03:42.000')
+('454','IMPACT ALADDIN','A Epic Character Study of a Frisbee And a Moose who must Outgun a Technical Writer in A Shark Tank','2006','1',NULL,'6','0.99','180','20.99','PG-13','Trailers,Deleted Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -10084,7 +10084,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('461','INSECTS STONE','An Epic Display of a Butler And a Dog who must Vanquish a Crocodile in A Manhattan Penthouse','2006','1',NULL,'3','0.99','123','14.99','NC-17','Trailers,Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
+('461','INSECTS STONE','A Epic Display of a Butler And a Dog who must Vanquish a Crocodile in A Manhattan Penthouse','2006','1',NULL,'3','0.99','123','14.99','NC-17','Trailers,Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -10214,7 +10214,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('487','JINGLE SAGEBRUSH','An Epic Character Study of a Feminist And a Student who must Meet a Woman in A Baloon','2006','1',NULL,'6','4.99','124','29.99','PG-13','Trailers,Commentaries','2006-02-15 05:03:42.000')
+('487','JINGLE SAGEBRUSH','A Epic Character Study of a Feminist And a Student who must Meet a Woman in A Baloon','2006','1',NULL,'6','4.99','124','29.99','PG-13','Trailers,Commentaries','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -10224,7 +10224,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('489','JUGGLER HARDLY','An Epic Story of a Mad Cow And a Astronaut who must Challenge a Car in California','2006','1',NULL,'4','0.99','54','14.99','PG-13','Trailers,Commentaries','2006-02-15 05:03:42.000')
+('489','JUGGLER HARDLY','A Epic Story of a Mad Cow And a Astronaut who must Challenge a Car in California','2006','1',NULL,'4','0.99','54','14.99','PG-13','Trailers,Commentaries','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -10244,7 +10244,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('493','KANE EXORCIST','An Epic Documentary of a Composer And a Robot who must Overcome a Car in Berlin','2006','1',NULL,'5','0.99','92','18.99','R','Trailers,Commentaries','2006-02-15 05:03:42.000')
+('493','KANE EXORCIST','A Epic Documentary of a Composer And a Robot who must Overcome a Car in Berlin','2006','1',NULL,'5','0.99','92','18.99','R','Trailers,Commentaries','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -10324,7 +10324,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('509','LANGUAGE COWBOY','An Epic Yarn of a Cat And a Madman who must Vanquish a Dentist in An Abandoned Amusement Park','2006','1',NULL,'5','0.99','78','26.99','NC-17','Trailers,Deleted Scenes','2006-02-15 05:03:42.000')
+('509','LANGUAGE COWBOY','A Epic Yarn of a Cat And a Madman who must Vanquish a Dentist in An Abandoned Amusement Park','2006','1',NULL,'5','0.99','78','26.99','NC-17','Trailers,Deleted Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -10764,7 +10764,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('597','MOONWALKER FOOL','An Epic Drama of a Feminist And a Pioneer who must Sink a Composer in New Orleans','2006','1',NULL,'5','4.99','184','12.99','G','Trailers,Deleted Scenes','2006-02-15 05:03:42.000')
+('597','MOONWALKER FOOL','A Epic Drama of a Feminist And a Pioneer who must Sink a Composer in New Orleans','2006','1',NULL,'5','4.99','184','12.99','G','Trailers,Deleted Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -10844,7 +10844,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('613','MYSTIC TRUMAN','An Epic Yarn of a Teacher And a Hunter who must Outgun a Explorer in Soviet Georgia','2006','1',NULL,'5','0.99','92','19.99','NC-17','Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
+('613','MYSTIC TRUMAN','A Epic Yarn of a Teacher And a Hunter who must Outgun a Explorer in Soviet Georgia','2006','1',NULL,'5','0.99','92','19.99','NC-17','Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -10854,7 +10854,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('615','NASH CHOCOLAT','An Epic Reflection of a Monkey And a Mad Cow who must Kill a Forensic Psychologist in An Abandoned Mine Shaft','2006','1',NULL,'6','2.99','180','21.99','PG-13','Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
+('615','NASH CHOCOLAT','A Epic Reflection of a Monkey And a Mad Cow who must Kill a Forensic Psychologist in An Abandoned Mine Shaft','2006','1',NULL,'6','2.99','180','21.99','PG-13','Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -11024,7 +11024,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('649','OZ LIAISONS','An Epic Yarn of a Mad Scientist And a Cat who must Confront a Womanizer in A Baloon Factory','2006','1',NULL,'4','2.99','85','14.99','R','Commentaries,Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
+('649','OZ LIAISONS','A Epic Yarn of a Mad Scientist And a Cat who must Confront a Womanizer in A Baloon Factory','2006','1',NULL,'4','2.99','85','14.99','R','Commentaries,Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -11034,7 +11034,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('651','PACKER MADIGAN','An Epic Display of a Sumo Wrestler And a Forensic Psychologist who must Build a Woman in An Abandoned Amusement Park','2006','1',NULL,'3','0.99','84','20.99','PG-13','Trailers','2006-02-15 05:03:42.000')
+('651','PACKER MADIGAN','A Epic Display of a Sumo Wrestler And a Forensic Psychologist who must Build a Woman in An Abandoned Amusement Park','2006','1',NULL,'3','0.99','84','20.99','PG-13','Trailers','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -11129,7 +11129,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('670','PELICAN COMFORTS','An Epic Documentary of a Boy And a Monkey who must Pursue a Astronaut in Berlin','2006','1',NULL,'4','4.99','48','17.99','PG','Commentaries,Deleted Scenes','2006-02-15 05:03:42.000')
+('670','PELICAN COMFORTS','A Epic Documentary of a Boy And a Monkey who must Pursue a Astronaut in Berlin','2006','1',NULL,'4','4.99','48','17.99','PG','Commentaries,Deleted Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -11144,7 +11144,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('673','PERSONAL LADYBUGS','An Epic Saga of a Hunter And a Technical Writer who must Conquer a Cat in Ancient Japan','2006','1',NULL,'3','0.99','118','19.99','PG-13','Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
+('673','PERSONAL LADYBUGS','A Epic Saga of a Hunter And a Technical Writer who must Conquer a Cat in Ancient Japan','2006','1',NULL,'3','0.99','118','19.99','PG-13','Deleted Scenes,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -11199,7 +11199,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('684','PIZZA JUMANJI','An Epic Saga of a Cat And a Squirrel who must Outgun a Robot in A U-Boat','2006','1',NULL,'4','2.99','173','11.99','NC-17','Commentaries','2006-02-15 05:03:42.000')
+('684','PIZZA JUMANJI','A Epic Saga of a Cat And a Squirrel who must Outgun a Robot in A U-Boat','2006','1',NULL,'4','2.99','173','11.99','NC-17','Commentaries','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -11249,7 +11249,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('694','PREJUDICE OLEANDER','An Epic Saga of a Boy And a Dentist who must Outrace a Madman in A U-Boat','2006','1',NULL,'6','4.99','98','15.99','PG-13','Trailers,Commentaries,Deleted Scenes','2006-02-15 05:03:42.000')
+('694','PREJUDICE OLEANDER','A Epic Saga of a Boy And a Dentist who must Outrace a Madman in A U-Boat','2006','1',NULL,'6','4.99','98','15.99','PG-13','Trailers,Commentaries,Deleted Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -11414,7 +11414,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('727','RESURRECTION SILVERADO','An Epic Yarn of a Robot And a Explorer who must Challenge a Girl in A MySQL Convention','2006','1',NULL,'6','0.99','117','12.99','PG','Trailers,Deleted Scenes','2006-02-15 05:03:42.000')
+('727','RESURRECTION SILVERADO','A Epic Yarn of a Robot And a Explorer who must Challenge a Girl in A MySQL Convention','2006','1',NULL,'6','0.99','117','12.99','PG','Trailers,Deleted Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -11779,7 +11779,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('800','SINNERS ATLANTIS','An Epic Display of a Dog And a Boat who must Succumb a Mad Scientist in An Abandoned Mine Shaft','2006','1',NULL,'7','2.99','126','19.99','PG-13','Trailers,Commentaries,Deleted Scenes','2006-02-15 05:03:42.000')
+('800','SINNERS ATLANTIS','A Epic Display of a Dog And a Boat who must Succumb a Mad Scientist in An Abandoned Mine Shaft','2006','1',NULL,'7','2.99','126','19.99','PG-13','Trailers,Commentaries,Deleted Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -11789,7 +11789,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('802','SKY MIRACLE','An Epic Drama of a Mad Scientist And a Explorer who must Succumb a Waitress in An Abandoned Fun House','2006','1',NULL,'7','2.99','132','15.99','PG','Trailers,Commentaries,Deleted Scenes','2006-02-15 05:03:42.000')
+('802','SKY MIRACLE','A Epic Drama of a Mad Scientist And a Explorer who must Succumb a Waitress in An Abandoned Fun House','2006','1',NULL,'7','2.99','132','15.99','PG','Trailers,Commentaries,Deleted Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -12099,7 +12099,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('864','SUNDANCE INVASION','An Epic Drama of a Lumberjack And a Explorer who must Confront a Hunter in A Baloon Factory','2006','1',NULL,'5','0.99','92','21.99','NC-17','Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
+('864','SUNDANCE INVASION','A Epic Drama of a Lumberjack And a Explorer who must Confront a Hunter in A Baloon Factory','2006','1',NULL,'5','0.99','92','21.99','NC-17','Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -12444,7 +12444,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('933','VAMPIRE WHALE','An Epic Story of a Lumberjack And a Monkey who must Confront a Pioneer in A MySQL Convention','2006','1',NULL,'4','4.99','126','11.99','NC-17','Trailers,Commentaries','2006-02-15 05:03:42.000')
+('933','VAMPIRE WHALE','A Epic Story of a Lumberjack And a Monkey who must Confront a Pioneer in A MySQL Convention','2006','1',NULL,'4','4.99','126','11.99','NC-17','Trailers,Commentaries','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
@@ -12534,7 +12534,7 @@ Values
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)
 Values
-('951','VOYAGE LEGALLY','An Epic Tale of a Squirrel And a Hunter who must Conquer a Boy in An Abandoned Mine Shaft','2006','1',NULL,'6','0.99','78','28.99','PG-13','Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
+('951','VOYAGE LEGALLY','A Epic Tale of a Squirrel And a Hunter who must Conquer a Boy in An Abandoned Mine Shaft','2006','1',NULL,'6','0.99','78','28.99','PG-13','Commentaries,Behind the Scenes','2006-02-15 05:03:42.000')
 ;
 Insert into film
  (film_id,title,description,release_year,language_id,original_language_id,rental_duration,rental_rate,length,replacement_cost,rating,special_features,last_update)

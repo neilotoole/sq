@@ -1,0 +1,34 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+  "formatter": {
+    "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noUnusedVariables": "error"
+      }
+    }
+  },
+  "javascript": {
+    "globals": [
+      "document",
+      "window",
+      "navigator",
+      "location",
+      "console",
+      "localStorage",
+      "sessionStorage"
+    ]
+  },
+  "files": {
+    "includes": [
+      "site/assets/js/**/*.js",
+      "!site/assets/js/vendor",
+      "!site/assets/js/index.js",
+      "!site/assets/js/katex.js"
+    ]
+  }
+}

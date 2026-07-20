@@ -2,6 +2,7 @@ package scannerz_test
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"testing"
@@ -60,6 +61,43 @@ func TestLineCount(t *testing.T) {
 			require.Equal(t, tc.skipEmpty, count)
 		})
 	}
+}
+
+func TestLineCount_readError(t *testing.T) {
+	ctx := context.Background()
+	sentinel := errors.New("read boom")
+
+	// An immediate read error yields -1 in both modes.
+	for _, skipEmpty := range []bool{false, true} {
+		require.Equal(t, -1, scannerz.LineCount(ctx, errReader{err: sentinel}, skipEmpty))
+	}
+
+	// A read error partway through must also yield -1, not a partial count.
+	// (Regression guard: the non-skipEmpty path previously ignored sc.Err().)
+	for _, skipEmpty := range []bool{false, true} {
+		r := &readThenErr{p: []byte("one\ntwo\n"), err: sentinel}
+		require.Equal(t, -1, scannerz.LineCount(ctx, r, skipEmpty))
+	}
+}
+
+// errReader always fails Read with err.
+type errReader struct{ err error }
+
+func (r errReader) Read([]byte) (int, error) { return 0, r.err }
+
+// readThenErr yields p on the first Read, then fails with err.
+type readThenErr struct {
+	p    []byte
+	err  error
+	done bool
+}
+
+func (r *readThenErr) Read(b []byte) (int, error) {
+	if r.done {
+		return 0, r.err
+	}
+	r.done = true
+	return copy(b, r.p), nil
 }
 
 func TestVisitLines(t *testing.T) {

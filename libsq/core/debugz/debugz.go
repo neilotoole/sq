@@ -31,12 +31,20 @@ progress is not enabled. This is useful for testing the progress impl.`,
 )
 
 // DebugSleep sleeps for a period of time to facilitate testing the
-// progress impl. It uses the value from OptProgressDebugSleep. This function
-// (and OptProgressDebugSleep) should be removed when the progress impl is
-// stable.
+// progress impl. It uses the value from OptProgressDebugSleep. The sleep is
+// interrupted if ctx is canceled. This function (and OptProgressDebugSleep)
+// should be removed when the progress impl is stable.
 func DebugSleep(ctx context.Context) {
 	sleep := OptProgressDebugSleep.Get(options.FromContext(ctx))
-	if sleep > 0 {
-		time.Sleep(sleep)
+	if sleep <= 0 {
+		return
+	}
+
+	t := time.NewTimer(sleep)
+	defer t.Stop()
+
+	select {
+	case <-ctx.Done():
+	case <-t.C:
 	}
 }

@@ -127,18 +127,20 @@ func TestCmdSLQ_Insert_MultipleSchemas(t *testing.T) {
 //   - SLQ query parsing and execution across different database backends
 //   - The CLI's ability to manage multiple source connections simultaneously
 //
-// The test matrix covers all combinations of supported SQL databases as both
-// origin (data source) and destination (insert target).
-// TestCmdSLQ_Insert exercises --insert across the SQLLatest() matrix of
-// origin x dest. The origin==dest cells are self-inserts; the
-// @sakila_duck/@sakila_duck cell is the regression guard for the DuckDB
-// self-insert path (handle+mode cache + QueryContext.WriteHandle, gh #779):
-// without it, the source would open read-only while the destination holds
-// the file read-write, which DuckDB rejects.
+// The test matrix pairs each engine with an embedded source (SQLite/DuckDB) as
+// both origin and destination, plus same-source self-inserts. External x external
+// cross pairs are excluded via sakila.CrossSourceDests because they don't scale
+// (multiple external containers live at once, O(N^2) in the number of engines)
+// and can't run under the per-engine CI model; see gh #964. The origin==dest
+// cells are self-inserts; the @sakila_duck/@sakila_duck cell is the regression
+// guard for the DuckDB self-insert path (handle+mode cache +
+// QueryContext.WriteHandle, gh #779): without it, the source would open
+// read-only while the destination holds the file read-write, which DuckDB
+// rejects.
 func TestCmdSLQ_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
 		t.Run("origin_"+origin, func(t *testing.T) {
-			for _, dest := range sakila.SQLLatest() {
+			for _, dest := range sakila.CrossSourceDests(origin) {
 				t.Run("dest_"+dest, func(t *testing.T) {
 					t.Parallel()
 
@@ -473,7 +475,8 @@ See: https://github.com/neilotoole/sq/issues/437`,
 
 			// Test combination of --src and --src.schema
 			const qInfoSchemaActor = `.tables | .table_catalog, .table_schema, .table_name, .table_type | where(.table_name == "actor")` //nolint:lll
-			require.NoError(t, tr.Reset().Exec("--csv", "-H",
+			require.NoError(t, tr.Reset().Exec(
+				"--csv", "-H",
 				"--src", tc.handle,
 				"--src.schema", "information_schema",
 				qInfoSchemaActor,
@@ -489,7 +492,8 @@ See: https://github.com/neilotoole/sq/issues/437`,
 			require.Equal(t, tc.defaultSchema, tr.OutString())
 
 			// Test just --src.schema (schema part only)
-			require.NoError(t, tr.Reset().Exec("--csv", "-H",
+			require.NoError(t, tr.Reset().Exec(
+				"--csv", "-H",
 				"--src.schema", "information_schema",
 				qInfoSchemaActor,
 			))
@@ -498,7 +502,8 @@ See: https://github.com/neilotoole/sq/issues/437`,
 
 			if th.SQLDriverFor(src).Dialect().Catalog {
 				// Test --src.schema (catalog and schema parts)
-				require.NoError(t, tr.Reset().Exec("--csv", "-H",
+				require.NoError(t, tr.Reset().Exec(
+					"--csv", "-H",
 					"--src.schema", tc.altCatalog+".information_schema",
 					`.schemata | .catalog_name | unique`,
 				))
@@ -785,13 +790,15 @@ func TestCmdSLQ_NumericSchema(t *testing.T) {
 			tblName := "query_test_tbl"
 			_, err = db.ExecContext(ctx, fmt.Sprintf(
 				`CREATE TABLE %q.%q (id serial PRIMARY KEY, name text, value int)`,
-				schemaName, tblName))
+				schemaName, tblName,
+			))
 			require.NoError(t, err)
 
 			// Insert test data.
 			_, err = db.ExecContext(ctx, fmt.Sprintf(
 				`INSERT INTO %q.%q (name, value) VALUES ('alice', 10), ('bob', 20), ('charlie', 30)`,
-				schemaName, tblName))
+				schemaName, tblName,
+			))
 			require.NoError(t, err)
 
 			// Execute SLQ query with --src.schema pointing to numeric schema.

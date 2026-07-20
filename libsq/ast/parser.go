@@ -219,7 +219,8 @@ func (v *parseTreeVisitor) using(node Node, fn func() any) any {
 
 // Visit implements antlr.ParseTreeVisitor.
 func (v *parseTreeVisitor) Visit(ctx antlr.ParseTree) any {
-	v.log.Debug("Visit",
+	v.log.Debug(
+		"Visit",
 		lga.Type, stringz.Type(ctx),
 		lga.Text, ctx.GetText(),
 	)

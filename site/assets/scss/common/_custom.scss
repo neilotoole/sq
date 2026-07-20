@@ -10,7 +10,7 @@ $code-border-color-distinct: #f0e8e8;
 //$code-border-color-distinct: blue;
 $code-border-color: #eeeceb;
 
-$pink-pale:#dfb9b5;
+$pink-pale: #dfb9b5;
 
 $code-color-dark: #dfb9b5;
 $code-color-dark: $nord12;
@@ -132,7 +132,7 @@ nav.docs-links ul li a.docs-link.changelog {
   background-color: transparent;
 }
 
-div.tab-content > div:not(:has(>div.highlight)) {
+div.tab-content > div:not(:has(> div.highlight)) {
   padding-top: 20px;
   padding-bottom: 20px;
 }

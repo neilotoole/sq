@@ -45,6 +45,7 @@ package secret
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 
 	"golang.org/x/sync/singleflight"
@@ -106,6 +107,22 @@ func (r *Registry) Register(scheme string, resolver Resolver) {
 	r.resolvers[scheme] = resolver
 }
 
+// Schemes returns the registered scheme names, sorted ascending. It is
+// read-only and side-effect-free (it does not resolve anything), so it is
+// safe for diagnostics and tests that need to assert which resolvers are
+// present without triggering a backend hit (e.g. keyring IPC or an op exec).
+func (r *Registry) Schemes() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	schemes := make([]string, 0, len(r.resolvers))
+	for scheme := range r.resolvers {
+		schemes = append(schemes, scheme)
+	}
+	slices.Sort(schemes)
+	return schemes
+}
+
 // ResolveScheme dispatches a single scheme/path pair to the appropriate
 // Resolver, memoizing successful resolutions for the Registry's lifetime.
 // Concurrent calls for the same scheme:path coalesce into one backend
@@ -163,17 +180,4 @@ func (r *Registry) ResolveScheme(ctx context.Context, scheme, path string) (stri
 	case <-ctx.Done():
 		return "", errz.Err(ctx.Err())
 	}
-}
-
-type ctxKey struct{}
-
-// NewContext returns a context carrying reg.
-func NewContext(parent context.Context, reg *Registry) context.Context {
-	return context.WithValue(parent, ctxKey{}, reg)
-}
-
-// FromContext returns the Registry carried by ctx, or nil if none.
-func FromContext(ctx context.Context) *Registry {
-	r, _ := ctx.Value(ctxKey{}).(*Registry)
-	return r
 }

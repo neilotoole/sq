@@ -141,6 +141,9 @@ func (s *Source) LogValue() slog.Value {
 
 // String returns a log/debug-friendly representation.
 func (s *Source) String() string {
+	if s == nil {
+		return "<nil>"
+	}
 	return fmt.Sprintf("%s|%s|%s", s.Handle, s.Type, s.RedactedLocation())
 }
 
@@ -158,10 +161,16 @@ func (s *Source) ShortLocation() string {
 //
 // REVISIT: For root group, should "/" be returned instead of empty string?
 func (s *Source) Group() string {
+	if s == nil {
+		return ""
+	}
 	return groupFromHandle(s.Handle)
 }
 
 func groupFromHandle(h string) string {
+	if h == "" {
+		return ""
+	}
 	// Trim the leading @
 	h = h[1:]
 	i := strings.LastIndex(h, "/")

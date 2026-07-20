@@ -27,7 +27,7 @@ func TestKindMapping(t *testing.T) {
 
 	// Build the DB out-of-band via the raw go-duckdb driver before handing
 	// the file to sq via testh. (sq's testh would expect the file to exist
-	// and be registered in sources.sq.yml, but type_test.ddl is too schema-
+	// and be registered in test.sq.yml, but type_test.ddl is too schema-
 	// only-volatile to register globally.)
 	rawDB, err := sql.Open("duckdb", dbPath)
 	require.NoError(t, err)

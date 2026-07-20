@@ -200,6 +200,11 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return md, nil
 }
 
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	return g.impl.DBSemver(ctx)
+}
+
 // Close implements driver.Grip.
 func (g *grip) Close() error {
 	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)

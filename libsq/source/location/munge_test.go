@@ -20,6 +20,7 @@ func TestMungeForDriver_EmptyPath(t *testing.T) {
 		typ  drivertype.Type
 		loc  string
 	}{
+		{name: "sqlite3 whitespace only", typ: drivertype.SQLite, loc: "   "},
 		{name: "sqlite3 prefix only", typ: drivertype.SQLite, loc: "sqlite3://"},
 		{name: "sqlite3 bare scheme only", typ: drivertype.SQLite, loc: "sqlite3:"},
 		{name: "sqlite3 empty path with query", typ: drivertype.SQLite, loc: "sqlite3://?mode=ro"},
@@ -40,6 +41,22 @@ func TestMungeForDriver_EmptyPath(t *testing.T) {
 	got, err := location.MungeForDriver(drivertype.DuckDB, "duckdb://:memory:")
 	require.NoError(t, err)
 	require.Equal(t, "duckdb://:memory:", got)
+
+	// :memory: with a connection-string query suffix is preserved.
+	got, err = location.MungeForDriver(drivertype.DuckDB, "duckdb://:memory:?access_mode=READ_ONLY")
+	require.NoError(t, err)
+	require.Equal(t, "duckdb://:memory:?access_mode=READ_ONLY", got)
+
+	// :memory: via the bare scheme form (no "//") canonicalizes to the
+	// double-slash form.
+	got, err = location.MungeForDriver(drivertype.DuckDB, "duckdb::memory:")
+	require.NoError(t, err)
+	require.Equal(t, "duckdb://:memory:", got)
+
+	// A pass-through driver type returns the location unchanged.
+	got, err = location.MungeForDriver(drivertype.Pg, "postgres://alice@host/db")
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice@host/db", got)
 }
 
 // dollarDirNames are directory names containing bytes that are

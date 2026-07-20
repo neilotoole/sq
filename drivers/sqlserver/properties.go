@@ -139,7 +139,7 @@ SELECT 'IsClustered', SERVERPROPERTY('IsClustered')
 UNION ALL
 SELECT 'IsExternalAuthenticationOnly', SERVERPROPERTY('IsExternalAuthenticationOnly')
 UNION ALL
-SELECT 'IsExternalGovernanceEnabled', SERVERPROPERTY('IsFullTextIsExternalGovernanceEnabledInstalled')
+SELECT 'IsExternalGovernanceEnabled', SERVERPROPERTY('IsExternalGovernanceEnabled')
 UNION ALL
 SELECT 'IsFullTextInstalled', SERVERPROPERTY('IsFullTextInstalled')
 UNION ALL

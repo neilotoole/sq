@@ -23,7 +23,7 @@ Use `install.sh` in most cases other than [Windows](#windows).
 The following have been tested:
 
 | Package Manager | OS / Distribution                    | Architecture    |
-|-----------------|--------------------------------------|-----------------|
+| --------------- | ------------------------------------ | --------------- |
 | `apt`           | Debian-based (Ubuntu etc.)           | `arm64` `amd64` |
 | `yum`           | RPM-based (Rocky Linux, Fedora etc.) | `arm64` `amd64` |
 | `apk`           | Alpine Linux                         | `arm64` `amd64` |

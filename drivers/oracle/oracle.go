@@ -188,7 +188,8 @@ func (d *driveri) Renderer() *render.Renderer {
 	// the int64 scan crash. The value is exact up to AggDecimalScale fractional
 	// digits; a sum of values with more decimal places is rounded to that scale.
 	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult(
-		fmt.Sprintf("NUMBER(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale))
+		fmt.Sprintf("NUMBER(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale),
+	)
 	// count(), count_unique(), and rownum() are integer-valued, but Oracle reports
 	// their result column as the same floating-scale NUMBER as division and other
 	// arithmetic, which refineBareNumberKind now classifies as kind.Decimal to
@@ -366,9 +367,17 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 	owner := strings.ToUpper(schma)
 
 	if tables {
-		const queryTables = `SELECT table_name FROM all_tables
-WHERE owner = :1 AND temporary = 'N'
-ORDER BY table_name`
+		// A materialized view's container table appears in ALL_TABLES under
+		// the same name as the MV in ALL_MVIEWS. Exclude those container
+		// tables so the MV name isn't returned twice (once here, once from
+		// the ALL_MVIEWS query below).
+		const queryTables = `SELECT t.table_name FROM all_tables t
+WHERE t.owner = :1 AND t.temporary = 'N'
+  AND NOT EXISTS (
+    SELECT 1 FROM all_mviews m
+    WHERE m.owner = t.owner AND m.mview_name = t.table_name
+  )
+ORDER BY t.table_name`
 		rows, err := db.QueryContext(ctx, queryTables, owner)
 		if err != nil {
 			return nil, errw(err)
@@ -469,7 +478,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 
 	// reset maps to DROP STORAGE vs REUSE STORAGE. Oracle does not reset
 	// sequences via TRUNCATE; callers should not assume identity reseed.
-	truncateQuery := "TRUNCATE TABLE " + tblName
+	truncateQuery := "TRUNCATE TABLE " + tblName //nolint:gosec // G202: tblName is double-quoted
 	if reset {
 		truncateQuery += " DROP STORAGE"
 	} else {

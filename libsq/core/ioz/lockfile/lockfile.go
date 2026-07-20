@@ -52,7 +52,8 @@ func (l Lockfile) Lock(ctx context.Context, timeout time.Duration) error {
 
 	start, attempts := time.Now(), 0
 
-	err := retry.Do(ctx, timeout,
+	err := retry.Do(
+		ctx, timeout,
 		func() error {
 			err := lockfile.Lockfile(l).TryLock()
 			attempts++
@@ -68,7 +69,8 @@ func (l Lockfile) Lock(ctx context.Context, timeout time.Duration) error {
 
 	elapsed := time.Since(start)
 	if err != nil {
-		log.Error("Failed to acquire pid lock",
+		log.Error(
+			"Failed to acquire pid lock",
 			lga.Attempts, attempts,
 			lga.Elapsed, elapsed,
 			lga.Err, err,

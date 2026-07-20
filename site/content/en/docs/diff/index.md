@@ -1,13 +1,14 @@
 ---
 title: Diff
 description: Diff
-lead: ''
+lead: ""
 draft: false
 images:
 weight: 1050
 toc: true
 url: /docs/diff
 ---
+
 [`sq diff`](/docs/cmd/diff) compares metadata, or row data, for sources, or individual tables.
 
 ![sq diff source default](sq_diff_src_default.png)
@@ -27,7 +28,7 @@ General feedback can be left on the [diff discussion](https://github.com/neiloto
 Use flags to specify the elements you want to compare. The available elements are:
 
 - `--overview`: source metadata, without schema (source diff only)
-- `--dbprops`:  database/server properties (source diff only)
+- `--dbprops`: database/server properties (source diff only)
 - `--schema`: schema structure, for database or individual table
 - `--counts`: show row counts when using `--schema`
 - `--data`: row data values
@@ -109,7 +110,7 @@ Use the `--format` (`-f`) flag with `--data` to specify the row data output form
 
 ![sq diff table data format](sq_diff_table_data_jsonl.png)
 
-The default is `text`. The available  formats are:  `text`, `csv`, `tsv`,`json`,
+The default is `text`. The available formats are: `text`, `csv`, `tsv`,`json`,
 `jsona`, `jsonl`, `markdown`, `html`, `xml`, `yaml`.
 
 You can change the
@@ -142,7 +143,6 @@ $ sq diff @sakila/staging @sakila/prod --schema --counts
 
 # Shorthand
 $ sq diff @sakila/staging @sakila/prod -SC
-
 ```
 
 ## `--overview`

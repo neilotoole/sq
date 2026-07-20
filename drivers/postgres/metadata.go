@@ -3,12 +3,15 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
+	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/core/debugz"
@@ -121,7 +124,8 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 		switch dbTypeName {
 		default:
 			nullableScanType = sqlz.RTypeNullString
-			log.Warn("Unknown Postgres scan type",
+			log.Warn(
+				"Unknown Postgres scan type",
 				lga.Col, colName,
 				lga.ScanType, pgScanType,
 				lga.DBType, dbTypeName,
@@ -180,6 +184,18 @@ func toNullableScanType(log *slog.Logger, colName, dbTypeName string, knd kind.K
 	return nullableScanType
 }
 
+// loadWithRetry runs a bulk metadata loader with vanished-relation retry, so a
+// table dropped mid-scan by concurrent DDL doesn't fail the whole source scan.
+func loadWithRetry[T any](ctx context.Context, load func() (T, error)) (T, error) {
+	var result T
+	err := doRetryVanished(ctx, func() error {
+		var e error
+		result, e = load()
+		return e
+	})
+	return result, err
+}
+
 func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSchema bool) (*metadata.Source, error) {
 	log := lg.FromContext(ctx)
 	ctx = options.NewContext(ctx, src.Options)
@@ -200,6 +216,12 @@ current_setting('server_version'), version(), "current_user"()`
 		Scan(&md.Name, &schema, &size, &md.DBVersion, &md.DBProduct, &md.User)
 	if err != nil {
 		return nil, errw(err)
+	}
+	if v, semverErr := parseSemver(md.DBVersion); semverErr != nil {
+		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
+			lga.Err, semverErr, lga.Version, md.DBVersion)
+	} else {
+		md.DBSemver = v
 	}
 	progress.Incr(ctx, 1)
 	debugz.DebugSleep(ctx)
@@ -254,7 +276,8 @@ current_setting('server_version'), version(), "current_user"()`
 				case isErrRelationNotExist(mdErr):
 					// For example, if the table is dropped while we're collecting
 					// metadata, we log a warning and suppress the error.
-					log.Warn("metadata collection: table not found (continuing regardless)",
+					log.Warn(
+						"metadata collection: table not found (continuing regardless)",
 						lga.Table, tblNames[i],
 						lga.Err, mdErr,
 					)
@@ -283,34 +306,64 @@ current_setting('server_version'), version(), "current_user"()`
 		}
 	}
 
-	for _, tbl := range md.Tables {
-		switch tbl.TableType {
-		case sqlz.TableTypeTable:
-			md.TableCount++
-		case sqlz.TableTypeView:
-			md.ViewCount++
-		}
-	}
+	md.RecomputeTableCounts()
 
-	// Fetch foreign keys for all tables in one query, assign them to
-	// their owning tables, and derive the cross-table back-references.
-	allFKs, err := getPgForeignKeys(ctx, db, "")
+	// Fetch foreign keys for all tables in one query, assign them to their
+	// owning tables, and derive the cross-table back-references. Each bulk
+	// loader is a single catalog query over every table in the schema; a table
+	// dropped mid-query by concurrent DDL is retried (loadWithRetry) so the
+	// scan doesn't fail on transient churn.
+	allFKs, err := loadWithRetry(ctx, func() ([]*metadata.ForeignKey, error) {
+		return getPgForeignKeys(ctx, db, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignForeignKeys(log, md.Tables, allFKs)
 
-	allUCs, err := getPgUniqueConstraints(ctx, db, "")
+	allUCs, err := loadWithRetry(ctx, func() ([]*metadata.UniqueConstraint, error) {
+		return getPgUniqueConstraints(ctx, db, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
 
-	allIdxs, err := getPgIndexes(ctx, db, "")
+	allChecks, err := loadWithRetry(ctx, func() ([]*metadata.CheckConstraint, error) {
+		return getPgCheckConstraints(ctx, db, "")
+	})
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignCheckConstraints(log, md.Tables, allChecks)
+
+	allTriggers, err := loadWithRetry(ctx, func() ([]*metadata.Trigger, error) {
+		return getPgTriggers(ctx, db, "")
+	})
+	if err != nil {
+		return nil, err
+	}
+	metadata.AssignTriggers(log, md.Tables, allTriggers)
+
+	allIdxs, err := loadWithRetry(ctx, func() ([]*metadata.Index, error) {
+		return getPgIndexes(ctx, db, "")
+	})
 	if err != nil {
 		return nil, err
 	}
 	metadata.AssignIndexes(log, md.Tables, allIdxs)
+
+	allViewDefs, err := loadWithRetry(ctx, func() (map[string]string, error) {
+		return getPgViewDefinitions(ctx, db, "")
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, tbl := range md.Tables {
+		if tbl.TableType == sqlz.TableTypeView {
+			tbl.ViewDefinition = allViewDefs[tbl.Name]
+		}
+	}
 
 	// Derive incoming FK back-references last so the Assign* helpers
 	// have fully populated the source. Matches the call order in the
@@ -380,8 +433,17 @@ func getPgSettings(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 func getAllTableNames(ctx context.Context, db sqlz.DB) ([]string, error) {
 	log := lg.FromContext(ctx)
 
-	const tblNamesQuery = `SELECT table_name FROM information_schema.tables
-WHERE table_catalog = current_catalog AND table_schema = current_schema()
+	// Matviews live only in pg_catalog (pg_class.relkind='m'), not in
+	// information_schema.tables, so they are UNIONed in explicitly.
+	const tblNamesQuery = `SELECT table_name FROM (
+  SELECT table_name FROM information_schema.tables
+  WHERE table_catalog = current_catalog AND table_schema = current_schema()
+  UNION
+  SELECT c.relname AS table_name
+  FROM pg_catalog.pg_class c
+  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind = 'm' AND n.nspname = current_schema()
+) AS t
 ORDER BY table_name`
 
 	rows, err := db.QueryContext(ctx, tblNamesQuery)
@@ -413,21 +475,37 @@ ORDER BY table_name`
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 
-	const tblsQueryTpl = `SELECT table_catalog, table_schema, table_name, table_type, is_insertable_into,
-  (SELECT COUNT(*) FROM "%s") AS table_row_count,
-  pg_total_relation_size('%q') AS table_size,
-  (SELECT '%q'::regclass::oid AS table_oid),
-  obj_description('%q'::REGCLASS, 'pg_class') AS table_comment
-FROM information_schema.tables
-WHERE table_catalog = current_database()
-AND table_schema = current_schema()
-AND table_name = $1`
-	tablesQuery := fmt.Sprintf(tblsQueryTpl, tblName, tblName, tblName, tblName)
+	// A table name can legally contain a double-quote (e.g. `we"ird`). The
+	// relation's OID is resolved via a pg_class JOIN on the raw name ($1, a
+	// bind parameter) rather than a regclass text cast, which mis-parses such
+	// names; the size/oid/comment functions then take the OID directly. The
+	// only interpolation is the COUNT subquery's FROM, which uses a
+	// double-quoted (escaped) identifier. Raw interpolation built malformed
+	// SQL. See issue #1025.
+	safeIdent := stringz.DoubleQuote(tblName)
+	tablesQuery := `SELECT t.table_catalog, t.table_schema, t.table_name, t.table_type, t.is_insertable_into,
+  (SELECT COUNT(*) FROM ` + safeIdent + `) AS table_row_count,
+  pg_total_relation_size(c.oid) AS table_size,
+  c.oid AS table_oid,
+  obj_description(c.oid, 'pg_class') AS table_comment
+FROM information_schema.tables t
+JOIN pg_catalog.pg_class c ON c.relname = t.table_name
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace AND n.nspname = t.table_schema
+WHERE t.table_catalog = current_database()
+AND t.table_schema = current_schema()
+AND t.table_name = $1`
 
 	pgTbl := &pgTable{}
 	err := db.QueryRowContext(ctx, tablesQuery, tblName).
 		Scan(&pgTbl.tableCatalog, &pgTbl.tableSchema, &pgTbl.tableName, &pgTbl.tableType, &pgTbl.isInsertable,
 			&pgTbl.rowCount, &pgTbl.size, &pgTbl.oid, &pgTbl.comment)
+	if errors.Is(err, sql.ErrNoRows) {
+		// A matview is absent from information_schema.tables, so the
+		// query above returns no rows. Fall back to the pg_catalog path,
+		// which also returns the canonical not-found error if tblName is
+		// not a matview either.
+		return getMatviewMetadata(ctx, db, tblName)
+	}
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -471,16 +549,173 @@ AND table_name = $1`
 	return tblMeta, nil
 }
 
+// getMatviewMetadata builds a *metadata.Table for a materialized view from
+// pg_catalog. Matviews are absent from information_schema, so this is the
+// fallback path from getTableMetadata. It is a two-step operation: first
+// confirm that name actually is a matview (returning the canonical not-found
+// error otherwise) and resolve its OID on the bound name, and only then run
+// the detail query against that OID. Passing the OID (rather than a
+// quote_ident($1)::regclass text lookup) pins the relation resolved in Step A
+// regardless of search_path, mirroring getTableMetadata's pg_class JOIN. Only
+// the COUNT(*) FROM identifier is interpolated, as a schema-qualified,
+// double-quoted (escaped) identifier, and only after Step A confirms name is
+// a real matview.
+func getMatviewMetadata(ctx context.Context, db sqlz.DB, name string) (*metadata.Table, error) {
+	// Step A: confirm name is a matview in the current schema, resolving its
+	// OID, and get the catalog & schema for the FQ name.
+	const confirmQuery = `SELECT current_database(), current_schema(), c.oid
+FROM pg_catalog.pg_class c
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relname = $1 AND n.nspname = current_schema() AND c.relkind = 'm'`
+	var (
+		catalog, schema string
+		oid             int64
+	)
+	err := db.QueryRowContext(ctx, confirmQuery, name).Scan(&catalog, &schema, &oid)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Not a matview (nor any other relation found in info-schema):
+		// behave as before for a genuinely-missing relation.
+		return nil, errz.Errorf("table {%s} not found", name)
+	}
+	if err != nil {
+		return nil, errw(err)
+	}
+	progress.Incr(ctx, 1)
+	debugz.DebugSleep(ctx)
+
+	// Step B: name is confirmed a matview; the size/comment/viewdef functions
+	// take its OID directly. Only the COUNT(*) FROM identifier must be
+	// interpolated: a relation name cannot be a bind parameter in a FROM
+	// clause. DoubleQuote escapes it, and it is qualified with the schema
+	// resolved in Step A: an unqualified name resolves via the search path,
+	// where a same-named pg_temp relation would shadow the matview and supply
+	// a row count belonging to a different relation than the OID describes.
+	detailQuery := `SELECT
+  (SELECT COUNT(*) FROM ` + stringz.DoubleQuote(schema) + `.` + stringz.DoubleQuote(name) + `) AS row_count,
+  pg_total_relation_size($1::oid) AS mv_size,
+  obj_description($1::oid, 'pg_class') AS mv_comment,
+  pg_get_viewdef($1::oid, true) AS view_def`
+
+	var (
+		rowCount int64
+		mvSize   sql.NullInt64
+		comment  sql.NullString
+		viewDef  sql.NullString
+	)
+	err = db.QueryRowContext(ctx, detailQuery, oid).Scan(&rowCount, &mvSize, &comment, &viewDef)
+	if err != nil {
+		return nil, errw(err)
+	}
+	progress.Incr(ctx, 1)
+	debugz.DebugSleep(ctx)
+
+	tblMeta := &metadata.Table{
+		Name:           name,
+		FQName:         fmt.Sprintf("%s.%s.%s", catalog, schema, name),
+		TableType:      sqlz.TableTypeMaterializedView,
+		DBTableType:    "MATERIALIZED VIEW",
+		RowCount:       rowCount,
+		Comment:        comment.String,
+		ViewDefinition: viewDef.String,
+	}
+	if mvSize.Valid && mvSize.Int64 > 0 {
+		tblMeta.Size = &mvSize.Int64
+	}
+
+	cols, err := getPgMatviewColumns(ctx, db, name)
+	if err != nil {
+		return nil, err
+	}
+	tblMeta.Columns = cols
+
+	return tblMeta, nil
+}
+
+// getPgMatviewColumns returns the columns of a materialized view, sourced from
+// pg_attribute (matview result columns are absent from
+// information_schema.columns). Matview columns carry none of identity,
+// auto-increment, generated, default, collation, or primary-key semantics.
+func getPgMatviewColumns(ctx context.Context, db sqlz.DB, name string) ([]*metadata.Column, error) {
+	log := lg.FromContext(ctx)
+
+	const colsQuery = `SELECT a.attname, a.attnum,
+  format_type(a.atttypid, a.atttypmod) AS data_type,
+  t.typname AS udt_name,
+  a.attnotnull,
+  col_description(a.attrelid, a.attnum::int) AS col_comment
+FROM pg_catalog.pg_attribute a
+JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+WHERE c.relname = $1 AND n.nspname = current_schema() AND c.relkind = 'm'
+  AND a.attnum > 0 AND NOT a.attisdropped
+ORDER BY a.attnum`
+
+	rows, err := db.QueryContext(ctx, colsQuery, name)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var cols []*metadata.Column
+	for rows.Next() {
+		var (
+			attName, dataType, udtName string
+			attNum                     int64
+			attNotNull                 bool
+			colComment                 sql.NullString
+		)
+		if err = rows.Scan(&attName, &attNum, &dataType, &udtName, &attNotNull, &colComment); err != nil {
+			return nil, errw(err)
+		}
+
+		cols = append(cols, &metadata.Column{
+			Name:       attName,
+			Position:   attNum,
+			BaseType:   udtName,
+			ColumnType: dataType,
+			Kind:       kindFromDBTypeName(log, attName, udtName),
+			Nullable:   !attNotNull,
+			Comment:    colComment.String,
+		})
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+	}
+	if err = closeRows(rows); err != nil {
+		return nil, err
+	}
+
+	return cols, nil
+}
+
 // populateTableExtras loads outgoing FKs, incoming FKs, unique
-// constraints, and indexes for tblMeta (filtered by tblMeta.Name). It
-// is the per-table counterpart to the bulk loaders called by
-// getSourceMetadata, and is what Grip.TableMetadata uses to give
-// single-table inspect the same FK shape as full-source inspect.
+// constraints, indexes, and (for views) the view definition for tblMeta,
+// filtered by tblMeta.Name. It is the per-table counterpart to the bulk
+// loaders called by getSourceMetadata, and is what Grip.TableMetadata
+// uses to give single-table inspect the same shape as full-source inspect.
 //
-// Views (and other non-table relations) carry no FKs, UCs, or
-// indexes, so populateTableExtras returns immediately for them and
-// avoids the four extra round-trips.
+// For views, only ViewDefinition is fetched. For base tables, FKs, unique
+// constraints, check constraints, triggers, and indexes are loaded.
+// All other relation types are skipped.
 func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Table) error {
+	if tblMeta.TableType == sqlz.TableTypeView {
+		defs, err := getPgViewDefinitions(ctx, db, tblMeta.Name)
+		if err != nil {
+			return err
+		}
+		tblMeta.ViewDefinition = defs[tblMeta.Name]
+		// INSTEAD OF triggers can be attached to views; load them so that
+		// per-table inspect is consistent with source-wide inspect.
+		tblMeta.Triggers, err = getPgTriggers(ctx, db, tblMeta.Name)
+		return err
+	}
+	if tblMeta.TableType == sqlz.TableTypeMaterializedView {
+		// Matviews have no FK/PK/unique/check/triggers, only indexes.
+		// ViewDefinition and columns were already set by getMatviewMetadata.
+		var err error
+		tblMeta.Indexes, err = getPgIndexes(ctx, db, tblMeta.Name)
+		return err
+	}
 	if tblMeta.TableType != sqlz.TableTypeTable {
 		return nil
 	}
@@ -496,6 +731,16 @@ func populateTableExtras(ctx context.Context, db sqlz.DB, tblMeta *metadata.Tabl
 	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
 	tblMeta.UniqueConstraints, err = getPgUniqueConstraints(ctx, db, tblMeta.Name)
+	if err != nil {
+		return err
+	}
+
+	tblMeta.CheckConstraints, err = getPgCheckConstraints(ctx, db, tblMeta.Name)
+	if err != nil {
+		return err
+	}
+
+	tblMeta.Triggers, err = getPgTriggers(ctx, db, tblMeta.Name)
 	if err != nil {
 		return err
 	}
@@ -545,19 +790,21 @@ func tblMetaFromPgTable(pgt *pgTable) *metadata.Table {
 // pgColumn holds query results for column metadata.
 // See https://www.postgresql.org/docs/8.0/infoschema-columns.html
 type pgColumn struct {
-	tableCatalog  string
-	tableSchema   string
-	tableName     string
-	columnName    string
-	dataType      string
-	udtCatalog    string
-	udtSchema     string
-	udtName       string
-	columnDefault sql.NullString
-	domainCatalog sql.NullString
-	domainSchema  sql.NullString
-	domainName    sql.NullString
-	isGenerated   sql.NullString
+	tableCatalog         string
+	tableSchema          string
+	tableName            string
+	columnName           string
+	dataType             string
+	udtCatalog           string
+	udtSchema            string
+	udtName              string
+	columnDefault        sql.NullString
+	domainCatalog        sql.NullString
+	domainSchema         sql.NullString
+	domainName           sql.NullString
+	isGenerated          sql.NullString
+	collationName        sql.NullString
+	generationExpression sql.NullString
 
 	// comment holds any column comment. Note that this field is
 	// not part of the standard postgres infoschema, but is
@@ -606,6 +853,8 @@ func getPgColumns(ctx context.Context, db sqlz.DB, tblName string) ([]*pgColumn,
   udt_name,
   is_identity,
   is_generated,
+  collation_name,
+  generation_expression,
   is_updatable,
   (
 	SELECT
@@ -613,7 +862,7 @@ func getPgColumns(ctx context.Context, db sqlz.DB, tblName string) ([]*pgColumn,
 	FROM
 		pg_catalog.pg_class c
 	WHERE
-		c.oid = (SELECT ('"' || cols.table_name || '"')::regclass::oid)
+		c.oid = (SELECT quote_ident(cols.table_name)::regclass::oid)
 		AND c.relname = cols.table_name
 	) AS column_comment
 FROM information_schema.columns cols
@@ -653,7 +902,8 @@ func scanPgColumn(rows *sql.Rows, c *pgColumn) error {
 		&c.numericPrecision, &c.numericPrecisionRadix, &c.numericScale,
 		&c.datetimePrecision, &c.domainCatalog, &c.domainSchema, &c.domainName,
 		&c.udtCatalog, &c.udtSchema, &c.udtName,
-		&c.isIdentity, &c.isGenerated, &c.isUpdatable, &c.comment)
+		&c.isIdentity, &c.isGenerated, &c.collationName, &c.generationExpression,
+		&c.isUpdatable, &c.comment)
 	return errw(err)
 }
 
@@ -669,6 +919,12 @@ func colMetaFromPgColumn(log *slog.Logger, pgCol *pgColumn) *metadata.Column {
 		DefaultValue: pgCol.columnDefault.String,
 		Comment:      pgCol.comment.String,
 	}
+	colMeta.Identity = pgCol.isIdentity.Bool
+	colMeta.Generated = strings.EqualFold(pgCol.isGenerated.String, "ALWAYS")
+	colMeta.GeneratedExpr = pgCol.generationExpression.String
+	colMeta.Collation = pgCol.collationName.String
+	// Note: Postgres serial (default nextval(...)) is intentionally NOT
+	// flagged as AutoIncrement; it remains visible via DefaultValue.
 	return colMeta
 }
 
@@ -685,14 +941,14 @@ func getPgConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*pgCon
     (
        SELECT pg_catalog.pg_get_constraintdef(pgc.oid, TRUE)
        FROM pg_catalog.pg_constraint pgc
-       WHERE pgc.conrelid = (SELECT ('"' || kcu.table_name || '"')::regclass::oid)
+       WHERE pgc.conrelid = (SELECT quote_ident(kcu.table_name)::regclass::oid)
        AND pgc.conname = tc.constraint_name
        limit 1
     )  AS constraint_def,
     (
        SELECT pgc.confrelid::regclass
        FROM pg_catalog.pg_constraint pgc
-       WHERE pgc.conrelid = (SELECT ('"' || kcu.table_name || '"')::regclass::oid)
+       WHERE pgc.conrelid = (SELECT quote_ident(kcu.table_name)::regclass::oid)
        AND pgc.conname = tc.constraint_name
        AND pgc.confrelid > 0
        LIMIT 1
@@ -773,7 +1029,8 @@ func setTblMetaConstraints(log *slog.Logger, tblMeta *metadata.Table, pgConstrai
 			colMeta := tblMeta.Column(pgc.columnName)
 			if colMeta == nil {
 				// Shouldn't happen
-				log.Warn("No column found matching constraint",
+				log.Warn(
+					"No column found matching constraint",
 					lga.Target, tblMeta.Name+"."+pgc.columnName,
 					"constraint", pgc.constraintName,
 				)
@@ -851,6 +1108,178 @@ WHERE tc.constraint_type = 'UNIQUE'
 		uc.Columns = append(uc.Columns, columnName)
 	}
 	return ucs, errw(rows.Err())
+}
+
+// getPgCheckConstraints returns the CHECK constraints declared on tables in
+// the current catalog and schema. If tblName is empty, constraints for every
+// table in the current schema are returned; otherwise only constraints on
+// tblName are returned. The Clause field holds the engine-formatted expression
+// text as returned by pg_get_constraintdef.
+func getPgCheckConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.CheckConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT rel.relname, con.conname, pg_get_constraintdef(con.oid, TRUE)
+FROM pg_catalog.pg_constraint con
+JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+JOIN pg_catalog.pg_namespace n ON n.oid = rel.relnamespace
+WHERE con.contype = 'c' AND n.nspname = current_schema()`
+
+	var args []any
+	if tblName != "" {
+		query += ` AND rel.relname = $1`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY rel.relname, con.conname`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var checks []*metadata.CheckConstraint
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		cc := &metadata.CheckConstraint{}
+		if err = rows.Scan(&cc.Table, &cc.Name, &cc.Clause); err != nil {
+			return nil, errw(err)
+		}
+		checks = append(checks, cc)
+	}
+	return checks, errw(rows.Err())
+}
+
+// getPgTriggers returns the triggers declared on tables (and views) in the
+// current schema. If tblName is empty, triggers for every relation in the
+// current schema are returned; otherwise only triggers on tblName are returned.
+// Internal triggers (constraint-enforcement triggers created by Postgres itself)
+// are excluded via NOT t.tgisinternal.
+//
+// Note: INSTEAD OF triggers can only be defined on views. Both paths correctly
+// capture them: the source-wide path (tblName == "") uses an unfiltered query so
+// AssignTriggers populates every entry in md.Tables including views; the
+// per-table path in populateTableExtras explicitly calls getPgTriggers when
+// TableType is view, so single-table inspect of a view returns its INSTEAD OF
+// triggers as well.
+func getPgTriggers(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Trigger, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT c.relname AS table_name, t.tgname,
+  CASE WHEN (t.tgtype & 2)<>0 THEN 'BEFORE'
+       WHEN (t.tgtype & 64)<>0 THEN 'INSTEAD OF' ELSE 'AFTER' END AS timing,
+  (t.tgtype & 4)<>0  AS on_insert,
+  (t.tgtype & 8)<>0  AS on_delete,
+  (t.tgtype & 16)<>0 AS on_update,
+  t.tgenabled <> 'D' AS enabled,
+  pg_get_triggerdef(t.oid, TRUE) AS definition
+FROM pg_trigger t
+JOIN pg_class c ON c.oid = t.tgrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE NOT t.tgisinternal AND n.nspname = current_schema()`
+
+	var args []any
+	if tblName != "" {
+		query += ` AND c.relname = $1`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY c.relname, t.tgname`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var triggers []*metadata.Trigger
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			tblNameVal string
+			trigName   string
+			timing     string
+			onInsert   bool
+			onDelete   bool
+			onUpdate   bool
+			enabled    bool
+			definition string
+		)
+		if err = rows.Scan(&tblNameVal, &trigName, &timing,
+			&onInsert, &onDelete, &onUpdate, &enabled, &definition); err != nil {
+			return nil, errw(err)
+		}
+
+		var events []string
+		if onInsert {
+			events = append(events, "INSERT")
+		}
+		if onUpdate {
+			events = append(events, "UPDATE")
+		}
+		if onDelete {
+			events = append(events, "DELETE")
+		}
+
+		// Allocate a fresh bool inside the loop so each Trigger.Enabled
+		// points to its own value and not a shared loop variable.
+		enabledVal := enabled
+		triggers = append(triggers, &metadata.Trigger{
+			Name:       trigName,
+			Table:      tblNameVal,
+			Timing:     timing,
+			Events:     events,
+			Enabled:    &enabledVal,
+			Definition: definition,
+		})
+	}
+	return triggers, errw(rows.Err())
+}
+
+// getPgViewDefinitions returns a map of view name → defining SQL for regular
+// views (relkind='v') in the current schema. If tblName is non-empty, only
+// that view is returned; passing an empty tblName returns all views.
+//
+// The definition is produced by pg_get_viewdef(oid, true), which formats the
+// SQL with pretty-printing enabled. Base tables are never included; callers
+// should only read from the returned map for view-typed relations.
+func getPgViewDefinitions(ctx context.Context, db sqlz.DB, tblName string) (map[string]string, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT c.relname, pg_get_viewdef(c.oid, true)
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind = 'v' AND n.nspname = current_schema()`
+
+	var args []any
+	if tblName != "" {
+		query += ` AND c.relname = $1`
+		args = append(args, tblName)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	defs := map[string]string{}
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			name string
+			def  sql.NullString
+		)
+		if err = rows.Scan(&name, &def); err != nil {
+			return nil, errw(err)
+		}
+		defs[name] = strings.TrimSpace(def.String)
+	}
+	return defs, errw(rows.Err())
 }
 
 // pgIndexHasIndnkeyatts reports whether pg_index has the indnkeyatts
@@ -1200,4 +1629,31 @@ func closeRows(rows *sql.Rows) error {
 		return errw(err1)
 	}
 	return errw(err2)
+}
+
+// semverRx matches a leading dotted-numeric version token (up to three parts).
+var semverRx = regexp.MustCompile(`^v?(\d+(?:\.\d+){0,2})`)
+
+// parseSemver normalizes a Postgres server_version string to canonical semver
+// (e.g. "v16.1.0"). Since PG 10 the version is two-part (major.minor); the
+// leading token also handles any trailing distro parenthetical.
+func parseSemver(raw string) (string, error) {
+	m := semverRx.FindStringSubmatch(strings.TrimSpace(raw))
+	if m == nil {
+		return "", errz.Errorf("no semver in postgres version string: %q", raw)
+	}
+	v := semver.Canonical("v" + m[1])
+	if !semver.IsValid(v) {
+		return "", errz.Errorf("invalid postgres semver %q from %q", v, raw)
+	}
+	return v, nil
+}
+
+// DBSemver implements driver.SQLDriver.
+func (d *driveri) DBSemver(ctx context.Context, db sqlz.DB) (string, error) {
+	var raw string
+	if err := db.QueryRowContext(ctx, "SELECT current_setting('server_version')").Scan(&raw); err != nil {
+		return "", errw(err)
+	}
+	return parseSemver(raw)
 }

@@ -1,7 +1,3 @@
-<!-- CHANGELOG is hand-maintained release notes: long lines (MD013), tab-aligned
-     pasted command/test output in code blocks (MD010), and many issue-reference
-     link definitions (MD053) are intentional and intrinsic to the format. -->
-<!-- markdownlint-configure-file { "MD013": false, "MD010": false, "MD053": false } -->
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
@@ -16,13 +12,59 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
-## Unreleased
+## [Unreleased]
 
 ### Added
 
 - Interactive commands may show a right-aligned update-available notice on
   stderr when a newer release is cached. Set `SQ_NO_UPDATE_NOTIFIER=1` to
   disable. See [install docs](https://sq.io/docs/install#update-notices).
+- [#986]: [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) with `-j` / `-y` now
+  reports an `is_embedded_sql` field for each driver, `true` for the in-process SQL
+  drivers (SQLite, DuckDB) and `false` for the networked engines (including rqlite,
+  which is SQLite-backed but reached over HTTP) and non-SQL drivers.
+
+### Fixed
+
+- [#975]: A join across two sources could fail with `database is locked` when
+  the participating tables were copied into the temporary SQLite join database.
+  The copies ran concurrently, but SQLite permits only one writer at a time, so a
+  large table holding the write lock could starve the others past their timeout.
+  The copies into a single-writer join database now funnel through a single
+  writer while their source reads still run concurrently ([#995]), so they no
+  longer contend on the write lock and the reads are not serialized.
+- [#1017]: When a table copy or ingest was canceled or its source read failed
+  partway, the destination write could occasionally commit a partially-written
+  table instead of rolling back, due to a race between the read's cancellation
+  and the close of its record stream. The write is now rolled back whenever the
+  context is canceled.
+- [#994]: The DuckDB driver now SQL-quotes schema names that contain a double
+  quote in `CreateSchema` and `DropSchema`, completing the `%q` → `stringz.DoubleQuote`
+  identifier-quoting fix that [#976] applied to the table paths.
+- [#976]: The DuckDB driver now SQL-quotes table and column names that contain a
+  double quote (e.g. a `we"ird` table created from a CSV header) in the alter, truncate, and
+  row-count paths. These paths used Go's `%q` verb, which emits backslash escaping (`"we\"ird"`)
+  that DuckDB rejects; they now use `stringz.DoubleQuote` (`"we""ird"`), completing for DuckDB
+  the identifier-quoting fix [#821] applied to SQLite and rqlite.
+- [#968]: Aligned the SQLite and DuckDB Sakila test fixtures with the canonical
+  schema used by the other drivers: the `sales_by_store` view no longer carries a
+  stray leading `store_id` column (it is now `store, manager, total_sales`), and
+  the `customer_list` / `staff_list` views use the canonical `zip code` alias
+  instead of `zip_code`.
+
+## [v0.54.1] - 2026-06-23
+
+### Fixed
+
+- [#866], [#868]: Ingesting document sources (CSV, JSON, Excel, etc.) is now much
+  faster, especially on Windows and other slow filesystems.
+- [#865]: Fixed shell-completion regressions.
+- [#863]: `FORCE_COLOR` handling now follows the [force-color.org](https://force-color.org/)
+  conventions.
+- [#919]: [`sq inspect`](https://sq.io/docs/inspect) on an Oracle source now handles
+  materialized views correctly.
+- Various other bug fixes: [#859], [#902], [#911], [#915], [#916], [#918], [#920], [#923], [#926].
+
 
 ## [v0.54.0] - 2026-06-19
 
@@ -60,6 +102,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- [#900]: HTTPS requests (used when downloading remote sources) now require a minimum of
+  TLS 1.2, matching the Go standard library default. TLS 1.0 and 1.1, deprecated by
+  RFC 8996, are no longer accepted.
 - [#851]: In colored output, structural punctuation is now rendered muted rather than bold,
   so values stand out.
 - [#846]: YAML now renders decimal values as quoted strings by default, matching JSON. Set
@@ -149,7 +194,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   to `false` if you prefer the previous (less-verbose) `text` error format.
   ![sq text error reporting: verbose vs. summary](site/static/images/repo/sq_error_reporting_options.png)
 - [#617], [#618]: `sq inspect` now omits an index whose key positions are
-  *all* expressions (previously MySQL and SQLite reported such an index
+  _all_ expressions (previously MySQL and SQLite reported such an index
   with an empty `columns` list).
 
 ### Fixed
@@ -213,7 +258,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [inspect docs](https://sq.io/docs/cmd/inspect).
 - [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a [`--render-sql`](https://sq.io/docs/cmd/sq/#render-sql)
   flag, which prints the SQL (derived from `SLQ` input) that would be
-  executed against the target database, *instead* of running it. Honors `--format` with:
+  executed against the target database, _instead_ of running it. Honors `--format` with:
   - `text` or `raw`: the rendered SQL is printed.
   - `json` or `yaml`: a structured payload is printed containing the
     original SLQ, the rendered SQL, any [`--arg`](https://sq.io/docs/cmd/sq/#predefined-variables),
@@ -227,8 +272,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
     sources:
       target: "@join_xukcx3ye"
       inputs:
-      - "@sakila/pg"
-      - "@sakila/my"
+        - "@sakila/pg"
+        - "@sakila/my"
     ```
 
 ### Changed
@@ -599,7 +644,7 @@ you encounter any weirdness.
 - [#307]: Ingested [document sources](https://sq.io/docs/source#document-source) (such as
   [CSV](https://sq.io/docs/drivers/csv) or [Excel](https://sq.io/docs/drivers/xlsx))
   now make use of an [ingest](https://sq.io/docs/source#ingest) cache DB. Previously, ingestion
-  of document source data occurred  on each `sq` command. It is now a one-time cost; subsequent
+  of document source data occurred on each `sq` command. It is now a one-time cost; subsequent
   use of the document source utilizes
   the cache DB. Until, that is, the source document changes: then the ingest cache DB is invalidated and
   ingested again. This is a significantly improved experience for large document sources.
@@ -768,10 +813,10 @@ you encounter any weirdness.
 
 ### Changed
 
-- The  `--exec` and `--query` flags for [`sq sql`](https://sq.io/docs/cmd/sql) were removed in
+- The `--exec` and `--query` flags for [`sq sql`](https://sq.io/docs/cmd/sql) were removed in
   the preceding release ([v0.43.1]).
-  That was probably a bit hasty, especially because it's possible those flags *could* be reintroduced
-  when the *query vs exec* situation is figured out. So, those two flags are now restored, in
+  That was probably a bit hasty, especially because it's possible those flags _could_ be reintroduced
+  when the _query vs exec_ situation is figured out. So, those two flags are now restored, in
   that their use won't cause an error, but they've been hidden from command help, and remain no-op.
 
 ## [v0.43.1] - 2023-11-19
@@ -945,15 +990,15 @@ mechanism.
 ### Changed
 
 - ☢️ [#12]: The table [join](https://sq.io/docs/query#joins) mechanism has been
-   completely overhauled. Now there's support for multiple joins. See [docs](https://sq.io/docs/query#joins).
+  completely overhauled. Now there's support for multiple joins. See [docs](https://sq.io/docs/query#joins).
 
-   ```shell
-   # Previously, only a single join was possible
-   $ sq '.actor, .film_actor | join(.actor_id)'
+  ```shell
+  # Previously, only a single join was possible
+  $ sq '.actor, .film_actor | join(.actor_id)'
 
-   # Now, an arbitrary number of joins
-   $ sq '.actor | join(.film_actor, .actor_id) | join(.film, .film_id)'
-   ```
+  # Now, an arbitrary number of joins
+  $ sq '.actor | join(.film_actor, .actor_id) | join(.film, .film_id)'
+  ```
 
 - ☢️ The alias for `--jsonl` (JSON Lines) has been changed to `-J`.
 
@@ -1198,7 +1243,7 @@ Alas, this release has several minor breaking changes ☢️.
   $ sq config set log.file /var/log/sq.log
   ```
 
-  There are also equivalent flags  (`--log`, `--log.file` and `--log.level`) and
+  There are also equivalent flags (`--log`, `--log.file` and `--log.level`) and
   envars (`SQ_LOG`, `SQ_LOG_FILE` and `SQ_LOG_LEVEL`).
 - Several more commands support YAML output:
   - [`sq group`](https://sq.io/docs/cmd/group)
@@ -1240,19 +1285,19 @@ Alas, this release has several minor breaking changes ☢️.
 
   # now
   $ sq add ./actor.csv --ingest.header=false
-   ```
+  ```
 
 - ☢️ The short form of the `sq add --handle` flag has been changed from `-h` to
   `-n`. While this is not ideal, the `-h` shorthand is already in use everywhere
   else as the short form of `--header`.
 
-    ```shell
+  ```shell
   # previously
   $ sq add ./actor.csv -h @actor
 
   # now
   $ sq add ./actor.csv -n @actor
-   ```
+  ```
 
 - ☢️ The `--pretty` flag has been removed. Its only previous use was with the
   `json` format, where if `--pretty=false` would output the JSON in compact form.
@@ -1305,7 +1350,7 @@ make working with lots of sources much easier.
 
   ```shell
   $ sq add ./actor.csv --opts=header=true
-  ````
+  ```
 
   This change makes working with CSV files significantly lower friction.
   A command like the below now almost always works as expected:
@@ -1711,7 +1756,28 @@ make working with lots of sources much easier.
 [#846]: https://github.com/neilotoole/sq/issues/846
 [#851]: https://github.com/neilotoole/sq/issues/851
 [#853]: https://github.com/neilotoole/sq/issues/853
-
+[#859]: https://github.com/neilotoole/sq/issues/859
+[#863]: https://github.com/neilotoole/sq/pull/863
+[#865]: https://github.com/neilotoole/sq/pull/865
+[#866]: https://github.com/neilotoole/sq/issues/866
+[#868]: https://github.com/neilotoole/sq/issues/868
+[#900]: https://github.com/neilotoole/sq/pull/900
+[#902]: https://github.com/neilotoole/sq/pull/902
+[#911]: https://github.com/neilotoole/sq/pull/911
+[#915]: https://github.com/neilotoole/sq/pull/915
+[#916]: https://github.com/neilotoole/sq/pull/916
+[#918]: https://github.com/neilotoole/sq/pull/918
+[#919]: https://github.com/neilotoole/sq/pull/919
+[#920]: https://github.com/neilotoole/sq/pull/920
+[#923]: https://github.com/neilotoole/sq/pull/923
+[#926]: https://github.com/neilotoole/sq/pull/926
+[#968]: https://github.com/neilotoole/sq/issues/968
+[#975]: https://github.com/neilotoole/sq/issues/975
+[#976]: https://github.com/neilotoole/sq/pull/976
+[#986]: https://github.com/neilotoole/sq/issues/986
+[#994]: https://github.com/neilotoole/sq/pull/994
+[#995]: https://github.com/neilotoole/sq/issues/995
+[#1017]: https://github.com/neilotoole/sq/issues/1017
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
@@ -1783,3 +1849,4 @@ make working with lots of sources much easier.
 [v0.52.0]: https://github.com/neilotoole/sq/compare/v0.51.0...v0.52.0
 [v0.53.0]: https://github.com/neilotoole/sq/compare/v0.52.0...v0.53.0
 [v0.54.0]: https://github.com/neilotoole/sq/compare/v0.53.0...v0.54.0
+[v0.54.1]: https://github.com/neilotoole/sq/compare/v0.54.0...v0.54.1

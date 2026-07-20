@@ -95,9 +95,7 @@ async function fetchOrKeep(label, fetchFn, fallback) {
   try {
     return await fetchFn();
   } catch (err) {
-    console.warn(
-      `gen-site-data: ${label} fetch failed (${err.message}); keeping committed value`,
-    );
+    console.warn(`gen-site-data: ${label} fetch failed (${err.message}); keeping committed value`);
     return fallback;
   }
 }
@@ -117,9 +115,7 @@ async function main() {
   let stars = existing.stars;
 
   if (process.env.SQ_SITE_OFFLINE === "1") {
-    console.log(
-      "gen-site-data: SQ_SITE_OFFLINE=1, keeping committed data/github.toml",
-    );
+    console.log("gen-site-data: SQ_SITE_OFFLINE=1, keeping committed data/github.toml");
   } else {
     version = await fetchOrKeep("version", getLatestVersion, existing.version);
     stars = await fetchOrKeep("stars", getStarCount, existing.stars);
@@ -150,7 +146,9 @@ async function main() {
 // Never let an unexpected error (e.g. a write failure) crash the build; the
 // committed data/github.toml stays as the fallback.
 main().catch((err) => {
-  console.warn(`gen-site-data: unexpected error (${err.message}); keeping committed data/github.toml`);
+  console.warn(
+    `gen-site-data: unexpected error (${err.message}); keeping committed data/github.toml`,
+  );
 });
 
 module.exports = {

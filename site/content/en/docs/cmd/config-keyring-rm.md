@@ -10,6 +10,7 @@ menu:
 toc: false
 url: /docs/cmd/config-keyring-rm
 ---
+
 Part of the [`sq config keyring`](/docs/cmd/config-keyring) command group;
 see [Secrets](/docs/secrets) for the broader picture. `rm` only deletes the keyring
 entry; any `${keyring:PATH}` reference left in `sq.yml` will fail to

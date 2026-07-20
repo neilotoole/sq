@@ -10,6 +10,7 @@ menu:
 toc: false
 url: /docs/cmd/config-keyring-create
 ---
+
 Part of the [`sq config keyring`](/docs/cmd/config-keyring) command group;
 see [Secrets](/docs/secrets) for the broader picture. Most users let
 [`sq add --store keyring`](/docs/cmd/add) create entries automatically;

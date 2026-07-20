@@ -1,9 +1,10 @@
 # Codecov configuration.
 # See https://docs.codecov.com/docs/codecov-yaml for all options.
 #
-# Coverage is uploaded from the test-nix matrix (ubuntu + macos) in
-# .github/workflows/main.yml, tagged per-OS via flags. Checks are
-# informational so they report status without blocking PR merges.
+# Coverage is uploaded from the dedicated coverage workflow
+# (.github/workflows/coverage.yml), which runs the full suite on ubuntu nightly
+# and tags the upload with the "nightly" flag. Checks are informational so
+# they report status without blocking PR merges.
 
 coverage:
   status:

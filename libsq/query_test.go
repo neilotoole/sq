@@ -46,7 +46,8 @@ func oracleSQL(s string) string {
 
 func TestOracleSQL(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t,
+	assert.Equal(
+		t,
 		`SELECT "ACTOR_ID" FROM "ACTOR" WHERE "FIRST_NAME" = 'x'`,
 		oracleSQL(`SELECT "actor_id" FROM "actor" WHERE "first_name" = 'x'`),
 	)
@@ -93,6 +94,14 @@ type queryTestCase struct {
 	// For example, MySQL uses backtick as the quote char, so it needs
 	// a separate wantSQL string.
 	override driverMap
+
+	// mysqlAvgVersionSQL indicates that the mysql entry in wantSQL/override
+	// renders avg() using CAST(... AS DOUBLE), which MySQL only supports on
+	// >= 8.0.17 (see drivers/mysql/render.go). Below that version, avg()
+	// renders as "(avg(...) + 0e0)" instead; that alternate rendering is
+	// unit-tested in drivers/mysql, so here we just skip the exact-SQL
+	// assertion (query execution still runs).
+	mysqlAvgVersionSQL bool
 
 	// onlyFor indicates that this test should only run on sources of
 	// the specified types. When empty, the test is executed on all types.
@@ -176,7 +185,7 @@ func execQueryTestCase(t *testing.T, tc queryTestCase) { //nolint:thelper
 // occurrence of the string "@sakila." is replaced with the
 // actual handle of each source. E.g:
 //
-//	"@sakila | .actor"  -->  "@sakila_pg12 | .actor"
+//	"@sakila | .actor"  -->  "@sakila_pg | .actor"
 func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 	t.Helper()
 
@@ -224,6 +233,12 @@ func doExecQueryTestCase(t *testing.T, tc queryTestCase) {
 			require.NoError(t, err)
 
 			th := testh.New(t)
+
+			if tc.mysqlAvgVersionSQL && src.Type == drivertype.MySQL &&
+				!th.DBSemverAtLeast(src.Handle, "v8.0.17") {
+				want = "" // avg renders (avg(...) + 0e0) below 8.0.17; render is unit-tested elsewhere.
+			}
+
 			qc := &libsq.QueryContext{
 				Collection: coll,
 				Grips:      th.Grips(),

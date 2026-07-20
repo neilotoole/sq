@@ -203,7 +203,7 @@ func TestMaybeExpandSource_ZeroRefs_AgreesWithConnect(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "postgres://alice:pa$wd@db/sakila", got.Location)
 
-	resolved, err := driver.ResolveSourceSecrets(context.Background(), src)
+	resolved, err := driver.ResolveSourceSecrets(context.Background(), nil, src)
 	require.NoError(t, err)
 	require.Equal(t, resolved.Location, got.Location,
 		"display expansion and connect-time resolution must agree")

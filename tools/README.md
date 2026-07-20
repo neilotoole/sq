@@ -10,7 +10,7 @@ project's dependency tree**. This approach is recommended by the
 [`golangci-lint` team](https://golangci-lint.run/docs/welcome/install/local/) and
 is considered a best practice (well, by some people).
 
-Note that the `golangci-lint` team don't *really* recommend this practice, but
+Note that the `golangci-lint` team don't _really_ recommend this practice, but
 we're doing it anyway until the Go community settle on a best practice. Per the
 `golangci-lint` team:
 
@@ -56,9 +56,6 @@ tools/
 ├── betteralign/
 │   ├── go.mod
 │   └── go.sum
-├── gofumpt/
-│   ├── go.mod
-│   └── go.sum
 ├── goimports-reviser/
 │   ├── go.mod
 │   └── go.sum
@@ -84,7 +81,6 @@ to use:
 
 ```bash
 go tool -modfile=tools/golangci-lint/go.mod golangci-lint run ./...
-go tool -modfile=tools/gofumpt/go.mod gofumpt -w .
 go tool -modfile=tools/tparse/go.mod tparse -all
 go tool -modfile=tools/betteralign/go.mod betteralign -apply ./...
 go tool -modfile=tools/goimports-reviser/go.mod goimports-reviser -format ./...

@@ -26,15 +26,14 @@ builds:
     binary: sq
 
 archives:
-  -
-#    name_template: "{{.ProjectName}}-{{ .Version }}-{{.Os}}-{{.Arch}}"
+  - #    name_template: "{{.ProjectName}}-{{ .Version }}-{{.Os}}-{{.Arch}}"
     name_template: >-
       {{.ProjectName}}-{{ .Version }}-{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}-{{.Arch}}
-#    replacements:
-#      darwin: macos
+    #    replacements:
+    #      darwin: macos
     format_overrides:
       - goos: windows
-        formats: [ zip ]
+        formats: [zip]
     files:
       - README.md
       - LICENSE
@@ -44,7 +43,7 @@ archives:
       - skills/**
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 snapshot:
   version_template: "{{ .Tag }}-snapshot"
 changelog:
@@ -58,8 +57,7 @@ release:
   prerelease: auto
 
 brews:
-  -
-    homepage: "https://github.com/neilotoole/sq"
+  - homepage: "https://github.com/neilotoole/sq"
     description: "sq data wrangler"
     license: MIT
     repository:
@@ -91,8 +89,7 @@ scoops:
       email: neilotoole@apache.org
 
 nfpms:
-  -
-    formats:
+  - formats:
       - apk
       - deb
       - rpm
@@ -134,8 +131,7 @@ furies:
   - account: neilotoole
 
 aurs:
-  -
-    # The package name.
+  - # The package name.
     #
     # Defaults to the Project Name with a -bin suffix.
     #
@@ -143,7 +139,6 @@ aurs:
     # source, per Arch's guidelines.
     # That said, GoReleaser will enforce a `-bin` suffix if it's not present.
     name: sq-bin
-
 
     # Your app's homepage.
     # Default is empty.
@@ -156,13 +151,13 @@ aurs:
     # The maintainers of the package.
     # Defaults to empty.
     maintainers:
-      - 'neilotoole <neilotoole@apache.org>'
-      - 'Diego Souza <diegosouza.br@gmail.com>'
+      - "neilotoole <neilotoole@apache.org>"
+      - "Diego Souza <diegosouza.br@gmail.com>"
 
     # The contributors of the package.
     # Defaults to empty.
     contributors:
-      - 'neilotoole <neilotoole@apache.org>'
+      - "neilotoole <neilotoole@apache.org>"
 
     # SPDX identifier of your app's license.
     # Default is empty.
@@ -172,12 +167,12 @@ aurs:
     # This can either be a path or the key contents.
     #
     # WARNING: do not expose your private key in the configuration file!
-    private_key: '{{ .Env.AUR_PRIVATE_KEY }}'
+    private_key: "{{ .Env.AUR_PRIVATE_KEY }}"
 
     # The AUR Git URL for this package.
     # Defaults to empty
     # Publish is skipped if empty.
-    git_url: 'ssh://aur@aur.archlinux.org/sq-bin.git'
+    git_url: "ssh://aur@aur.archlinux.org/sq-bin.git"
 
     # Setting this will prevent goreleaser to actually try to commit the updated
     # formula - instead, the formula file will be stored on the dist folder only,
@@ -204,8 +199,8 @@ aurs:
     # List of packages that must be installed to install this.
     #
     # Defaults to empty.
-#    depends:
-#      - curl
+    #    depends:
+    #      - curl
 
     # List of packages that are not needed for the software to function,
     # but provide additional features.
@@ -213,8 +208,8 @@ aurs:
     # Must be in the format `package: short description of the extra functionality`.
     #
     # Defaults to empty.
-#    optdepends:
-#      - 'wget: for downloading things'
+    #    optdepends:
+    #      - 'wget: for downloading things'
 
     # List of files that can contain user-made changes and should be preserved
     # during package upgrades and removals.
@@ -272,20 +267,20 @@ aurs:
     # Defaults to `Update to {{ .Tag }}`.
 #    commit_msg_template: "pkgbuild updates"
 
-    # If you build for multiple GOAMD64 versions, you may use this to choose which one to use.
-    # Defaults to `v1`.
+# If you build for multiple GOAMD64 versions, you may use this to choose which one to use.
+# Defaults to `v1`.
 #    goamd64: v2
 
-    # The value to be passed to `GIT_SSH_COMMAND`.
-    # This is mainly used to specify the SSH private key used to pull/push to
-    # the Git URL.
-    #
-    # Defaults to `ssh -i {{ .KeyPath }} -o StrictHostKeyChecking=accept-new -F /dev/null`.
+# The value to be passed to `GIT_SSH_COMMAND`.
+# This is mainly used to specify the SSH private key used to pull/push to
+# the Git URL.
+#
+# Defaults to `ssh -i {{ .KeyPath }} -o StrictHostKeyChecking=accept-new -F /dev/null`.
 #    git_ssh_command: 'ssh -i {{ .Env.AUR_PRIVATE_KEY }} -o StrictHostKeyChecking=accept-new -F /dev/null'
 #    git_ssh_command: 'ssh -i {{ .Env.KEY }} -o SomeOption=yes'
 
-    # Template for the url which is determined by the given Token
-    # (github, gitlab or gitea).
-    #
-    # Default depends on the client.
+# Template for the url which is determined by the given Token
+# (github, gitlab or gitea).
+#
+# Default depends on the client.
 #    url_template: "http://github.mycompany.com/foo/bar/releases/{{ .Tag }}/{{ .ArtifactName }}"

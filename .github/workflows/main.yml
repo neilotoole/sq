@@ -2,16 +2,16 @@ name: Main Pipeline
 on:
   pull_request:
     paths-ignore:
-      - '**.md'
-      - 'sq.json' # Updated by scoop; no need to run a new build.
-      - 'site/**'
+      - "**.md"
+      - "sq.json" # Updated by scoop; no need to run a new build.
+      - "site/**"
   push:
     # No paths-ignore on push: master merges and release tags must always run
     # (paths filtering on tag pushes is unreliable and could skip a release).
     branches: [master]
-    tags: ['v*']
+    tags: ["v*"]
   schedule:
-    - cron: '17 9 * * *' # Nightly full suite vs master (UTC; tunable).
+    - cron: "17 9 * * *" # Nightly full suite vs master (UTC; tunable).
 
   # Allows this workflow to be manually triggered from the Actions tab.
   workflow_dispatch:
@@ -24,27 +24,28 @@ concurrency:
 
 env:
   GORELEASER_VERSION: 2.13.3
-  GOLANGCI_LINT_VERSION: v2.9.0
+  GOLANGCI_LINT_VERSION: v2.12.2
   TPARSE_VERSION: v0.18.0
-  BUILD_TAGS: 'sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions'
+  BUILD_TAGS: "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions"
 
 jobs:
   test-nix:
     strategy:
       matrix:
-        os: [ ubuntu-24.04, macos-15]
+        os: [ubuntu-24.04, macos-15]
 
     runs-on: ${{ matrix.os }}
 
     env:
-      # Full run (no -short, with coverage) nightly, on release tags, and on
-      # manual dispatch. The PR/master dev loop runs -short without coverage,
-      # skipping long-running tests (e.g. large-fixture JSON/XLSX ingest).
+      # Full run (no -short) nightly, on release tags, and on manual dispatch.
+      # The PR/master dev loop runs -short, skipping long-running tests (e.g.
+      # large-fixture JSON/XLSX ingest). Coverage is no longer instrumented
+      # here; it runs in the dedicated coverage workflow (see coverage.yml, #871).
       FULL_RUN: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -53,52 +54,32 @@ jobs:
         with:
           go-version-file: go.mod
 
-
       - name: Build
         run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
 
-      - name: 'Go tests'
+      - name: "Go tests"
         shell: bash
         run: |
           # pipefail so a `go test` failure isn't masked by the `| tee` below.
           set -eo pipefail
 
           test_args=()
-          cover_args=()
-          if [ "${FULL_RUN}" = "true" ]; then
-            # Full run: instrument coverage on the ubuntu-24.04 runner only
-            # (uploaded to Codecov below); macOS runs without coverage.
-            # "-coverpkg=./..." attributes coverage across all packages (e.g.
-            # integration tests exercising other packages).
-            if [ "${{ matrix.os }}" = "ubuntu-24.04" ]; then
-              cover_args=(-cover -coverpkg=./... -coverprofile=coverage.out)
-            fi
-          else
+          if [ "${FULL_RUN}" != "true" ]; then
             # Dev loop (PRs, master merges): skip long-running tests. The full
             # suite runs nightly and on release tags.
             test_args=(-short)
           fi
 
           go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json \
-            "${test_args[@]}" "${cover_args[@]}" ./... | tee gotest.out.json
+            "${test_args[@]}" ./... | tee gotest.out.json
 
-      - name: 'Test output'
+      - name: "Test output"
         if: always()
         shell: bash
         run: |
           set -e
           go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
           tparse -all -sort=elapsed -file gotest.out.json
-
-      - name: Upload coverage to Codecov
-        if: always() && matrix.os == 'ubuntu-24.04' && env.FULL_RUN == 'true'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          files: ./coverage.out
-          flags: ${{ matrix.os }}
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-
 
   test-windows-smoke:
     # Fast Windows check for the dev loop: compile everything (catches
@@ -110,7 +91,7 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -133,57 +114,58 @@ jobs:
       || github.event_name == 'workflow_dispatch'
     runs-on: windows-2022
     steps:
-    # Copied from https://github.com/mattn/go-sqlite3/blob/master/.github/workflows/go.yaml#L73
-#    - uses: msys2/setup-msys2@v2
-#      with:
-#        update: true
-#        install: mingw-w64-x86_64-toolchain mingw-w64-x86_64-sqlite3
-#        msystem: MINGW64
-#        path-type: inherit
+      # Copied from https://github.com/mattn/go-sqlite3/blob/master/.github/workflows/go.yaml#L73
+      #    - uses: msys2/setup-msys2@v2
+      #      with:
+      #        update: true
+      #        install: mingw-w64-x86_64-toolchain mingw-w64-x86_64-sqlite3
+      #        msystem: MINGW64
+      #        path-type: inherit
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
 
-    - name: Checkout
-      uses: actions/checkout@v6
-      with:
-        fetch-depth: 1
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version-file: go.mod
+      - name: Build
+        run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
+      #      shell: msys2 {0}
 
-    - name: Build
-      run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
-#      shell: msys2 {0}
+      #    - name: Run tests
+      #      run: |
+      #        go test -tags '${{ env.BUILD_TAGS }}' -v ./...
+      ##      shell: msys2 {0}
 
-#    - name: Run tests
-#      run: |
-#        go test -tags '${{ env.BUILD_TAGS }}' -v ./...
-##      shell: msys2 {0}
+      - name: "Go tests"
+        shell: bash
+        run: |
+          # set -e
 
-    - name: 'Go tests'
-      shell: bash
-      run: |
-        # set -e
+          # We send the Go test output to a file, so that "tparse" can
+          # render pretty output below.
+          go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json ./... > gotest.out.json
 
-        # We send the Go test output to a file, so that "tparse" can
-        # render pretty output below.
-        go test -tags '${{ env.BUILD_TAGS }}' -timeout 20m -v -json ./... > gotest.out.json
-
-    - name: 'Test output'
-      if: always()
-      shell: bash
-      run: |
-        set -e
-        go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
-        tparse -all -sort=elapsed -file gotest.out.json
+      - name: "Test output"
+        if: always()
+        shell: bash
+        run: |
+          set -e
+          go install github.com/mfridman/tparse@${{ env.TPARSE_VERSION }}
+          tparse -all -sort=elapsed -file gotest.out.json
 
   lint:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          # Full history so the import-format check can diff a PR against its
+          # base commit (github.event.pull_request.base.sha).
+          fetch-depth: 0
 
       - name: Lint GH workflow files
         run: |
@@ -193,20 +175,42 @@ jobs:
 
       - name: shellcheck
         run: |
-          shellcheck ./install.sh
+          shellcheck ./install.sh scripts/fmt-go-imports.sh scripts/build-db-matrix.sh scripts/dedup-db-matrix.sh scripts/build-db-matrix_test.sh scripts/dedup-db-matrix_test.sh
+          # Hermetic unit tests for the shared DB-matrix scripts (no network;
+          # dedup stubs docker on PATH).
+          bash scripts/build-db-matrix_test.sh
+          bash scripts/dedup-db-matrix_test.sh
 
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
+      - name: Check Go import formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Almost no one runs `make fmt` locally, so import grouping/aliasing is
+          # enforced here. PRs check only their changed files (fast, ~1s); other
+          # events re-check the whole module (--all) as a full-tree safety net.
+          # See scripts/fmt-go-imports.sh for why --all is slow.
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            bash scripts/fmt-go-imports.sh --base "${{ github.event.pull_request.base.sha }}"
+          else
+            bash scripts/fmt-go-imports.sh --all
+          fi
+          if ! git diff --quiet -- '*.go'; then
+            echo "::error::Go imports are not formatted. Run 'make fmt' locally and commit the result."
+            git --no-pager diff -- '*.go'
+            exit 1
+          fi
+
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
           skip-cache: true
-          install-mode: 'binary'
+          install-mode: "binary"
           version: ${{ env.GOLANGCI_LINT_VERSION }}
-
 
   binaries-darwin:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -214,7 +218,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -224,7 +228,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build darwin binaries)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -245,7 +249,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -255,7 +259,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build linux-amd64 binaries)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -276,7 +280,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -291,7 +295,7 @@ jobs:
           sudo apt install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       - name: GoReleaser (build linux-arm64 binaries)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -306,14 +310,13 @@ jobs:
           name: dist-linux-arm64
           path: dist-linux
 
-
   binaries-windows:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-2022
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -323,7 +326,7 @@ jobs:
           go-version-file: go.mod
 
       - name: GoReleaser (build windows binaries)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -331,7 +334,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-
 
       - name: Upload assets (windows)
         uses: actions/upload-artifact@v7
@@ -352,7 +354,7 @@ jobs:
       - binaries-windows
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -385,9 +387,8 @@ jobs:
           name: dist-windows
           path: dist-windows
 
-
       - name: GoReleaser (publish)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}
@@ -421,7 +422,7 @@ jobs:
       id-token: write # cosign keyless signing via sigstore/fulcio.
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -440,23 +441,23 @@ jobs:
       # Add support for more platforms with QEMU; needed to build the
       # linux/arm64 image on the amd64 runner.
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Log into registry ghcr.io
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: GoReleaser (docker publish)
-        uses: goreleaser/goreleaser-action@5daf1e915a5f0af01ddbcd89a43b8061ff4f1a89 # v7
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser-pro
           version: ${{ env.GORELEASER_VERSION }}

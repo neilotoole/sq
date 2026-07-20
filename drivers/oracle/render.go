@@ -221,10 +221,10 @@ func renderRowRange(_ *render.Context, rr *ast.RowRangeNode) (string, error) {
 	offset := max(rr.Offset, 0)
 
 	var buf strings.Builder
-	buf.WriteString(fmt.Sprintf("OFFSET %d ROWS", offset))
+	fmt.Fprintf(&buf, "OFFSET %d ROWS", offset)
 
 	if rr.Limit > -1 {
-		buf.WriteString(fmt.Sprintf(" FETCH NEXT %d ROWS ONLY", rr.Limit))
+		fmt.Fprintf(&buf, " FETCH NEXT %d ROWS ONLY", rr.Limit)
 	}
 
 	return buf.String(), nil
@@ -266,17 +266,20 @@ func preRenderOracle(_ *render.Context, f *render.Fragments) error {
 	return nil
 }
 
-// buildCreateTableStmt builds a CREATE TABLE statement for Oracle.
+// buildCreateTableStmt builds a CREATE TABLE statement for Oracle. It honors
+// PKColName as an inline PRIMARY KEY constraint (which implies NOT NULL).
+// Oracle requires the DEFAULT clause to precede inline constraints, so the
+// PRIMARY KEY clause is emitted after the DEFAULT / NOT NULL block (#1029).
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
-	sb.WriteString(`CREATE TABLE "`)
-	sb.WriteString(strings.ToUpper(tblDef.Name))
-	sb.WriteString(`" (`)
+	sb.WriteString(`CREATE TABLE `)
+	sb.WriteString(enquoteOracle(tblDef.Name))
+	sb.WriteString(` (`)
 
 	for i, colDef := range tblDef.Cols {
-		sb.WriteString("\n  \"")
-		sb.WriteString(strings.ToUpper(colDef.Name))
-		sb.WriteString("\" ")
+		sb.WriteString("\n  ")
+		sb.WriteString(enquoteOracle(colDef.Name))
+		sb.WriteRune(' ')
 		sb.WriteString(dbTypeNameFromKind(colDef.Kind))
 
 		if colDef.NotNull {
@@ -287,6 +290,10 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 				sb.WriteString(defaultVal)
 			}
 			sb.WriteString(" NOT NULL")
+		}
+
+		if colDef.Name == tblDef.PKColName {
+			sb.WriteString(" PRIMARY KEY")
 		}
 
 		if i < len(tblDef.Cols)-1 {

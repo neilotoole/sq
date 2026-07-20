@@ -57,7 +57,7 @@ func execXLockSrcCmd(cmd *cobra.Command, args []string) error {
 	// The cache lock path is derived from a hash that includes the
 	// resolved location; ingest locks the resolved leaf, so this
 	// command must too, or it locks a dir nothing else uses.
-	if src, err = driver.ResolveSourceSecrets(ctx, src); err != nil {
+	if src, err = driver.ResolveSourceSecrets(ctx, ru.SecretRegistry, src); err != nil {
 		return err
 	}
 

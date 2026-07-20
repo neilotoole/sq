@@ -1,13 +1,14 @@
 ---
 title: Output
 description: Output
-lead: ''
+lead: ""
 draft: false
 images: []
 weight: 1039
 toc: true
 url: /docs/output
 ---
+
 `sq` can output in many formats, e.g. `text` or `json`. It can also write
 results to a database, using [`--insert`](#insert). The output format
 can be specified using command-line flags (e.g. `--text`, `--json` etc.), or
@@ -78,6 +79,28 @@ followed by the same query in pretty JSON.
 Use `--monochrome` (`-M`) flag to output without color. Or set via [config](/docs/config#monochrome).
 
 ![sq query -M](sq_query_monochrome.png)
+
+### NO_COLOR and FORCE_COLOR
+
+When stdout or stderr is not a terminal, `sq` normally omits ANSI color. Two
+environment variables override that behavior:
+
+- [`NO_COLOR`](https://no-color.org/): any non-empty value disables color (the
+  value itself is ignored).
+- [`FORCE_COLOR`](https://force-color.org/): any non-empty value enables color,
+  except `0` or `false` (case-insensitive), which disable it.
+
+Effective precedence (highest wins):
+
+1. [`--monochrome`](/docs/output#monochrome) (`-M`) or
+   [`monochrome`](/docs/config#monochrome) config: always disables color.
+2. `NO_COLOR` (any non-empty value).
+3. `FORCE_COLOR` (except `0` / `false`, which disable color).
+4. `TERM=dumb`: disables color.
+5. Terminal auto-detection: color only when the stream is a real TTY.
+
+`--monochrome` wins over `FORCE_COLOR`, so `FORCE_COLOR=1 sq --monochrome` prints
+plain text.
 
 ### datetime
 

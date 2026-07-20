@@ -160,7 +160,7 @@ func TestRecordMetadata(t *testing.T) {
 				sqlite3.RTypeNullTime,
 			},
 			colsMeta: []*metadata.Column{
-				{Name: "actor_id", Position: 0, PrimaryKey: true, BaseType: "INTEGER", ColumnType: "INTEGER", Kind: kind.Int, Nullable: false},
+				{Name: "actor_id", Position: 0, PrimaryKey: true, AutoIncrement: true, BaseType: "INTEGER", ColumnType: "INTEGER", Kind: kind.Int, Nullable: false},
 				{Name: "first_name", Position: 1, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: kind.Text, Nullable: false},
 				{Name: "last_name", Position: 2, BaseType: "VARCHAR(45)", ColumnType: "VARCHAR(45)", Kind: kind.Text, Nullable: false},
 				{Name: "last_update", Position: 3, BaseType: "TIMESTAMP", ColumnType: "TIMESTAMP", Kind: kind.Datetime, Nullable: false, DefaultValue: "CURRENT_TIMESTAMP"},
@@ -419,6 +419,24 @@ func TestGetTblRowCounts(t *testing.T) {
 	require.Equal(t, len(tblNames), len(counts))
 }
 
+// TestGetTblRowCounts_MissingTableFallback deterministically exercises the
+// concurrent-DROP fallback in getTblRowCounts: when the batched UNION ALL
+// COUNT(*) fails with "no such table", it falls back to per-table COUNTs
+// (countTblsIndividually), recording -1 for any table that has vanished. Here
+// a name that never existed stands in for one dropped mid-flight. Previously,
+// the failed batch aborted the whole source scan (issue #1027).
+func TestGetTblRowCounts_MissingTableFallback(t *testing.T) {
+	th, _, _, _, db := testh.NewWith(t, sakila.SL3)
+
+	counts, err := sqlite3.GetTblRowCounts(th.Context, db,
+		[]string{sakila.TblActor, "no_such_table_zzz", sakila.TblFilm})
+	require.NoError(t, err)
+	require.Len(t, counts, 3)
+	require.Equal(t, int64(sakila.TblActorCount), counts[0])
+	require.Equal(t, int64(-1), counts[1], "vanished table records -1")
+	require.Equal(t, int64(sakila.TblFilmCount), counts[2])
+}
+
 func BenchmarkGetTblRowCounts(b *testing.B) {
 	const numTables = 1300
 
@@ -506,6 +524,121 @@ func TestIndexes_ExpressionArity(t *testing.T) {
 		"an all-expression index must be omitted")
 }
 
+// TestInspect_DDLMetadata exercises the DDL-derived inspect metadata that
+// SQLite exposes nowhere but the CREATE statements in sqlite_master:
+// generated columns (flag via pragma, expr via DDL), AUTOINCREMENT, CHECK
+// constraints, triggers (timing + events), and view definitions. It uses a
+// fresh temp DB so created objects can't leak into a shared fixture.
+func TestInspect_DDLMetadata(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@inspect_ddl_sl3",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "inspect_ddl.db"),
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := th.Context
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	// Statements are issued individually (not split on ";") because the
+	// trigger body itself contains a semicolon.
+	stmts := []string{
+		`CREATE TABLE widget (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	price INTEGER NOT NULL CHECK (price > 0),
+	discount INTEGER NOT NULL DEFAULT 0,
+	net INTEGER GENERATED ALWAYS AS (price - discount) STORED,
+	CONSTRAINT chk_discount CHECK (discount < price)
+)`,
+		`CREATE TRIGGER widget_ai AFTER INSERT ON widget BEGIN SELECT 1; END`,
+		`CREATE VIEW widget_view AS SELECT id, price FROM widget WHERE price > 10`,
+	}
+	for _, stmt := range stmts {
+		_, err = db.ExecContext(ctx, stmt)
+		require.NoError(t, err)
+	}
+
+	t.Run("table_via_TableMetadata", func(t *testing.T) {
+		t.Parallel()
+		md, err := grip.TableMetadata(ctx, "widget")
+		require.NoError(t, err)
+		assertWidgetTable(t, md)
+	})
+
+	t.Run("view_via_TableMetadata", func(t *testing.T) {
+		t.Parallel()
+		md, err := grip.TableMetadata(ctx, "widget_view")
+		require.NoError(t, err)
+		require.Equal(t, sqlz.TableTypeView, md.TableType)
+		require.NotEmpty(t, md.ViewDefinition)
+		require.Contains(t, md.ViewDefinition, "SELECT")
+	})
+
+	t.Run("source_metadata", func(t *testing.T) {
+		t.Parallel()
+		md, err := grip.SourceMetadata(ctx, false)
+		require.NoError(t, err)
+		var widget, view *metadata.Table
+		for _, tbl := range md.Tables {
+			switch tbl.Name {
+			case "widget":
+				widget = tbl
+			case "widget_view":
+				view = tbl
+			}
+		}
+		require.NotNil(t, widget, "widget table missing from source metadata")
+		assertWidgetTable(t, widget)
+		require.NotNil(t, view, "widget_view missing from source metadata")
+		require.NotEmpty(t, view.ViewDefinition)
+		require.Equal(t, int64(1), md.TableCount)
+		require.Equal(t, int64(1), md.ViewCount)
+	})
+}
+
+// assertWidgetTable asserts the DDL-derived metadata expected for the
+// widget table created in TestInspect_DDLMetadata.
+func assertWidgetTable(t *testing.T, md *metadata.Table) {
+	t.Helper()
+
+	colByName := make(map[string]*metadata.Column, len(md.Columns))
+	for _, col := range md.Columns {
+		colByName[col.Name] = col
+	}
+
+	require.True(t, colByName["id"].AutoIncrement, "id should be AUTOINCREMENT")
+	require.True(t, colByName["net"].Generated, "net should be a generated column")
+	require.Equal(t, "price - discount", colByName["net"].GeneratedExpr)
+	require.False(t, colByName["price"].Generated)
+	require.False(t, colByName["price"].AutoIncrement)
+
+	// Two CHECK constraints: one column-level (unnamed), one named table-level.
+	require.Len(t, md.CheckConstraints, 2)
+	var foundNamed bool
+	for _, cc := range md.CheckConstraints {
+		require.Equal(t, "widget", cc.Table)
+		require.NotEmpty(t, cc.Clause)
+		if cc.Name == "chk_discount" {
+			foundNamed = true
+			require.Contains(t, cc.Clause, "discount")
+		}
+	}
+	require.True(t, foundNamed, "named CHECK constraint chk_discount not found")
+
+	require.Len(t, md.Triggers, 1)
+	trg := md.Triggers[0]
+	require.Equal(t, "widget_ai", trg.Name)
+	require.Equal(t, "widget", trg.Table)
+	require.Equal(t, "AFTER", trg.Timing)
+	require.Equal(t, []string{"INSERT"}, trg.Events)
+	require.NotEmpty(t, trg.Definition)
+	require.Nil(t, trg.Enabled, "SQLite triggers have no enabled state")
+}
+
 // TestTableMetadata_ProblematicTableNames reproduces gh777: getTableMetadata
 // interpolated the table name with Go's %q, including into string-literal
 // position. SQLite resolves a double-quoted token as an identifier first, so
@@ -549,10 +682,12 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 	for _, tblName := range tblNames {
 		quoted := stringz.DoubleQuote(tblName)
 		_, err = db.ExecContext(th.Context, fmt.Sprintf(
-			"CREATE TABLE %s (id INTEGER PRIMARY KEY, val TEXT)", quoted))
+			"CREATE TABLE %s (id INTEGER PRIMARY KEY, val TEXT)", quoted,
+		))
 		require.NoError(t, err)
 		_, err = db.ExecContext(th.Context, fmt.Sprintf(
-			"INSERT INTO %s (val) VALUES ('a'), ('b')", quoted))
+			"INSERT INTO %s (val) VALUES ('a'), ('b')", quoted,
+		))
 		require.NoError(t, err)
 	}
 

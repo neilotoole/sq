@@ -339,23 +339,22 @@ func addOptionFlag(flags *pflag.FlagSet, opt options.Opt) (key string) {
 // excelw.OptDatetimeFormat, excelw.OptDateFormat, excelw.OptTimeFormat.
 func addTimeFormatOptsFlags(cmd *cobra.Command) {
 	key := addOptionFlag(cmd.Flags(), OptDatetimeFormat)
-	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timez.NamedLayouts()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(timez.NamedLayouts()...)))
 	key = addOptionFlag(cmd.Flags(), OptDatetimeFormatAsNumber)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeBool))
 
 	key = addOptionFlag(cmd.Flags(), OptDateFormat)
-	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timez.NamedLayouts()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(timez.NamedLayouts()...)))
 	key = addOptionFlag(cmd.Flags(), OptDateFormatAsNumber)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeBool))
 
 	key = addOptionFlag(cmd.Flags(), OptTimeFormat)
-	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(-1, timez.NamedLayouts()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(timez.NamedLayouts()...)))
 	key = addOptionFlag(cmd.Flags(), OptTimeFormatAsNumber)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeBool))
 
 	key = addOptionFlag(cmd.Flags(), xlsxw.OptDatetimeFormat)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(
-		-1,
 		"yyyy-mm-dd hh:mm",
 		"dd/mm/yy h:mm am/pm",
 		"dd-mmm-yy h:mm:ss AM/PM",
@@ -363,7 +362,6 @@ func addTimeFormatOptsFlags(cmd *cobra.Command) {
 
 	key = addOptionFlag(cmd.Flags(), xlsxw.OptDateFormat)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(
-		-1,
 		"yyyy-mm-dd",
 		"dd/mm/yy",
 		"dd-mmm-yy",
@@ -371,7 +369,6 @@ func addTimeFormatOptsFlags(cmd *cobra.Command) {
 
 	key = addOptionFlag(cmd.Flags(), xlsxw.OptTimeFormat)
 	panicOn(cmd.RegisterFlagCompletionFunc(key, completeStrings(
-		-1,
 		"hh:mm:ss",
 		"h:mm am/pm",
 		"h:mm:ss AM/PM",

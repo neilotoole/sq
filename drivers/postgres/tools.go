@@ -125,7 +125,8 @@ func RestoreCatalogCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 		cmd.Args = append(cmd.Args, p.flag(flagNoACL), p.flag(flagNoOwner)) // -O is --no-owner
 	}
 
-	cmd.Args = append(cmd.Args,
+	cmd.Args = append(
+		cmd.Args,
 		p.flag(flagClean),
 		p.flag(flagIfExists),
 		p.flag(flagCreate),
@@ -183,7 +184,8 @@ func DumpClusterCmd(src *source.Source, p *ToolParams) (*execz.Cmd, error) {
 		cmd.Args = append(cmd.Args, p.flag(flagNoACL), p.flag(flagNoOwner))
 	}
 
-	cmd.Args = append(cmd.Args,
+	cmd.Args = append(
+		cmd.Args,
 		p.flag(flagNoPassword),
 		p.flag(flagDatabase), cfg.ConnConfig.Database,
 		p.flag(flagDBName), cfg.ConnString(),

@@ -79,7 +79,8 @@ func execConfigExport(cmd *cobra.Command, _ []string) error {
 		cfg = cloned
 
 		lg.FromContext(ctx).Warn(
-			"sq config export --expand: resolved secrets are written in plaintext")
+			"sq config export --expand: resolved secrets are written in plaintext",
+		)
 	}
 
 	// yamlw renders YAML with the same encoder sq uses for `config ls -y`
