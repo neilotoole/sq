@@ -65,7 +65,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   materialized views correctly.
 - Various other bug fixes: [#859], [#902], [#911], [#915], [#916], [#918], [#920], [#923], [#926].
 
-
 ## [v0.54.0] - 2026-06-19
 
 ### Added

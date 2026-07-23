@@ -77,7 +77,7 @@ func StartBackgroundCheck(ctx context.Context, cacheDir string) {
 	}
 
 	go func() {
-		bgCtx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+		bgCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), fetchTimeout)
 		defer cancel()
 
 		if err := refreshCache(bgCtx, cacheDir); err != nil {
