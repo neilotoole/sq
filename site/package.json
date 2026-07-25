@@ -64,7 +64,7 @@
     "instant.page": "^5.1",
     "katex": "^0.18",
     "lazysizes": "^5.3",
-    "linkinator": "^7.6.1",
+    "linkinator": "^8.0.2",
     "netlify-cli": "^25.0.1",
     "netlify-plugin-submit-sitemap": "^0.4.0",
     "node-fetch": "^3.3.1",
