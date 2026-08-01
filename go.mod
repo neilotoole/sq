@@ -64,7 +64,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	github.com/vbauerster/mpb/v8 v8.13.0 // BRITTLE
+	github.com/vbauerster/mpb/v8 v8.14.0 // BRITTLE
 	github.com/xo/dburl v0.24.2
 	// Although usql is a large module, Go's DCE (Dead Code Elimination)
 	// mechanism should minimize the impact on the sq binary size. Plus, there
@@ -159,6 +159,7 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/tetratelabs/wazero v1.10.1 // indirect
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect
+	github.com/vbauerster/cupwriter v0.0.4 // indirect
 	github.com/xo/tblfmt v0.18.2 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/xuri/efp v0.0.1 // indirect
