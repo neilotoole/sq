@@ -19,10 +19,16 @@ lychee="./node_modules/.bin/lychee"
 config="./lychee.toml"
 lint_dir="./.serve-lint"
 
-for required in "${hugo}" "${lychee}" "${config}"; do
-  if [[ ! -e "${required}" ]]; then
-    echo "Required link-check dependency not found: ${required}" >&2
-    echo "Run 'make deps' from site/ first." >&2
+if [[ ! -f "${config}" ]]; then
+  echo "Required link-check dependency not found: ${config}" >&2
+  echo "Run 'make deps' (or 'make deps-links' for link-only installs) from site/ first." >&2
+  exit 1
+fi
+
+for bin in "${hugo}" "${lychee}"; do
+  if [[ ! -x "${bin}" ]]; then
+    echo "Required link-check dependency not found or not executable: ${bin}" >&2
+    echo "Run 'make deps' (or 'make deps-links' for link-only installs) from site/ first." >&2
     exit 1
   fi
 done
