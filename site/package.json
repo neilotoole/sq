@@ -26,12 +26,10 @@
     "clean": "shx rm -rf public resources",
     "clean:install": "shx rm -rf bun.lock node_modules",
     "lint": "bun run --silent lint:links",
-    "lint:links": "./linkinator.sh",
-    "lint:links:internal": "LINKINATOR_SCOPE=internal ./linkinator.sh",
+    "lint:links": "./check-links.sh",
+    "lint:links:internal": "./check-links.sh internal",
     "lint:ci": "bun run --silent lint:links:internal",
     "lint:full": "bun run --silent lint:links",
-    "lint:links-prod": "bunx linkinator --config ./linkinator.config.json -r https://sq.io",
-    "lint:links-local": "bunx linkinator --config ./linkinator.config.json -r http://localhost:1313/",
     "server": "exec-bin node_modules/.bin/hugo/hugo server",
     "hugo:mod-get": "exec-bin node_modules/.bin/hugo/hugo mod get -u --logLevel info cj.rs/gohugo-asciinema",
     "hugo:mod-init": "exec-bin node_modules/.bin/hugo/hugo mod init github.com/neilotoole/sq/site",
@@ -42,7 +40,10 @@
     "precheck": "bun --version",
     "check": "exec-bin node_modules/.bin/hugo/hugo version",
     "copy:katex-fonts": "shx cp ./node_modules/katex/dist/fonts/* ./static/fonts/",
-    "postinstall": "hugo-installer --version otherDependencies.hugo --extended --destination node_modules/.bin/hugo",
+    "install:hugo": "hugo-installer --version otherDependencies.hugo --extended --destination node_modules/.bin/hugo",
+    "install:lychee": "./scripts/install-lychee.sh",
+    "install:tools": "bun run install:hugo && bun run install:lychee",
+    "postinstall": "bun run install:tools",
     "gen:site-data": "bun scripts/gen-site-data.js",
     "gen:cmd-help": "./content/en/docs/cmd/generate-cmd-help.sh",
     "gen:syntax-css": "./generate-syntax-css.sh"
@@ -64,7 +65,6 @@
     "instant.page": "^5.1",
     "katex": "^0.18",
     "lazysizes": "^5.3",
-    "linkinator": "^8.0.2",
     "netlify-cli": "^27.0.1",
     "netlify-plugin-submit-sitemap": "^0.4.0",
     "node-fetch": "^3.3.1",
@@ -77,6 +77,7 @@
     "watch": "^1.0.2"
   },
   "otherDependencies": {
-    "hugo": "0.139.2"
+    "hugo": "0.139.2",
+    "lychee": "0.24.2"
   }
 }

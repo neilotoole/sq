@@ -101,7 +101,7 @@ Think of site testing as two layers:
 
 1. **Stable checks (merge-blocking on PRs)**
    `make ci` runs `make site-test`, which runs `bun run test:ci`. That includes
-   link checking against the **temporary local build** we serve for linting, but
+   offline link checking against a **temporary local build**, but
    it does **not** crawl arbitrary third-party websites. This is what you want
    to be strict about: broken docs routes, missing local assets, bad internal
    links, etc.
@@ -216,7 +216,8 @@ use **`make site-build`** for a normal production build to `public/`.
 | ---------------------------- | --------------------------- | ----------------------------------------------------- |
 | `make check`                 | —                           | Verify Bun, Hugo, Netlify CLI, jq, curl               |
 | `make check-netlify`         | —                           | `make check` + `checkenv` on `.env`                   |
-| `make deps`                  | `bun install`               | Install dependencies                                  |
+| `make deps`                  | `bun install`               | Install dependencies and pinned Hugo/lychee binaries  |
+| `make deps-links`            | (sequence)                  | Install only dependencies needed by link checks       |
 | `make site-local`            | `bun scripts/dev-server.js` | Hugo dev server                                       |
 | `make smoke-test`            | (script)                    | Docker smoke checks (`validate-build.sh --start`)     |
 | `make site-test`             | `bun run test:ci`           | Stable linters + internal link check                  |
@@ -241,18 +242,24 @@ included in the documentation pages.
 
 ### Link Checking
 
-Link checking uses [linkinator](https://github.com/JustinBeckwith/linkinator).
+Link checking uses [lychee](https://github.com/lycheeverse/lychee). `bun install`
+downloads the version pinned in `package.json` as a checksummed release binary;
+Rust and Cargo are not required.
 
-- **Stable / PR-blocking (`test:ci`)** uses `lint:links:internal`, which checks the
-  locally served build without following arbitrary third-party `http(s)` links.
+- **Stable / PR-blocking (`test:ci`)** uses `lint:links:internal`, which checks a
+  generated Hugo build in lychee's offline mode.
 - **Full crawl (`lint:links`)** follows third-party links too. This is useful,
   but inherently more flaky.
 
 Some sites (e.g., StackOverflow) block automated crawlers, returning 403 errors
-in CI. Those domains are excluded in `linkinator.config.json`.
+in CI. Host exclusions and the external status policy live in `lychee.toml`.
+External 403, 429, and 5xx responses are tolerated; dead links such as 404 and
+410 remain fatal.
 
-Note: `linkinator` timeouts are configured in **milliseconds** in
-`linkinator.config.json` (see linkinator CLI help).
+`check-links.sh` builds into `.serve-lint`, maps generated `https://sq.io` URLs
+back to that directory, and invokes lychee with either `internal` or `full`
+scope. The nightly workflow uses `make deps-links` so unrelated package
+lifecycle scripts cannot prevent the link crawl from starting.
 
 ## Redirects
 

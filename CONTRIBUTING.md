@@ -59,7 +59,8 @@ you may not need all of these tools. You'll definitely need `go`.
 - `make`: `brew install make`
 - `bun`: `brew install oven-sh/bun/bun` (or see [bun.sh](https://bun.sh)).
   Runs the formatting and lint tooling (`dprint`, `biome`) used by `make fmt` /
-  `make lint`, and builds the [`site/`](./site/).
+  `make lint`, and builds the [`site/`](./site/). The site's `bun install`
+  downloads pinned Hugo and lychee binaries; a Rust toolchain is not required.
 - `shellcheck`: `brew install shellcheck`
 - `docker`: needed for the `sakiladb/*` containers used by the SQL-driver
   integration tests (`make test`); not needed for `make test-short`. See

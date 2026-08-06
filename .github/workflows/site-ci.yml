@@ -54,7 +54,7 @@ jobs:
 
       # Full external link crawl is valuable but inherently flaky (third-party
       # availability, rate limits, CI network slices). Keep PR merges gated on
-      # `make ci` (stable: scripts/styles/markdown + internal linkinator scope),
+      # `make ci` (stable: scripts/styles/markdown + lychee's offline scope),
       # but still surface external reachability problems in CI logs.
       - name: Full external link check (informational)
         continue-on-error: true

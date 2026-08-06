@@ -174,8 +174,9 @@ git integration is suppressed (`production` ignore in `site/netlify.toml`).
   `SITE_DATA_PUSH_TOKEN` PAT) triggers Site CI only, never a production deploy.
 - **Site Links (nightly)**
   ([`site-links-nightly.yml`](../.github/workflows/site-links-nightly.yml))
-  runs the flaky external link crawl out of band, so PR CI stays fast and
-  deterministic.
+  runs the lychee external link crawl out of band, so PR CI stays fast and
+  deterministic. Its `make deps-links` setup explicitly installs the pinned
+  Hugo and lychee binaries while skipping unrelated package lifecycle scripts.
 
 See [`site/README.md`](../site/README.md) and [`site/CLAUDE.md`](../site/CLAUDE.md)
 for the site build, testing layers, and Netlify details.

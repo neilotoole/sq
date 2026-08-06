@@ -14,9 +14,7 @@ defaults:
 jobs:
   links:
     runs-on: ubuntu-latest
-    # Headroom for the external crawl's per-attempt timeout x retry budget
-    # (see site/linkinator.sh: LINKINATOR_ATTEMPT_TIMEOUT x LINKINATOR_MAX_ATTEMPTS).
-    timeout-minutes: 40
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -39,8 +37,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-site-bun-
 
-      - name: Install dependencies
-        run: make deps
+      # Avoid unrelated package lifecycle scripts (notably netlify-cli) in this
+      # link-only job. deps-links explicitly installs the pinned Hugo and lychee
+      # binaries after Bun installs the dependency tree.
+      - name: Install link-check dependencies
+        run: make deps-links
 
       - name: Full external link crawl
         run: bun run lint:links

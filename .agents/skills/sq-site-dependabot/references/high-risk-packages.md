@@ -23,11 +23,14 @@ ecosystem**, not this site flow, so they are out of scope here.
 - Affects client-side search behavior and index build scripts.
 - Smoke-test search on preview (`/` site search UI) before merge.
 
-## `linkinator` (T2–T3)
+## Link-check tooling (T2–T3)
 
-- Timeout and skip-list changes affect CI noise, not just dependency version.
-- Full external crawl remains **non-blocking** on PRs; do not block T0/T1 merges
-  on nightly/external flake unless `make site-test` fails.
+- Lychee is a package.json-pinned release binary, not a Bun package. Version
+  changes require a dedicated PR that updates `otherDependencies.lychee` and
+  every platform checksum in `scripts/install-lychee.sh`.
+- Timeout, accepted-status, and exclusion changes in `lychee.toml` affect CI
+  noise. Full external crawls remain **non-blocking** on PRs; do not block T0/T1
+  merges on nightly/external flake unless `make site-test` fails.
 
 ## `netlify-cli` (T2; can fail Layer A while Site CI passes)
 
