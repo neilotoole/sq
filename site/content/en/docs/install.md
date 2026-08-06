@@ -36,6 +36,17 @@ The following have been tested:
 
 You can view the source for `install.sh` on [GitHub](https://raw.githubusercontent.com/neilotoole/sq/master/install.sh).
 
+## Update notices
+
+When you run interactive commands in a terminal (stdout and stderr both attached
+to a TTY), `sq` may print a right-aligned update notice on stderr after
+successful commands if a newer release is available. The notice does not appear
+when output is piped or redirected, when `--output` / `-o` is set, or when a
+command fails with a substantive error. Usage hints (e.g. bare `sq`, missing
+required args) may still show the notice.
+
+Set `SQ_NO_UPDATE_NOTIFIER=1` to disable update notices.
+
 ## Shell completion
 
 The install packages will generally install shell completion. Note that `sq` provides
@@ -131,6 +142,8 @@ output formats, and more. Once `sq` is on your `PATH`, see
 ## Upgrade
 
 The `sq version` command reports on whether a new version is available.
+Other interactive commands may show a similar notice on stderr; see
+[Update notices](#update-notices).
 
 ```shell
 $ sq version
