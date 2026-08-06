@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 
 	"github.com/samber/lo"
@@ -20,7 +21,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/progress"
 	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tuning"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
@@ -83,11 +83,27 @@ func differForTableData(cfg *Config, title bool, td1, td2 source.Table) *diffdoc
 // [diffdoc.HunkDoc.Err]. Any error should also be propagated via cancelFn, to
 // cancel any peer goroutines. Note that the returned doc's [diffdoc.Doc.Read]
 // method blocks until the doc is completed (or errors out).
-func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //nolint:gocognit
+func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	cfg *Config, td1, td2 source.Table, doc *diffdoc.HunkDoc,
 ) {
 	log := lg.FromContext(ctx).With(lga.Left, td1.String(), lga.Right, td2.String())
 	log.Info("Diffing table data")
+
+	// Determine whether the two tables share a primary key that is eligible for
+	// key-aware row merging. If so, pkColNames is non-nil, the DB queries are
+	// PK-ordered, and collation aligns rows by key. Otherwise pkColNames is nil
+	// and we fall back to the legacy positional alignment.
+	var pkColNames []string
+	if md1, md2, mdErr := cfg.Run.MDCache.TableMetaPair(ctx, td1, td2); mdErr == nil {
+		if names, ok := pkMergeKey(md1, md2); ok {
+			pkColNames = names
+		}
+	} else {
+		// Metadata fetch failed; fall back to positional alignment rather than
+		// failing the whole diff. The bare query path is unaffected.
+		log.Warn("Diff: could not fetch table metadata; using positional alignment",
+			lga.Err, mdErr)
+	}
 
 	bar := progress.FromContext(ctx).NewUnitCounter(
 		fmt.Sprintf("Diff data %s, %s", td1.String(), td2.String()),
@@ -113,12 +129,14 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	// don't care which one receives an error, just that one of them did.
 
 	rs1 := &dbResults{
-		recCh: make(chan record.Record, recBufSize),
-		errCh: errCh,
+		recCh:  make(chan record.Record, recBufSize),
+		errCh:  errCh,
+		opened: make(chan struct{}),
 	}
 	rs2 := &dbResults{
-		recCh: make(chan record.Record, recBufSize),
-		errCh: errCh,
+		recCh:  make(chan record.Record, recBufSize),
+		errCh:  errCh,
+		opened: make(chan struct{}),
 	}
 
 	// Somebody has to listen for errors on errCh. If an error is received, we'll
@@ -159,7 +177,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	// the diff stop-after limit.
 	dbCtx, dbCancel := context.WithCancelCause(ctx)
 	go func() {
-		query1 := td1.Handle + "." + stringz.DoubleQuote(td1.Name)
+		query1 := dataQuery(td1, pkColNames)
 		// Execute DB query1; records will be sent to rs1.recCh.
 		if err := libsq.ExecSLQ(dbCtx, qc, query1, rs1); err != nil {
 			switch {
@@ -187,7 +205,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	}()
 
 	go func() {
-		query2 := td2.Handle + "." + stringz.DoubleQuote(td2.Name)
+		query2 := dataQuery(td2, pkColNames)
 		// Execute DB query2; records will be sent to rs2.recCh.
 		if err := libsq.ExecSLQ(dbCtx, qc, query2, rs2); err != nil {
 			switch {
@@ -215,108 +233,52 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	// goroutine collates the records from rs1 and rs2 into record.Pair instances,
 	// and sends those pairs to recPairsCh. The pairs will be consumed by the diff
 	// exec goroutine further below.
+	//
+	// If the tables share an eligible PK (pkColNames != nil), we align rows by
+	// key via collateByKey; otherwise we fall back to the legacy positional zip
+	// via collatePositional.
 	go func() {
-		var rec1, rec2 record.Record
-		var diffCount int
-
-		// If cfg.StopAfter is set, we'll stop after diffCount reaches cfg.StopAfter
-		// plus cfg.Lines. We add cfg.Lines to ensure that we have enough records
-		// to generate the "context lines" after the last differing record.
-		stopAt := -1
-
-		for i := 0; ctx.Err() == nil; i++ {
-			select {
-			case <-ctx.Done():
-				return
-			case rec1 = <-rs1.recCh:
+		incr := func(n int64) { bar.Incr(int(n)) }
+		if pkColNames != nil {
+			// collateByKey owns cancellation: it sets the cause via cancelFn before
+			// it closes recPairsCh, so the exec goroutine can never observe a clean
+			// close (and Seal a nil error) while an error is still in flight.
+			kc := keyCollation{
+				rs1:        rs1,
+				rs2:        rs2,
+				pkColNames: pkColNames,
+				recPairsCh: recPairsCh,
+				cfg:        cfg,
+				incr:       incr,
+				dbCancel:   dbCancel,
+				cancelFn:   cancelFn,
 			}
-
-			select {
-			case <-ctx.Done():
-				return
-			case rec2 = <-rs2.recCh:
-			}
-
-			if rec1 == nil && rec2 == nil {
-				// End of data
-				close(recPairsCh)
-				return
-			}
-
-			rp := record.NewPair(i, rec1, rec2)
-			bar.Incr(1)
-			if !rp.Equal() {
-				diffCount++
-			}
-
-			recPairsCh <- rp
-
-			if stopAt == -1 && cfg.StopAfter > 0 && diffCount >= cfg.StopAfter {
-				stopAt = i + cfg.Lines
-			}
-			if stopAt > -1 && i >= stopAt {
-				dbCancel(errz.ErrStop) // Explicit stop
-				close(recPairsCh)
-				return
-			}
+			// collateByKey owns cancellation (it calls cancelFn before closing
+			// recPairsCh), so we intentionally discard its error return here.
+			_ = collateByKey(ctx, kc)
+			return
 		}
+		collatePositional(ctx, rs1, rs2, recPairsCh, cfg, incr, dbCancel)
 	}()
 
 	// This final goroutine is the main action.
 	go func() {
 		defer bar.Stop() // Now is as good a time as any to cancel the progress bar.
 
-		// First, we construct a recordDiffer instance. It encapsulates building
-		// the diff from the record pairs in recPairsCh.
 		recDiffer := &recordDiffer{
-			cfg: cfg,
-			td1: td1,
-			td2: td2,
+			cfg:        cfg,
+			td1:        td1,
+			td2:        td2,
+			pkColNames: pkColNames,
 			recMetaFn: func() (meta1, meta2 record.Meta) {
 				return rs1.recMeta, rs2.recMeta
 			},
 		}
 
-		// Shortly below, we invoke recordDiffer.exec, which consumes the record
-		// pairs from recPairsCh, and writes the diff to doc. At the end of this
-		// unction, doc.Seal is invoked. There are three possibilities:
-		//
-		//  - Happy path: everything worked, and doc.Seal(nil) is invoked.
-		//  - recordDiffer.exec encountered an error, and doc.Seal(err) is invoked.
-		//  - One of the other goroutines encountered an error, and propagated that
-		//    error via cancelFn(err). Thus, in this goroutine, we must check that
-		//    condition, and invoke doc.Seal() with the cancel cause error.
-
-		var err error
-
-		// OK, finally we get to generating the diff! The generated diff is written
-		// to doc.
-		if err = recDiffer.exec(ctx, recPairsCh, doc); err != nil {
-			// Something bad happened, err is non-nil. Propagate err to the doc, and
-			// get the hell outta here.
-			if !errz.IsErrContext(err) {
-				// No need to generate logs for context errors; the cause will be
-				// logged elsewhere.
-				log.Error("Error generating diff", lga.Err, err)
-			}
-
-			doc.Seal(err)
-			return
-		}
-
-		// We didn't get an error from recordDiffer.exec. Presumably we're on the
-		// happy path, and so the error arg to doc.Seal should be nil.
-		//
-		// BUT... if any of the other goroutines encountered an error, that error
-		// was propagated to ctx via cancelFn, and we would need to pass that error
-		// to doc.Seal.
-		//
-		// But hopefully we're just passing nil to doc.Seal here.
-		err = errz.Err(context.Cause(ctx))
-		if err != nil {
-			log.Error("Record differ: post-execution: error in ctx", lga.Err, err)
-		}
-		doc.Seal(err)
+		// execAndSeal drives exec, appends a stop-trailer if the collation was
+		// cut short, and seals doc. dbCtx carries the stop signal
+		// (dbCancel(errz.ErrStop)) set by collateByKey/collatePositional.
+		recDiffer.execAndSeal(ctx, dbCtx, recPairsCh, doc)
 	}()
 
 	// Now diffTableData returns, while the goroutines do their magic.
@@ -324,6 +286,162 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	// The caller can just invoke doc.Read, which will block until the DB queries
 	// execute and return results, and the diff is generated, and the diff is
 	// written to doc.
+}
+
+// collatePositional zips rs1 and rs2 by ordinal index into record.Pair values,
+// sending them to recPairsCh. This is the legacy alignment used when no usable
+// PK is available. Its logic is unchanged from the original inline goroutine:
+// bar.Incr(1) is now incr(1), and dbCancel is threaded in. It closes recPairsCh
+// on every return path.
+func collatePositional(ctx context.Context, rs1, rs2 *dbResults, recPairsCh chan<- record.Pair,
+	cfg *Config, incr func(int64), dbCancel context.CancelCauseFunc,
+) {
+	var rec1, rec2 record.Record
+	var diffCount int
+
+	// If cfg.StopAfter is set, we'll stop after diffCount reaches cfg.StopAfter
+	// plus cfg.Lines. We add cfg.Lines to ensure that we have enough records
+	// to generate the "context lines" after the last differing record.
+	stopAt := -1
+
+	for i := 0; ctx.Err() == nil; i++ {
+		select {
+		case <-ctx.Done():
+			return
+		case rec1 = <-rs1.recCh:
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case rec2 = <-rs2.recCh:
+		}
+
+		if rec1 == nil && rec2 == nil {
+			// End of data
+			close(recPairsCh)
+			return
+		}
+
+		rp := record.NewPair(i, rec1, rec2)
+		incr(1)
+		if !rp.Equal() {
+			diffCount++
+		}
+
+		recPairsCh <- rp
+
+		if stopAt == -1 && cfg.StopAfter > 0 && diffCount >= cfg.StopAfter {
+			stopAt = i + cfg.Lines
+		}
+		if stopAt > -1 && i >= stopAt {
+			dbCancel(errz.ErrStop) // Explicit stop
+			close(recPairsCh)
+			return
+		}
+	}
+}
+
+// keyCollation bundles the wiring for collateByKey. It groups the inputs the
+// key-merge collation needs (the two result streams, the PK column names, the
+// output channel, config, and progress callback) together with the two cancel
+// functions: dbCancel signals an explicit --stop to the DB queries, and cancelFn
+// propagates a real error to the shared ctx so peer goroutines (and doc.Seal)
+// observe the cause.
+type keyCollation struct {
+	rs1, rs2   *dbResults
+	recPairsCh chan<- record.Pair
+	cfg        *Config
+	incr       func(int64)
+	dbCancel   context.CancelCauseFunc
+	cancelFn   context.CancelCauseFunc
+
+	// pkColNames is a slice, placed last to keep the struct's pointer region
+	// compact (govet fieldalignment).
+	pkColNames []string
+}
+
+// collateByKey merges kc.rs1 and kc.rs2 by primary key into record.Pair values,
+// sending them to kc.recPairsCh. The records must arrive PK-ordered (the queries
+// use order_by). The PK column positions are resolved independently for each
+// side from rs1.recMeta and rs2.recMeta (the PK column may sit at a different
+// ordinal position in each table). Both recMetas aren't known until the query
+// engine invokes dbResults.Open on each side; collateByKey waits on both
+// rs1.opened and rs2.opened before resolving.
+//
+// collateByKey owns both cancellation and channel close. On a non-context error
+// it sets the cause via kc.cancelFn BEFORE closing kc.recPairsCh, so the exec
+// goroutine ranging over recPairsCh can never observe a clean close (and Seal a
+// nil error) while the error is still in flight. The caller must NOT also call
+// cancelFn; collateByKey owns it.
+//
+// collateByKey owns the same --stop bookkeeping as collatePositional: it counts
+// differing pairs, and once cfg.StopAfter is reached it emits cfg.Lines more
+// pairs of trailing context before stopping the DB queries via kc.dbCancel.
+func collateByKey(ctx context.Context, kc keyCollation) (err error) {
+	// Set the cause before the channel close becomes visible to the reader. A
+	// plain `defer close` would let the exec goroutine finish its range over the
+	// closed channel and Seal(nil) while the cause is still nil, masking err.
+	defer func() {
+		if err != nil {
+			kc.cancelFn(err)
+		}
+		close(kc.recPairsCh)
+	}()
+
+	// recMeta isn't populated until the query engine invokes dbResults.Open on
+	// another goroutine. Wait for both sides before resolving the PK column
+	// indexes. The close of each opened channel happens-before the corresponding
+	// receive, so both recMetas are safe to read once we proceed.
+	select {
+	case <-ctx.Done():
+		return errz.Err(context.Cause(ctx))
+	case <-kc.rs1.opened:
+	}
+	select {
+	case <-ctx.Done():
+		return errz.Err(context.Cause(ctx))
+	case <-kc.rs2.opened:
+	}
+
+	// Resolve PK column indexes independently for each side. A mismatch is a
+	// real bug (pkMergeKey already validated the PK against the table metadata),
+	// not normal flow, so there's no mid-stream fallback: we return an error
+	// that seals the doc.
+	keyIdxs1, ok1 := pkColIndexes(kc.rs1.recMeta, kc.pkColNames)
+	if !ok1 {
+		return errz.Errorf("diff: PK columns %v not found in left result columns %v",
+			kc.pkColNames, kc.rs1.recMeta.Names())
+	}
+	keyIdxs2, ok2 := pkColIndexes(kc.rs2.recMeta, kc.pkColNames)
+	if !ok2 {
+		return errz.Errorf("diff: PK columns %v not found in right result columns %v",
+			kc.pkColNames, kc.rs2.recMeta.Names())
+	}
+
+	var (
+		diffCount int
+		stopAt    = -1
+		row       int
+	)
+
+	return mergeRecordsByKey(ctx, kc.rs1.recCh, kc.rs2.recCh, keyIdxs1, keyIdxs2, func(rp record.Pair) bool {
+		kc.incr(1)
+		if !rp.Equal() {
+			diffCount++
+		}
+		kc.recPairsCh <- rp
+
+		if stopAt == -1 && kc.cfg.StopAfter > 0 && diffCount >= kc.cfg.StopAfter {
+			stopAt = row + kc.cfg.Lines
+		}
+		if stopAt > -1 && row >= stopAt {
+			kc.dbCancel(errz.ErrStop) // Explicit stop
+			return false
+		}
+		row++
+		return true
+	})
 }
 
 // recordDiffer encapsulates execution of diffing the records of two tables.
@@ -336,6 +454,16 @@ type recordDiffer struct {
 	// isn't guaranteed to be available at the time of recordDiffer construction).
 	recMetaFn func() (rm1, rm2 record.Meta)
 	td1, td2  source.Table
+
+	// pkColNames holds the primary-key column names used for key-aware row
+	// merging, as determined by pkMergeKey. A nil value means the diff fell back
+	// to positional (ordinal) alignment because no usable integer PK was found.
+	pkColNames []string
+
+	// hadDiffs is set to true by exec the first time a differing hunk is
+	// created. execAndSeal uses it to decide whether to emit the positional
+	// fallback note.
+	hadDiffs bool
 }
 
 // exec compares the record pairs from recPairsCh, writing the diff results to
@@ -406,6 +534,7 @@ LOOP:
 			break
 		}
 		pendingHunk = hunk
+		rd.hadDiffs = true
 
 		// Now we need to get the after-the-difference record pairs. We look for a
 		// sequence of non-differing (matching) record pairs, appending each
@@ -531,6 +660,59 @@ LOOP:
 	return err
 }
 
+// execAndSeal is the body of diffTableData's "main action" goroutine. It
+// drives recordDiffer.exec, then, when the collation was cut short by an
+// explicit stop (dbCtx cancelled with errz.ErrStop), appends a trailer hunk so
+// truncation is never silent. Finally it seals doc. Factoring this out of the
+// goroutine literal lets the test harness call it directly without a real
+// database connection.
+//
+// dbCtx is the child context passed to dbCancel; it carries the stop cause
+// independently of the outer ctx so that a stop does not look like an error.
+func (rd *recordDiffer) execAndSeal(ctx, dbCtx context.Context,
+	recPairsCh <-chan record.Pair, doc *diffdoc.HunkDoc,
+) {
+	log := lg.FromContext(ctx)
+
+	if err := rd.exec(ctx, recPairsCh, doc); err != nil {
+		// Something bad happened; propagate err to the doc and bail.
+		if !errz.IsErrContext(err) {
+			// No need to generate logs for context errors; the cause will be
+			// logged elsewhere.
+			log.Error("Error generating diff", lga.Err, err)
+		}
+		doc.Seal(err)
+		return
+	}
+
+	// If the collation goroutine explicitly stopped early via
+	// dbCancel(errz.ErrStop), write a trailer so the truncation is never silent.
+	if errz.IsContextStop(dbCtx) {
+		if h, hErr := doc.NewHunk(0); hErr == nil {
+			_, _ = fmt.Fprintf(h, "… (stopped after %d differences)\n", rd.cfg.StopAfter)
+			h.Seal(nil, nil)
+		}
+	}
+
+	// If there were differences and no usable primary key was found, note that
+	// rows were aligned by position (inserts/deletes may cascade in the output).
+	if rd.pkColNames == nil && rd.hadDiffs {
+		if h, hErr := doc.NewHunk(0); hErr == nil {
+			_, _ = io.WriteString(h, "… (no primary key; rows aligned by position — inserts/deletes may cascade)\n")
+			h.Seal(nil, nil)
+		}
+	}
+
+	// We didn't get an error from exec. Presumably we're on the happy path, and
+	// doc.Seal should be nil. But if another goroutine encountered an error, that
+	// error was propagated to ctx via cancelFn, and we pass it to doc.Seal.
+	err := errz.Err(context.Cause(ctx))
+	if err != nil {
+		log.Error("Record differ: post-execution: error in ctx", lga.Err, err)
+	}
+	doc.Seal(err)
+}
+
 func (rd *recordDiffer) populateHunk(ctx context.Context, pairs []record.Pair, hunk *diffdoc.Hunk) {
 	rm1, rm2 := rd.recMetaFn()
 	rd.cfg.RecordHunkWriter.WriteHunk(ctx, hunk, rm1, rm2, pairs)
@@ -541,8 +723,19 @@ var _ libsq.RecordWriter = (*dbResults)(nil)
 // dbResults is a trivial [libsq.RecordWriter] impl, whose recCh field is
 // used to capture records returned from a query.
 type dbResults struct {
-	recCh   chan record.Record
-	errCh   chan error
+	recCh chan record.Record
+	errCh chan error
+
+	// opened is closed by Open once recMeta has been set. The key-merge collation
+	// path (collateByKey) must read recMeta to resolve the PK column indexes, but
+	// recMeta isn't known until the query engine invokes Open, which happens on a
+	// separate goroutine. Waiting on opened lets collateByKey read recMeta safely
+	// (the close happens-before the receive). The positional path doesn't need
+	// this because it reads recMeta lazily, long after Open, at hunk-write time.
+	opened chan struct{}
+
+	// recMeta is set by Open. It's a slice, so it's placed last to keep the
+	// struct's pointer region compact (govet fieldalignment).
 	recMeta record.Meta
 }
 
@@ -550,6 +743,9 @@ type dbResults struct {
 func (rs *dbResults) Open(_ context.Context, _ context.CancelFunc, recMeta record.Meta,
 ) (recCh chan<- record.Record, errCh <-chan error, err error) {
 	rs.recMeta = recMeta
+	if rs.opened != nil {
+		close(rs.opened)
+	}
 	return rs.recCh, rs.errCh, nil
 }
 
