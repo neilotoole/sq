@@ -23,7 +23,7 @@ Classify every open site PR before ordering merges. Read this file during
 
 ## T2 — Medium (review changelog)
 
-- `linkinator` or test-runner bumps
+- Link-check policy or test-runner changes
 - Netlify plugin version bumps (`@netlify/plugin-lighthouse`, sitemap submit)
 
 **Validation:** Full `make ci`; scan Netlify Lighthouse report on deploy preview

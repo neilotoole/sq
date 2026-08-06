@@ -102,6 +102,16 @@ check_hugo:
 		exit 1; \
 	fi
 
+# Check the package.json-pinned lychee binary.
+check_lychee:
+	@if [ -x "node_modules/.bin/lychee" ]; then \
+		LYCHEE_VERSION=$$(node_modules/.bin/lychee --version 2>/dev/null); \
+		$(LOGGER) log_info_dim "$$LYCHEE_VERSION is installed (via node_modules)."; \
+	else \
+		$(LOGGER) log_error "lychee not found. Run 'bun install' to install the pinned binary."; \
+		exit 1; \
+	fi
+
 # Check if Docker is installed (required for Docker targets)
 check_docker:
 	@if command -v docker >/dev/null 2>&1; then \

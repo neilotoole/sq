@@ -46,7 +46,7 @@ bun run preview
 
 ### Linting and Testing
 
-The site's own test/lint suite is **link-checking only** (linkinator):
+The site's own test/lint suite is **link-checking only** (lychee):
 
 ```bash
 make site-test        # internal link check (bun run test:ci); matches Site CI
@@ -141,25 +141,27 @@ Uses Hugo's built-in Chroma (not highlight.js):
 
 ### Link Checking
 
-`linkinator.sh`:
+`check-links.sh`:
 
 1. Builds a fresh site with Hugo into `.serve-lint`
-2. Starts a local server on a free port (or `LINKINATOR_PORT`)
-3. Runs linkinator against the local build
-4. Configuration in `linkinator.config.json` (excludes domains that block crawlers)
+2. Maps generated `https://sq.io` URLs back to the local build
+3. Runs the package.json-pinned lychee binary against every generated HTML file
+4. Reads shared request policy and host exclusions from `lychee.toml`
 
-Two scopes, selected via `LINKINATOR_SCOPE` (or a `full`/`internal` argument):
+Two scopes, selected via `LYCHEE_SCOPE` (or a `full`/`internal` argument):
 
 - `internal` (`bun run lint:links:internal`): only checks pages and assets served
-  from the local server. Stable, no network dependency; this is what `make ci` and
-  PR gating use. Fails fast on the first broken internal link.
+  by the generated site. Stable, no network dependency; this is what `make ci`
+  and PR gating use.
 - `full` (`bun run lint:links`, the default): also follows third-party external
   links. Used by the nightly [`Site Links`](../.github/workflows/site-links-nightly.yml)
   workflow. To keep "red" meaningful despite flaky third parties, it downgrades
-  `403`/`429`/`5xx` to warnings (genuine `404`/`410`/network errors stay fatal),
-  caps each attempt with `timeout`, and retries the whole crawl
-  (`LINKINATOR_MAX_ATTEMPTS`, default 3) so only a link broken on every attempt
-  fails the run.
+  `403`/`429`/`5xx` responses (genuine `404`/`410`/network errors stay fatal).
+  Lychee handles per-request timeouts, retries, and per-host throttling.
+
+`bun install` downloads lychee as a checksummed release binary. The pin is
+`otherDependencies.lychee` in `package.json`; update that value and the platform
+checksums in `scripts/install-lychee.sh` together. Rust and Cargo are not required.
 
 ## CI/CD Workflow
 
