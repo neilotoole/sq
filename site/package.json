@@ -58,7 +58,7 @@
     "asciinema-player": "^3.17.0",
     "autoprefixer": "^10.5.4",
     "bootstrap": "^5.2.3",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "exec-bin": "^1.0.0",
     "flexsearch": "^0.8",
     "hugo-installer": ">=4.0.1",
