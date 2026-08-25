@@ -89,7 +89,7 @@ scoop install sq
 ### Go
 
 ```shell
-go install github.com/neilotoole/sq
+go install github.com/neilotoole/sq@latest
 ```
 
 ### Docker
