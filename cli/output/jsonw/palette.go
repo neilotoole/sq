@@ -1,13 +1,10 @@
 package jsonw
 
 import (
-	"bytes"
-
-	"github.com/fatih/color"
-
 	"github.com/neilotoole/jsoncolor"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/cli/output/jsonw/internal"
 )
 
 // newJSONColorPalette returns a *jsoncolor.Colors built from pr's
@@ -25,31 +22,15 @@ func newJSONColorPalette(pr *output.Printing) *jsoncolor.Colors {
 		return nil
 	}
 
+	colors := internal.NewColors(pr)
 	return &jsoncolor.Colors{
-		Null:   jsonColorPrefix(pr.Null),
-		Bool:   jsonColorPrefix(pr.Bool),
-		Number: jsonColorPrefix(pr.Number),
-		String: jsonColorPrefix(pr.String),
-		Key:    jsonColorPrefix(pr.Key),
-		Bytes:  jsonColorPrefix(pr.Bytes),
-		Time:   jsonColorPrefix(pr.Datetime),
-		Punc:   jsonColorPrefix(pr.Punc),
+		Null:   colors.Null.Prefix,
+		Bool:   colors.Bool.Prefix,
+		Number: colors.Number.Prefix,
+		String: colors.String.Prefix,
+		Key:    colors.Key.Prefix,
+		Bytes:  colors.Bytes.Prefix,
+		Time:   colors.Time.Prefix,
+		Punc:   colors.Punc.Prefix,
 	}
-}
-
-// jsonColorPrefix returns the ANSI prefix bytes that c writes before a
-// value. It mirrors the prefix-extraction trick from internal.newColor
-// but discards the suffix (jsoncolor uses a fixed reset).
-func jsonColorPrefix(c *color.Color) jsoncolor.Color {
-	if c == nil {
-		return nil
-	}
-	c2 := *c
-	c2.EnableColor()
-	b := []byte(c2.Sprint(" "))
-	i := bytes.IndexByte(b, ' ')
-	if i <= 0 {
-		return nil
-	}
-	return jsoncolor.Color(b[:i])
 }
