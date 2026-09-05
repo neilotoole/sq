@@ -6,7 +6,7 @@
     "bun": ">=1.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.10",
+    "@biomejs/biome": "^2.5.11",
     "dprint": "^0.56.1"
   }
 }
