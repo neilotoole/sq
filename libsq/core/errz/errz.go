@@ -434,6 +434,28 @@ func IsContextStop(ctx context.Context) bool {
 	return errors.Is(err, ErrStop)
 }
 
+// ErrNoQuery is returned when sq is invoked without a query (e.g. bare `sq`).
+// It is a usage hint, not a command failure, and interactive footers may still
+// render when this is the exit error.
+var ErrNoQuery = errors.New("no query")
+
+// IsUsageError reports whether err is a CLI usage hint (missing query, wrong
+// arg count, etc.) rather than a substantive command failure. Interactive
+// footers may still render for usage errors.
+func IsUsageError(err error) bool {
+	for err != nil {
+		if errors.Is(err, ErrNoQuery) {
+			return true
+		}
+		msg := err.Error()
+		if strings.Contains(msg, "accepts ") && strings.Contains(msg, " arg") && strings.Contains(msg, "received ") {
+			return true
+		}
+		err = errors.Unwrap(err)
+	}
+	return false
+}
+
 // ErrNoMsg is a sentinel error indicating that a command has failed (and thus
 // the program should exit with a non-zero code), but no error message should be
 // printed. This is useful in the case where any error information may already
