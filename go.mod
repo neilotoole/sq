@@ -18,7 +18,7 @@ go 1.26.3
 godebug x509negativeserial=1
 
 require (
-	al.essio.dev/pkg/shellescape v1.6.0
+	al.essio.dev/pkg/shellescape v1.6.1
 	github.com/ClickHouse/clickhouse-go/v2 v2.48.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e
@@ -31,7 +31,7 @@ require (
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.19.0
-	github.com/go-sql-driver/mysql v1.10.0 // BRITTLE
+	github.com/go-sql-driver/mysql v1.10.1 // BRITTLE
 	github.com/goccy/go-graphviz v0.2.10
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/renameio/v2 v2.0.2
@@ -40,9 +40,9 @@ require (
 	github.com/itchyny/gojq v0.12.19
 	github.com/jackc/pgx/v5 v5.10.0 // BRITTLE
 	github.com/mattn/go-colorable v0.1.15
-	github.com/mattn/go-runewidth v0.0.28
+	github.com/mattn/go-runewidth v0.0.29
 	github.com/mattn/go-sqlite3 v1.14.50 // BRITTLE
-	github.com/microsoft/go-mssqldb v1.10.0 // BRITTLE
+	github.com/microsoft/go-mssqldb v1.11.0 // BRITTLE
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
@@ -64,7 +64,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
-	github.com/vbauerster/mpb/v8 v8.15.2 // BRITTLE
+	github.com/vbauerster/mpb/v8 v8.16.1 // BRITTLE
 	github.com/xo/dburl v0.24.2
 	// Although usql is a large module, Go's DCE (Dead Code Elimination)
 	// mechanism should minimize the impact on the sq binary size. Plus, there
