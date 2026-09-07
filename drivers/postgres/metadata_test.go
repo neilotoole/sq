@@ -387,7 +387,10 @@ func TestPostgres_TempTableShadow_TableMetadata(t *testing.T) {
 
 	th := testh.New(t)
 	src := th.Source(sakila.Pg)
-	src.Options = options.Options{driver.OptConnMaxOpen.Key(): 1}
+	if src.Options == nil {
+		src.Options = options.Options{}
+	}
+	src.Options[driver.OptConnMaxOpen.Key()] = 1
 	db := th.OpenDB(src)
 
 	tbl := stringz.UniqTableName("shadow")
