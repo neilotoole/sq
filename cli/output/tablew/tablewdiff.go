@@ -3,7 +3,6 @@ package tablew
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"slices"
 
 	"github.com/neilotoole/sq/cli/diff"
@@ -139,7 +138,7 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 	sc1 := scannerz.NewScanner(ctx, buf1)
 	sc2 := scannerz.NewScanner(ctx, buf2)
 	var line []byte
-	var i, j, k int
+	var i int
 	for i = 0; i < len(pairs) && ctx.Err() == nil; i++ {
 		if pairs[i].Equal() {
 			_ = sc1.Scan()
@@ -152,10 +151,26 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 			continue
 		}
 
-		// We've found a difference. We need to print all consecutive "deletion"
-		// lines; and when those are done, we do the consecutive "insertion" lines.
+		// We've found a difference: a contiguous run of differing pairs. We print
+		// all the run's "deletion" lines first, then all its "insertion" lines. A
+		// pair may be single-sided (added: Rec1()==nil; removed: Rec2()==nil) or
+		// two-sided (changed). We make TWO FULL passes over the run, SKIPPING (not
+		// breaking on) the nil side, so a changed pair adjacent to an added/removed
+		// pair still gets both its lines rendered (issue #947).
 
-		for j = i; ctx.Err() == nil && j < len(pairs) && !pairs[j].Equal() && sc1.Scan(); j++ {
+		// Find the end of this contiguous run of differing pairs.
+		end := i
+		for end < len(pairs) && !pairs[end].Equal() {
+			end++
+		}
+
+		// Deletion pass: every pair with a left side (removed + changed). When
+		// Rec1()==nil the pair contributed no line to sc1, so the short-circuit
+		// skips it WITHOUT consuming a scan, keeping sc1 aligned to recs1.
+		for p := i; ctx.Err() == nil && p < end; p++ {
+			if pairs[p].Rec1() == nil || !sc1.Scan() {
+				continue
+			}
 			line = sc1.Bytes()
 			_, _ = dest.Write(dw.deletePrefix)
 			_, _ = dest.Write(line)
@@ -166,7 +181,11 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 			return
 		}
 
-		for k = i; ctx.Err() == nil && k < len(pairs) && !pairs[k].Equal() && sc2.Scan(); k++ {
+		// Insertion pass: every pair with a right side (added + changed).
+		for p := i; ctx.Err() == nil && p < end; p++ {
+			if pairs[p].Rec2() == nil || !sc2.Scan() {
+				continue
+			}
 			line = sc2.Bytes()
 			_, _ = dest.Write(dw.insertPrefix)
 			_, _ = dest.Write(line)
@@ -179,17 +198,20 @@ func (dw *diffWriter) writeDifferent(ctx context.Context, dest *diffdoc.Hunk,
 
 		// Adjust the main loop index to skip over the differing
 		// records that we've just processed.
-		i = max(j, k) - 1
+		i = end - 1
 	}
 
-	offset := dest.Offset() + 1
-	var headerText string
-	if len(pairs) == 1 {
-		// Short hunk header format for single-line diffs.
-		headerText = fmt.Sprintf("@@ -%d +%d @@", offset, offset)
-	} else {
-		headerText = fmt.Sprintf("@@ -%d,%d +%d,%d @@", offset, len(pairs), offset, len(pairs))
+	leftCount, rightCount := 0, 0
+	for i := range pairs {
+		if pairs[i].Rec1() != nil {
+			leftCount++
+		}
+		if pairs[i].Rec2() != nil {
+			rightCount++
+		}
 	}
+	offset := dest.Offset() + 1
+	headerText := "@@ -" + diffdoc.HunkRange(offset, leftCount) + " +" + diffdoc.HunkRange(offset, rightCount) + " @@"
 
 	seq := colorz.ExtractSeqs(dw.pr.Diff.Section)
 	hunkHeader = seq.Appendln(hunkHeader, []byte(headerText))
@@ -262,7 +284,7 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 	buf2 := &bytes.Buffer{}
 
 	sc := scannerz.NewScanner(ctx, bufAllRecs)
-	var i, j, k int
+	var i int
 	for i = 0; ctx.Err() == nil && i < len(recs1) && sc.Scan(); i++ {
 		_, _ = buf1.Write(sc.Bytes())
 		buf1.WriteByte('\n')
@@ -297,10 +319,26 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 			continue
 		}
 
-		// We've found a difference. We need to print all consecutive "deletion"
-		// lines; and when those are done, we do the consecutive "insertion" lines.
+		// We've found a difference: a contiguous run of differing pairs. We print
+		// all the run's "deletion" lines first, then all its "insertion" lines. A
+		// pair may be single-sided (added: Rec1()==nil; removed: Rec2()==nil) or
+		// two-sided (changed). We make TWO FULL passes over the run, SKIPPING (not
+		// breaking on) the nil side, so a changed pair adjacent to an added/removed
+		// pair still gets both its lines rendered (issue #947).
 
-		for j = i; ctx.Err() == nil && j < len(pairs) && !pairs[j].Equal() && sc1.Scan(); j++ {
+		// Find the end of this contiguous run of differing pairs.
+		end := i
+		for end < len(pairs) && !pairs[end].Equal() {
+			end++
+		}
+
+		// Deletion pass: every pair with a left side (removed + changed). When
+		// Rec1()==nil the pair contributed no line to sc1, so the short-circuit
+		// skips it WITHOUT consuming a scan, keeping sc1 aligned to recs1.
+		for p := i; ctx.Err() == nil && p < end; p++ {
+			if pairs[p].Rec1() == nil || !sc1.Scan() {
+				continue
+			}
 			line = sc1.Bytes()
 			_, _ = dest.Write(dw.deletePrefix)
 			_, _ = dest.Write(line)
@@ -311,7 +349,11 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 			return
 		}
 
-		for k = i; ctx.Err() == nil && k < len(pairs) && !pairs[k].Equal() && sc2.Scan(); k++ {
+		// Insertion pass: every pair with a right side (added + changed).
+		for p := i; ctx.Err() == nil && p < end; p++ {
+			if pairs[p].Rec2() == nil || !sc2.Scan() {
+				continue
+			}
 			line = sc2.Bytes()
 			_, _ = dest.Write(dw.insertPrefix)
 			_, _ = dest.Write(line)
@@ -324,17 +366,20 @@ func (dw *diffWriter) writeEqualish(ctx context.Context, dest *diffdoc.Hunk,
 
 		// Adjust the main loop index to skip over the differing
 		// records that we've just processed.
-		i = max(j, k) - 1
+		i = end - 1
 	}
 
-	offset := dest.Offset() + 1
-	var headerText string
-	if len(pairs) == 1 {
-		// Short hunk header format for single-line diffs.
-		headerText = fmt.Sprintf("@@ -%d +%d @@", offset, offset)
-	} else {
-		headerText = fmt.Sprintf("@@ -%d,%d +%d,%d @@", offset, len(pairs), offset, len(pairs))
+	leftCount, rightCount := 0, 0
+	for i := range pairs {
+		if pairs[i].Rec1() != nil {
+			leftCount++
+		}
+		if pairs[i].Rec2() != nil {
+			rightCount++
+		}
 	}
+	offset := dest.Offset() + 1
+	headerText := "@@ -" + diffdoc.HunkRange(offset, leftCount) + " +" + diffdoc.HunkRange(offset, rightCount) + " @@"
 
 	seq := colorz.ExtractSeqs(dw.pr.Diff.Section)
 	hunkHeader = seq.Appendln(hunkHeader, []byte(headerText))
