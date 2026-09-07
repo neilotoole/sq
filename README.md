@@ -86,10 +86,14 @@ scoop bucket add sq https://github.com/neilotoole/sq
 scoop install sq
 ```
 
-### Go
+### Source
+
+Prefer a package manager above, or a [release binary](https://github.com/neilotoole/sq/releases).
+A source build needs the SQLite build tags, and reports its version as `v0.0.0-dev`.
 
 ```shell
-go install github.com/neilotoole/sq@latest
+go install -tags "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions" \
+  github.com/neilotoole/sq@latest
 ```
 
 ### Docker
