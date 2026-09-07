@@ -89,7 +89,8 @@ scoop install sq
 ### Source
 
 Prefer a package manager above, or a [release binary](https://github.com/neilotoole/sq/releases).
-A source build needs the SQLite build tags, and reports its version as `v0.0.0-dev`.
+`go install` needs the SQLite build tags, and its binary reports version `v0.0.0-dev`; use
+`make install` from a clone for a version-stamped build.
 
 ```shell
 go install -tags "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions" \
