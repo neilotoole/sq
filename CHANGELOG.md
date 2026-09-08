@@ -23,15 +23,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- ☢️ [#1136]: In JSON output, a backspace or form feed inside a string value is
-  now written using its two-character short escape, as `encoding/json` does,
-  instead of the six-character numeric escape. Previously the record output
-  produced by a query disagreed with the output of
-  [`sq inspect`](https://sq.io/docs/inspect) and the other JSON writers, which
-  already used the short form. Both spellings decode to the same string, so
-  anything that parses sq's JSON is unaffected, and only output containing one
-  of those two characters changes at all. Stored fixtures, golden files or
-  checksums that compare sq's JSON byte-for-byte may need regenerating.
+- ☢️ [#1136]: In JSON output, a backspace or form feed inside a string value is now written using
+  its two-character short escape instead of the six-character numeric escape. This aligns `sq` with
+  the behavior of `encoding/json` since [Go 1.22](https://go.dev/doc/go1.22#encoding/json). Both
+  spellings decode to the same string, so anything that parses `sq`'s JSON is unaffected, and only
+  output containing one of those two characters changes at all. Stored fixtures, golden files or
+  checksums that compare `sq`'s JSON byte-for-byte may need regenerating.
 
 ### Fixed
 
