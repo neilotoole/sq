@@ -21,6 +21,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   drivers (SQLite, DuckDB) and `false` for the networked engines (including rqlite,
   which is SQLite-backed but reached over HTTP) and non-SQL drivers.
 
+### Changed
+
+- ☢️ [#1136]: In JSON output, a backspace or form feed inside a string value is now written using
+  its two-character short escape instead of the six-character numeric escape. This aligns `sq` with
+  the behavior of `encoding/json` since [Go 1.22](https://go.dev/doc/go1.22#encoding/json). Both
+  spellings decode to the same string, so anything that parses `sq`'s JSON is unaffected, and only
+  output containing one of those two characters changes at all. Stored fixtures, golden files or
+  checksums that compare `sq`'s JSON byte-for-byte may need regenerating.
+
 ### Fixed
 
 - [#975]: A join across two sources could fail with `database is locked` when
@@ -1774,6 +1783,7 @@ make working with lots of sources much easier.
 [#994]: https://github.com/neilotoole/sq/pull/994
 [#995]: https://github.com/neilotoole/sq/issues/995
 [#1017]: https://github.com/neilotoole/sq/issues/1017
+[#1136]: https://github.com/neilotoole/sq/issues/1136
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

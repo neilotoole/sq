@@ -568,6 +568,8 @@ github.com/neilotoole/fifomu v0.2.0 h1:6mBpHXsOIpyrOYZUab7Bz2R+HL6R1f6qo8v/m7CkJ
 github.com/neilotoole/fifomu v0.2.0/go.mod h1:tJqmHyCaQ/PH+nZdVLrVv+2ah5Zz/wpuKfPSYJit9ek=
 github.com/neilotoole/jsoncolor v0.9.1 h1:5YMjNMs8D6noDjoWl3Jxsac7/JlMX6ia5nZpZTyoBrI=
 github.com/neilotoole/jsoncolor v0.9.1/go.mod h1:Nif7dTmhznqJ9W81rpM3PInmDNDn1Yhya08a/SPxW6s=
+github.com/neilotoole/jsoncolor v0.10.0 h1:n+BsASX9vCpPm1xNYRFkhaWHveeNH+MgBxJ5n0Yf1oM=
+github.com/neilotoole/jsoncolor v0.10.0/go.mod h1:Z2y/mvGwHP9ahpU7JZVAkx4JlaO6eJBJ1AK1SxrmFe4=
 github.com/neilotoole/oncecache v0.1.0 h1:EHCNw1yg08rV1QBj9+E1B6fsVRU/ON7KTcjJ6ZX11nQ=
 github.com/neilotoole/oncecache v0.1.0/go.mod h1:59Vy10UFEIp/Zsd395DIJm4dIZrOb1zGAufZoF8oY8M=
 github.com/neilotoole/shelleditor v0.4.1 h1:74LEw2mVo3jtNw2BjII6RSss9DXgEqAbmCQDDiJvzO0=
