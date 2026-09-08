@@ -227,7 +227,7 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 // For MySQL 8+, we could use the ROW_NUMBER() function, but right now
 // the code isn't really set up to execute different impls for different
 // driver versions. Although, this is probably something we need to face up to.
-func renderFuncRowNum(rc *render.Context, _ *ast.FuncNode) (string, error) { //nolint:unparam
+func renderFuncRowNum(rc *render.Context, _ *ast.FuncNode) (string, error) {
 	// We use a unique variable name to avoid collisions if there are
 	// multiple uses of rownum() in the same query.
 	variable := "@row_number_" + stringz.Uniq8()
