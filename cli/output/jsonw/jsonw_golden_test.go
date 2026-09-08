@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -172,7 +173,7 @@ func writeGolden(t *testing.T, cases map[string]string) {
 		fmt.Fprintf(buf, "### %s\n%q\n\n", name, cases[name])
 	}
 
-	require.NoError(t, os.MkdirAll("testdata", 0o750))
+	require.NoError(t, os.MkdirAll(filepath.Dir(goldenPath), 0o750))
 	require.NoError(t, os.WriteFile(goldenPath, buf.Bytes(), 0o600))
 }
 
