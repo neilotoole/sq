@@ -175,7 +175,7 @@ func buildWorkbook(ctx context.Context, db *sql.DB, file string, tables []string
 			for j, c := range cols {
 				cell, _ := excelize.CoordinatesToCellName(j+1, rowIdx)
 				if err = f.SetCellStr(table, cell, c.name); err != nil {
-					dataRows.Close()
+					_ = dataRows.Close()
 					return err
 				}
 			}
@@ -190,7 +190,7 @@ func buildWorkbook(ctx context.Context, db *sql.DB, file string, tables []string
 
 		for dataRows.Next() {
 			if err = dataRows.Scan(ptrs...); err != nil {
-				dataRows.Close()
+				_ = dataRows.Close()
 				return err
 			}
 			for j, c := range cols {
@@ -199,17 +199,17 @@ func buildWorkbook(ctx context.Context, db *sql.DB, file string, tables []string
 				}
 				cell, _ := excelize.CoordinatesToCellName(j+1, rowIdx)
 				if err = writeCell(f, table, cell, c, vals[j].String); err != nil {
-					dataRows.Close()
+					_ = dataRows.Close()
 					return err
 				}
 			}
 			rowIdx++
 		}
 		if err = dataRows.Err(); err != nil {
-			dataRows.Close()
+			_ = dataRows.Close()
 			return err
 		}
-		dataRows.Close()
+		_ = dataRows.Close()
 	}
 
 	// Drop the default empty sheet that NewFile creates.
