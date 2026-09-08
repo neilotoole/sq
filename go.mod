@@ -18,7 +18,7 @@ go 1.26.3
 godebug x509negativeserial=1
 
 require (
-	al.essio.dev/pkg/shellescape v1.6.0
+	al.essio.dev/pkg/shellescape v1.6.1
 	github.com/ClickHouse/clickhouse-go/v2 v2.48.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e
@@ -31,7 +31,7 @@ require (
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.19.0
-	github.com/go-sql-driver/mysql v1.10.0 // BRITTLE
+	github.com/go-sql-driver/mysql v1.10.1 // BRITTLE
 	github.com/goccy/go-graphviz v0.2.10
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/renameio/v2 v2.0.2
@@ -40,9 +40,9 @@ require (
 	github.com/itchyny/gojq v0.12.19
 	github.com/jackc/pgx/v5 v5.10.0 // BRITTLE
 	github.com/mattn/go-colorable v0.1.15
-	github.com/mattn/go-runewidth v0.0.27
-	github.com/mattn/go-sqlite3 v1.14.49 // BRITTLE
-	github.com/microsoft/go-mssqldb v1.10.0 // BRITTLE
+	github.com/mattn/go-runewidth v0.0.29
+	github.com/mattn/go-sqlite3 v1.14.50 // BRITTLE
+	github.com/microsoft/go-mssqldb v1.11.0 // BRITTLE
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
@@ -63,8 +63,8 @@ require (
 	github.com/sijms/go-ora/v2 v2.9.1-0.20260319160952-ef646cf075eb
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	github.com/stretchr/testify v1.11.1
-	github.com/vbauerster/mpb/v8 v8.15.2 // BRITTLE
+	github.com/stretchr/testify v1.12.1
+	github.com/vbauerster/mpb/v8 v8.16.1 // BRITTLE
 	github.com/xo/dburl v0.24.2
 	// Although usql is a large module, Go's DCE (Dead Code Elimination)
 	// mechanism should minimize the impact on the sq binary size. Plus, there
@@ -74,7 +74,7 @@ require (
 	github.com/xuri/excelize/v2 v2.11.0 // BRITTLE
 	go.uber.org/atomic v1.11.0
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
-	golang.org/x/mod v0.39.0
+	golang.org/x/mod v0.40.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0
 	golang.org/x/term v0.45.0
@@ -103,7 +103,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
 	github.com/duckdb/duckdb-go-bindings v0.10505.0 // indirect
@@ -150,7 +149,6 @@ require (
 	github.com/otiai10/mint v1.6.3 // indirect
 	github.com/paulmach/orb v0.13.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.27 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/richardlehane/mscfb v1.0.7 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
@@ -168,10 +166,11 @@ require (
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
+	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/image v0.41.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
-	golang.org/x/telemetry v0.0.0-20260708182218-49f421fb7959 // indirect
-	golang.org/x/tools v0.48.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5 // indirect
+	golang.org/x/tools v0.49.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 )

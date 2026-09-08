@@ -892,6 +892,13 @@ func (h *Helper) TableMetadata(src *source.Source, tbl string) (*metadata.Table,
 //
 // Note that DiffDB adds considerable overhead to test runtime.
 //
+// DiffDB snapshots every table in src's database, so its assertions only
+// hold if nothing else writes to that database while the test runs. The
+// sakila test databases are shared by every test package, and "go test ./..."
+// runs those packages in parallel, so a snapshot can pick up tables that
+// another package's test happens to have created or dropped mid-run. Enable
+// DiffDB only for a serial run against a database that no other test is using.
+//
 // If envar SQ_TEST_DIFFDB is true, DiffDB is run on every SQL source
 // returned by Helper.Source.
 func (h *Helper) DiffDB(src *source.Source) {
