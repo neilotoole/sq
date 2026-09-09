@@ -131,23 +131,27 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) { //nolint:tparallel
 			wantDirective: wantDirective,
 		},
 		{
-			handles:           []string{sakila.My, sakila.Pg},
-			withFlagActiveSrc: sakila.Pg,
-			arg:               "publ",
-			wantContains:      []string{"public"},
-			wantDirective:     wantDirective,
+			// The flag selects Duck, whose catalog "sakila" completes. SL3
+			// offers no such catalog, so the case fails if the flag is ignored.
+			handles:           []string{sakila.SL3, sakila.Duck},
+			withFlagActiveSrc: sakila.Duck,
+			arg:               "sak",
+			wantContains:      []string{"sakila."},
+			wantDirective:     wantDirective | cobra.ShellCompDirectiveNoSpace,
 		},
 		{
-			handles:           []string{sakila.Pg, sakila.My},
-			withFlagActiveSrc: sakila.My,
+			// The flag selects SL3, which offers only the "main" schema, and so
+			// no NoSpace directive. Duck would also offer its catalog.
+			handles:           []string{sakila.Duck, sakila.SL3},
+			withFlagActiveSrc: sakila.SL3,
 			arg:               "",
-			wantContains:      []string{"mysql", "sys", "information_schema", "sakila"},
+			wantContains:      []string{"main"},
 			wantDirective:     wantDirective,
 		},
 		{
-			handles:           []string{sakila.My, sakila.Pg},
+			handles:           []string{sakila.SL3, sakila.Duck},
 			withFlagActiveSrc: sakila.MS,
-			arg:               "publ",
+			arg:               "ma",
 			// Should error because sakila.MS isn't a loaded source (via "handles").
 			wantDirective: cobra.ShellCompDirectiveError,
 		},
@@ -246,23 +250,27 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 			wantDirective: wantDirective,
 		},
 		{
-			handles:          []string{sakila.My, sakila.Pg},
-			withArgActiveSrc: sakila.Pg,
-			arg:              "publ",
-			wantContains:     []string{"public"},
-			wantDirective:    wantDirective,
+			// The arg selects Duck, whose catalog "sakila" completes. SL3
+			// offers no such catalog, so the case fails if the arg is ignored.
+			handles:          []string{sakila.SL3, sakila.Duck},
+			withArgActiveSrc: sakila.Duck,
+			arg:              "sak",
+			wantContains:     []string{"sakila."},
+			wantDirective:    wantDirective | cobra.ShellCompDirectiveNoSpace,
 		},
 		{
-			handles:          []string{sakila.Pg, sakila.My},
-			withArgActiveSrc: sakila.My,
+			// The arg selects SL3, which offers only the "main" schema, and so
+			// no NoSpace directive. Duck would also offer its catalog.
+			handles:          []string{sakila.Duck, sakila.SL3},
+			withArgActiveSrc: sakila.SL3,
 			arg:              "",
-			wantContains:     []string{"mysql", "sys", "information_schema", "sakila"},
+			wantContains:     []string{"main"},
 			wantDirective:    wantDirective,
 		},
 		{
-			handles:          []string{sakila.My, sakila.Pg},
+			handles:          []string{sakila.SL3, sakila.Duck},
 			withArgActiveSrc: sakila.MS,
-			arg:              "publ",
+			arg:              "ma",
 			// Should error because sakila.MS isn't a loaded source (via "handles").
 			wantDirective: cobra.ShellCompDirectiveError,
 		},
