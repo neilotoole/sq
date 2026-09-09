@@ -115,8 +115,9 @@ make test                           # external-engine tests now run
 ## CI
 
 In CI, the same matrix drives the reusable **DB integration** workflow
-(nightly at `:latest`, a weekly full version sweep, or on demand). See
-[`docs/WORKFLOW.md`](./WORKFLOW.md#database-integration-tests) for how
+(nightly at the version bookends, weekly at every version, on driver PRs, on release tags,
+or on demand). See
+[`docs/CI.md`](./CI.md#db-integration) for how
 [`db-integration.yml`](../.github/workflows/db-integration.yml) and
 [`db-scheduled.yml`](../.github/workflows/db-scheduled.yml) consume
 [`.github/sakila-db.json`](../.github/sakila-db.json).
@@ -150,5 +151,4 @@ follow along.
   matrix.
 - [`docs/DRIVERS.md`](./DRIVERS.md): driver development, including the
   `sakiladb/{driver}` image requirement for new SQL drivers.
-- [`docs/WORKFLOW.md`](./WORKFLOW.md): CI workflows that run the integration
-  suites.
+- [`docs/CI.md`](./CI.md): the CI workflows that run the integration suites.
