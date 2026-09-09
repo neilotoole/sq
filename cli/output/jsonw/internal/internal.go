@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"slices"
 	"strconv"
 
 	fcolor "github.com/fatih/color"
@@ -100,7 +101,11 @@ func newColor(c *fcolor.Color) Color {
 		return Color{}
 	}
 
-	return Color{Prefix: b[:i], Suffix: b[i+1:]}
+	// Clip both halves. They are cut from the same buffer, so without this
+	// each retains the other's bytes, and an append to one would write into
+	// the shared backing array instead of allocating. These slices outlive b:
+	// JSONPalette hands them to a long-lived *jsoncolor.Colors.
+	return Color{Prefix: slices.Clip(b[:i]), Suffix: slices.Clip(b[i+1:])}
 }
 
 // NewColors builds a Colors instance from a Printing instance.
