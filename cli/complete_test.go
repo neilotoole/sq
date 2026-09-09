@@ -131,18 +131,18 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) { //nolint:tparallel
 			wantDirective: wantDirective,
 		},
 		{
-			// The flag selects Duck, whose catalog "sakila" completes. SL3
+			// The flag selects PG, whose catalog "sakila" completes. SL3
 			// offers no such catalog, so the case fails if the flag is ignored.
-			handles:           []string{sakila.SL3, sakila.Duck},
-			withFlagActiveSrc: sakila.Duck,
+			handles:           []string{sakila.SL3, sakila.Pg},
+			withFlagActiveSrc: sakila.Pg,
 			arg:               "sak",
 			wantContains:      []string{"sakila."},
 			wantDirective:     wantDirective | cobra.ShellCompDirectiveNoSpace,
 		},
 		{
 			// The flag selects SL3, which offers only the "main" schema, and so
-			// no NoSpace directive. Duck would also offer its catalog.
-			handles:           []string{sakila.Duck, sakila.SL3},
+			// no NoSpace directive. PG would also offer its catalog.
+			handles:           []string{sakila.Pg, sakila.SL3},
 			withFlagActiveSrc: sakila.SL3,
 			arg:               "",
 			wantContains:      []string{"main"},
@@ -250,18 +250,18 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 			wantDirective: wantDirective,
 		},
 		{
-			// The arg selects Duck, whose catalog "sakila" completes. SL3
+			// The arg selects PG, whose catalog "sakila" completes. SL3
 			// offers no such catalog, so the case fails if the arg is ignored.
-			handles:          []string{sakila.SL3, sakila.Duck},
-			withArgActiveSrc: sakila.Duck,
+			handles:          []string{sakila.SL3, sakila.Pg},
+			withArgActiveSrc: sakila.Pg,
 			arg:              "sak",
 			wantContains:     []string{"sakila."},
 			wantDirective:    wantDirective | cobra.ShellCompDirectiveNoSpace,
 		},
 		{
 			// The arg selects SL3, which offers only the "main" schema, and so
-			// no NoSpace directive. Duck would also offer its catalog.
-			handles:          []string{sakila.Duck, sakila.SL3},
+			// no NoSpace directive. PG would also offer its catalog.
+			handles:          []string{sakila.Pg, sakila.SL3},
 			withArgActiveSrc: sakila.SL3,
 			arg:              "",
 			wantContains:     []string{"main"},
