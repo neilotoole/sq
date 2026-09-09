@@ -1,8 +1,5 @@
 module github.com/neilotoole/sq
 
-// NOTE: Some of these deps are marked with "BRITTLE". That means that extra
-// care needs to be taken when upgrading those versions, for various reasons.
-
 go 1.26.3
 
 // godebug x509negativeserial=1 is set here because of an issue with older
@@ -26,23 +23,33 @@ require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/djherbis/buffer v1.2.0
-	github.com/duckdb/duckdb-go/v2 v2.10505.0 // BRITTLE
+	// duckdb-go bundles the DuckDB engine itself, as prebuilt static libraries
+	// pulled in via the duckdb-go-bindings modules below. Its version encodes the
+	// engine version as v2.MMmmPP.x, so v2.10505.0 is DuckDB 1.5.5. Bumping this
+	// dep therefore upgrades the database engine, not just the Go wrapper. An
+	// engine upgrade can change the on-disk storage format (a file written by a
+	// newer DuckDB may not open in an older one, including other DuckDB clients
+	// on the user's machine), alter SQL semantics and type handling, and grow the
+	// sq binary. Before bumping, read the DuckDB release notes for the new engine
+	// version and run the DuckDB driver tests. The bindings modules must move in
+	// lockstep; "go get github.com/duckdb/duckdb-go/v2@<ver>" handles that.
+	github.com/duckdb/duckdb-go/v2 v2.10505.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/ecnepsnai/osquery v1.0.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/fatih/color v1.19.0
-	github.com/go-sql-driver/mysql v1.10.1 // BRITTLE
+	github.com/go-sql-driver/mysql v1.10.1
 	github.com/goccy/go-graphviz v0.2.10
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/renameio/v2 v2.0.2
 	github.com/google/uuid v1.6.0
 	github.com/h2non/filetype v1.1.3
 	github.com/itchyny/gojq v0.12.19
-	github.com/jackc/pgx/v5 v5.11.0 // BRITTLE
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/mattn/go-colorable v0.1.15
 	github.com/mattn/go-runewidth v0.0.29
-	github.com/mattn/go-sqlite3 v1.14.52 // BRITTLE
-	github.com/microsoft/go-mssqldb v1.11.0 // BRITTLE
+	github.com/mattn/go-sqlite3 v1.14.52
+	github.com/microsoft/go-mssqldb v1.11.0
 	github.com/mitchellh/go-wordwrap v1.0.1
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
@@ -64,14 +71,14 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
-	github.com/vbauerster/mpb/v8 v8.16.1 // BRITTLE
+	github.com/vbauerster/mpb/v8 v8.16.1
 	github.com/xo/dburl v0.24.2
 	// Although usql is a large module, Go's DCE (Dead Code Elimination)
 	// mechanism should minimize the impact on the sq binary size. Plus, there
 	// is significant functionality in usql that sq may take advantag eof in the
 	// future.
 	github.com/xo/usql v0.21.4
-	github.com/xuri/excelize/v2 v2.11.0 // BRITTLE
+	github.com/xuri/excelize/v2 v2.11.0
 	go.uber.org/atomic v1.11.0
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba
 	golang.org/x/mod v0.41.0
