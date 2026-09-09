@@ -343,9 +343,11 @@ jobs:
 
   db-release:
     # Every engine at every supported version, gating publish and
-    # docker-publish (gh #1133). Legs run in parallel, so this adds about
-    # 12 minutes of wall clock to a release. fail-fast is off inside
-    # db-integration.yml, so one flaky leg can be rerun alone.
+    # docker-publish (gh #1133). Legs run in parallel, so this adds roughly
+    # 12 minutes of wall clock to a release, more when the legs queue behind
+    # the other release jobs (the account runs at most 20 jobs at once).
+    # fail-fast is off inside db-integration.yml, so one flaky leg can be
+    # rerun alone.
     if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/db-integration.yml
     with:

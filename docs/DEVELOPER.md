@@ -30,7 +30,7 @@ make install     # build + install sq into the Go bin dir
    repo git hooks (`.githooks`).
 2. Edit code. If you touch generated inputs (the [SLQ grammar](./GRAMMAR.md),
    anything under `go generate`), run `make gen`.
-3. `make fmt` before committing. A **`pre-commit` hook** (installed by
+3. `make fmt` before committing. A **`pre-commit` hook** (activated by
    `make init`) runs `dprint check` on staged files, so a formatting slip is
    caught locally instead of failing the **Format** CI job. Bypass for one
    commit with `git commit --no-verify`.

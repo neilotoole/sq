@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       selection:
-        description: "JSON object {engine:[tags]} of engines/tags to test"
+        description: "JSON object {engine:[selectors]} of engines/selectors to test"
         required: true
         type: string
   workflow_dispatch:

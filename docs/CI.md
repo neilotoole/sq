@@ -75,7 +75,10 @@ a pull request.
 come from the keys of `.github/sakila-db.json`, which are the `drivers/<engine>/` directory
 names. A PR touching only an embedded driver such as `drivers/duckdb/` matches the `drivers/**`
 trigger, selects no external engine, and then skips the run job, which is why an embedded-only
-change shows the workflow as green with nothing under it.
+change shows the workflow as green with nothing under it. Selection is computed over the PR's
+whole diff against its base, the same set GitHub's `paths:` filter uses, so every push to a PR
+that touches a driver re-runs that driver's legs; `cancel-in-progress` keeps only the newest run
+alive.
 
 ### On merge to master
 
@@ -251,7 +254,7 @@ Dedup is best-effort: if a digest cannot be resolved the entry is kept.
 | ------------ | ---------------------------------------------- | --------------------------- | -------------- |
 | Nightly      | 04:00 UTC                                      | `{"*":["bookends"]}`        | 9              |
 | Weekly       | Monday 05:00 UTC                               | `{"*":["all"]}`             | 19             |
-| Release      | tag `v*`, gates `publish`                      | `{"*":["all"]}`             | 19             |
+| Release      | tag `v*`, gates `publish` and `docker-publish` | `{"*":["all"]}`             | 19             |
 | Driver PR    | paths `drivers/<engine>/**`                    | `{"<engine>":["bookends"]}` | 1-2 per engine |
 | Machinery PR | DB workflows, matrix scripts, `sakila-db.json` | `{"*":["bookends"]}`        | 9              |
 | Ad hoc       | dispatch                                       | as given                    |                |
@@ -415,11 +418,14 @@ channel and checks `sq version`.
 Branch protection on `master` requires one approving review (stale reviews dismissed) and no
 status checks. A PR with red checks is mergeable. The checks are a signal to the reviewer, not a
 lock. Admin enforcement is off, so a maintainer can merge their own PR with
-`gh pr merge --squash --admin`.
+`gh pr merge --squash --admin`. If a path-filtered workflow such as `DB integration (PR)` were
+ever made a required check, every PR that does not touch its paths would be blocked waiting for
+a check that never runs.
 
 The real gates are `needs:` edges on the release path: `publish` and `docker-publish` will not
-run unless `lint`, `test-nix`, `test-windows-full`, the `binaries-*` jobs and `db-release` all
-succeed. `test-install` and the site publish are downstream of `publish` and gate nothing.
+run unless `lint`, `test-nix`, `test-windows-full`, the `binaries-*` jobs each consumes and
+`db-release` all succeed. `test-install` and the site publish are downstream of `publish` and
+gate nothing.
 
 ## Troubleshooting
 
@@ -432,6 +438,9 @@ succeed. `test-install` and the site publish are downstream of `publish` and gat
   another directory.
 - **One DB leg is red and the rest are green.** Rerun that leg alone:
   `gh run rerun <run-id> --failed`. `fail-fast` is off, so the others are not affected.
+- **A DB leg fails downloading `https://sq.io/testdata/actor.csv`.** That is the
+  `@sakila_csv_actor_http` fixture and an sq.io availability flake, not a driver
+  regression. Rerun the leg alone: `gh run rerun <run-id> --failed`.
 - **`Wait for DB healthy` times out.** `docker logs` for the container are printed in the step.
   Oracle can legitimately take over a minute; the wait allows five.
 - **Image pull is rate-limited.** Images are pulled from `ghcr.io/sakiladb`, which has no

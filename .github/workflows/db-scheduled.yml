@@ -10,6 +10,7 @@ name: DB integration (scheduled)
 on:
   schedule:
     - cron: "0 4 * * *" # nightly: every engine at bookends
+    # This exact string is matched in the run job's selection expression.
     - cron: "0 5 * * 1" # weekly (Mon): every engine at every version
   workflow_dispatch:
     inputs:
