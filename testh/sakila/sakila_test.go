@@ -9,7 +9,6 @@ import (
 
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tu"
 )
 
 // TestSQLEmbedded verifies that the embedded SQL handles are exactly SQLite and
@@ -124,11 +123,7 @@ func TestSakila_SQL(t *testing.T) { //nolint:tparallel
 
 // TestSakila_XLSX is a sanity check for Sakila XLSX test sources.
 func TestSakila_XLSX(t *testing.T) {
-	tu.SkipIssueWindows(t, tu.GH371ExcelSlowWin)
-
-	handles := []string{sakila.XLSXSubset}
-	// TODO: Append sakila.XLSX to handles when performance is reasonable
-	//  enough not to break CI.
+	handles := []string{sakila.XLSXSubset, sakila.XLSX}
 
 	for _, handle := range handles {
 		t.Run(handle, func(t *testing.T) {
