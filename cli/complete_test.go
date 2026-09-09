@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -78,6 +79,22 @@ type completion struct {
 	values     []string
 	result     cobra.ShellCompDirective
 	directives []cobra.ShellCompDirective
+}
+
+// schemaCompletionTimeout is the shell-completion timeout used by the
+// flag.ActiveSchema tests. The 500ms default is a UX budget, not a correctness
+// property, and these tests assert what completion returns, not how fast it
+// returns it. A cold source open on a loaded CI runner can exceed 500ms, which
+// surfaces as an empty result and ShellCompDirectiveError. See gh #595.
+const schemaCompletionTimeout = time.Second * 10
+
+// setCompletionTimeout sets cli.OptShellCompletionTimeout in tr's config store.
+// The store is what testComplete's run loads from, so the value must be
+// persisted, not just set on tr's in-memory config.
+func setCompletionTimeout(tb testing.TB, tr *testrun.TestRun, d time.Duration) {
+	tb.Helper()
+	tr.Run.Config.Options[cli.OptShellCompletionTimeout.Key()] = d
+	require.NoError(tb, tr.Run.ConfigStore.Save(tr.Context, tr.Run.Config))
 }
 
 // TestCompleteFlagActiveSchema_query_cmds tests flag.ActiveSchema
@@ -167,6 +184,7 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) { //nolint:tparallel
 
 					th := testh.New(t)
 					tr := testrun.New(th.Context, t, nil)
+					setCompletionTimeout(t, tr, schemaCompletionTimeout)
 					for _, handle := range tc.handles {
 						tr.Add(*th.Source(handle))
 					}
@@ -282,6 +300,7 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 
 			th := testh.New(t)
 			tr := testrun.New(th.Context, t, nil)
+			setCompletionTimeout(t, tr, schemaCompletionTimeout)
 			for _, handle := range tc.handles {
 				tr.Add(*th.Source(handle))
 			}
