@@ -3,8 +3,8 @@
 # that e.g. specifying both "latest" and "18" for postgres (which are the same
 # published image) runs it only once instead of twice.
 #
-# Usage: build-db-matrix.sh <scope> <selection> | dedup-db-matrix.sh
-#   stdin:  a JSON array of {engine,tag,image,port,env,packages} (build-db-matrix.sh).
+# Usage: build-db-matrix.sh <selection> | dedup-db-matrix.sh
+#   stdin:  a JSON array of {engine,tag,image,port,env} (build-db-matrix.sh).
 #   stdout: the same array with duplicates removed.
 #
 # Dedup happens in two passes:
