@@ -8,13 +8,13 @@ The local development loop (Makefile targets, hooks, the inner loop) is in
 ## The 30-second version
 
 - A pull request gets a fast loop: lint, the Go suite with `-short` on Linux and macOS, a
-  Windows smoke suite, a formatting gate, and a dependency review. About four minutes.
+  Windows smoke suite, a formatting gate, and a dependency review. Four to five minutes.
 - Touch a database driver and the PR also runs that engine's integration legs, against the
   newest and oldest supported versions.
 - Every night the full suite runs against every SQL engine at both version bookends; every
   week against every supported version.
-- A `v*` tag runs everything, including every engine at every version, and only then builds,
-  publishes, and smoke-tests the installers.
+- A `v*` tag runs everything, including every engine at every version, and only then publishes
+  and smoke-tests the installers.
 
 ## Workflow inventory
 
@@ -115,7 +115,7 @@ flowchart LR
   lint & tnix & twin & bdar & bamd & barm & bwin & dbr --> publish
   lint & tnix & twin & bamd & barm & dbr --> docker[docker-publish]
   publish & docker --> ti[test-install]
-  publish -. "GitHub release published" .-> sp["Site Publish (release)"]
+  publish -. GitHub release published .-> sp["Site Publish (release)"]
   tag --> cq[CodeQL]
 ```
 
@@ -193,18 +193,19 @@ to need that were rewritten onto embedded handles (#964, #1143).
 Why not all engines in one job: a single leg already deletes about 20 GB of preinstalled
 toolchains to avoid running out of disk, one runner cannot host six servers plus a parallel
 `go test ./...`, and a shared job loses the ability to name which engine failed. The price is
-that the engine-independent part of the suite runs once per leg, roughly 4x the aggregate
-compute of one shared job. Wall clock, not aggregate compute, is what anyone waits on.
+that the engine-independent part of the suite runs once per leg, which on the runs measured so
+far works out at roughly 4x the aggregate compute of one shared job. Wall clock, not aggregate
+compute, is what anyone waits on.
 
 ```mermaid
 flowchart LR
+  subgraph dbi["db-integration.yml"]
+    setup["setup<br/>build-db-matrix.sh → dedup-db-matrix.sh"] --> test["test (matrix)<br/>one job per engine:tag<br/>service container → wait healthy → go test ./..."]
+  end
   sched["db-scheduled.yml<br/>cron or dispatch"] -->|selection| dbi
   pr["db-pr.yml<br/>select job"] -->|selection| dbi
   rel["main.yml<br/>db-release"] -->|selection| dbi
   disp["db-integration.yml<br/>dispatch inputs"] --> dbi
-  subgraph dbi["db-integration.yml"]
-    setup["setup<br/>build-db-matrix.sh → dedup-db-matrix.sh"] --> test["test (matrix)<br/>one job per engine:tag<br/>service container → wait healthy → go test ./..."]
-  end
 ```
 
 ### `sakila-db.json` is the source of truth
@@ -217,7 +218,10 @@ depends on that. `latest` is a floating tag and is never listed. The hermetic te
 
 To add a version: add the tag to `tags` in the right position. To add an engine: add an entry,
 publish a `sakiladb/<engine>` image with a `HEALTHCHECK`, and name the driver directory
-`drivers/<engine>/`. Nothing else in CI needs to change.
+`drivers/<engine>/`. The scheduled, PR and release paths pick the new engine up automatically
+through the `*` expansion; to be able to dispatch it on its own, also add a matching per-engine
+`workflow_dispatch` input (and its `INPUT_*` wiring in the `setup` step) to
+`db-integration.yml`.
 
 ### The selection grammar
 
@@ -330,7 +334,7 @@ incident, not a blocked release.
 
 - **Format** (`format.yml`): `dprint check` (Markdown, Go via gofumpt, JSON, YAML, TOML, SCSS,
   CSS, site JS) plus `biome lint` for site JS, on push to `master`/`develop` and on PR whenever
-  a formatted file type changes. The `pre-commit` hook installed by `make init` runs
+  a formatted file type changes. The `pre-commit` hook activated by `make init` runs
   `dprint check` on staged files, so this workflow is the backstop.
 - **CodeQL** (`codeql.yml`, `codeql-site.yml`): scheduled Go and JavaScript analysis; the Go run
   also fires on release tags. Results land in the repository's Security tab.
