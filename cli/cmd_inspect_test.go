@@ -256,7 +256,6 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 			for _, tc := range testCases {
 				t.Run(tc.handle, func(t *testing.T) {
 					t.Parallel()
-					tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 					th := testh.New(t)
 					src := th.Source(tc.handle)
@@ -366,8 +365,6 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 	for _, tc := range testCases {
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
-
-			tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 			th := testh.New(t)
 			src := th.Source(tc.handle)

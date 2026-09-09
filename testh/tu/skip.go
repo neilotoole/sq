@@ -26,7 +26,6 @@ func (g GHIssue) String() string {
 
 const (
 	GH355SQLiteDecimalWin   GHIssue = 355 // https://github.com/neilotoole/sq/issues/355
-	GH371ExcelSlowWin       GHIssue = 371 // https://github.com/neilotoole/sq/issues/371
 	GH372ShellCompletionWin GHIssue = 372 // https://github.com/neilotoole/sq/issues/372
 )
 
