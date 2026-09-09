@@ -33,30 +33,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Fixed
 
 - [#975]: A join across two sources could fail with `database is locked` when
-  the participating tables were copied into the temporary SQLite join database.
-  The copies ran concurrently, but SQLite permits only one writer at a time, so a
-  large table holding the write lock could starve the others past their timeout.
-  The copies into a single-writer join database now funnel through a single
-  writer while their source reads still run concurrently ([#995]), so they no
-  longer contend on the write lock and the reads are not serialized.
-- [#1017]: When a table copy or ingest was canceled or its source read failed
-  partway, the destination write could occasionally commit a partially-written
-  table instead of rolling back, due to a race between the read's cancellation
-  and the close of its record stream. The write is now rolled back whenever the
-  context is canceled.
-- [#994]: The DuckDB driver now SQL-quotes schema names that contain a double
-  quote in `CreateSchema` and `DropSchema`, completing the `%q` → `stringz.DoubleQuote`
-  identifier-quoting fix that [#976] applied to the table paths.
-- [#976]: The DuckDB driver now SQL-quotes table and column names that contain a
-  double quote (e.g. a `we"ird` table created from a CSV header) in the alter, truncate, and
-  row-count paths. These paths used Go's `%q` verb, which emits backslash escaping (`"we\"ird"`)
-  that DuckDB rejects; they now use `stringz.DoubleQuote` (`"we""ird"`), completing for DuckDB
-  the identifier-quoting fix [#821] applied to SQLite and rqlite.
+  large tables were copied into the temporary join database.
+- [#1017]: A canceled or failed table copy or ingest could commit a partially-written
+  table instead of rolling back.
+- [#976], [#994]: The DuckDB driver now correctly quotes table, column, and schema
+  names that contain a double quote (e.g. a `we"ird` table created from a CSV
+  header), completing the identifier-quoting fix [#821] applied to SQLite and rqlite.
 - [#968]: Aligned the SQLite and DuckDB Sakila test fixtures with the canonical
-  schema used by the other drivers: the `sales_by_store` view no longer carries a
-  stray leading `store_id` column (it is now `store, manager, total_sales`), and
-  the `customer_list` / `staff_list` views use the canonical `zip code` alias
-  instead of `zip_code`.
+  schema used by the other drivers.
 
 ## [v0.54.1] - 2026-06-23
 
@@ -1781,7 +1765,6 @@ make working with lots of sources much easier.
 [#976]: https://github.com/neilotoole/sq/pull/976
 [#986]: https://github.com/neilotoole/sq/issues/986
 [#994]: https://github.com/neilotoole/sq/pull/994
-[#995]: https://github.com/neilotoole/sq/issues/995
 [#1017]: https://github.com/neilotoole/sq/issues/1017
 [#1136]: https://github.com/neilotoole/sq/issues/1136
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
