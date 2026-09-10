@@ -438,9 +438,6 @@ gate nothing.
   another directory.
 - **One DB leg is red and the rest are green.** Rerun that leg alone:
   `gh run rerun <run-id> --failed`. `fail-fast` is off, so the others are not affected.
-- **A DB leg fails downloading `https://sq.io/testdata/actor.csv`.** That is the
-  `@sakila_csv_actor_http` fixture and an sq.io availability flake, not a driver
-  regression. Rerun the leg alone: `gh run rerun <run-id> --failed`.
 - **`Wait for DB healthy` times out.** `docker logs` for the container are printed in the step.
   Oracle can legitimately take over a minute; the wait allows five.
 - **Image pull is rate-limited.** Images are pulled from `ghcr.io/sakiladb`, which has no
