@@ -30,11 +30,13 @@ Common URI parameters: `access_mode` (`READ_ONLY` / `READ_WRITE`), `memory_limit
 `threads`, `enable_external_access`. See [sq.io](https://sq.io/docs/drivers/duckdb/) for the
 full list.
 
-## Bundled extensions
+## Extensions
 
-Parquet, JSON, `httpfs` (HTTP/S3), ICU, Excel, and other in-tree extensions are statically
-linked — no `INSTALL` / `LOAD` step. You can query remote or local files directly, e.g.
-`read_parquet('file.parquet')` or `read_csv_auto('https://example.com/data.csv')`.
+`json`, `parquet`, `icu` and `autocomplete` are statically linked. Other DuckDB extensions
+(`httpfs`, `excel`, `fts`, `inet`, `tpch`, `tpcds`, ...) install and load automatically on
+first use (needs network once; cached in `~/.duckdb`). You can query remote or local files
+directly, e.g. `read_parquet('file.parquet')` or `read_csv_auto('https://example.com/data.csv')`.
+`COPY ... TO 'x.xlsx'` is the exception: prepend `LOAD excel;` in the same statement.
 
 ## Notes
 

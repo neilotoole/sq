@@ -3,77 +3,33 @@ package duckdb
 import (
 	"context"
 	"database/sql/driver"
-	"sync"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-// bundledExtensions are the in-tree DuckDB extensions statically linked via
-// duckdb-go-bindings; they must be available without network access.
-// connInitFn INSTALLs them once per process and LOADs them on every pooled
-// connection, so queries can use them without explicit INSTALL/LOAD.
-var bundledExtensions = []string{
-	"json", "parquet", "icu", "fts", "httpfs", "excel",
-	"inet", "autocomplete", "tpch", "tpcds",
-}
-
-// BundledExtensions returns the names of DuckDB extensions statically linked
-// into the binary. Tests use this to assert the bundle matches the runtime
-// LOAD set; callers should not mutate the returned slice.
-func BundledExtensions() []string {
-	return bundledExtensions
-}
-
-// Extension install state is process-wide. INSTALL touches the on-disk
-// extension cache; running it from multiple goroutines simultaneously fails
-// on Windows ("Could not move file: Access is denied") because of stricter
-// file-handle semantics. The mutex + bool pattern (deliberately NOT
-// sync.Once) memoizes only on success, so a transient failure (e.g. disk
-// full, antivirus) does not permanently poison the process.
-var (
-	installMu       sync.Mutex
-	installComplete bool
-)
-
-// installExtensions runs INSTALL once per process on success. On failure
-// the next caller retries.
-func installExtensions(execer driver.ExecerContext) error {
-	installMu.Lock()
-	defer installMu.Unlock()
-	if installComplete {
-		return nil
-	}
-	for _, ext := range bundledExtensions {
-		if _, err := execer.ExecContext(context.Background(), "INSTALL "+ext, nil); err != nil {
-			return errz.Wrapf(errw(err), "INSTALL %s", ext)
-		}
-	}
-	installComplete = true
-	return nil
-}
-
 // connInitFn is the per-connection initializer for go-duckdb's NewConnector.
-// It runs on every new pooled connection: INSTALL (memoized once per process
-// on success), LOAD each bundled extension, and SET session settings.
-// DuckDB's LOAD and SET are session-scoped, so they must run per-connection.
+// It runs on every new pooled connection and applies session settings.
+// DuckDB's SET is session-scoped, so it must run per-connection.
+//
+// Extensions are deliberately NOT installed or loaded here. Only a few
+// extensions (json, parquet, icu, autocomplete, core_functions) are
+// statically linked into the duckdb-go-bindings engine; the rest are
+// separate shared libraries that DuckDB installs into its extension
+// directory (~/.duckdb by default) and loads on demand via
+// autoinstall_known_extensions and autoload_known_extensions, both of which
+// default to true. Eagerly running INSTALL + LOAD for the full set on every
+// open was very expensive: each LOAD reads and hashes the extension file to
+// verify its signature (tens of MB per open), which on Windows cost
+// seconds per open. It also made every open depend on the extension
+// repository being reachable, so a fresh machine could not open a DuckDB
+// file offline at all. See https://github.com/neilotoole/sq/issues/1151.
 //
 // go-duckdb's connector init callback does not propagate the caller's
-// context, so this function uses context.Background(). The user's
-// --timeout cannot interrupt INSTALL (once per process) or the LOAD + SET
-// that run on every new pooled connection.
+// context, so this function uses context.Background().
 func connInitFn(execer driver.ExecerContext) error {
-	ctx := context.Background()
-	if err := installExtensions(execer); err != nil {
-		return err
-	}
-	for _, ext := range bundledExtensions {
-		if _, err := execer.ExecContext(ctx, "LOAD "+ext, nil); err != nil {
-			return errz.Wrapf(errw(err), "LOAD %s", ext)
-		}
-	}
 	// Suppress DuckDB's interactive progress bar; no visible effect on
 	// non-TTY connections, but prevents stray output in interactive shells.
-	if _, err := execer.ExecContext(ctx, "SET enable_progress_bar = false", nil); err != nil {
+	if _, err := execer.ExecContext(context.Background(), "SET enable_progress_bar = false", nil); err != nil {
 		return errz.Wrapf(errw(err), "SET enable_progress_bar")
 	}
 	return nil

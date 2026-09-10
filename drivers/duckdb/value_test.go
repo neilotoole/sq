@@ -241,20 +241,11 @@ func TestOpen_Memory(t *testing.T) {
 	require.Equal(t, 3, cnt)
 }
 
-// TestConcurrentOpen exercises the connector init fn (extension INSTALL +
-// LOAD + SET) under concurrent open. Regression coverage for the "INSTALL
-// once per process / LOAD per connection" contract. Without process-level
-// memoization of INSTALL, parallel opens against fresh DBs race on the
-// on-disk extension cache (manifests as "Could not move file: Access is
-// denied" on Windows). The installExtensions mutex+bool pattern in
-// pragma.go is deliberately NOT sync.Once, so that a transient install
-// failure (disk full, antivirus) does not permanently poison the process.
-//
-// Note: by the time this test runs, earlier tests in the package have
-// already flipped installComplete=true, so the 8 goroutines below mainly
-// exercise concurrent LOAD + SET via connInitFn rather than concurrent
-// INSTALL. Coverage for the once-on-failure retry contract requires a
-// mocked driver.ExecerContext and is tracked as a follow-up.
+// TestConcurrentOpen exercises the connector init fn (connInitFn) under
+// concurrent open. Each goroutine opens a distinct fresh database file so
+// the test does not trip DuckDB's process-exclusive file lock; the point
+// is that parallel opens, each running the init fn on a new connection,
+// do not interfere with each other.
 func TestConcurrentOpen(t *testing.T) {
 	dir := t.TempDir()
 	th := testh.New(t)
@@ -270,9 +261,6 @@ func TestConcurrentOpen(t *testing.T) {
 	var g errgroup.Group
 	for i := range n {
 		g.Go(func() error {
-			// Each goroutine uses a distinct file so we don't trip DuckDB's
-			// process-exclusive file lock; the point here is parallel INSTALL +
-			// LOAD + SET via the connector init fn.
 			src := &source.Source{
 				Handle:   "@conc",
 				Type:     drivertype.DuckDB,

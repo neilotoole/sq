@@ -32,6 +32,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#1151]: Opening a DuckDB source no longer installs and loads every bundled
+  extension up front. That cost seconds per open on Windows, and made opening
+  any DuckDB file fail on a machine that could not reach the extension
+  repository. Only `json`, `parquet`, `icu` and `autocomplete` are statically
+  linked; DuckDB now installs and loads the others (`httpfs`, `excel`, `fts`,
+  `inet`, `tpch`, `tpcds`) on first use. One exception: DuckDB does not autoload
+  `excel` for `COPY ... TO 'file.xlsx'`, so prepend `LOAD excel;` to that
+  statement.
 - [#975]: A join across two sources could fail with `database is locked` when
   large tables were copied into the temporary join database.
 - [#1017]: A canceled or failed table copy or ingest could commit a partially-written
@@ -1767,6 +1775,7 @@ make working with lots of sources much easier.
 [#994]: https://github.com/neilotoole/sq/pull/994
 [#1017]: https://github.com/neilotoole/sq/issues/1017
 [#1136]: https://github.com/neilotoole/sq/issues/1136
+[#1151]: https://github.com/neilotoole/sq/issues/1151
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

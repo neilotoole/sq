@@ -144,10 +144,9 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.Ac
 		return nil, err
 	}
 	// Use duckdb-go's connector with a per-connection init function
-	// (connInitFn). On each new pooled connection it runs INSTALL (memoized
-	// once per process), LOAD for every bundled extension, and SET
-	// enable_progress_bar — DuckDB's LOAD and SET are session-scoped, so
-	// they must repeat on every connection.
+	// (connInitFn), which applies session settings on each new pooled
+	// connection. Extensions are not loaded here; DuckDB autoloads them on
+	// first use.
 	connector, err := duckdbdriver.NewConnector(dsn, connInitFn)
 	if err != nil {
 		return nil, errz.Err(err)
