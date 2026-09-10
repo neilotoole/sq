@@ -17,8 +17,9 @@ import (
 // the driver docs describe as available offline. Everything else is
 // installed and loaded on demand by DuckDB; see the comment in
 // driveri.doOpen (duckdb.go). If this set changes after a duckdb-go
-// upgrade, update the driver docs (site/content/en/docs/drivers/duckdb.md)
-// and the doOpen comment to match.
+// upgrade, update the other copies of the list to match: the doOpen comment
+// in duckdb.go, site/content/en/docs/drivers/duckdb.md, and
+// skills/sq/references/duckdb.md.
 func TestSmokeStaticBundle(t *testing.T) {
 	db, err := sql.Open("duckdb", "")
 	require.NoError(t, err)

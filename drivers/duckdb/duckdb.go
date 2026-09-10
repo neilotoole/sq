@@ -151,23 +151,14 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.Ac
 	// on first use via autoinstall_known_extensions and
 	// autoload_known_extensions, both of which default to true.
 	//
-	// Eagerly running INSTALL + LOAD for a fixed set on every open was very
-	// expensive: each LOAD reads and hashes the extension file to verify its
-	// signature (tens of MB per open), which cost seconds per open on
-	// Windows. It also made every open on a cold cache depend on the
-	// extension repository being reachable. See #1151.
-	//
-	// Known limitations of relying on autoload, all removed by statically
-	// linking the extensions sq needs (tracked in #1155):
-	//   - First use of a non-static extension needs network access and
-	//     writes to the extension directory.
-	//   - The download runs inside DuckDB's binder and ignores interrupts,
-	//     so context cancellation cannot abort it.
-	//   - Two database instances in one process that first-use the same
-	//     extension on a cold cache both download it; DuckDB only serializes
-	//     per instance, and on Windows the second rename can fail.
-	//   - enable_external_access=false disables autoinstall and autoload
-	//     even for a cached extension.
+	// The driver used to run INSTALL for a fixed set once per process and
+	// LOAD for each of them on every new connection. Each LOAD of a
+	// non-static extension reads and hashes the file to verify its
+	// signature (tens of MB per database open), which cost seconds per open
+	// on Windows, and on a cold cache the INSTALL made every open depend on
+	// the extension repository being reachable. See #1151. The limitations
+	// of relying on autoload instead, and the plan to remove them by
+	// statically linking the extensions sq needs, are in #1155.
 	connector, err := duckdbdriver.NewConnector(dsn, nil)
 	if err != nil {
 		return nil, errz.Err(err)

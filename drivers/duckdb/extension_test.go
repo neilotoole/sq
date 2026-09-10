@@ -52,12 +52,15 @@ func TestExtensions_OpenWithoutExtensionRepository(t *testing.T) {
 
 	err = db.QueryRowContext(ctx, `SELECT '127.0.0.1'::VARCHAR::INET::VARCHAR`).Scan(&got)
 	require.Error(t, err, "inet is not statically linked; autoinstall must fail against an empty repository")
-	// The error must come from autoload attempting (and failing) the
-	// install. If autoload were off, DuckDB would instead report a Catalog
-	// Error for the INET type, which also mentions "inet", so match the
-	// autoload wording specifically. This is the -short-safe tripwire for a
-	// duckdb-go bump that changes the autoload defaults.
+	// The error must come from autoload attempting, and failing, the
+	// install from the empty local repository. If autoload were off, DuckDB
+	// would report a Catalog Error for the INET type; if autoinstall were
+	// off, it would report the extension as not installed. Both also
+	// mention "inet", so match the install-attempt wording specifically.
+	// This is the -short-safe tripwire for a duckdb-go bump that changes
+	// either autoload default.
 	require.ErrorContains(t, err, "Extension Autoloading Error")
+	require.ErrorContains(t, err, "Failed to install local extension")
 	require.ErrorContains(t, err, "inet")
 }
 

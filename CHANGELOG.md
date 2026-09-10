@@ -23,6 +23,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- [#1151]: DuckDB extensions that are not built into `sq` now load on first use
+  instead of on every open. DuckDB does not autoload `excel` for
+  `COPY ... TO 'file.xlsx'`, so that statement now needs `INSTALL excel; LOAD excel;`
+  before it in the same `sq sql` invocation. See the
+  [driver docs](https://sq.io/docs/drivers/duckdb#extensions).
 - ☢️ [#1136]: In JSON output, a backspace or form feed inside a string value is now written using
   its two-character short escape instead of the six-character numeric escape. This aligns `sq` with
   the behavior of `encoding/json` since [Go 1.22](https://go.dev/doc/go1.22#encoding/json). Both
@@ -33,9 +38,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ### Fixed
 
 - [#1151]: Opening a DuckDB source is much faster, and no longer needs network
-  access on a machine with an empty extension cache. DuckDB extensions that are
-  not built into `sq` now load on first use; see the
-  [driver docs](https://sq.io/docs/drivers/duckdb#extensions).
+  access on a machine with an empty extension cache.
 - [#975]: A join across two sources could fail with `database is locked` when
   large tables were copied into the temporary join database.
 - [#1017]: A canceled or failed table copy or ingest could commit a partially-written

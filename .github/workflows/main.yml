@@ -54,6 +54,19 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # DuckDB downloads non-static extensions into ~/.duckdb on first use
+      # (see TestExtensions_AutoloadOnDemand). Cache them so a PR run does not
+      # depend on extensions.duckdb.org being reachable. Extensions live under
+      # a per-engine-version subdirectory, so restoring a stale cache after a
+      # duckdb-go bump is harmless; the new version is fetched and saved.
+      - name: Cache DuckDB extensions
+        uses: actions/cache@v6
+        with:
+          path: ~/.duckdb/extensions
+          key: duckdb-ext-${{ runner.os }}-${{ hashFiles('go.mod') }}
+          restore-keys: |
+            duckdb-ext-${{ runner.os }}-
+
       - name: Build
         run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
 
@@ -130,6 +143,19 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+
+      # DuckDB downloads non-static extensions into ~/.duckdb on first use
+      # (see TestExtensions_AutoloadOnDemand). Cache them so a PR run does not
+      # depend on extensions.duckdb.org being reachable. Extensions live under
+      # a per-engine-version subdirectory, so restoring a stale cache after a
+      # duckdb-go bump is harmless; the new version is fetched and saved.
+      - name: Cache DuckDB extensions
+        uses: actions/cache@v6
+        with:
+          path: ~/.duckdb/extensions
+          key: duckdb-ext-${{ runner.os }}-${{ hashFiles('go.mod') }}
+          restore-keys: |
+            duckdb-ext-${{ runner.os }}-
 
       - name: Build
         run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -241,14 +242,14 @@ func TestOpen_Memory(t *testing.T) {
 	require.Equal(t, 3, cnt)
 }
 
-// TestConcurrentOpen is a concurrent-open smoke test and a timing
-// reproducer for #1151: eight goroutines each open a distinct fresh
-// database file (distinct so the test does not trip DuckDB's
-// process-exclusive file lock) and run a trivial query. Before #1151 each
-// open paid for installing and loading every bundled extension, which took
-// about 20 s in total on the Windows CI runner; after, under 1 s. The
-// elapsed bound is generous so it only trips on a regression of that
-// order, not on a slow runner.
+// TestConcurrentOpen is a concurrent-open smoke test and the regression
+// guard for #1151: eight goroutines each open a distinct fresh database
+// file (distinct so the test does not trip DuckDB's process-exclusive file
+// lock), run a trivial query, and check that opening loaded nothing beyond
+// the statically linked extensions. Before #1151 every open installed and
+// loaded the full bundled set, which took about 20 s in total on the
+// Windows CI runner; the loaded-set check catches a return of that
+// eagerness deterministically, without a wall-clock bound.
 func TestConcurrentOpen(t *testing.T) {
 	dir := t.TempDir()
 	th := testh.New(t)
@@ -279,11 +280,22 @@ func TestConcurrentOpen(t *testing.T) {
 				return err
 			}
 			var got int
-			return db.QueryRowContext(th.Context, "SELECT 1").Scan(&got)
+			if err = db.QueryRowContext(th.Context, "SELECT 1").Scan(&got); err != nil {
+				return err
+			}
+			var loaded string
+			err = db.QueryRowContext(th.Context,
+				`SELECT string_agg(extension_name, ',' ORDER BY extension_name)
+				FROM duckdb_extensions() WHERE loaded`).Scan(&loaded)
+			if err != nil {
+				return err
+			}
+			const static = "autocomplete,core_functions,icu,json,parquet"
+			if loaded != static {
+				return errz.Errorf("open loaded extensions beyond the static set: got %q, want %q", loaded, static)
+			}
+			return nil
 		})
 	}
-	start := time.Now()
 	require.NoError(t, g.Wait())
-	require.Less(t, time.Since(start), 10*time.Second,
-		"concurrent opens took too long; see #1151")
 }
