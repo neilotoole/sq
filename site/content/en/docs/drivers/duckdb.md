@@ -83,6 +83,12 @@ Setting the `enable_external_access=false` connection parameter disables
 automatic install and load of every non-static extension, even one that is
 already cached; only the statically linked extensions remain usable.
 
+DuckDB serializes extension installs only within one database instance. A
+single `sq` command that queries two DuckDB sources at once (a cross-source
+join, or `sq diff --data`) can trigger the same first-use install from both;
+on Windows the second install can fail with an "Access is denied" rename
+error. Rerunning the command succeeds, since the extension is then cached.
+
 ## Connection parameters
 
 Pass parameters as URL query strings after the file path:

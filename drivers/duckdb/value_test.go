@@ -241,12 +241,14 @@ func TestOpen_Memory(t *testing.T) {
 	require.Equal(t, 3, cnt)
 }
 
-// TestConcurrentOpen is a concurrent-open smoke test and the smallest
-// timing reproducer for #1151: eight goroutines each open a distinct fresh
+// TestConcurrentOpen is a concurrent-open smoke test and a timing
+// reproducer for #1151: eight goroutines each open a distinct fresh
 // database file (distinct so the test does not trip DuckDB's
 // process-exclusive file lock) and run a trivial query. Before #1151 each
 // open paid for installing and loading every bundled extension, which took
-// about 20 s on the Windows CI runner.
+// about 20 s in total on the Windows CI runner; after, under 1 s. The
+// elapsed bound is generous so it only trips on a regression of that
+// order, not on a slow runner.
 func TestConcurrentOpen(t *testing.T) {
 	dir := t.TempDir()
 	th := testh.New(t)
@@ -280,5 +282,8 @@ func TestConcurrentOpen(t *testing.T) {
 			return db.QueryRowContext(th.Context, "SELECT 1").Scan(&got)
 		})
 	}
+	start := time.Now()
 	require.NoError(t, g.Wait())
+	require.Less(t, time.Since(start), 10*time.Second,
+		"concurrent opens took too long; see #1151")
 }

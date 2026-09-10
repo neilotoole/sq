@@ -8,31 +8,24 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/libsq/driver"
-	"github.com/neilotoole/sq/libsq/source"
-	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tu"
 )
 
-// openDuckDB opens a fresh file-backed DuckDB source via the sq driver,
-// which is the path real users take (connector init fn included). The
-// optional dsnQuery is appended verbatim, e.g. "?threads=1".
-func openDuckDB(t *testing.T, th *testh.Helper, name, dsnQuery string) *sql.DB {
+// openDuckDB opens a fresh file-backed DuckDB source through the sq driver
+// (driveri.doOpen: DSN handling, read-only guard, ConfigureDB), which is
+// what distinguishes it from a raw sql.Open("duckdb", ...). The optional
+// dsnQuery is appended verbatim, e.g. "?threads=1".
+//
+// The helper is created after t.TempDir so that its cleanup, which closes
+// the grip, runs before the temp dir is removed. On Windows the reverse
+// order fails because the database file is still open.
+func openDuckDB(t *testing.T, name, dsnQuery string) *sql.DB {
 	t.Helper()
-	src := &source.Source{
-		Handle:   "@ext_" + name,
-		Type:     drivertype.DuckDB,
-		Location: "duckdb://" + filepath.Join(t.TempDir(), name+".duckdb") + dsnQuery,
-	}
-	grip, err := th.DriverFor(src).Open(th.Context, src, driver.ModeReadWrite)
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, grip.Close()) })
-	db, err := grip.DB(th.Context)
-	require.NoError(t, err)
-	return db
+	path := filepath.Join(t.TempDir(), name+".duckdb")
+	th := testh.New(t)
+	return th.OpenDB(testh.MakeDuckDBSource("@ext_"+name, path+dsnQuery))
 }
 
 // TestExtensions_OpenWithoutExtensionRepository verifies that opening a
@@ -46,19 +39,25 @@ func openDuckDB(t *testing.T, th *testh.Helper, name, dsnQuery string) *sql.DB {
 // any INSTALL (explicit or autoinstall) fails deterministically, without
 // touching the network or the user's real ~/.duckdb cache.
 func TestExtensions_OpenWithoutExtensionRepository(t *testing.T) {
-	th := testh.New(t)
+	ctx := t.Context()
 	repo := filepath.ToSlash(t.TempDir())
 	extDir := filepath.ToSlash(t.TempDir())
-	db := openDuckDB(t, th, "norepo",
+	db := openDuckDB(t, "norepo",
 		"?custom_extension_repository="+repo+"&extension_directory="+extDir)
 
 	var got string
-	err := db.QueryRowContext(th.Context, `SELECT json_extract('{"a":1}', '$.a')::VARCHAR`).Scan(&got)
+	err := db.QueryRowContext(ctx, `SELECT json_extract('{"a":1}', '$.a')::VARCHAR`).Scan(&got)
 	require.NoError(t, err, "statically linked json extension must work without a repository")
 	require.Equal(t, "1", got)
 
-	err = db.QueryRowContext(th.Context, `SELECT '127.0.0.1'::INET::VARCHAR`).Scan(&got)
+	err = db.QueryRowContext(ctx, `SELECT '127.0.0.1'::VARCHAR::INET::VARCHAR`).Scan(&got)
 	require.Error(t, err, "inet is not statically linked; autoinstall must fail against an empty repository")
+	// The error must come from autoload attempting (and failing) the
+	// install. If autoload were off, DuckDB would instead report a Catalog
+	// Error for the INET type, which also mentions "inet", so match the
+	// autoload wording specifically. This is the -short-safe tripwire for a
+	// duckdb-go bump that changes the autoload defaults.
+	require.ErrorContains(t, err, "Extension Autoloading Error")
 	require.ErrorContains(t, err, "inet")
 }
 
@@ -70,11 +69,11 @@ func TestExtensions_OpenWithoutExtensionRepository(t *testing.T) {
 //
 // Non-static extensions are downloaded into ~/.duckdb on first use, so
 // this test needs network access on a machine with a cold extension
-// cache (as did the previous eager INSTALL). It is the only test in the
-// repo with that dependency, hence the -short gate.
+// cache (as did the previous eager INSTALL on every open). It is the only
+// test in the repo with that dependency, and it deliberately runs under
+// -short too, so that the PR loop catches a duckdb-go bump that breaks
+// autoload.
 func TestExtensions_AutoloadOnDemand(t *testing.T) {
-	tu.SkipShort(t, true)
-	th := testh.New(t)
 	xlsxPath := filepath.ToSlash(proj.Abs(sakila.PathXLSXActorHeader))
 
 	cases := []struct {
@@ -108,6 +107,16 @@ func TestExtensions_AutoloadOnDemand(t *testing.T) {
 			"excel", nil,
 			`SELECT (count(*) > 0)::VARCHAR FROM read_xlsx('{xlsx}')`, "true",
 		},
+		// httpfs has no offline entry point (every httpfs table function
+		// hits the network), so exercise setting-triggered autoload
+		// instead: http_retries is an httpfs-owned setting, and SET on it
+		// installs and loads the extension. A live https:// probe would add
+		// nothing, because the SET has already loaded httpfs by then.
+		{
+			"httpfs",
+			[]string{`SET http_retries = 0`},
+			`SELECT current_setting('http_retries')::VARCHAR`, "0",
+		},
 		{
 			"tpch",
 			[]string{`CALL dbgen(sf = 0)`},
@@ -122,44 +131,23 @@ func TestExtensions_AutoloadOnDemand(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
 			dir := filepath.ToSlash(t.TempDir())
-			db := openDuckDB(t, th, tc.name, "")
+			db := openDuckDB(t, tc.name, "")
 			for _, stmt := range tc.setup {
-				_, err := db.ExecContext(th.Context, expand(stmt, dir, xlsxPath))
+				_, err := db.ExecContext(ctx, expand(stmt, dir, xlsxPath))
 				require.NoError(t, err, "setup: %s", stmt)
 			}
 			var got string
-			require.NoError(t, db.QueryRowContext(th.Context, expand(tc.query, dir, xlsxPath)).Scan(&got))
+			require.NoError(t, db.QueryRowContext(ctx, expand(tc.query, dir, xlsxPath)).Scan(&got))
 			require.Equal(t, tc.want, got)
 
 			var loaded bool
-			require.NoError(t, db.QueryRowContext(th.Context,
+			require.NoError(t, db.QueryRowContext(ctx,
 				`SELECT loaded FROM duckdb_extensions() WHERE extension_name = ?`, tc.name).Scan(&loaded))
 			require.True(t, loaded, "%s should be loaded after use", tc.name)
 		})
 	}
-
-	// httpfs has no offline entry point, so probe it separately: a request
-	// to an unroutable address must fail (proving httpfs handled the URL)
-	// and leave httpfs loaded. Retries and the timeout are pinned down
-	// first: with DuckDB's defaults the failed request spends ~0.5 s in
-	// retry backoff, and if HTTP_PROXY points at an unresponsive proxy the
-	// default 30 s timeout applies per attempt.
-	t.Run("httpfs", func(t *testing.T) {
-		db := openDuckDB(t, th, "httpfs", "")
-		_, err := db.ExecContext(th.Context, `SET http_retries = 0`)
-		require.NoError(t, err)
-		_, err = db.ExecContext(th.Context, `SET http_timeout = 2`)
-		require.NoError(t, err)
-		var got string
-		err = db.QueryRowContext(th.Context,
-			`SELECT * FROM read_csv('https://127.0.0.1:1/x.csv')`).Scan(&got)
-		require.Error(t, err)
-		var loaded bool
-		require.NoError(t, db.QueryRowContext(th.Context,
-			`SELECT loaded FROM duckdb_extensions() WHERE extension_name = 'httpfs'`).Scan(&loaded))
-		require.True(t, loaded, "httpfs should be autoloaded for an https:// path")
-	})
 }
 
 // expand substitutes the {dir} and {xlsx} placeholders used in the case

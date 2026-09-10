@@ -32,15 +32,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
-- [#1151]: Opening a DuckDB source no longer installs and loads every bundled
-  extension up front. That cost seconds per open on Windows, and on a machine
-  whose extension cache was empty (a fresh install, or the first run after an
-  `sq` release that bumped DuckDB) it made opening any DuckDB file fail without
-  network access. Only `json`, `parquet`, `icu` and `autocomplete` are
-  statically linked; DuckDB now installs and loads the others (`httpfs`,
-  `excel`, `fts`, `inet`, `tpch`, `tpcds`) on first use. One exception: DuckDB
-  does not autoload `excel` for `COPY ... TO 'file.xlsx'`, so prepend
-  `INSTALL excel; LOAD excel;` to that statement.
+- [#1151]: Opening a DuckDB source is much faster, and no longer needs network
+  access on a machine with an empty extension cache. DuckDB extensions that are
+  not built into `sq` now load on first use; see the
+  [driver docs](https://sq.io/docs/drivers/duckdb#extensions).
 - [#975]: A join across two sources could fail with `database is locked` when
   large tables were copied into the temporary join database.
 - [#1017]: A canceled or failed table copy or ingest could commit a partially-written

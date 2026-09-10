@@ -32,7 +32,7 @@ full list.
 
 ## Extensions
 
-`json`, `parquet`, `icu` and `autocomplete` are statically linked. Other DuckDB extensions
+`json`, `parquet`, `icu`, `autocomplete` and DuckDB's core functions are statically linked. Other DuckDB extensions
 (`httpfs`, `excel`, `fts`, `inet`, `tpch`, `tpcds`, ...) install and load automatically on
 first use (needs network once; cached in `~/.duckdb`). You can query remote or local files
 directly, e.g. `read_parquet('file.parquet')` or `read_csv_auto('https://example.com/data.csv')`.
