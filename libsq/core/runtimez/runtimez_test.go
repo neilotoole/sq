@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // resetMemStatsState restores the package-level mem-stats cache to its zero
@@ -97,6 +99,8 @@ func TestMemStats_Concurrent(t *testing.T) {
 }
 
 func TestStartMemStatsTracker(t *testing.T) {
+	tu.SkipWindows(t, "Skip flaky timing-sensitive test on Windows CI")
+
 	resetMemStatsState(t)
 	MemStatsRefresh = time.Millisecond
 
