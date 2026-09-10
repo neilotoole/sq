@@ -7,13 +7,14 @@ import (
 
 	_ "github.com/duckdb/duckdb-go/v2"
 	"github.com/stretchr/testify/require"
-
-	"github.com/neilotoole/sq/drivers/duckdb"
 )
 
-// TestSmokeStaticBundle verifies that we can open an in-memory DuckDB,
-// query the version, and load each in-tree extension without network access.
-// If this fails, the entire driver design's "all optional flags" story fails.
+// TestSmokeStaticBundle verifies that we can open an in-memory DuckDB, query
+// the version, and that the set of statically linked extensions is the one
+// the driver docs describe as available offline. Everything else is
+// installed and loaded on demand by DuckDB; see connInitFn in pragma.go.
+// If this set changes after a duckdb-go upgrade, update the driver docs
+// (site/content/en/docs/drivers/duckdb.md) to match.
 func TestSmokeStaticBundle(t *testing.T) {
 	db, err := sql.Open("duckdb", "")
 	require.NoError(t, err)
@@ -24,12 +25,20 @@ func TestSmokeStaticBundle(t *testing.T) {
 	t.Logf("DuckDB version: %s", version)
 	require.True(t, strings.HasPrefix(version, "v"))
 
-	for _, ext := range duckdb.BundledExtensions() {
-		t.Run(ext, func(t *testing.T) {
-			_, err := db.Exec("INSTALL " + ext)
-			require.NoError(t, err, "INSTALL %s failed", ext)
-			_, err = db.Exec("LOAD " + ext)
-			require.NoError(t, err, "LOAD %s failed", ext)
-		})
+	// Statically linked extensions are loaded at startup; nothing else can
+	// be loaded on a fresh in-memory database that has run no LOAD. (The
+	// install_mode column is not usable here: it reports REPOSITORY for a
+	// static extension whenever a copy also exists in ~/.duckdb.)
+	rows, err := db.Query(`SELECT extension_name FROM duckdb_extensions()
+		WHERE loaded ORDER BY extension_name`)
+	require.NoError(t, err)
+	defer rows.Close()
+	var static []string
+	for rows.Next() {
+		var name string
+		require.NoError(t, rows.Scan(&name))
+		static = append(static, name)
 	}
+	require.NoError(t, rows.Err())
+	require.Equal(t, []string{"autocomplete", "core_functions", "icu", "json", "parquet"}, static)
 }
