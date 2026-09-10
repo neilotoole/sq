@@ -49,6 +49,9 @@ func TestOpeningPing(t *testing.T) {
 		// A live server that rejects the version query must still open, with
 		// an empty semver (undeterminable) and no error.
 		db := openDB(t)
+		// With no idle connections retained, the pool holds nothing after the
+		// rejected query: the fallback must not depend on pool state.
+		db.SetMaxIdleConns(0)
 		fetchErr := func(ctx context.Context, db sqlz.DB) (string, error) {
 			var raw string
 			if err := db.QueryRowContext(ctx, "SELECT no_such_function()").Scan(&raw); err != nil {
@@ -67,13 +70,12 @@ func TestOpeningPing(t *testing.T) {
 		// established (e.g. wrong password), the fallback ping must not dial
 		// again: a second attempt with the same credentials doubles the
 		// failed-login count against server lockout thresholds.
-		drvr := &failingDialDriver{}
-		sql.Register(t.Name(), drvr)
-		db, err := sql.Open(t.Name(), "")
-		require.NoError(t, err)
-		_, err = driver.OpeningPing(ctx, src, db, fetchOK)
+		c := &failingDialConnector{}
+		db := sql.OpenDB(c)
+		t.Cleanup(func() { _ = db.Close() })
+		_, err := driver.OpeningPing(ctx, src, db, fetchOK)
 		require.Error(t, err)
-		require.Equal(t, 1, drvr.dials, "the failed dial must not be repeated by a fallback ping")
+		require.Equal(t, 1, c.dials, "the failed dial must not be repeated by a fallback ping")
 	})
 
 	t.Run("dead_db_fails_open", func(t *testing.T) {
@@ -84,14 +86,17 @@ func TestOpeningPing(t *testing.T) {
 	})
 }
 
-// failingDialDriver is a database/sql driver whose every dial fails, counting
-// the attempts. It models a server that rejects the login.
-type failingDialDriver struct {
+// failingDialConnector is a database/sql connector whose every dial fails,
+// counting the attempts. It models a server that rejects the login.
+type failingDialConnector struct {
 	dials int
 }
 
-// Open implements database/sql/driver.Driver.
-func (d *failingDialDriver) Open(string) (sqldriver.Conn, error) {
-	d.dials++
+// Connect implements database/sql/driver.Connector.
+func (c *failingDialConnector) Connect(context.Context) (sqldriver.Conn, error) {
+	c.dials++
 	return nil, errors.New("access denied")
 }
+
+// Driver implements database/sql/driver.Connector.
+func (c *failingDialConnector) Driver() sqldriver.Driver { return nil }

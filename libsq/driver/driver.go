@@ -340,15 +340,17 @@ type Metadata struct {
 // [SQLDriver.DBSemver]) is executed as the ping: a successful version select
 // proves the connection alive just as well, and the returned semver lets the
 // caller prime its grip's [SemverCache], so the pipeline's render-time DBSemver
-// read costs no further round-trip (issue #1013). A fetchSemver failure on a
-// live connection is not treated as a connectivity failure: a plain ping runs
+// read costs no further round-trip (issue #1013).
+//
+// The whole check runs on a single connection checked out of the pool. If that
+// checkout fails (unreachable host, wrong password), the error is returned
+// directly: there is nothing further to try, and a retry would only redial
+// with the same credentials, doubling the failed-login count against server
+// lockout thresholds. If the checkout succeeds but fetchSemver fails, that is
+// not treated as a connectivity failure: the same connection is pinged
 // instead, so a live server that rejects the version query (e.g. a restricted
 // proxy, or an under-privileged account) still opens, and the returned semver
-// is empty, meaning undeterminable. But if the fetch failed because no
-// connection could be established at all (e.g. wrong password), the error is
-// returned directly: a fallback ping would only dial again with the same
-// credentials, doubling the failed-login count against server lockout
-// thresholds.
+// is empty, meaning undeterminable.
 func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB,
 	fetchSemver func(ctx context.Context, db sqlz.DB) (string, error),
 ) (ver string, err error) {
@@ -368,19 +370,20 @@ func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB,
 		return "", err
 	}
 
-	if ver, err = fetchSemver(ctx, db); err == nil {
-		return ver, nil
-	}
-
-	// A pool with no open connection after the fetch means the fetch never got
-	// one: the failure is connectivity (or auth), not the version query itself.
-	if db.Stats().OpenConnections == 0 {
+	conn, err := db.Conn(ctx)
+	if err != nil {
 		return fail(err)
+	}
+	// Closing a sql.Conn returns it to the pool.
+	defer lg.WarnIfCloseError(log, "Release opening ping conn", conn)
+
+	if ver, err = fetchSemver(ctx, conn); err == nil {
+		return ver, nil
 	}
 
 	log.Debug("Opening ping: version fetch failed on a live connection, falling back to plain ping",
 		lga.Src, src, lga.Err, err)
-	if err = db.PingContext(ctx); err != nil {
+	if err = conn.PingContext(ctx); err != nil {
 		return fail(err)
 	}
 
