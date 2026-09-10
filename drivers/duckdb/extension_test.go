@@ -83,8 +83,8 @@ func TestExtensions_AutoloadOnDemand(t *testing.T) {
 			[]string{`COPY (SELECT 7 AS a) TO '{dir}/x.parquet' (FORMAT parquet)`},
 			`SELECT a::VARCHAR FROM read_parquet('{dir}/x.parquet')`, "7",
 		},
-		{"icu", nil, `SELECT icu_sort_key('abc', 'en') IS NOT NULL::VARCHAR`, "true"},
-		{"autocomplete", nil, `SELECT count(*) > 0 FROM sql_auto_complete('SELE')`, "true"},
+		{"icu", nil, `SELECT (icu_sort_key('abc', 'en') IS NOT NULL)::VARCHAR`, "true"},
+		{"autocomplete", nil, `SELECT (count(*) > 0)::VARCHAR FROM sql_auto_complete('SELE')`, "true"},
 		{"inet", nil, `SELECT host('127.0.0.1/24'::INET)`, "127.0.0.1"},
 		{
 			"fts",
@@ -100,7 +100,7 @@ func TestExtensions_AutoloadOnDemand(t *testing.T) {
 		// and iceberg copy functions are in its autoload table.
 		{
 			"excel", nil,
-			`SELECT count(*) > 0 FROM read_xlsx('../xlsx/testdata/actor_header.xlsx')`, "true",
+			`SELECT (count(*) > 0)::VARCHAR FROM read_xlsx('../xlsx/testdata/actor_header.xlsx')`, "true",
 		},
 		{
 			"tpch",
