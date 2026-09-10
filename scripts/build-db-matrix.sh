@@ -25,7 +25,8 @@
 # test job's service container and dedup-db-matrix.sh consume the same string;
 # the registry is defined in exactly one place. Registry defaults to GHCR
 # (ghcr.io/sakiladb), which isn't subject to Docker Hub's anonymous pull rate
-# limits; override with SAKILADB_REGISTRY.
+# limits; override with SAKILADB_REGISTRY. SAKILADB_CONFIG overrides the path
+# to sakila-db.json (the hermetic test uses it to feed synthetic manifests).
 #
 # Note: the DSN is deliberately NOT included. It contains credentials that
 # GitHub masks as a secret, and a job output containing a masked value is
@@ -34,7 +35,7 @@
 set -euo pipefail
 
 selection="${1:?usage: build-db-matrix.sh <selection-json>}"
-config="$(cd "$(dirname "$0")/.." && pwd)/.github/sakila-db.json"
+config="${SAKILADB_CONFIG:-$(cd "$(dirname "$0")/.." && pwd)/.github/sakila-db.json}"
 registry="${SAKILADB_REGISTRY:-ghcr.io/sakiladb}"
 registry="${registry%/}" # tolerate a trailing slash in the override
 
@@ -54,9 +55,9 @@ jq -cn \
       | ($c[$engine] // error("unknown engine: \($engine)")) as $e
       | [ .value[]
           | if . == "latest" then "latest"
-            elif . == "oldest" then $e.tags[-1]
-            elif . == "bookends" then ("latest", $e.tags[-1])
-            elif . == "all" then $e.tags[]
+            elif . == "oldest" then ($e.tags[-1] // error("engine \($engine) has no tags; oldest needs one"))
+            elif . == "bookends" then ("latest", ($e.tags[-1] // error("engine \($engine) has no tags; bookends needs one")))
+            elif . == "all" then (if ($e.tags | length) == 0 then error("engine \($engine) has no tags; all needs one") else $e.tags[] end)
             elif test("^[0-9]+(\\.[0-9]+)*$") then .
             else error("unknown selector \"\(.)\" for engine \($engine)")
             end ]

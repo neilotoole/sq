@@ -53,6 +53,9 @@ jobs:
           # Changed files via the API: no git history needed, and --paginate
           # handles PRs with more than 100 files.
           files=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')
+          # The trigger's "!**/*.md" negation only decides whether this workflow
+          # runs; the file list still contains Markdown, so drop it here too.
+          files=$(grep -Ev '\.md$' <<<"$files" || true)
           machinery='^(\.github/workflows/db-[^/]*\.yml|\.github/sakila-db\.json|scripts/[^/]*db-matrix[^/]*)$'
           sel='{}'
           if grep -Eq "$machinery" <<<"$files"; then

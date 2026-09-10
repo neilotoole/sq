@@ -9,7 +9,8 @@ name: DB integration (scheduled)
 
 on:
   schedule:
-    - cron: "0 4 * * *" # nightly: every engine at bookends
+    # Every day except Monday: the Monday weekly run an hour later is a superset.
+    - cron: "0 4 * * 0,2-6" # nightly: every engine at bookends
     # This exact string is matched in the run job's selection expression.
     - cron: "0 5 * * 1" # weekly (Mon): every engine at every version
   workflow_dispatch:

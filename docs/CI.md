@@ -26,7 +26,7 @@ All workflows live in [`.github/workflows/`](../.github/workflows).
 | Format                     | `format.yml`                | push `master`/`develop` or PR touching formatted file types | `dprint check` and Biome                                             | nothing (advisory)            |
 | Dependency Review          | `dependency-review.yml`     | PR, ignoring `**.md`, `sq.json` and `.github/**`            | Flags risky dependency changes                                       | nothing (advisory)            |
 | DB integration             | `db-integration.yml`        | `workflow_call`, dispatch                                   | One job per engine:version, `go test ./...` against a live container | callers decide                |
-| DB integration (scheduled) | `db-scheduled.yml`          | nightly 04:00 UTC, Mon 05:00 UTC, dispatch                  | Every engine at bookends nightly, every version weekly               | nothing                       |
+| DB integration (scheduled) | `db-scheduled.yml`          | 04:00 UTC daily except Monday, Mon 05:00 UTC, dispatch      | Every engine at bookends nightly, every version weekly               | nothing                       |
 | DB integration (PR)        | `db-pr.yml`                 | PR touching `drivers/**` or the DB machinery                | That engine's bookends, or every engine's for machinery changes      | nothing (advisory)            |
 | Coverage                   | `coverage.yml`              | nightly 09:37 UTC, dispatch                                 | Full suite with coverage, uploaded to Codecov                        | nothing                       |
 | CodeQL                     | `codeql.yml`                | tag `v*`, nightly 10:36 UTC, dispatch                       | Go security analysis                                                 | nothing                       |
@@ -95,18 +95,19 @@ that stays minutes rather than tens of minutes long.
 
 All times UTC.
 
-| Time         | Workflow                   | What                                               |
-| ------------ | -------------------------- | -------------------------------------------------- |
-| 04:00 daily  | DB integration (scheduled) | every engine at bookends, `go test ./...`          |
-| 05:00 Monday | DB integration (scheduled) | every engine at every supported version            |
-| 07:00 daily  | Site data (nightly)        | refresh `site/data/github.toml`, commit if changed |
-| 07:15 daily  | Site Links (nightly)       | lychee external link crawl                         |
-| 09:17 daily  | Main Pipeline              | full suite (no `-short`) on Linux, macOS, Windows  |
-| 09:37 daily  | Coverage                   | full suite with coverage to Codecov                |
-| 10:36 daily  | CodeQL                     | Go analysis                                        |
-| 11:00 Friday | CodeQL site                | JavaScript analysis                                |
+| Time                      | Workflow                   | What                                               |
+| ------------------------- | -------------------------- | -------------------------------------------------- |
+| 04:00 daily except Monday | DB integration (scheduled) | every engine at bookends, `go test ./...`          |
+| 05:00 Monday              | DB integration (scheduled) | every engine at every supported version            |
+| 07:00 daily               | Site data (nightly)        | refresh `site/data/github.toml`, commit if changed |
+| 07:15 daily               | Site Links (nightly)       | lychee external link crawl                         |
+| 09:17 daily               | Main Pipeline              | full suite (no `-short`) on Linux, macOS, Windows  |
+| 09:37 daily               | Coverage                   | full suite with coverage to Codecov                |
+| 10:36 daily               | CodeQL                     | Go analysis                                        |
+| 11:00 Friday              | CodeQL site                | JavaScript analysis                                |
 
-The Monday 05:00 run is the same workflow as the 04:00 nightly; `db-scheduled.yml` distinguishes
+The nightly skips Monday, because the weekly run an hour later is a superset of it (the same
+legs plus every intermediate version). The Monday 05:00 run is the same workflow; `db-scheduled.yml` distinguishes
 them by matching `github.event.schedule` against the weekly cron string, because
 `github.event.inputs.mode` is empty on a cron trigger.
 
@@ -159,7 +160,9 @@ it against a release tag; against a branch it starts and skips every job.
 
 - `test-nix`: `go build` then `go test` on `ubuntu-24.04` and `macos-15`. `FULL_RUN` is true on
   schedule, on `v*` tags and on dispatch; otherwise the run passes `-short`, which skips tests
-  marked with `tu.SkipShort` (large-fixture ingest and everything that needs a container).
+  marked with `tu.SkipShort` (large-fixture ingest and other slow tests). Tests against the
+  external engines are gated separately: `testh.Helper.Source` skips them whenever the engine's
+  `SQ_TEST_SRC__*` envar is unset, regardless of `-short`.
   Output goes through `tparse` for a sorted summary.
 - `test-windows-smoke`: PRs and master merges only. Builds everything (catching CGO/SQLite
   breakage) and runs `./test/smoke/...`. Compiling everything is half the point: it catches
@@ -252,7 +255,7 @@ Dedup is best-effort: if a digest cannot be resolved the entry is kept.
 
 | Scenario     | Trigger                                        | Selection                   | Legs           |
 | ------------ | ---------------------------------------------- | --------------------------- | -------------- |
-| Nightly      | 04:00 UTC                                      | `{"*":["bookends"]}`        | 9              |
+| Nightly      | 04:00 UTC, not Monday                          | `{"*":["bookends"]}`        | 9              |
 | Weekly       | Monday 05:00 UTC                               | `{"*":["all"]}`             | 19             |
 | Release      | tag `v*`, gates `publish` and `docker-publish` | `{"*":["all"]}`             | 19             |
 | Driver PR    | paths `drivers/<engine>/**`                    | `{"<engine>":["bookends"]}` | 1-2 per engine |

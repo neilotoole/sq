@@ -92,13 +92,30 @@ if build '{"postgres":["bookend"]}' 2>/dev/null; then
   exit 1
 fi
 
-# contract: every engine's tags list is newest-first. oldest/bookends depend on
-# it. Compared numerically per dotted component so 5.7 sorts below 9.
+# an engine with an empty tags list (only :latest published so far) still
+# accepts latest and explicit tags, but oldest, bookends and all are hard errors
+# rather than a null tag that dies at image pull
+tmpcfg=$(mktemp)
+trap 'rm -f "$tmpcfg"' EXIT
+jq '. + {newdb: {port: 1, env: "SQ_TEST_SRC__NEWDB", dsn: "x", tags: []}}' "$config" >"$tmpcfg"
+out=$(SAKILADB_CONFIG="$tmpcfg" build '{"newdb":["latest","1"]}')
+echo "$out" | jq -e '[.[].tag] == ["latest","1"]' >/dev/null
+for sel in oldest bookends all; do
+  if SAKILADB_CONFIG="$tmpcfg" build "{\"newdb\":[\"$sel\"]}" 2>/dev/null; then
+    echo "build-db-matrix_test: FAIL (expected error for $sel on an engine with no tags)" >&2
+    exit 1
+  fi
+done
+
+# contract: every engine's tags list is non-empty and newest-first.
+# oldest/bookends depend on it. Compared numerically per dotted component so
+# 5.7 sorts below 9.
 jq -e '
   to_entries | all(
-    .value.tags
-    | map(split(".") | map(tonumber))
-    | . == (sort | reverse))
+    (.value.tags | length > 0) and
+    (.value.tags
+      | map(split(".") | map(tonumber))
+      | . == (sort | reverse)))
 ' "$config" >/dev/null
 
 echo "build-db-matrix_test: PASS"

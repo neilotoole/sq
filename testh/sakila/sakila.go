@@ -228,10 +228,12 @@ func AllTblsViews() []string {
 // than sq.io so that CI depends only on GitHub being reachable; sq.io serves
 // the same files from site/static/testdata for user-facing examples.
 const (
-	ActorCSVURL    = "https://raw.githubusercontent.com/neilotoole/sq/master/site/static/testdata/actor.csv"
+	testdataBaseURL = "https://raw.githubusercontent.com/neilotoole/sq/master/site/static/testdata"
+
+	ActorCSVURL    = testdataBaseURL + "/actor.csv"
 	ActorCSVSize   = 7641
-	ExcelSubsetURL = "https://raw.githubusercontent.com/neilotoole/sq/master/site/static/testdata/sakila_subset.xlsx"
-	ExcelURL       = "https://raw.githubusercontent.com/neilotoole/sq/master/site/static/testdata/sakila.xlsx"
+	ExcelSubsetURL = testdataBaseURL + "/sakila_subset.xlsx"
+	ExcelURL       = testdataBaseURL + "/sakila.xlsx"
 )
 
 // Paths for sakila resources.

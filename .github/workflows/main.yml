@@ -347,8 +347,10 @@ jobs:
     # 12 minutes of wall clock to a release, more when the legs queue behind
     # the other release jobs (the account runs at most 20 jobs at once).
     # fail-fast is off inside db-integration.yml, so one flaky leg can be
-    # rerun alone.
+    # rerun alone. Waits for lint so a tag with a lint or workflow error does
+    # not spin up nineteen legs first.
     if: startsWith(github.ref, 'refs/tags/v')
+    needs: [lint]
     uses: ./.github/workflows/db-integration.yml
     with:
       selection: '{"*":["all"]}'
