@@ -14,7 +14,8 @@
 #
 # Image tags, ports, DSNs, and env-var names come from .github/sakila-db.json
 # (single source of truth, shared with CI). Each engine uses its first tag
-# (tags[0], normally "latest"). `--pull always` avoids a silently-stale image.
+# (tags[0], the newest supported version; tags are newest-first and never
+# list "latest"). `--pull always` avoids a silently-stale image.
 #
 # NOTE: tested on macOS / Apple Silicon. SQL Server is amd64-only.
 

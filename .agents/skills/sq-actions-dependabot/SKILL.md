@@ -119,4 +119,4 @@ explicitly requests it and checks are green but merge is blocked.
 ```
 
 See [AGENTS.md](../../../AGENTS.md#agent-skills-contributors) and
-[`docs/WORKFLOW.md`](../../../docs/WORKFLOW.md) for the CI job map.
+[`docs/CI.md`](../../../docs/CI.md) for the CI job map.
