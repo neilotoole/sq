@@ -39,6 +39,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 - [#1151]: Opening a DuckDB source is much faster, and no longer needs network
   access on a machine with an empty extension cache.
+- CI: Skip `TestDownloader` on CI runners because its live `sq.io` download
+  can fail due to transient network timeouts.
 - [#975]: A join across two sources could fail with `database is locked` when
   large tables were copied into the temporary join database.
 - [#1017]: A canceled or failed table copy or ingest could commit a partially-written
