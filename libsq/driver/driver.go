@@ -340,11 +340,15 @@ type Metadata struct {
 // [SQLDriver.DBSemver]) is executed as the ping: a successful version select
 // proves the connection alive just as well, and the returned semver lets the
 // caller prime its grip's [SemverCache], so the pipeline's render-time DBSemver
-// read costs no further round-trip (issue #1013). A fetchSemver failure is not
-// treated as a connectivity failure: a plain ping runs instead, so a live
-// server that rejects the version query (e.g. a restricted proxy, or an
-// under-privileged account) still opens, and the returned semver is empty,
-// meaning undeterminable.
+// read costs no further round-trip (issue #1013). A fetchSemver failure on a
+// live connection is not treated as a connectivity failure: a plain ping runs
+// instead, so a live server that rejects the version query (e.g. a restricted
+// proxy, or an under-privileged account) still opens, and the returned semver
+// is empty, meaning undeterminable. But if the fetch failed because no
+// connection could be established at all (e.g. wrong password), the error is
+// returned directly: a fallback ping would only dial again with the same
+// credentials, doubling the failed-login count against server lockout
+// thresholds.
 func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB,
 	fetchSemver func(ctx context.Context, db sqlz.DB) (string, error),
 ) (ver string, err error) {
@@ -357,17 +361,27 @@ func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB,
 	defer cancelFn()
 	log := lg.FromContext(ctx)
 
-	if ver, err = fetchSemver(ctx, db); err == nil {
-		return ver, nil
-	}
-	log.Debug("Opening ping: version fetch failed, falling back to plain ping",
-		lga.Src, src, lga.Err, err)
-
-	if err = db.PingContext(ctx); err != nil {
+	fail := func(err error) (string, error) {
 		err = errz.Wrapf(err, "open ping %s", src.Handle)
 		log.Error("Failed opening ping", lga.Src, src, lga.Err, err)
 		lg.WarnIfCloseError(log, lgm.CloseDB, db)
 		return "", err
+	}
+
+	if ver, err = fetchSemver(ctx, db); err == nil {
+		return ver, nil
+	}
+
+	// A pool with no open connection after the fetch means the fetch never got
+	// one: the failure is connectivity (or auth), not the version query itself.
+	if db.Stats().OpenConnections == 0 {
+		return fail(err)
+	}
+
+	log.Debug("Opening ping: version fetch failed on a live connection, falling back to plain ping",
+		lga.Src, src, lga.Err, err)
+	if err = db.PingContext(ctx); err != nil {
+		return fail(err)
 	}
 
 	return "", nil

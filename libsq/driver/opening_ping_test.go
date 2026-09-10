@@ -3,6 +3,7 @@ package driver_test
 import (
 	"context"
 	"database/sql"
+	sqldriver "database/sql/driver"
 	"errors"
 	"testing"
 
@@ -48,13 +49,31 @@ func TestOpeningPing(t *testing.T) {
 		// A live server that rejects the version query must still open, with
 		// an empty semver (undeterminable) and no error.
 		db := openDB(t)
-		fetchErr := func(context.Context, sqlz.DB) (string, error) {
-			return "", errors.New("version query rejected")
+		fetchErr := func(ctx context.Context, db sqlz.DB) (string, error) {
+			var raw string
+			if err := db.QueryRowContext(ctx, "SELECT no_such_function()").Scan(&raw); err != nil {
+				return "", err
+			}
+			return "", errors.New("expected the version query to be rejected")
 		}
 		v, err := driver.OpeningPing(ctx, src, db, fetchErr)
 		require.NoError(t, err)
 		require.Empty(t, v)
 		require.NoError(t, db.PingContext(ctx), "db must remain open")
+	})
+
+	t.Run("failed_dial_is_not_retried", func(t *testing.T) {
+		// When the version fetch fails because no connection could be
+		// established (e.g. wrong password), the fallback ping must not dial
+		// again: a second attempt with the same credentials doubles the
+		// failed-login count against server lockout thresholds.
+		drvr := &failingDialDriver{}
+		sql.Register(t.Name(), drvr)
+		db, err := sql.Open(t.Name(), "")
+		require.NoError(t, err)
+		_, err = driver.OpeningPing(ctx, src, db, fetchOK)
+		require.Error(t, err)
+		require.Equal(t, 1, drvr.dials, "the failed dial must not be repeated by a fallback ping")
 	})
 
 	t.Run("dead_db_fails_open", func(t *testing.T) {
@@ -63,4 +82,16 @@ func TestOpeningPing(t *testing.T) {
 		_, err := driver.OpeningPing(ctx, src, db, fetchOK)
 		require.Error(t, err)
 	})
+}
+
+// failingDialDriver is a database/sql driver whose every dial fails, counting
+// the attempts. It models a server that rejects the login.
+type failingDialDriver struct {
+	dials int
+}
+
+// Open implements database/sql/driver.Driver.
+func (d *failingDialDriver) Open(string) (sqldriver.Conn, error) {
+	d.dials++
+	return nil, errors.New("access denied")
 }
