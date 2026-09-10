@@ -12,6 +12,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## [Unreleased]
+
+### Changed
+
+- [#1013]: Querying a remote source now makes one fewer server round-trip per `sq`
+  invocation. The server version, needed for version-aware SQL rendering, is read
+  during the connectivity check when the source is opened, instead of in a
+  separate query.
+
 ## [v0.55.0] - 2026-09-09
 
 ### Added
@@ -29,11 +38,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   spellings decode to the same string, so anything that parses `sq`'s JSON is unaffected, and only
   output containing one of those two characters changes at all. Stored fixtures, golden files or
   checksums that compare `sq`'s JSON byte-for-byte may need regenerating.
-
-- [#1013]: Querying a remote source now makes one fewer server round-trip per `sq`
-  invocation. The server version, needed for version-aware SQL rendering, is read
-  during the connectivity check when the source is opened, instead of in a
-  separate query.
 
 ### Fixed
 
