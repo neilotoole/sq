@@ -99,4 +99,16 @@ func (c *failingDialConnector) Connect(context.Context) (sqldriver.Conn, error) 
 }
 
 // Driver implements database/sql/driver.Connector.
-func (c *failingDialConnector) Driver() sqldriver.Driver { return nil }
+func (c *failingDialConnector) Driver() sqldriver.Driver { return failingDialDriver{c} }
+
+// failingDialDriver is the database/sql driver behind failingDialConnector.
+// It exists to satisfy the Connector contract; every open fails via the
+// connector.
+type failingDialDriver struct {
+	c *failingDialConnector
+}
+
+// Open implements database/sql/driver.Driver.
+func (d failingDialDriver) Open(string) (sqldriver.Conn, error) {
+	return d.c.Connect(context.Background())
+}
