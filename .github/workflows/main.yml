@@ -341,6 +341,20 @@ jobs:
           name: dist-windows
           path: dist-windows
 
+  db-release:
+    # Every engine at every supported version, gating publish and
+    # docker-publish (gh #1133). Legs run in parallel, so this adds roughly
+    # 12 minutes of wall clock to a release, more when the legs queue behind
+    # the other release jobs (the account runs at most 20 jobs at once).
+    # fail-fast is off inside db-integration.yml, so one flaky leg can be
+    # rerun alone. Waits for lint so a tag with a lint or workflow error does
+    # not spin up nineteen legs first.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [lint]
+    uses: ./.github/workflows/db-integration.yml
+    with:
+      selection: '{"*":["all"]}'
+
   publish:
     runs-on: ubuntu-24.04
     if: startsWith(github.ref, 'refs/tags/v')
@@ -352,6 +366,7 @@ jobs:
       - binaries-linux-amd64
       - binaries-linux-arm64
       - binaries-windows
+      - db-release
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -416,6 +431,7 @@ jobs:
       - test-windows-full
       - binaries-linux-amd64
       - binaries-linux-arm64
+      - db-release
     permissions:
       contents: read
       packages: write

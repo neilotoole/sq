@@ -56,7 +56,7 @@ collection:
       location: '${env:SQ_ROOT}/drivers/csv/testdata/sakila-csv/address.csv'
     - handle: '@sakila_csv_actor_http'
       driver: csv
-      location: 'https://sq.io/testdata/actor.csv'
+      location: 'https://raw.githubusercontent.com/neilotoole/sq/master/site/static/testdata/actor.csv'
       options:
         ingest.header: true
     - handle: '@sakila_csv_actor_noheader'

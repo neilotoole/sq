@@ -4,7 +4,7 @@
 and [discussion](https://github.com/neilotoole/sq/discussions).
 
 For user documentation, see [sq.io](https://sq.io). For contributor and
-maintainer reference docs (architecture, drivers, grammar, workflows,
+maintainer reference docs (architecture, drivers, grammar, development, CI,
 releasing), see the [`docs/`](./docs) index at
 [`docs/README.md`](./docs/README.md).
 
@@ -83,7 +83,7 @@ Then run `make all` as a kick-off: it generates code, formats, lints, tests,
 builds, and installs a local `sq`.
 
 For the full local development loop (the inner-loop sequence, the Makefile
-targets, and how they map to CI), see [`docs/WORKFLOW.md`](./docs/WORKFLOW.md).
+targets, and how they map to CI), see [`docs/DEVELOPER.md`](./docs/DEVELOPER.md).
 
 ## Opening issues
 
@@ -104,12 +104,14 @@ Use the usual GitHub process to open a PR. Before you do so, please:
 ### CI
 
 CI is PR-centric: a branch gets CI once a pull request exists. Every push runs a
-fast lint + `-short` test set (plus a Windows smoke test); the full suites run
-nightly against master and on release tags. For the job-by-job breakdown, see
-[`docs/WORKFLOW.md`](./docs/WORKFLOW.md#github-actions).
+fast lint + `-short` test set (plus a Windows smoke test). A PR that touches a
+database driver under `drivers/<engine>/`, or the DB CI machinery, also runs that
+engine's integration legs against live containers. The full suites run nightly
+against master and on release tags. For the job-by-job breakdown, see
+[`docs/CI.md`](./docs/CI.md#what-runs-when).
 
 Mark long-running tests with [`tu.SkipShort`](./testh/tu/skip.go) so they stay out of the dev loop
-but still run in the nightly/release suites.
+but still run in the nightly, release, and DB integration suites.
 
 ## CHANGELOG & releasing
 
