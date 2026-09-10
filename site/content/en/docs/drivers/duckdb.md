@@ -71,12 +71,17 @@ SELECT * FROM read_csv_auto('https://example.com/data.csv');
 SELECT * FROM read_parquet('s3://bucket/key.parquet');
 ```
 
-DuckDB does not autoload `excel` for `COPY ... TO 'file.xlsx'`. Load it
-explicitly in the same statement:
+DuckDB does not autoload `excel` for `COPY ... TO 'file.xlsx'`. Install and
+load it explicitly in the same statement (an explicit `LOAD` on its own does
+not install):
 
 ```shell
-$ sq sql --src @sakila_duck "LOAD excel; COPY (SELECT * FROM actor) TO 'actor.xlsx' (FORMAT xlsx)"
+$ sq sql --src @sakila_duck "INSTALL excel; LOAD excel; COPY (SELECT * FROM actor) TO 'actor.xlsx' (FORMAT xlsx)"
 ```
+
+Setting the `enable_external_access=false` connection parameter disables
+automatic install and load of every non-static extension, even one that is
+already cached; only the statically linked extensions remain usable.
 
 ## Connection parameters
 

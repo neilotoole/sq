@@ -12,6 +12,9 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/proj"
+	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 // openDuckDB opens a fresh file-backed DuckDB source via the sq driver,
@@ -67,9 +70,12 @@ func TestExtensions_OpenWithoutExtensionRepository(t *testing.T) {
 //
 // Non-static extensions are downloaded into ~/.duckdb on first use, so
 // this test needs network access on a machine with a cold extension
-// cache (as did the previous eager INSTALL).
+// cache (as did the previous eager INSTALL). It is the only test in the
+// repo with that dependency, hence the -short gate.
 func TestExtensions_AutoloadOnDemand(t *testing.T) {
+	tu.SkipShort(t, true)
 	th := testh.New(t)
+	xlsxPath := filepath.ToSlash(proj.Abs(sakila.PathXLSXActorHeader))
 
 	cases := []struct {
 		name  string
@@ -100,7 +106,7 @@ func TestExtensions_AutoloadOnDemand(t *testing.T) {
 		// and iceberg copy functions are in its autoload table.
 		{
 			"excel", nil,
-			`SELECT (count(*) > 0)::VARCHAR FROM read_xlsx('../xlsx/testdata/actor_header.xlsx')`, "true",
+			`SELECT (count(*) > 0)::VARCHAR FROM read_xlsx('{xlsx}')`, "true",
 		},
 		{
 			"tpch",
@@ -119,11 +125,11 @@ func TestExtensions_AutoloadOnDemand(t *testing.T) {
 			dir := filepath.ToSlash(t.TempDir())
 			db := openDuckDB(t, th, tc.name, "")
 			for _, stmt := range tc.setup {
-				_, err := db.ExecContext(th.Context, expandDir(stmt, dir))
+				_, err := db.ExecContext(th.Context, expand(stmt, dir, xlsxPath))
 				require.NoError(t, err, "setup: %s", stmt)
 			}
 			var got string
-			require.NoError(t, db.QueryRowContext(th.Context, expandDir(tc.query, dir)).Scan(&got))
+			require.NoError(t, db.QueryRowContext(th.Context, expand(tc.query, dir, xlsxPath)).Scan(&got))
 			require.Equal(t, tc.want, got)
 
 			var loaded bool
@@ -134,12 +140,19 @@ func TestExtensions_AutoloadOnDemand(t *testing.T) {
 	}
 
 	// httpfs has no offline entry point, so probe it separately: a request
-	// to an unroutable address must fail with a connection error (proving
-	// httpfs handled the URL) rather than an unknown-scheme error.
+	// to an unroutable address must fail (proving httpfs handled the URL)
+	// and leave httpfs loaded. Retries and the timeout are pinned down
+	// first: with DuckDB's defaults the failed request spends ~0.5 s in
+	// retry backoff, and if HTTP_PROXY points at an unresponsive proxy the
+	// default 30 s timeout applies per attempt.
 	t.Run("httpfs", func(t *testing.T) {
 		db := openDuckDB(t, th, "httpfs", "")
+		_, err := db.ExecContext(th.Context, `SET http_retries = 0`)
+		require.NoError(t, err)
+		_, err = db.ExecContext(th.Context, `SET http_timeout = 2`)
+		require.NoError(t, err)
 		var got string
-		err := db.QueryRowContext(th.Context,
+		err = db.QueryRowContext(th.Context,
 			`SELECT * FROM read_csv('https://127.0.0.1:1/x.csv')`).Scan(&got)
 		require.Error(t, err)
 		var loaded bool
@@ -149,6 +162,8 @@ func TestExtensions_AutoloadOnDemand(t *testing.T) {
 	})
 }
 
-func expandDir(s, dir string) string {
-	return strings.ReplaceAll(s, "{dir}", dir)
+// expand substitutes the {dir} and {xlsx} placeholders used in the case
+// table above.
+func expand(s, dir, xlsx string) string {
+	return strings.NewReplacer("{dir}", dir, "{xlsx}", xlsx).Replace(s)
 }

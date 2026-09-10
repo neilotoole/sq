@@ -36,7 +36,8 @@ full list.
 (`httpfs`, `excel`, `fts`, `inet`, `tpch`, `tpcds`, ...) install and load automatically on
 first use (needs network once; cached in `~/.duckdb`). You can query remote or local files
 directly, e.g. `read_parquet('file.parquet')` or `read_csv_auto('https://example.com/data.csv')`.
-`COPY ... TO 'x.xlsx'` is the exception: prepend `LOAD excel;` in the same statement.
+`COPY ... TO 'x.xlsx'` is the exception: prepend `INSTALL excel; LOAD excel;` in the same
+statement. `enable_external_access=false` disables autoload of all non-static extensions.
 
 ## Notes
 

@@ -241,11 +241,12 @@ func TestOpen_Memory(t *testing.T) {
 	require.Equal(t, 3, cnt)
 }
 
-// TestConcurrentOpen exercises the connector init fn (connInitFn) under
-// concurrent open. Each goroutine opens a distinct fresh database file so
-// the test does not trip DuckDB's process-exclusive file lock; the point
-// is that parallel opens, each running the init fn on a new connection,
-// do not interfere with each other.
+// TestConcurrentOpen is a concurrent-open smoke test and the smallest
+// timing reproducer for #1151: eight goroutines each open a distinct fresh
+// database file (distinct so the test does not trip DuckDB's
+// process-exclusive file lock) and run a trivial query. Before #1151 each
+// open paid for installing and loading every bundled extension, which took
+// about 20 s on the Windows CI runner.
 func TestConcurrentOpen(t *testing.T) {
 	dir := t.TempDir()
 	th := testh.New(t)
