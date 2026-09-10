@@ -120,6 +120,24 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # DuckDB downloads non-static extensions into ~/.duckdb on first use
+      # (see TestExtensions_AutoloadOnDemand). Cache them so the run does not
+      # depend on extensions.duckdb.org being reachable. The key carries the
+      # DuckDB engine version (encoded in the duckdb-go module version), so a
+      # bump fetches a fresh set instead of carrying old versions forward.
+      - name: Resolve DuckDB engine version
+        id: duckdb
+        shell: bash
+        run: echo "engine=$(go list -m -f '{{.Version}}' github.com/duckdb/duckdb-go/v2)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache DuckDB extensions
+        uses: actions/cache@v6
+        with:
+          path: ~/.duckdb/extensions
+          key: duckdb-ext-${{ runner.os }}-${{ steps.duckdb.outputs.engine }}-${{ hashFiles('drivers/duckdb/**/*_test.go') }}
+          restore-keys: |
+            duckdb-ext-${{ runner.os }}-${{ steps.duckdb.outputs.engine }}-
+
       # The DB test legs exhaust the runner's root filesystem. scope=full runs
       # `go test ./...` (many embedded SQLite/DuckDB temp databases; observed: a
       # pg17 leg hit "no space left on device"), and scope=narrow compiles

@@ -54,11 +54,14 @@ $ sq add 'duckdb:///path/sakila.duckdb?memory_limit=4GB&threads=4'
 The driver statically links the `json`, `parquet`, `icu` and `autocomplete`
 extensions (plus DuckDB's core functions). These work offline with no setup.
 
-Any other [DuckDB extension](https://duckdb.org/docs/stable/extensions/overview)
-(for example `httpfs`, `excel`, `fts`, `inet`, `tpch`, `tpcds`) is installed and
-loaded automatically the first time a query uses it. The first use downloads the
+The `httpfs`, `excel`, `fts`, `inet`, `tpch` and `tpcds` extensions, and the
+other extensions in DuckDB's autoload list, are installed and loaded
+automatically the first time a query uses them. The first use downloads the
 extension into DuckDB's extension directory (`~/.duckdb` by default), so it
-needs network access once; after that it is cached.
+needs network access once per DuckDB version; after that it is cached.
+Extensions outside that list (for example `spatial`, and community
+extensions) need an explicit `INSTALL` and `LOAD`, and are not usable through
+`sq sql`, which accepts a single statement.
 
 ```sql
 -- Query a Parquet file directly (statically linked)
@@ -71,12 +74,12 @@ SELECT * FROM read_csv_auto('https://example.com/data.csv');
 SELECT * FROM read_parquet('s3://bucket/key.parquet');
 ```
 
-DuckDB does not autoload `excel` for `COPY ... TO 'file.xlsx'`. Install and
-load it explicitly in the same `sq sql` invocation (an explicit `LOAD` on its
-own does not install):
+DuckDB does not autoload `excel` for `COPY ... TO 'file.xlsx'`, so that
+statement is not available through `sq sql`. To write Excel files, use `sq`'s
+own [`--xlsx`](/docs/output#xlsx) output instead:
 
 ```shell
-$ sq sql --src @sakila_duck "INSTALL excel; LOAD excel; COPY (SELECT * FROM actor) TO 'actor.xlsx' (FORMAT xlsx)"
+$ sq --xlsx .actor > actor.xlsx
 ```
 
 Setting the `enable_external_access=false` connection parameter disables

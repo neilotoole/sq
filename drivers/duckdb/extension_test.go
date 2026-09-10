@@ -72,10 +72,9 @@ func TestExtensions_OpenWithoutExtensionRepository(t *testing.T) {
 //
 // Non-static extensions are downloaded into ~/.duckdb on first use, so
 // this test needs network access on a machine with a cold extension
-// cache (as did the previous eager INSTALL on every open). It is the only
-// test in the repo with that dependency, and it deliberately runs under
-// -short too, so that the PR loop catches a duckdb-go bump that breaks
-// autoload.
+// cache (as did the previous eager INSTALL on every open). It deliberately
+// runs under -short too, so that the PR loop catches a duckdb-go bump that
+// breaks autoload; CI caches ~/.duckdb/extensions for this reason.
 func TestExtensions_AutoloadOnDemand(t *testing.T) {
 	xlsxPath := filepath.ToSlash(proj.Abs(sakila.PathXLSXActorHeader))
 
