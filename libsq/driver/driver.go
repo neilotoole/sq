@@ -332,11 +332,22 @@ type Metadata struct {
 	DefaultPort int `json:"default_port" yaml:"default_port"`
 }
 
-// OpeningPing is a standardized mechanism to ping db using
-// driver.OptConnOpenTimeout. This should be invoked by each SQL
-// driver impl in its Open method. If the ping fails, db is closed.
-// In practice, this function probably isn't needed. Maybe ditch it.
-func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
+// OpeningPing verifies db connectivity at grip-open, under
+// [OptConnOpenTimeout]. Each SQL driver impl should invoke it from its Open
+// method. If the ping fails, db is closed and an error is returned.
+//
+// Rather than a bare ping, fetchSemver (typically the driver's
+// [SQLDriver.DBSemver]) is executed as the ping: a successful version select
+// proves the connection alive just as well, and the returned semver lets the
+// caller prime its grip's [SemverCache], so the pipeline's render-time DBSemver
+// read costs no further round-trip (issue #1013). A fetchSemver failure is not
+// treated as a connectivity failure: a plain ping runs instead, so a live
+// server that rejects the version query (e.g. a restricted proxy, or an
+// under-privileged account) still opens, and the returned semver is empty,
+// meaning undeterminable.
+func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB,
+	fetchSemver func(ctx context.Context, db sqlz.DB) (string, error),
+) (ver string, err error) {
 	bar := progress.FromContext(ctx).NewWaiter("Ping " + src.Handle)
 	defer bar.Stop()
 
@@ -344,16 +355,22 @@ func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
 	timeout := OptConnOpenTimeout.Get(o)
 	ctx, cancelFn := context.WithTimeout(ctx, timeout)
 	defer cancelFn()
+	log := lg.FromContext(ctx)
 
-	if err := db.PingContext(ctx); err != nil {
+	if ver, err = fetchSemver(ctx, db); err == nil {
+		return ver, nil
+	}
+	log.Debug("Opening ping: version fetch failed, falling back to plain ping",
+		lga.Src, src, lga.Err, err)
+
+	if err = db.PingContext(ctx); err != nil {
 		err = errz.Wrapf(err, "open ping %s", src.Handle)
-		log := lg.FromContext(ctx)
 		log.Error("Failed opening ping", lga.Src, src, lga.Err, err)
 		lg.WarnIfCloseError(log, lgm.CloseDB, db)
-		return err
+		return "", err
 	}
 
-	return nil
+	return "", nil
 }
 
 // EmptyDataError indicates that there's no data, e.g. an empty document.

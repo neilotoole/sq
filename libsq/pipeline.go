@@ -326,7 +326,9 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 // dbSemverOf returns grip's canonical semver, or "" if it can't be determined.
 // Renderers compare "" below every feature-version threshold, so an
 // undeterminable version falls back to SQL valid on all server versions rather
-// than failing the query.
+// than failing the query. This is normally a cache hit: the version is fetched
+// as part of the connectivity check when the grip is opened (see
+// driver.OpeningPing), so no extra round-trip is made here.
 func dbSemverOf(ctx context.Context, grip driver.Grip) string {
 	v, _ := grip.DBSemver(ctx)
 	return v

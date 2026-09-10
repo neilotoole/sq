@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -1602,4 +1603,28 @@ func TestNotExistError(t *testing.T) {
 	require.True(t, errz.Has[*driver.NotExistError](err))
 	err = fmt.Errorf("wrap me: %w", err)
 	require.True(t, errz.Has[*driver.NotExistError](err))
+}
+
+// TestDriver_Open_PrimesDBSemver verifies that opening a SQL source primes the
+// grip's server-version cache, so that the pipeline's render-time DBSemver read
+// is a cache hit rather than a fresh round-trip (issue #1013). A cancelled
+// context is used for the read: a primed cache returns without touching the
+// server, whereas an unprimed one would attempt a query and fail on the ctx.
+func TestDriver_Open_PrimesDBSemver(t *testing.T) {
+	t.Parallel()
+
+	for _, handle := range sakila.SQLAll() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			_, _, _, grip, _ := testh.NewWith(t, handle)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+
+			v, err := grip.DBSemver(ctx)
+			require.NoError(t, err, "DBSemver should be served from the cache primed at open")
+			require.True(t, semver.IsValid(v), "expected a canonical semver, got %q", v)
+		})
+	}
 }
