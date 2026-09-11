@@ -146,12 +146,23 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.Ac
 	if err != nil {
 		return nil, err
 	}
-	// Use duckdb-go's connector with a per-connection init function
-	// (connInitFn). On each new pooled connection it runs INSTALL (memoized
-	// once per process), LOAD for every bundled extension, and SET
-	// enable_progress_bar — DuckDB's LOAD and SET are session-scoped, so
-	// they must repeat on every connection.
-	connector, err := duckdbdriver.NewConnector(dsn, connInitFn)
+	// No per-connection init function. In particular, extensions are not
+	// installed or loaded here. Only json, parquet, icu, autocomplete and
+	// core_functions are statically linked into the duckdb-go-bindings
+	// engine; every other extension is a separate shared library that DuckDB
+	// installs into its extension directory (~/.duckdb by default) and loads
+	// on first use via autoinstall_known_extensions and
+	// autoload_known_extensions, both of which default to true.
+	//
+	// The driver used to run INSTALL for a fixed set once per process and
+	// LOAD for each of them on every new connection. Each LOAD of a
+	// non-static extension reads and hashes the file to verify its
+	// signature (tens of MB per database open), which cost seconds per open
+	// on Windows, and on a cold cache the INSTALL made every open depend on
+	// the extension repository being reachable. See #1151. The limitations
+	// of relying on autoload instead, and the plan to remove them by
+	// statically linking the extensions sq needs, are in #1155.
+	connector, err := duckdbdriver.NewConnector(dsn, nil)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
