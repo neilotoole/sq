@@ -47,6 +47,7 @@ func TestDriver_DriverMetadata(t *testing.T) {
 	md := newDriver(t).DriverMetadata()
 	require.Equal(t, drivertype.MSSQL, md.Type)
 	require.True(t, md.IsSQL)
+	require.False(t, md.IsEmbeddedSQL)
 	require.Equal(t, 1433, md.DefaultPort)
 	require.NotEmpty(t, md.Description)
 	require.NotEmpty(t, md.Doc)

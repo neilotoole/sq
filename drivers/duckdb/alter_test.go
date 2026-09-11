@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -134,4 +136,70 @@ func TestAlterTableColumnKinds_MismatchedLengths(t *testing.T) {
 		[]kind.Kind{kind.Text, kind.Int}, // one too many kinds
 	)
 	require.Error(t, err)
+}
+
+// TestAlterTruncate_EmbeddedQuoteIdentifier covers a table or column name that
+// contains a double quote (creatable, for example, from a CSV header). The
+// alter, truncate, and row-count (TableMetadata) paths previously used Go's %q
+// verb to quote identifiers, which emits C-style backslash escaping ("we\"ird")
+// that DuckDB rejects. Each path must use SQL double-quote escaping ("we""ird")
+// via stringz.DoubleQuote, matching how the driver already quotes identifiers in
+// CopyTable and DropTable, and matching the SQLite and rqlite fix in #821.
+func TestAlterTruncate_EmbeddedQuoteIdentifier(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "embed_quote_test.duckdb")
+
+	db, err := sql.Open("duckdb", dbPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@embed_quote_test",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + dbPath,
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+
+	const (
+		tblName    = `we"ird`
+		newName    = `we"ird2`
+		colName    = `na"me`
+		renamedCol = `re"named`
+	)
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: newName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		"CREATE TABLE "+stringz.DoubleQuote(tblName)+" (id INTEGER)")
+	require.NoError(t, err)
+
+	// AlterTableAddColumn: add a column whose name also contains a quote.
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tblName, colName, kind.Text))
+
+	// AlterTableRenameColumn: rename the quoted column to another quoted name.
+	require.NoError(t, drvr.AlterTableRenameColumn(th.Context, db, tblName, colName, renamedCol))
+
+	md, err := grip.TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.NotNil(t, md.Column(renamedCol), "renamed quoted column not found")
+	require.Nil(t, md.Column(colName), "old quoted column should not exist after rename")
+
+	// Truncate: insert a row, then delete all rows via the truncate path.
+	_, err = db.ExecContext(th.Context,
+		"INSERT INTO "+stringz.DoubleQuote(tblName)+" (id) VALUES (1)")
+	require.NoError(t, err)
+	affected, err := drvr.Truncate(th.Context, src, tblName, false)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), affected)
+
+	// AlterTableRename: rename the quoted table to another quoted name.
+	require.NoError(t, drvr.AlterTableRename(th.Context, db, tblName, newName))
+	exists, err := drvr.TableExists(th.Context, db, newName)
+	require.NoError(t, err)
+	require.True(t, exists)
 }

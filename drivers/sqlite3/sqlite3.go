@@ -128,10 +128,11 @@ func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any,
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        drivertype.SQLite,
-		Description: "SQLite",
-		Doc:         "https://github.com/mattn/go-sqlite3",
-		IsSQL:       true,
+		Type:          drivertype.SQLite,
+		Description:   "SQLite",
+		Doc:           "https://github.com/mattn/go-sqlite3",
+		IsSQL:         true,
+		IsEmbeddedSQL: true,
 	}
 }
 
@@ -144,11 +145,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessM
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -248,6 +252,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		Placeholders:   placeholders,
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 500,
+		SingleWriter:   true,
 		Ops:            dialect.DefaultOps(),
 		ExecModeFor:    dialect.DefaultExecModeFor,
 		Joins:          jointype.All(),

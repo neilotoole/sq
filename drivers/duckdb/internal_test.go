@@ -17,6 +17,16 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+// TestDriverMetadata verifies the static driver metadata. DuckDB is an
+// embedded SQL driver.
+func TestDriverMetadata(t *testing.T) {
+	md := (&driveri{}).DriverMetadata()
+	require.Equal(t, drivertype.DuckDB, md.Type)
+	require.True(t, md.IsSQL)
+	require.True(t, md.IsEmbeddedSQL)
+	require.LessOrEqual(t, md.DefaultPort, 0)
+}
+
 func TestMungeLocation(t *testing.T) {
 	cwd, err := os.Getwd()
 	require.NoError(t, err)
@@ -195,6 +205,27 @@ func TestPathFromLocation(t *testing.T) {
 	}
 }
 
+// TestParseDuckDBGeneratedColumnNames_UnbalancedParenInLiteral verifies that
+// a string literal containing an unbalanced closing paren does not confuse the
+// outer column-list boundary scanner in parseDuckDBGeneratedColumnNames.
+//
+// The old scanner was not literal-aware: ':)' caused it to close the depth
+// counter prematurely, truncating the column list so that the GENERATED ALWAYS
+// AS column that follows was silently dropped (map entry absent, Generated not
+// set).  After the fix the scanner tracks single-quoted literals and ignores
+// parens inside them.
+func TestParseDuckDBGeneratedColumnNames_UnbalancedParenInLiteral(t *testing.T) {
+	ddl := `CREATE TABLE t (a INT, note VARCHAR DEFAULT ':)', doubled INT GENERATED ALWAYS AS (a*2))`
+	got := parseDuckDBGeneratedColumnNames(ddl)
+	require.NotNil(t, got, "result map must not be nil")
+	require.True(t, got["doubled"],
+		"'doubled' must be marked as generated; unbalanced paren in literal must not truncate column list")
+	require.False(t, got["note"],
+		"'note' must not be marked as generated (it has a DEFAULT, not GENERATED ALWAYS AS)")
+	require.False(t, got["a"],
+		"'a' must not be marked as generated (plain column)")
+}
+
 // TestParseDuckDBIndexExpressions covers the shapes that
 // duckdb_indexes().expressions emits without needing a live DB.
 func TestParseDuckDBIndexExpressions(t *testing.T) {
@@ -307,4 +338,29 @@ func TestConnParams(t *testing.T) {
 	require.ElementsMatch(t, []string{"NULLS_FIRST", "NULLS_LAST"}, params["default_null_order"])
 	require.ElementsMatch(t, []string{"true", "false"}, params["enable_external_access"])
 	require.ElementsMatch(t, []string{"true", "false"}, params["enable_object_cache"])
+}
+
+func TestParseSemver(t *testing.T) {
+	testCases := []struct {
+		raw     string
+		want    string
+		wantErr bool
+	}{
+		{raw: "v1.5.2", want: "v1.5.2"}, // DuckDB version() is v-prefixed
+		{raw: "1.1.3", want: "v1.1.3"},
+		{raw: "not-a-version", wantErr: true},
+		{raw: "", wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.raw, func(t *testing.T) {
+			got, err := parseSemver(tc.raw)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
 }

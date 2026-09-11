@@ -20,7 +20,7 @@ func TestSchemaAndCatalogMethods(t *testing.T) {
 	tu.SkipShort(t, true)
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	require.Equal(t, src, grip.Source())
 
@@ -124,21 +124,21 @@ func TestRenderFuncs_Integration(t *testing.T) {
 	tu.SkipShort(t, true)
 
 	th := testh.New(t)
-	_ = th.Source(sakila.Rq)
+	_ = th.Source(sakila.RQ)
 
 	testCases := []struct {
 		name  string
 		query string
 	}{
-		{"contains", `@sakila_rq | .actor | where(contains(.first_name, "AN"))`},
-		{"startswith", `@sakila_rq | .actor | where(startswith(.first_name, "PEN"))`},
-		{"endswith", `@sakila_rq | .actor | where(endswith(.first_name, "AN"))`},
-		{"endswith_empty", `@sakila_rq | .actor | where(endswith(.first_name, ""))`},
-		{"icontains", `@sakila_rq | .actor | where(icontains(.first_name, "an"))`},
-		{"istartswith", `@sakila_rq | .actor | where(istartswith(.first_name, "pen"))`},
-		{"iendswith", `@sakila_rq | .actor | where(iendswith(.first_name, "an"))`},
-		{"like", `@sakila_rq | .actor | where(like(.first_name, "PEN%"))`},
-		{"ilike", `@sakila_rq | .actor | where(ilike(.first_name, "pen%"))`},
+		{"contains", sakila.RQ + ` | .actor | where(contains(.first_name, "AN"))`},
+		{"startswith", sakila.RQ + ` | .actor | where(startswith(.first_name, "PEN"))`},
+		{"endswith", sakila.RQ + ` | .actor | where(endswith(.first_name, "AN"))`},
+		{"endswith_empty", sakila.RQ + ` | .actor | where(endswith(.first_name, ""))`},
+		{"icontains", sakila.RQ + ` | .actor | where(icontains(.first_name, "an"))`},
+		{"istartswith", sakila.RQ + ` | .actor | where(istartswith(.first_name, "pen"))`},
+		{"iendswith", sakila.RQ + ` | .actor | where(iendswith(.first_name, "an"))`},
+		{"like", sakila.RQ + ` | .actor | where(like(.first_name, "PEN%"))`},
+		{"ilike", sakila.RQ + ` | .actor | where(ilike(.first_name, "pen%"))`},
 	}
 
 	for _, tc := range testCases {
@@ -161,7 +161,7 @@ func TestIntegerColumn_LargeValues(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	th.ExecSQL(src, "DROP TABLE IF EXISTS test_big_int")
 	t.Cleanup(func() { th.ExecSQL(src, "DROP TABLE IF EXISTS test_big_int") })
 	th.ExecSQL(src, "CREATE TABLE test_big_int (id INTEGER, n INTEGER)")
@@ -194,7 +194,7 @@ func TestGetTblRowCounts_MissingTableFallback(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	db, err := grip.DB(th.Context)
 	require.NoError(t, err)

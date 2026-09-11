@@ -95,6 +95,10 @@ func (g *fakeGrip) TableMetadata(_ context.Context, _ string) (*metadata.Table, 
 	return nil, errFakeGrip
 }
 
+func (g *fakeGrip) DBSemver(_ context.Context) (string, error) {
+	return "", errFakeGrip
+}
+
 func (g *fakeGrip) Close() error {
 	g.mu.Lock()
 	defer g.mu.Unlock()

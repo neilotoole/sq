@@ -17,11 +17,11 @@ import (
 )
 
 func TestRecordWriter(t *testing.T) {
-	const want = `- last_update: 2020-06-11T02:50:54Z
+	const want = `- last_update: 2006-02-15T04:34:33Z
   actor_id: 1
   last_name: GUINESS
   first_name: PENELOPE
-- last_update: 2020-06-11T02:50:54Z
+- last_update: 2006-02-15T04:34:33Z
   actor_id: 2
   last_name: WAHLBERG
   first_name: NICK
@@ -58,7 +58,7 @@ func TestGoccyYAMLTimestampEncode(t *testing.T) {
 	// without quotes, while the string representation is rendered with quotes.
 	// This test verifies that behavior.
 
-	const val = "2020-06-11T02:50:54Z"
+	const val = "2006-02-15T04:34:33Z"
 
 	enc := goccy.NewEncoder(io.Discard)
 

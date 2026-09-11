@@ -155,6 +155,19 @@ func (w *DBWriter) Open(ctx context.Context, cancelFn context.CancelFunc, recMet
 			case rec := <-w.recordCh:
 				if rec == nil {
 					// No more results on recordCh, it has been closed.
+
+					// A closed recordCh alone is ambiguous: QuerySQL closes it
+					// (via defer) on both success and failure, and on failure it
+					// cancels ctx *before* the close. So if ctx is cancelled here,
+					// the source read failed (or was cancelled); roll back rather
+					// than committing a partially-written table. Checking ctx.Err
+					// makes commit-vs-rollback deterministic even when this
+					// select picks recordCh over the ctx.Done case above (gh1017).
+					if ctxErr := ctx.Err(); ctxErr != nil {
+						w.rollback(ctx, tx, ctxErr)
+						return
+					}
+
 					// It's time to commit the tx.
 					// Note that Commit automatically closes any stmts
 					// that were prepared by tx.

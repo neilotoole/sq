@@ -32,9 +32,9 @@ const (
 
 // Paths for various testdata.
 const (
-	// PathSrcsConfig is the path of the yml file containing
-	// the test sources template config file.
-	PathSrcsConfig = "/testh/testdata/sources.sq.yml"
+	// PathTestConfig is the path of the yml file containing the test
+	// source config (handles, drivers, and ${env:...} placeholder Locations).
+	PathTestConfig = "/testh/testdata/test.sq.yml"
 
 	PathDriverDefPpl = "drivers/userdriver/xmlud/testdata/ppl.sq.yml"
 	PathDriverDefRSS = "drivers/userdriver/xmlud/testdata/rss.sq.yml"

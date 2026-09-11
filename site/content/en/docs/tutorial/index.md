@@ -26,7 +26,7 @@ Then start with `sq help`.
 ## Basics
 
 Let's set out with an example. We'll use a SQLite database,
-prepopulated with the [Sakila](/docs/develop/sakila) dataset. Note that for many
+prepopulated with the [Sakila](https://github.com/neilotoole/sq/blob/master/docs/SAKILA.md) dataset. Note that for many
 of these examples, the output will be abbreviated for brevity.
 
 ```shell

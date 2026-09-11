@@ -26,7 +26,7 @@ func TestRecordWriter_TblActor(t *testing.T) {
 		{name: "actor_0", numRecs: 0, want: nil},
 		{
 			name: "actor_3", numRecs: 3,
-			want: []byte("1PENELOPEGUINESS2020-06-11T02:50:54Z2NICKWAHLBERG2020-06-11T02:50:54Z3EDCHASE2020-06-11T02:50:54Z"),
+			want: []byte("1PENELOPEGUINESS2006-02-15T04:34:33Z2NICKWAHLBERG2006-02-15T04:34:33Z3EDCHASE2006-02-15T04:34:33Z"),
 		},
 	}
 

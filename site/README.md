@@ -101,7 +101,7 @@ Think of site testing as two layers:
 
 1. **Stable checks (merge-blocking on PRs)**
    `make ci` runs `make site-test`, which runs `bun run test:ci`. That includes
-   link checking against the **temporary local build** we serve for linting, but
+   offline link checking against a **temporary local build**, but
    it does **not** crawl arbitrary third-party websites. This is what you want
    to be strict about: broken docs routes, missing local assets, bad internal
    links, etc.
@@ -167,6 +167,25 @@ through to the deploy preview (e.g.,
 the deploy-preview URL from the PR checks) to verify your changes look
 correct.
 
+### Repository setup (maintainers)
+
+The `site/` tree was imported from the former
+[`sq-web`](https://github.com/neilotoole/sq-web) repository as a flat add; prior
+history remains in the archived `sq-web` repo.
+
+**Netlify:** the production site uses repository **`neilotoole/sq`**, **base
+directory** `site`, and the committed [`netlify.toml`](netlify.toml). Re-link the
+repo in Netlify if needed, and confirm deploy previews and the
+[`/version`](https://sq.io/version) endpoint (redirect to `version.json`) still
+resolve.
+
+**Branch protection:** configure [repository rulesets][rulesets] so that PRs
+touching **`site/**`** require the **Site CI** check (`site-ci.yml`) without
+requiring it on Go-only PRs (path-scoped rules). Plain "required status" lists
+interact badly with workflows that use `paths` filters and do not run on every PR.
+
+[rulesets]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets
+
 ### Build-time data & nightly refresh
 
 The header's **version badge** and **GitHub star count** are computed at build time rather than
@@ -197,7 +216,8 @@ use **`make site-build`** for a normal production build to `public/`.
 | ---------------------------- | --------------------------- | ----------------------------------------------------- |
 | `make check`                 | —                           | Verify Bun, Hugo, Netlify CLI, jq, curl               |
 | `make check-netlify`         | —                           | `make check` + `checkenv` on `.env`                   |
-| `make deps`                  | `bun install`               | Install dependencies                                  |
+| `make deps`                  | `bun install`               | Install dependencies and pinned Hugo/lychee binaries  |
+| `make deps-links`            | (sequence)                  | Install only dependencies needed by link checks       |
 | `make site-local`            | `bun scripts/dev-server.js` | Hugo dev server                                       |
 | `make smoke-test`            | (script)                    | Docker smoke checks (`validate-build.sh --start`)     |
 | `make site-test`             | `bun run test:ci`           | Stable linters + internal link check                  |
@@ -222,25 +242,31 @@ included in the documentation pages.
 
 ### Link Checking
 
-Link checking uses [linkinator](https://github.com/JustinBeckwith/linkinator).
+Link checking uses [lychee](https://github.com/lycheeverse/lychee). `bun install`
+downloads the version pinned in `package.json` as a checksummed release binary;
+Rust and Cargo are not required.
 
-- **Stable / PR-blocking (`test:ci`)** uses `lint:links:internal`, which checks the
-  locally served build without following arbitrary third-party `http(s)` links.
+- **Stable / PR-blocking (`test:ci`)** uses `lint:links:internal`, which checks a
+  generated Hugo build in lychee's offline mode.
 - **Full crawl (`lint:links`)** follows third-party links too. This is useful,
   but inherently more flaky.
 
 Some sites (e.g., StackOverflow) block automated crawlers, returning 403 errors
-in CI. Those domains are excluded in `linkinator.config.json`.
+in CI. Host exclusions and the external status policy live in `lychee.toml`.
+External 403, 429, and 5xx responses are tolerated; dead links such as 404 and
+410 remain fatal.
 
-Note: `linkinator` timeouts are configured in **milliseconds** in
-`linkinator.config.json` (see linkinator CLI help).
+`check-links.sh` builds into `.serve-lint`, maps generated `https://sq.io` URLs
+back to that directory, and invokes lychee with either `internal` or `full`
+scope. The nightly workflow uses `make deps-links` so unrelated package
+lifecycle scripts cannot prevent the link crawl from starting.
 
 ## Redirects
 
 - You can use the Hugo [alias](https://gohugo.io/content-management/urls/#aliases) mechanism to
   maintain an old path that will redirect to the new path.
 - If you need a redirect that's not associated with Hugo content, add an entry to
-  the [`static/_redirects`](/static/_redirects) file. This is what the site uses to
+  the [`static/_redirects`](./static/_redirects) file. This is what the site uses to
   serve the [sq.io/install.sh](https://sq.io/install.sh) script.
 
 ## Misc

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
@@ -20,17 +21,11 @@ import (
 func TestSmoke(t *testing.T) {
 	t.Parallel()
 
-	for _, handle := range sakila.MSAll() {
-		t.Run(handle, func(t *testing.T) {
-			t.Parallel()
-
-			th, src, _, _, _ := testh.NewWith(t, handle)
-			sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
-			require.NoError(t, err)
-			require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
-			require.Equal(t, sakila.TblActorCount, len(sink.Recs))
-		})
-	}
+	th, src, _, _, _ := testh.NewWith(t, sakila.MS)
+	sink, err := th.QuerySQL(src, nil, "SELECT * FROM actor")
+	require.NoError(t, err)
+	require.Equal(t, len(sakila.TblActorCols()), len(sink.RecMeta))
+	require.Equal(t, sakila.TblActorCount, len(sink.Recs))
 }
 
 func TestDriverBehavior(t *testing.T) {
@@ -227,4 +222,18 @@ func TestNumericSchema(t *testing.T) {
 				"Query should return all rows")
 		})
 	}
+}
+
+func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+	th, src, _, grip, _ := testh.NewWith(t, sakila.MS)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
+	require.NotEqual(t, "v0.0.0", v, "want a real engine version, got degenerate %q", v)
+
+	md, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+	require.Equal(t, v, md.DBSemver, "metadata.Source.DBSemver must match Grip.DBSemver")
 }

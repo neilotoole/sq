@@ -624,3 +624,103 @@ func TestResolveQualifiedColNames(t *testing.T) {
 		})
 	}
 }
+
+// TestClickHouse_ViewDefinition verifies that view definitions are populated via
+// both the per-table and source-wide metadata paths on ClickHouse.
+func TestClickHouse_ViewDefinition(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	th := testh.New(t)
+	src := th.Source(sakila.CH)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("vdef_base")
+	view := stringz.UniqTableName("vdef_view")
+
+	th.ExecSQL(src, `CREATE TABLE `+tbl+` (id Int64, label String) ENGINE = MergeTree() ORDER BY id`)
+	t.Cleanup(func() { th.ExecSQL(src, "DROP TABLE IF EXISTS "+tbl) })
+
+	th.ExecSQL(src, `CREATE VIEW `+view+` AS SELECT id, label FROM `+tbl+` WHERE id > 0`)
+	// Use DROP VIEW (not th.DropTable, which issues DROP TABLE and does NOT drop
+	// a ClickHouse view). Registered after the base-table cleanup so LIFO ordering
+	// drops the view first, avoiding a dangling view on the base table.
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(th.Context, "DROP VIEW IF EXISTS "+view)
+	})
+
+	// Per-table path.
+	md, err := th.Open(src).TableMetadata(th.Context, view)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.ViewDefinition, "ViewDefinition must be set for a view")
+	require.Contains(t, md.ViewDefinition, "SELECT")
+
+	// Source-wide path.
+	srcMd, err := th.Open(src).SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	var srcView *metadata.Table
+	for _, t2 := range srcMd.Tables {
+		if t2.Name == view {
+			srcView = t2
+			break
+		}
+	}
+	require.NotNil(t, srcView)
+	require.NotEmpty(t, srcView.ViewDefinition, "ViewDefinition must be set in source-wide metadata")
+	require.Contains(t, srcView.ViewDefinition, "SELECT")
+}
+
+// TestClickHouse_CheckConstraints verifies that named CHECK constraints are
+// returned by the per-table and source-wide metadata paths on ClickHouse.
+func TestClickHouse_CheckConstraints(t *testing.T) {
+	tu.SkipShort(t, true)
+
+	th := testh.New(t)
+	src := th.Source(sakila.CH)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("chk_constr")
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tbl+` (
+		id    Int64,
+		price Decimal(10,2),
+		CONSTRAINT chk_price_pos CHECK (price > 0)
+	) ENGINE = MergeTree() ORDER BY id`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.ExecSQL(src, "DROP TABLE IF EXISTS "+tbl) })
+
+	// Per-table path.
+	md, err := th.Open(src).TableMetadata(th.Context, tbl)
+	require.NoError(t, err)
+	require.NotEmpty(t, md.CheckConstraints, "expected at least one CHECK constraint")
+
+	var found *metadata.CheckConstraint
+	for _, cc := range md.CheckConstraints {
+		if cc.Name == "chk_price_pos" {
+			found = cc
+			break
+		}
+	}
+	require.NotNil(t, found, "chk_price_pos should be present in per-table metadata")
+	require.Equal(t, tbl, found.Table)
+	require.NotEmpty(t, found.Clause)
+	require.Contains(t, found.Clause, "price")
+
+	// Source-wide path.
+	srcMd, err := th.Open(src).SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+	var srcTbl *metadata.Table
+	for _, t2 := range srcMd.Tables {
+		if t2.Name == tbl {
+			srcTbl = t2
+			break
+		}
+	}
+	require.NotNil(t, srcTbl)
+	var found2 *metadata.CheckConstraint
+	for _, cc := range srcTbl.CheckConstraints {
+		if cc.Name == "chk_price_pos" {
+			found2 = cc
+			break
+		}
+	}
+	require.NotNil(t, found2, "chk_price_pos should appear in source-wide metadata")
+}

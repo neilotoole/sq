@@ -127,18 +127,20 @@ func TestCmdSLQ_Insert_MultipleSchemas(t *testing.T) {
 //   - SLQ query parsing and execution across different database backends
 //   - The CLI's ability to manage multiple source connections simultaneously
 //
-// The test matrix covers all combinations of supported SQL databases as both
-// origin (data source) and destination (insert target).
-// TestCmdSLQ_Insert exercises --insert across the SQLLatest() matrix of
-// origin x dest. The origin==dest cells are self-inserts; the
-// @sakila_duck/@sakila_duck cell is the regression guard for the DuckDB
-// self-insert path (handle+mode cache + QueryContext.WriteHandle, gh #779):
-// without it, the source would open read-only while the destination holds
-// the file read-write, which DuckDB rejects.
+// The test matrix pairs each engine with an embedded source (SQLite/DuckDB) as
+// both origin and destination, plus same-source self-inserts. External x external
+// cross pairs are excluded via sakila.CrossSourceDests because they don't scale
+// (multiple external containers live at once, O(N^2) in the number of engines)
+// and can't run under the per-engine CI model; see gh #964. The origin==dest
+// cells are self-inserts; the @sakila_duck/@sakila_duck cell is the regression
+// guard for the DuckDB self-insert path (handle+mode cache +
+// QueryContext.WriteHandle, gh #779): without it, the source would open
+// read-only while the destination holds the file read-write, which DuckDB
+// rejects.
 func TestCmdSLQ_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
 		t.Run("origin_"+origin, func(t *testing.T) {
-			for _, dest := range sakila.SQLLatest() {
+			for _, dest := range sakila.CrossSourceDests(origin) {
 				t.Run("dest_"+dest, func(t *testing.T) {
 					t.Parallel()
 

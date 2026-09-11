@@ -32,6 +32,123 @@ import (
 	"github.com/neilotoole/sq/testh/tu"
 )
 
+// TestCmdInspect_EnrichmentMetadata_JSON confirms that sq inspect surfaces the
+// full enrichment pipeline through the CLI JSON path. It creates a fresh temp
+// SQLite DB (no fixture, no network), populates it with:
+//   - a table with an AUTOINCREMENT PK, a REAL column with a CHECK constraint,
+//     and a GENERATED (virtual) column
+//   - an AFTER INSERT trigger on that table
+//   - a view over the table
+//
+// then runs sq inspect --json and asserts that the unmarshalled
+// *metadata.Source carries the expected enrichment fields:
+//   - PK column AutoIncrement == true
+//   - generated column Generated == true with non-empty GeneratedExpr
+//   - table CheckConstraints is non-empty and references the constrained column
+//   - table Triggers is non-empty with Timing == "AFTER" and Events containing "INSERT"
+//   - view ViewDefinition is non-empty
+func TestCmdInspect_EnrichmentMetadata_JSON(t *testing.T) {
+	t.Parallel()
+
+	// Create a fresh SQLite DB file; SQLite creates the file on first open.
+	dbPath := tu.TempFile(t, "enrichment_test.db")
+	const handle = "@enrich_test"
+	src := source.Source{
+		Handle:   handle,
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + dbPath,
+	}
+
+	th := testh.New(t)
+	db := th.OpenDB(&src)
+
+	// Table: AUTOINCREMENT PK, constrained REAL, and a virtual generated column.
+	_, err := db.ExecContext(th.Context, `
+		CREATE TABLE enrich_tbl (
+			id      INTEGER PRIMARY KEY AUTOINCREMENT,
+			amount  REAL    NOT NULL CHECK(amount > 0),
+			doubled REAL    GENERATED ALWAYS AS (amount * 2) VIRTUAL
+		)`)
+	require.NoError(t, err)
+
+	// Trigger: fires AFTER INSERT.
+	_, err = db.ExecContext(th.Context, `
+		CREATE TRIGGER enrich_trig
+		AFTER INSERT ON enrich_tbl
+		BEGIN
+			SELECT 1;
+		END`)
+	require.NoError(t, err)
+
+	// View over the table.
+	_, err = db.ExecContext(th.Context, `
+		CREATE VIEW enrich_view AS SELECT id, doubled FROM enrich_tbl`)
+	require.NoError(t, err)
+
+	// Build a testrun sharing the same source.
+	tr := testrun.New(th.Context, t, nil).Hush().Add(src)
+	require.NoError(t, tr.Exec("inspect", handle, "--json"))
+
+	srcMeta := &metadata.Source{}
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), srcMeta))
+
+	// Locate the table and view in the metadata.
+	var tblMeta, viewMeta *metadata.Table
+	for _, tbl := range srcMeta.Tables {
+		switch strings.ToLower(tbl.Name) {
+		case "enrich_tbl":
+			tblMeta = tbl
+		case "enrich_view":
+			viewMeta = tbl
+		}
+	}
+	require.NotNil(t, tblMeta, "enrich_tbl must appear in inspect JSON")
+	require.NotNil(t, viewMeta, "enrich_view must appear in inspect JSON")
+
+	// Column assertions.
+	var idCol, doubledCol *metadata.Column
+	for _, col := range tblMeta.Columns {
+		switch strings.ToLower(col.Name) {
+		case "id":
+			idCol = col
+		case "doubled":
+			doubledCol = col
+		}
+	}
+	require.NotNil(t, idCol, "id column must appear in enrich_tbl columns")
+	require.NotNil(t, doubledCol, "doubled column must appear in enrich_tbl columns")
+	require.True(t, idCol.AutoIncrement, "id column must have AutoIncrement == true")
+	require.True(t, doubledCol.Generated, "doubled column must have Generated == true")
+	require.Contains(t, doubledCol.GeneratedExpr, "amount",
+		"GeneratedExpr must reference the source column")
+
+	// CHECK constraint: the clause must reference the constrained column.
+	require.NotEmpty(t, tblMeta.CheckConstraints,
+		"enrich_tbl must have at least one check constraint")
+	var foundCheck bool
+	for _, cc := range tblMeta.CheckConstraints {
+		if strings.Contains(cc.Clause, "amount") {
+			foundCheck = true
+			break
+		}
+	}
+	require.True(t, foundCheck,
+		"a check constraint referencing 'amount' must be present in enrich_tbl")
+
+	// Trigger: AFTER INSERT.
+	require.NotEmpty(t, tblMeta.Triggers,
+		"enrich_tbl must have at least one trigger")
+	trig := tblMeta.Triggers[0]
+	require.Equal(t, "AFTER", strings.ToUpper(trig.Timing),
+		"trigger timing must be AFTER")
+	require.Contains(t, trig.Events, "INSERT",
+		"trigger must fire on INSERT")
+
+	// View definition: must name the base table.
+	require.Contains(t, viewMeta.ViewDefinition, "enrich_tbl",
+		"ViewDefinition must name the base table")
+}
+
 // TestCmdInspect_FKMetadata_JSON pins the end-to-end JSON shape of the
 // FK / unique-constraint / index metadata added by #498. It runs against
 // every SQL driver that supports foreign keys (i.e. everything except
@@ -118,8 +235,8 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 		{sakila.XLSX, sakila.AllTbls()},
 		{sakila.SL3, sakila.AllTbls()},
 		{sakila.Duck, sakila.AllTbls()},
-		{sakila.Rq, sakila.AllTbls()},
-		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
+		{sakila.RQ, sakila.AllTbls()},
+		{sakila.Pg, sakila.AllTbls()},
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
 	}
@@ -139,7 +256,6 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 			for _, tc := range testCases {
 				t.Run(tc.handle, func(t *testing.T) {
 					t.Parallel()
-					tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 					th := testh.New(t)
 					src := th.Source(tc.handle)
@@ -158,10 +274,6 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 					gotTableNames = lo.Intersect(gotTableNames, possibleTbls)
 
 					for _, wantTblName := range tc.wantTbls {
-						if src.Type == drivertype.Pg && wantTblName == sakila.TblFilmText {
-							// Postgres sakila DB doesn't have film_text for some reason
-							continue
-						}
 						require.Contains(t, gotTableNames, wantTblName)
 					}
 
@@ -204,7 +316,7 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 						require.NotEmpty(t, srcMeta.DBDriver)
 						require.NotEmpty(t, srcMeta.DBProduct)
 						require.NotEmpty(t, srcMeta.DBVersion)
-						if tc.handle == sakila.Rq {
+						if tc.handle == sakila.RQ {
 							require.Nil(t, srcMeta.Size, "rqlite shouldn't report a source size")
 						} else {
 							require.NotNil(t, srcMeta.Size)
@@ -245,7 +357,7 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 		{sakila.XLSX, sakila.AllTbls()},
 		{sakila.SL3, sakila.AllTbls()},
 		{sakila.Duck, sakila.AllTbls()},
-		{sakila.Pg, lo.Without(sakila.AllTbls(), sakila.TblFilmText)}, // pg doesn't have film_text
+		{sakila.Pg, sakila.AllTbls()},
 		{sakila.My, sakila.AllTbls()},
 		{sakila.MS, sakila.AllTbls()},
 	}
@@ -253,8 +365,6 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 	for _, tc := range testCases {
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
-
-			tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 			th := testh.New(t)
 			src := th.Source(tc.handle)
@@ -269,10 +379,6 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 			require.Contains(t, output, location.Redact(src.Location))
 
 			for _, wantTblName := range tc.wantTbls {
-				if src.Type == drivertype.Pg && wantTblName == "film_text" {
-					// Postgres sakila DB doesn't have film_text for some reason
-					continue
-				}
 				require.Contains(t, output, wantTblName)
 			}
 
@@ -747,6 +853,19 @@ func TestCmdInspect_mode_schemata(t *testing.T) {
 		Active  *bool  `json:"active" yaml:"active"`
 	}
 
+	// withoutSchema returns schemas with any entry named name removed. It's
+	// used to drop the "sys" schema expectation on MySQL < 5.7, where it
+	// doesn't exist.
+	withoutSchema := func(schemas []schema, name string) []schema {
+		out := make([]schema, 0, len(schemas))
+		for _, s := range schemas {
+			if s.Name != name {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+
 	testCases := []struct {
 		handle       string
 		wantSchemata []schema
@@ -813,7 +932,12 @@ func TestCmdInspect_mode_schemata(t *testing.T) {
 						return
 					}
 
-					for i, s := range tc.wantSchemata {
+					want := tc.wantSchemata
+					if tc.handle == sakila.My && !th.DBSemverAtLeast(sakila.My, "v5.7.0") {
+						// The "sys" schema was introduced in MySQL 5.7.
+						want = withoutSchema(want, "sys")
+					}
+					for i, s := range want {
 						require.Contains(t, gotSchemata, s, "wantSchemata[%d]", i)
 					}
 				})

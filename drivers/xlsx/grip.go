@@ -63,6 +63,11 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return md, nil
 }
 
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	return g.dbGrip.DBSemver(ctx)
+}
+
 // TableMetadata implements driver.Grip.
 func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	return g.dbGrip.TableMetadata(ctx, tblName)
