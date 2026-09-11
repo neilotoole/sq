@@ -813,8 +813,7 @@ func Test_Store_writeConfigBackupOnce_ConcurrentAtMostOnce(t *testing.T) {
 	var wg sync.WaitGroup
 	var wroteCount atomic.Int32
 	wg.Add(n)
-	for i := 0; i < n; i++ {
-		i := i
+	for i := range n {
 		go func() {
 			defer wg.Done()
 			ctx := lg.NewContext(context.Background(), lgt.New(t))

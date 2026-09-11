@@ -250,10 +250,10 @@ func placeholders(numCols, numRows int) string {
 	rows := make([]string, numRows)
 
 	var sb strings.Builder
-	for i := 0; i < numRows; i++ {
+	for i := range numRows {
 		sb.Reset()
 		sb.WriteRune('(')
-		for j := 0; j < numCols; j++ {
+		for j := range numCols {
 			sb.WriteRune('?')
 			if j < numCols-1 {
 				sb.WriteString(driver.Comma)

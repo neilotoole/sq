@@ -150,10 +150,10 @@ func TestGet_notModifiedRefresh(t *testing.T) {
 
 	const body = "conditional body"
 	lastModified := time.Now().UTC().Add(-time.Hour)
-	var hits int32
+	var hits atomic.Int32
 
 	srvr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&hits, 1)
+		hits.Add(1)
 		if r.Header.Get("If-Modified-Since") != "" {
 			// Refresh request: nothing changed.
 			w.WriteHeader(http.StatusNotModified)
@@ -191,7 +191,7 @@ func TestGet_notModifiedRefresh(t *testing.T) {
 	require.Nil(t, gotStream)
 	require.NotEmpty(t, gotFile)
 	require.Equal(t, body, tu.ReadFileToString(t, gotFile))
-	require.GreaterOrEqual(t, atomic.LoadInt32(&hits), int32(2))
+	require.GreaterOrEqual(t, hits.Load(), int32(2))
 }
 
 // TestGet_staleIfErrorServesStaleOn500 exercises the

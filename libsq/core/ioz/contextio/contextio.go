@@ -80,7 +80,7 @@ func NewWriter(ctx context.Context, w io.Writer) io.Writer {
 
 	wr := writer{ctx: ctx, w: w}
 	if _, ok := w.(io.Closer); ok {
-		return &copyCloser{writeCloser: writeCloser{writer: wr}}
+		return &copyCloser{writer: wr}
 	}
 
 	return &copier{writer: wr}

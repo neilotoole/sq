@@ -20,6 +20,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   invocation. The server version, needed for version-aware SQL rendering, is read
   during the connectivity check when the source is opened, instead of in a
   separate query.
+- ☢️ `sq` is now built with Go 1.27, which requires macOS 13 Ventura or later. macOS 12 Monterey
+  is no longer supported.
 
 ## [v0.55.0] - 2026-09-09
 

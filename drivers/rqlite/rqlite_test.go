@@ -363,7 +363,7 @@ func TestTruncate_Reset(t *testing.T) {
 	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
 
 	// Insert 3 rows so sqlite_sequence has data for this table.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err = db.ExecContext(th.Context,
 			fmt.Sprintf(`INSERT INTO %q (name) VALUES (?)`, tblName), "x")
 		require.NoError(t, err)
@@ -833,7 +833,7 @@ func TestBatchInsert(t *testing.T) {
 	const total = 1500
 	go func() {
 		defer close(bi.RecordCh)
-		for i := 0; i < total; i++ {
+		for i := range total {
 			rec := []any{int64(i), "b", "c", "2026-01-01T00:00:00"}
 			if mErr := bi.Munge(rec); mErr != nil {
 				t.Errorf("munge failed: %v", mErr)

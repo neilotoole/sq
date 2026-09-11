@@ -857,7 +857,7 @@ FROM user_triggers`
 		// the leading word. Deduplicate in case normalization produces repeats.
 		var events []string
 		seen := make(map[string]bool)
-		for _, e := range strings.Split(strings.ToUpper(trigEvent), " OR ") {
+		for e := range strings.SplitSeq(strings.ToUpper(trigEvent), " OR ") {
 			e = strings.TrimSpace(e)
 			if e == "" {
 				continue
