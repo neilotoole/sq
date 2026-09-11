@@ -20,13 +20,13 @@ such as an `output.ErrorWriter` and an `output.MetadataWriter`.
     "actor_id": 1,
     "first_name": "PENELOPE",
     "last_name": "GUINESS",
-    "last_update": "2020-06-11T02:50:54Z"
+    "last_update": "2006-02-15T04:34:33Z"
   },
   {
     "actor_id": 2,
     "first_name": "NICK",
     "last_name": "WAHLBERG",
-    "last_update": "2020-06-11T02:50:54Z"
+    "last_update": "2006-02-15T04:34:33Z"
   }
 ]
 ```
@@ -34,15 +34,15 @@ such as an `output.ErrorWriter` and an `output.MetadataWriter`.
 ## JSON Array `--jsona`
 
 ```json
-[1, "PENELOPE", "GUINESS", "2020-06-11T02:50:54Z"]
-[2, "NICK", "WAHLBERG", "2020-06-11T02:50:54Z"]
+[1, "PENELOPE", "GUINESS", "2006-02-15T04:34:33Z"]
+[2, "NICK", "WAHLBERG", "2006-02-15T04:34:33Z"]
 ```
 
 ## Object aka JSON Lines `--jsonl`
 
 ```json
-{"actor_id": 1, "first_name": "PENELOPE", "last_name": "GUINESS", "last_update": "2020-06-11T02:50:54Z"}
-{"actor_id": 2, "first_name": "NICK", "last_name": "WAHLBERG", "last_update": "2020-06-11T02:50:54Z"}
+{"actor_id": 1, "first_name": "PENELOPE", "last_name": "GUINESS", "last_update": "2006-02-15T04:34:33Z"}
+{"actor_id": 2, "first_name": "NICK", "last_name": "WAHLBERG", "last_update": "2006-02-15T04:34:33Z"}
 ```
 
 ## Notes

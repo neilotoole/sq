@@ -4,7 +4,7 @@
 
 [`sakila.db`](./sakila.db) contains the standard Sakila dataset. It can be regenerated
 from the `sqlite-sakila-X.sql` SQL scripts
-using [`recreate_sakila_sqlite.sh`](./recreate_sakila_sqlite.sh%60).
+using [`recreate_sakila_sqlite.sh`](./recreate_sakila_sqlite.sh).
 
 ## sakila_diff.db
 

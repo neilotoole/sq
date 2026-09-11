@@ -10,28 +10,27 @@ Dependabot PR title and `site/bun.lock` diff against this list.
 - Replacement/alternate PRs may be needed if Dependabot cannot auto-resolve
   (see sq repo history: held PRs, manual migration).
 
-## ESLint ecosystem (T3 when major)
+## JS lint / formatting (moved to root toolchain)
 
-- Flat config (`eslint.config.js`) — major bumps often need rule fixes across
-  `site/scripts/`, `site/bunfig.toml`, and content tooling.
-- Run `make site-test` after merge; expect multi-file lint fixes in a follow-up
-  commit if merging a major without a dedicated migration branch.
-
-## Stylelint (T3 when major)
-
-- Can fail on Doks/Hugo template-adjacent CSS and custom properties.
-- Compare `stylelint.config.*` changelog; run `bun run lint:styles` locally.
+Site JS linting (formerly ESLint) and formatting (formerly Stylelint /
+markdownlint) moved to the repo-root Bun toolchain: **Biome** (JS lint) and
+**dprint** (formatting). Those bumps arrive through the **root `/` bun
+ecosystem**, not this site flow, so they are out of scope here.
+`site/package.json` no longer carries any linter or formatter.
 
 ## `flexsearch` / search index (T4)
 
 - Affects client-side search behavior and index build scripts.
 - Smoke-test search on preview (`/` site search UI) before merge.
 
-## `linkinator` (T2–T3)
+## Link-check tooling (T2–T3)
 
-- Timeout and skip-list changes affect CI noise, not just dependency version.
-- Full external crawl remains **non-blocking** on PRs; do not block T0/T1 merges
-  on nightly/external flake unless `make site-test` fails.
+- Lychee is a package.json-pinned release binary, not a Bun package. Version
+  changes require a dedicated PR that updates `otherDependencies.lychee` and
+  every platform checksum in `scripts/install-lychee.sh`.
+- Timeout, accepted-status, and exclusion changes in `lychee.toml` affect CI
+  noise. Full external crawls remain **non-blocking** on PRs; do not block T0/T1
+  merges on nightly/external flake unless `make site-test` fails.
 
 ## `netlify-cli` (T2; can fail Layer A while Site CI passes)
 

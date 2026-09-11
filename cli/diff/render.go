@@ -28,6 +28,7 @@ func renderSourceMeta2YAML(sm *metadata.Source) (string, error) {
 		DBDriver   drivertype.Type `json:"db_driver" yaml:"db_driver"`
 		DBProduct  string          `json:"db_product" yaml:"db_product"`
 		DBVersion  string          `json:"db_version" yaml:"db_version"`
+		DBSemver   string          `json:"db_semver,omitempty" yaml:"db_semver,omitempty"`
 		User       string          `json:"user,omitempty" yaml:"user,omitempty"`
 		Size       *int64          `json:"size,omitempty" yaml:"size,omitempty"`
 		TableCount int64           `json:"table_count" yaml:"table_count"`
@@ -44,6 +45,7 @@ func renderSourceMeta2YAML(sm *metadata.Source) (string, error) {
 		DBDriver:   sm.DBDriver,
 		DBProduct:  sm.DBProduct,
 		DBVersion:  sm.DBVersion,
+		DBSemver:   sm.DBSemver,
 		User:       sm.User,
 		Size:       sm.Size,
 		TableCount: sm.TableCount,
@@ -77,11 +79,14 @@ func renderTableMeta2YAML(showRowCounts bool, tm *metadata.Table) (string, error
 		DBTableType string `json:"table_type_db,omitempty" yaml:"table_type_db,omitempty"`
 		// RowCount is a pointer, because its display is controlled
 		// by a variable.
-		RowCount    *int64             `json:"row_count,omitempty" yaml:"row_count,omitempty"`
-		Size        *int64             `json:"size,omitempty" yaml:"size,omitempty"`
-		Comment     string             `json:"comment,omitempty" yaml:"comment,omitempty"`
-		ColumnCount int64              `json:"column_count" yaml:"column_count"`
-		Columns     []*metadata.Column `json:"columns" yaml:"columns"`
+		RowCount         *int64                      `json:"row_count,omitempty" yaml:"row_count,omitempty"`
+		Size             *int64                      `json:"size,omitempty" yaml:"size,omitempty"`
+		Comment          string                      `json:"comment,omitempty" yaml:"comment,omitempty"`
+		ColumnCount      int64                       `json:"column_count" yaml:"column_count"`
+		Columns          []*metadata.Column          `json:"columns" yaml:"columns"`
+		CheckConstraints []*metadata.CheckConstraint `json:"check_constraints,omitempty" yaml:"check_constraints,omitempty"`
+		Triggers         []*metadata.Trigger         `json:"triggers,omitempty" yaml:"triggers,omitempty"`
+		ViewDefinition   string                      `json:"view_definition,omitempty" yaml:"view_definition,omitempty"`
 	}
 
 	tmr := &tableMeta{
@@ -91,10 +96,13 @@ func renderTableMeta2YAML(showRowCounts bool, tm *metadata.Table) (string, error
 		DBTableType: tm.DBTableType,
 		// TODO: Printing of Size should be controlled by a param,
 		// e.g. "show-volatile-fields". Until then, we omit it.
-		Size:        nil,
-		Comment:     tm.Comment,
-		ColumnCount: int64(len(tm.Columns)),
-		Columns:     tm.Columns,
+		Size:             nil,
+		Comment:          tm.Comment,
+		ColumnCount:      int64(len(tm.Columns)),
+		Columns:          tm.Columns,
+		CheckConstraints: tm.CheckConstraints,
+		Triggers:         tm.Triggers,
+		ViewDefinition:   tm.ViewDefinition,
 	}
 
 	if showRowCounts {

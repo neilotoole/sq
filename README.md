@@ -86,10 +86,15 @@ scoop bucket add sq https://github.com/neilotoole/sq
 scoop install sq
 ```
 
-### Go
+### Source
+
+Prefer a package manager above, or a [release binary](https://github.com/neilotoole/sq/releases).
+`go install` needs the SQLite build tags, and its binary reports version `v0.0.0-dev`; use
+`make install` from a clone for a version-stamped build.
 
 ```shell
-go install github.com/neilotoole/sq
+go install -tags "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions" \
+  github.com/neilotoole/sq@latest
 ```
 
 ### Docker
@@ -332,8 +337,8 @@ Read more about cross-source joins in the [query guide](https://sq.io/docs/query
 ### Table commands
 
 `sq` provides several handy commands for working with tables:
-[`tbl copy`](/docs/cmd/tbl-copy), [`tbl truncate`](/docs/cmd/tbl-truncate)
-and [`tbl drop`](/docs/cmd/tbl-drop).
+[`tbl copy`](https://sq.io/docs/cmd/tbl-copy), [`tbl truncate`](https://sq.io/docs/cmd/tbl-truncate)
+and [`tbl drop`](https://sq.io/docs/cmd/tbl-drop).
 Note that these commands work directly
 against SQL database sources, using their native SQL commands.
 
@@ -381,7 +386,11 @@ $ cat ./example.xlsx | sq inspect
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md).
+Bug reports, feature requests, and pull requests are welcome. Start with
+[CONTRIBUTING.md](./CONTRIBUTING.md). Contributor and maintainer docs
+(architecture, drivers, grammar, workflows) are indexed in
+[`docs/README.md`](./docs/README.md), and [AGENTS.md](./AGENTS.md) covers
+AI-agent conventions.
 
 ## CHANGELOG
 

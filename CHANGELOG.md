@@ -1,8 +1,3 @@
-<!-- CHANGELOG is hand-maintained release notes: long lines (MD013), tab-aligned
-     pasted command/test output in code blocks (MD010), and many issue-reference
-     link definitions (MD053) are intentional and intrinsic to the format. -->
-<!-- markdownlint-configure-file { "MD013": false, "MD010": false, "MD053": false } -->
-
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
@@ -16,6 +11,52 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > Sometimes this `CHANGELOG.md` has gaps between versions, e.g. `v0.18.0` to
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
+
+## [Unreleased]
+
+### Added
+
+- [#718]: [Parquet driver](https://sq.io/docs/drivers/parquet): add Apache Parquet as a first-class
+  document source. Reads via the bundled DuckDB `parquet` and `httpfs` extensions, so column and
+  predicate pushdown apply for local and remote files. Supports `sq add`, `sq inspect`, `sq diff`,
+  SLQ queries, and stdin piping (`cat events.parquet | sq '.data'`) on `.parquet` and `.pq` files.
+
+### Changed
+
+- [#1013]: Querying a remote source now makes one fewer server round-trip per `sq`
+  invocation. The server version, needed for version-aware SQL rendering, is read
+  during the connectivity check when the source is opened, instead of in a
+  separate query.
+
+## [v0.55.0] - 2026-09-09
+
+### Added
+
+- [#986]: [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) with `-j` / `-y` now
+  reports an `is_embedded_sql` field for each driver, `true` for the in-process SQL
+  drivers (SQLite, DuckDB) and `false` for the networked engines (including rqlite,
+  which is SQLite-backed but reached over HTTP) and non-SQL drivers.
+
+### Changed
+
+- ☢️ [#1136]: In JSON output, a backspace or form feed inside a string value is now written using
+  its two-character short escape instead of the six-character numeric escape. This aligns `sq` with
+  the behavior of `encoding/json` since [Go 1.22](https://go.dev/doc/go1.22#encoding/json). Both
+  spellings decode to the same string, so anything that parses `sq`'s JSON is unaffected, and only
+  output containing one of those two characters changes at all. Stored fixtures, golden files or
+  checksums that compare `sq`'s JSON byte-for-byte may need regenerating.
+
+### Fixed
+
+- [#975]: A join across two sources could fail with `database is locked` when
+  large tables were copied into the temporary join database.
+- [#1017]: A canceled or failed table copy or ingest could commit a partially-written
+  table instead of rolling back.
+- [#976], [#994]: The DuckDB driver now correctly quotes table, column, and schema
+  names that contain a double quote (e.g. a `we"ird` table created from a CSV
+  header), completing the identifier-quoting fix [#821] applied to SQLite and rqlite.
+- [#968]: Aligned the SQLite and DuckDB Sakila test fixtures with the canonical
+  schema used by the other drivers.
 
 ## [v0.54.1] - 2026-06-23
 
@@ -34,10 +75,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- [#718]: [Parquet driver](https://sq.io/docs/drivers/parquet): add Apache Parquet as a first-class
-  document source. Reads via the bundled DuckDB `parquet` and `httpfs` extensions, so column and
-  predicate pushdown apply for local and remote files. Supports `sq add`, `sq inspect`, `sq diff`,
-  SLQ queries, and stdin piping (`cat events.parquet | sq '.data'`) on `.parquet` and `.pq` files.
 - 🐥 [#444]: New [driver](https://sq.io/docs/drivers/rqlite) for
   [rqlite](https://rqlite.io), the lightweight distributed database built on SQLite.
 - [#441]: Revamped [secrets handling](https://sq.io/docs/secrets). Source credentials no
@@ -1740,6 +1777,14 @@ make working with lots of sources much easier.
 [#920]: https://github.com/neilotoole/sq/pull/920
 [#923]: https://github.com/neilotoole/sq/pull/923
 [#926]: https://github.com/neilotoole/sq/pull/926
+[#968]: https://github.com/neilotoole/sq/issues/968
+[#975]: https://github.com/neilotoole/sq/issues/975
+[#976]: https://github.com/neilotoole/sq/pull/976
+[#986]: https://github.com/neilotoole/sq/issues/986
+[#994]: https://github.com/neilotoole/sq/pull/994
+[#1013]: https://github.com/neilotoole/sq/issues/1013
+[#1017]: https://github.com/neilotoole/sq/issues/1017
+[#1136]: https://github.com/neilotoole/sq/issues/1136
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
@@ -1812,3 +1857,4 @@ make working with lots of sources much easier.
 [v0.53.0]: https://github.com/neilotoole/sq/compare/v0.52.0...v0.53.0
 [v0.54.0]: https://github.com/neilotoole/sq/compare/v0.53.0...v0.54.0
 [v0.54.1]: https://github.com/neilotoole/sq/compare/v0.54.0...v0.54.1
+[v0.55.0]: https://github.com/neilotoole/sq/compare/v0.54.1...v0.55.0

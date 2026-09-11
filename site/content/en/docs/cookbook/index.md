@@ -11,8 +11,8 @@ url: /docs/cookbook
 This cookbook demonstrates how to perform various tasks using `sq`.
 
 - If not otherwise specified, assume the `@sakila_sl3` data source is present.
-  See the [SQLite section of the sakila page](/docs/develop/sakila#sqlite) to
-  add that source.
+  Download [`sakila.db`](https://sq.io/testdata/sakila.db) and add it with
+  `sq add ./sakila.db -N @sakila_sl3`.
 - The snippets were created on macOS (using `zsh`).
 - Some of these examples require [jq](https://jqlang.github.io/jq/).
 

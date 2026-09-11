@@ -220,6 +220,274 @@ func TestRecordMeta_BlobScan(t *testing.T) {
 	require.Nil(t, recs[1][1])
 }
 
+// TestInspect_GeneratedColumn verifies that a column declared GENERATED ALWAYS
+// AS is flagged as generated and that a regular DEFAULT column is not.
+func TestInspect_GeneratedColumn(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@gen_col_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (
+		id      INTEGER,
+		price   DECIMAL(10,2) DEFAULT 9.99,
+		tax     DECIMAL(10,2) GENERATED ALWAYS AS (price * 0.1),
+		note    VARCHAR DEFAULT 'GENERATED ALWAYS AS legacy'
+	)`)
+	require.NoError(t, err)
+
+	// A second plain table ensures the schema-wide map build in
+	// getSchemaGeneratedColumns iterates over more than one table.
+	_, err = db.ExecContext(ctx, `CREATE TABLE plain (id INTEGER, name VARCHAR)`)
+	require.NoError(t, err)
+
+	t.Run("per_table", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "t")
+		require.NoError(t, err)
+
+		colByName := make(map[string]*metadata.Column, len(md.Columns))
+		for _, col := range md.Columns {
+			colByName[col.Name] = col
+		}
+
+		idCol := colByName["id"]
+		require.NotNil(t, idCol)
+		require.False(t, idCol.Generated, "plain column should not be marked generated")
+		require.Empty(t, idCol.DefaultValue)
+
+		priceCol := colByName["price"]
+		require.NotNil(t, priceCol)
+		require.False(t, priceCol.Generated, "DEFAULT column should not be marked generated")
+		require.NotEmpty(t, priceCol.DefaultValue, "regular default should be preserved")
+
+		taxCol := colByName["tax"]
+		require.NotNil(t, taxCol)
+		require.True(t, taxCol.Generated, "GENERATED ALWAYS AS column must be marked generated")
+		require.NotEmpty(t, taxCol.GeneratedExpr, "GeneratedExpr must be populated")
+		require.Empty(t, taxCol.DefaultValue, "generated expr must not appear as DefaultValue")
+
+		noteCol := colByName["note"]
+		require.NotNil(t, noteCol)
+		require.False(t, noteCol.Generated,
+			"column with GENERATED-keyword inside a string literal DEFAULT must NOT be marked generated")
+		require.NotEmpty(t, noteCol.DefaultValue,
+			"DEFAULT value must be preserved when literal contains GENERATED keyword")
+		require.Contains(t, noteCol.DefaultValue, "legacy")
+	})
+
+	t.Run("source_level", func(t *testing.T) {
+		srcMd, err := grip.SourceMetadata(ctx, false)
+		require.NoError(t, err)
+
+		var tbl *metadata.Table
+		for _, tb := range srcMd.Tables {
+			if tb.Name == "t" {
+				tbl = tb
+				break
+			}
+		}
+		require.NotNil(t, tbl, "generated-column table must appear in source metadata")
+
+		colByName := make(map[string]*metadata.Column, len(tbl.Columns))
+		for _, col := range tbl.Columns {
+			colByName[col.Name] = col
+		}
+
+		idCol := colByName["id"]
+		require.NotNil(t, idCol)
+		require.False(t, idCol.Generated, "plain column should not be marked generated")
+
+		taxCol := colByName["tax"]
+		require.NotNil(t, taxCol)
+		require.True(t, taxCol.Generated,
+			"GENERATED ALWAYS AS column must be marked generated in source-wide path")
+		require.NotEmpty(t, taxCol.GeneratedExpr, "GeneratedExpr must be populated in source-wide path")
+		require.Empty(t, taxCol.DefaultValue, "generated expr must not appear as DefaultValue")
+
+		noteCol := colByName["note"]
+		require.NotNil(t, noteCol)
+		require.False(t, noteCol.Generated,
+			"column with GENERATED-keyword inside a string literal DEFAULT must NOT be marked generated (source-wide path)")
+		require.NotEmpty(t, noteCol.DefaultValue,
+			"DEFAULT value must be preserved when literal contains GENERATED keyword (source-wide path)")
+		require.Contains(t, noteCol.DefaultValue, "legacy")
+	})
+}
+
+// TestInspect_GeneratedColumn_UnbalancedParenInDefault verifies that a table
+// whose DDL contains a string literal with an unbalanced closing paren in a
+// DEFAULT value does not suppress a subsequent GENERATED ALWAYS AS column.
+//
+// The outer column-list boundary scanner was not literal-aware; ':)' caused
+// it to close prematurely, dropping the generated column from the map and
+// leaving Generated=false.
+func TestInspect_GeneratedColumn_UnbalancedParenInDefault(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@gen_paren_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (
+		a       INT,
+		note    VARCHAR DEFAULT ':)',
+		doubled INT GENERATED ALWAYS AS (a*2)
+	)`)
+	require.NoError(t, err)
+
+	t.Run("per_table", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "t")
+		require.NoError(t, err)
+
+		colByName := make(map[string]*metadata.Column, len(md.Columns))
+		for _, col := range md.Columns {
+			colByName[col.Name] = col
+		}
+
+		noteCol := colByName["note"]
+		require.NotNil(t, noteCol)
+		require.False(t, noteCol.Generated, "note must not be marked generated")
+		require.NotEmpty(t, noteCol.DefaultValue, "note DEFAULT must be preserved")
+
+		doubledCol := colByName["doubled"]
+		require.NotNil(t, doubledCol)
+		require.True(t, doubledCol.Generated,
+			"doubled must be marked generated even though ':)' precedes it in the DDL")
+		require.NotEmpty(t, doubledCol.GeneratedExpr)
+	})
+
+	t.Run("source_level", func(t *testing.T) {
+		srcMd, err := grip.SourceMetadata(ctx, false)
+		require.NoError(t, err)
+
+		var tbl *metadata.Table
+		for _, tb := range srcMd.Tables {
+			if tb.Name == "t" {
+				tbl = tb
+				break
+			}
+		}
+		require.NotNil(t, tbl)
+
+		colByName := make(map[string]*metadata.Column, len(tbl.Columns))
+		for _, col := range tbl.Columns {
+			colByName[col.Name] = col
+		}
+
+		doubledCol := colByName["doubled"]
+		require.NotNil(t, doubledCol)
+		require.True(t, doubledCol.Generated,
+			"doubled must be marked generated in source-wide path")
+		require.NotEmpty(t, doubledCol.GeneratedExpr)
+	})
+}
+
+// TestInspect_CheckConstraint verifies that CHECK constraints are returned for
+// both per-table and source-level inspect.
+func TestInspect_CheckConstraint(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@check_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (
+		id    INTEGER,
+		price DECIMAL(10,2),
+		CONSTRAINT chk_price CHECK (price > 0)
+	)`)
+	require.NoError(t, err)
+
+	t.Run("per_table", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "t")
+		require.NoError(t, err)
+		require.Len(t, md.CheckConstraints, 1)
+		cc := md.CheckConstraints[0]
+		// DuckDB auto-generates constraint names (the CONSTRAINT name clause
+		// is not preserved in this version), so check only that a name is present.
+		require.NotEmpty(t, cc.Name)
+		require.Equal(t, "t", cc.Table)
+		require.NotEmpty(t, cc.Clause)
+	})
+
+	t.Run("source_level", func(t *testing.T) {
+		srcMd, err := grip.SourceMetadata(ctx, false)
+		require.NoError(t, err)
+		var tbl *metadata.Table
+		for _, tb := range srcMd.Tables {
+			if tb.Name == "t" {
+				tbl = tb
+				break
+			}
+		}
+		require.NotNil(t, tbl)
+		require.Len(t, tbl.CheckConstraints, 1)
+		require.NotEmpty(t, tbl.CheckConstraints[0].Name)
+	})
+}
+
+// TestInspect_ViewDefinition verifies that ViewDefinition is populated for
+// both per-table and source-level inspect.
+func TestInspect_ViewDefinition(t *testing.T) {
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@view_def_duck",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://:memory:",
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := context.Background()
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE t (id INT, name VARCHAR)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE VIEW v AS SELECT id, name FROM t`)
+	require.NoError(t, err)
+
+	t.Run("per_table", func(t *testing.T) {
+		md, err := grip.TableMetadata(ctx, "v")
+		require.NoError(t, err)
+		require.NotEmpty(t, md.ViewDefinition)
+		require.Contains(t, md.ViewDefinition, "SELECT")
+	})
+
+	t.Run("source_level", func(t *testing.T) {
+		srcMd, err := grip.SourceMetadata(ctx, false)
+		require.NoError(t, err)
+		var viewTbl *metadata.Table
+		for _, tbl := range srcMd.Tables {
+			if tbl.Name == "v" {
+				viewTbl = tbl
+				break
+			}
+		}
+		require.NotNil(t, viewTbl)
+		require.NotEmpty(t, viewTbl.ViewDefinition)
+		require.Contains(t, viewTbl.ViewDefinition, "SELECT")
+	})
+}
+
 // pkColumnNames returns the names of columns where PrimaryKey is true.
 func pkColumnNames(cols []*metadata.Column) []string {
 	var names []string

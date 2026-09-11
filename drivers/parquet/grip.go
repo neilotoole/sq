@@ -103,6 +103,12 @@ func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 	return md, errw(err)
 }
 
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	ver, err := g.dbGrip.DBSemver(ctx)
+	return ver, errw(err)
+}
+
 // Close implements driver.Grip.
 func (g *grip) Close() error {
 	g.log.Debug(lgm.CloseDB, lga.Handle, g.src.Handle)

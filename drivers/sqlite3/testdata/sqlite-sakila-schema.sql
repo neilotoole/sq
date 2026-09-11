@@ -183,7 +183,7 @@ CREATE TABLE customer (
   last_name VARCHAR(45) NOT NULL,
   email VARCHAR(50) DEFAULT NULL,
   address_id INT NOT NULL,
-  active CHAR(1) DEFAULT 'Y' NOT NULL,
+  active SMALLINT DEFAULT 1 NOT NULL,
   create_date TIMESTAMP NOT NULL,
   last_update TIMESTAMP NOT NULL,
   PRIMARY KEY  (customer_id),
@@ -327,7 +327,7 @@ CREATE TRIGGER film_category_trigger_au AFTER UPDATE ON film_category
 --
 
 CREATE TABLE film_text (
-  film_id SMALLINT NOT NULL,
+  film_id INT NOT NULL,
   title VARCHAR(255) NOT NULL,
   description BLOB SUB_TYPE TEXT,
   PRIMARY KEY  (film_id)
@@ -517,7 +517,7 @@ AS
 SELECT cu.customer_id AS ID,
        cu.first_name||' '||cu.last_name AS name,
        a.address AS address,
-       a.postal_code AS zip_code,
+       a.postal_code AS "zip code",
        a.phone AS phone,
        city.city AS city,
        country.country AS country,
@@ -539,10 +539,11 @@ SELECT film.film_id AS FID,
        film.rental_rate AS price,
        film.length AS length,
        film.rating AS rating,
-       actor.first_name||' '||actor.last_name AS actors
+       group_concat(actor.first_name||' '||actor.last_name, ', ' ORDER BY actor.first_name, actor.last_name, actor.actor_id) AS actors
 FROM category LEFT JOIN film_category ON category.category_id = film_category.category_id LEFT JOIN film ON film_category.film_id = film.film_id
         JOIN film_actor ON film.film_id = film_actor.film_id
     JOIN actor ON film_actor.actor_id = actor.actor_id
+GROUP BY film.film_id, film.title, film.description, category.name, film.rental_rate, film.length, film.rating
 ;
 
 --
@@ -554,7 +555,7 @@ AS
 SELECT s.staff_id AS ID,
        s.first_name||' '||s.last_name AS name,
        a.address AS address,
-       a.postal_code AS zip_code,
+       a.postal_code AS "zip code",
        a.phone AS phone,
        city.city AS city,
        country.country AS country,
@@ -569,8 +570,7 @@ FROM staff AS s JOIN address AS a ON s.address_id = a.address_id JOIN city ON a.
 CREATE VIEW sales_by_store
 AS
 SELECT
-  s.store_id
- ,c.city||','||cy.country AS store
+  c.city||','||cy.country AS store
  ,m.first_name||' '||m.last_name AS manager
  ,SUM(p.amount) AS total_sales
 FROM payment AS p
@@ -641,7 +641,37 @@ LEFT JOIN sakila.category c
 GROUP BY a.actor_id, a.first_name, a.last_name;
 */
 
--- TO DO PROCEDURES
--- TO DO TRIGGERS
+CREATE VIEW nicer_but_slower_film_list
+AS
+SELECT film.film_id AS FID,
+       film.title AS title,
+       film.description AS description,
+       category.name AS category,
+       film.rental_rate AS price,
+       film.length AS length,
+       film.rating AS rating,
+       group_concat(upper(substr(actor.first_name,1,1))||lower(substr(actor.first_name,2))||' '||upper(substr(actor.last_name,1,1))||lower(substr(actor.last_name,2)), ', ' ORDER BY actor.first_name, actor.last_name, actor.actor_id) AS actors
+FROM category LEFT JOIN film_category ON category.category_id = film_category.category_id LEFT JOIN film ON film_category.film_id = film.film_id
+        JOIN film_actor ON film.film_id = film_actor.film_id
+    JOIN actor ON film_actor.actor_id = actor.actor_id
+GROUP BY film.film_id, film.title, film.description, category.name, film.rental_rate, film.length, film.rating
+;
+
+CREATE VIEW actor_info
+AS
+SELECT a.actor_id, a.first_name, a.last_name,
+       group_concat(cat.cat_line, '; ' ORDER BY cat.name) AS film_info
+FROM actor a
+JOIN (
+  SELECT fa.actor_id AS actor_id, c.name AS name,
+         c.name||': '||group_concat(f.title, ', ' ORDER BY f.title) AS cat_line
+  FROM film_actor fa
+  JOIN film f ON fa.film_id = f.film_id
+  JOIN film_category fc ON f.film_id = fc.film_id
+  JOIN category c ON fc.category_id = c.category_id
+  GROUP BY fa.actor_id, c.category_id, c.name
+) cat ON a.actor_id = cat.actor_id
+GROUP BY a.actor_id, a.first_name, a.last_name
+;
 
 END TRANSACTION;

@@ -127,6 +127,18 @@ comma-separated text values. For example, `["Action", "Drama"]` becomes
 cannot be reconstructed from the text representation.
 See [#545](https://github.com/neilotoole/sq/issues/545).
 
+#### Binary data
+
+ClickHouse has no dedicated binary or `BLOB` type. Its `String` type holds
+arbitrary bytes (including null bytes) and deliberately stands in for `BLOB`,
+`VARCHAR`, `CLOB`, and `TEXT`. Binary data therefore stores fine, but a column
+cannot be marked as binary versus text: `sq` maps `String` and `FixedString` to
+`kind.Text`, and a `kind.Bytes` value written to ClickHouse reads back as
+`kind.Text`. This is intentional upstream (see
+[ClickHouse/ClickHouse#53482](https://github.com/ClickHouse/ClickHouse/issues/53482)),
+not a gap awaiting a fix, so a faithful binary column is not representable on
+ClickHouse.
+
 ### Inspect field provenance
 
 `sq inspect` populates the fields below from ClickHouse built-in functions
@@ -151,9 +163,6 @@ and the `system.tables` catalog.
 
 ## Related
 
-<!-- markdownlint-disable-next-line MD013 -->
-
-- [ClickHouse driver README](https://github.com/neilotoole/sq/blob/master/drivers/clickhouse/README.md)
 - [#544](https://github.com/neilotoole/sq/issues/544) — Type roundtrip issues (`kind.Time`, `kind.Bytes`)
 - [#545](https://github.com/neilotoole/sq/issues/545) — Array types flattened to CSV text
   (information loss)

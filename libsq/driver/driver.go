@@ -258,6 +258,14 @@ type SQLDriver interface {
 	// is often a scalar such as an int, string, or bool, but can be a nested
 	// map or array.
 	DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error)
+
+	// DBSemver returns the database server version as a canonical semver
+	// string (e.g. "v8.0.36"), comparable via golang.org/x/mod/semver. The
+	// value reflects the running server, parsed from the engine's native
+	// version string; it is distinct from the free-form
+	// metadata.Source.DBVersion display value. An error is returned if the
+	// version cannot be determined or parsed.
+	DBSemver(ctx context.Context, db sqlz.DB) (string, error)
 }
 
 // ReadOnlyConflictDetector is an optional interface implemented by
@@ -311,16 +319,41 @@ type Metadata struct {
 	// effectively has a single table, such as CSV.
 	Monotable bool `json:"monotable" yaml:"monotable"`
 
+	// IsEmbeddedSQL is true if this is an embedded (in-process, no separate
+	// server or network endpoint) SQL driver, such as SQLite or DuckDB. It is
+	// false for external SQL engines that connect over the network, including
+	// rqlite (which is SQLite-backed but reached over HTTP), and for all non-SQL
+	// drivers. An embedded SQL driver is exactly an [IsSQL] driver with no
+	// network endpoint.
+	IsEmbeddedSQL bool `json:"is_embedded_sql" yaml:"is_embedded_sql"`
+
 	// DefaultPort is the default port that a driver connects on. A
 	// value <= 0 indicates not applicable.
 	DefaultPort int `json:"default_port" yaml:"default_port"`
 }
 
-// OpeningPing is a standardized mechanism to ping db using
-// driver.OptConnOpenTimeout. This should be invoked by each SQL
-// driver impl in its Open method. If the ping fails, db is closed.
-// In practice, this function probably isn't needed. Maybe ditch it.
-func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
+// OpeningPing verifies db connectivity at grip-open, under
+// [OptConnOpenTimeout]. Each SQL driver impl should invoke it from its Open
+// method. If the ping fails, db is closed and an error is returned.
+//
+// Rather than a bare ping, fetchSemver (typically the driver's
+// [SQLDriver.DBSemver]) is executed as the ping: a successful version select
+// proves the connection alive just as well, and the returned semver lets the
+// caller prime its grip's [SemverCache], so the pipeline's render-time DBSemver
+// read costs no further round-trip (issue #1013).
+//
+// The whole check runs on a single connection checked out of the pool. If that
+// checkout fails (unreachable host, wrong password), the error is returned
+// directly: there is nothing further to try, and a retry would only redial
+// with the same credentials, doubling the failed-login count against server
+// lockout thresholds. If the checkout succeeds but fetchSemver fails, that is
+// not treated as a connectivity failure: the same connection is pinged
+// instead, so a live server that rejects the version query (e.g. a restricted
+// proxy, or an under-privileged account) still opens, and the returned semver
+// is empty, meaning undeterminable.
+func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB,
+	fetchSemver func(ctx context.Context, db sqlz.DB) (string, error),
+) (ver string, err error) {
 	bar := progress.FromContext(ctx).NewWaiter("Ping " + src.Handle)
 	defer bar.Stop()
 
@@ -328,16 +361,33 @@ func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
 	timeout := OptConnOpenTimeout.Get(o)
 	ctx, cancelFn := context.WithTimeout(ctx, timeout)
 	defer cancelFn()
+	log := lg.FromContext(ctx)
 
-	if err := db.PingContext(ctx); err != nil {
+	fail := func(err error) (string, error) {
 		err = errz.Wrapf(err, "open ping %s", src.Handle)
-		log := lg.FromContext(ctx)
 		log.Error("Failed opening ping", lga.Src, src, lga.Err, err)
 		lg.WarnIfCloseError(log, lgm.CloseDB, db)
-		return err
+		return "", err
 	}
 
-	return nil
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fail(err)
+	}
+	// Closing a sql.Conn returns it to the pool.
+	defer lg.WarnIfCloseError(log, "Release opening ping conn", conn)
+
+	if ver, err = fetchSemver(ctx, conn); err == nil {
+		return ver, nil
+	}
+
+	log.Debug("Opening ping: version fetch failed on a live connection, falling back to plain ping",
+		lga.Src, src, lga.Err, err)
+	if err = conn.PingContext(ctx); err != nil {
+		return fail(err)
+	}
+
+	return "", nil
 }
 
 // EmptyDataError indicates that there's no data, e.g. an empty document.

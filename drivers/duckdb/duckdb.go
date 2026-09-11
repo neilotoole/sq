@@ -92,10 +92,11 @@ func (d *driveri) LocationShape() driver.LocationShape {
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        drivertype.DuckDB,
-		Description: "DuckDB",
-		Doc:         "https://duckdb.org",
-		IsSQL:       true,
+		Type:          drivertype.DuckDB,
+		Description:   "DuckDB",
+		Doc:           "https://duckdb.org",
+		IsSQL:         true,
+		IsEmbeddedSQL: true,
 	}
 }
 
@@ -106,10 +107,13 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, mode driver.Acce
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.AccessMode) (*sql.DB, error) {
@@ -568,14 +572,14 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Ta
 
 // CreateSchema implements driver.SQLDriver.
 func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
-	stmt := fmt.Sprintf(`CREATE SCHEMA %q`, schemaName)
+	stmt := "CREATE SCHEMA " + stringz.DoubleQuote(schemaName)
 	_, err := db.ExecContext(ctx, stmt)
 	return errz.Wrapf(errw(err), "duckdb: create schema {%s}", schemaName)
 }
 
 // DropSchema implements driver.SQLDriver.
 func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
-	stmt := fmt.Sprintf(`DROP SCHEMA %q CASCADE`, schemaName)
+	stmt := "DROP SCHEMA " + stringz.DoubleQuote(schemaName) + " CASCADE"
 	_, err := db.ExecContext(ctx, stmt)
 	return errz.Wrapf(errw(err), "duckdb: drop schema {%s}", schemaName)
 }
@@ -610,7 +614,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
-	affected, err := sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err := sqlz.ExecAffected(ctx, db, "DELETE FROM "+stringz.DoubleQuote(tbl))
 	if err != nil {
 		return 0, errw(err)
 	}
@@ -733,6 +737,7 @@ type grip struct {
 	db       *sql.DB
 	src      *source.Source
 	drvr     *driveri
+	semver   driver.SemverCache
 
 	// closeOnce guards Close so that subsequent calls are no-op and return
 	// the same error. DuckDB takes a process-exclusive lock on the database
@@ -761,6 +766,11 @@ func (g *grip) Source() *source.Source {
 // SourceMetadata implements driver.Grip.
 func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	return getSourceMetadata(ctx, g.src, g.db, noSchema)
+}
+
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	return g.semver.Get(func() (string, error) { return g.drvr.DBSemver(ctx, g.db) })
 }
 
 // TableMetadata implements driver.Grip.
