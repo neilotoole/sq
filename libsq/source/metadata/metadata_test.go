@@ -1703,8 +1703,7 @@ func TestSource_RecomputeTableCounts(t *testing.T) {
 func TestColumn_Clone_AllFieldsCovered(t *testing.T) {
 	orig := &metadata.Column{}
 	v := reflect.ValueOf(orig).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		f := v.Field(i)
+	for _, f := range v.Fields() {
 		if !f.CanSet() {
 			continue
 		}

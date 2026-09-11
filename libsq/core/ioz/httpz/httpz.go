@@ -19,6 +19,7 @@ import (
 	"net/textproto"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -47,8 +48,8 @@ func NewClient(opts ...Opt) *http.Client {
 
 	c.Transport = tr
 	// Apply the round trip functions in reverse order.
-	for i := len(opts) - 1; i >= 0; i-- {
-		if tf, ok := opts[i].(TripFunc); ok {
+	for _, opt := range slices.Backward(opts) {
+		if tf, ok := opt.(TripFunc); ok {
 			c.Transport = RoundTrip(c.Transport, tf)
 		}
 	}

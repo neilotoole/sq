@@ -1,6 +1,6 @@
 module github.com/neilotoole/sq/tools/betteralign
 
-go 1.26.0
+go 1.27.1
 
 tool github.com/dkorunic/betteralign/cmd/betteralign
 

@@ -462,8 +462,7 @@ func parseRqlite(loc string, fields *Fields) (*Fields, error) {
 		// url.Error embeds the raw input URL, which may carry inline
 		// credentials. Strip that wrapper so only the redacted loc
 		// appears in the message, but keep the underlying cause.
-		var uerr *url.Error
-		if errors.As(err, &uerr) {
+		if uerr, ok := errors.AsType[*url.Error](err); ok {
 			err = uerr.Err
 		}
 		return nil, errz.Wrapf(err, "parse location: %s", redactBestEffort(loc))
@@ -968,8 +967,7 @@ func MergeQuery(loc string, params url.Values) (string, error) {
 	if err != nil {
 		// url.Error embeds the raw input (which may carry inline
 		// credentials); strip the wrapper and redact the loc.
-		var uerr *url.Error
-		if errors.As(err, &uerr) {
+		if uerr, ok := errors.AsType[*url.Error](err); ok {
 			err = uerr.Err
 		}
 		return "", errz.Wrapf(err, "merge query: invalid location: %s",

@@ -222,10 +222,9 @@ func requireTopologicalCreateOrder(t *testing.T, out string) {
 	var curTable string
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "CREATE TABLE ") {
+		if after, ok := strings.CutPrefix(trimmed, "CREATE TABLE "); ok {
 			// Extract table name.
-			rest := strings.TrimPrefix(trimmed, "CREATE TABLE ")
-			rest = strings.TrimSpace(rest)
+			rest := strings.TrimSpace(after)
 			parenIdx := strings.IndexByte(rest, '(')
 			if parenIdx >= 0 {
 				rest = rest[:parenIdx]
@@ -242,11 +241,10 @@ func requireTopologicalCreateOrder(t *testing.T, out string) {
 		if !strings.Contains(trimmed, "FOREIGN KEY") {
 			continue
 		}
-		refIdx := strings.Index(trimmed, "REFERENCES ")
-		if refIdx < 0 {
+		_, rest, ok := strings.Cut(trimmed, "REFERENCES ")
+		if !ok {
 			continue
 		}
-		rest := trimmed[refIdx+len("REFERENCES "):]
 		spaceIdx := strings.IndexAny(rest, " (")
 		if spaceIdx < 0 {
 			continue

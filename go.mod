@@ -1,6 +1,6 @@
 module github.com/neilotoole/sq
 
-go 1.26.3
+go 1.27.1
 
 // godebug x509negativeserial=1 is set here because of an issue with older
 // SQL Server versions not doing the right thing with X509 certs (see RFC 5280).
@@ -54,6 +54,7 @@ require (
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
 	github.com/ncruces/go-strftime v1.0.0
+	github.com/neilotoole/jsoncolor v0.10.1
 	github.com/neilotoole/oncecache v0.1.0
 	github.com/neilotoole/shelleditor v0.4.1
 	github.com/neilotoole/slogt v1.1.0
@@ -62,6 +63,7 @@ require (
 	github.com/nightlyone/lockfile v1.0.0
 	github.com/otiai10/copy v1.14.1
 	github.com/pkg/profile v1.7.0
+	github.com/rqlite/gorqlite v0.0.0-20260504155303-50d445fd0ab9
 	github.com/ryboe/q v1.0.26
 	github.com/samber/lo v1.53.0
 	github.com/segmentio/encoding v0.5.4 // benchmark comparison only; see cli/output/jsonw/internal/benchmark_test.go
@@ -79,7 +81,9 @@ require (
 	// future.
 	github.com/xo/usql v0.21.4
 	github.com/xuri/excelize/v2 v2.11.0
+	github.com/zalando/go-keyring v0.2.9-0.20260616202443-860ea660ec62
 	go.uber.org/atomic v1.11.0
+	go.uber.org/goleak v1.3.0
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba
 	golang.org/x/mod v0.41.0
 	golang.org/x/sync v0.23.0
@@ -87,13 +91,6 @@ require (
 	golang.org/x/term v0.46.0
 	golang.org/x/text v0.42.0
 	gopkg.in/yaml.v3 v3.0.1
-)
-
-require (
-	github.com/neilotoole/jsoncolor v0.10.1
-	github.com/rqlite/gorqlite v0.0.0-20260504155303-50d445fd0ab9
-	github.com/zalando/go-keyring v0.2.9-0.20260616202443-860ea660ec62
-	go.uber.org/goleak v1.3.0
 )
 
 require (

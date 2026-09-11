@@ -1,6 +1,7 @@
 package sqlparser
 
 import (
+	"slices"
 	"sort"
 
 	antlr "github.com/antlr4-go/antlr/v4"
@@ -326,8 +327,7 @@ func ApplyEdits(input string, edits []Edit) (string, error) {
 	}
 
 	out := input
-	for i := len(sorted) - 1; i >= 0; i-- {
-		e := sorted[i]
+	for _, e := range slices.Backward(sorted) {
 		out = out[:e.Start] + e.Replacement + out[e.End:]
 	}
 	return out, nil
