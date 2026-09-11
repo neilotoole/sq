@@ -32,13 +32,32 @@ type Provider interface {
 // Driver is the core interface that must be implemented for each type
 // of data source.
 type Driver interface {
-	// Open returns a Grip instance for src.
-	Open(ctx context.Context, src *source.Source) (Grip, error)
+	// Open returns a Grip instance for src, opened in the given access
+	// mode. Drivers that cannot honor a read-only mode (anything but
+	// DuckDB today) must ignore it and still return a working connection.
+	Open(ctx context.Context, src *source.Source, mode AccessMode) (Grip, error)
 
 	// Ping verifies that the source is reachable, or returns an error if not.
 	// The exact behavior of Ping is driver-dependent. Even if Ping does not
 	// return an error, the source may still be bad for other reasons.
-	Ping(ctx context.Context, src *source.Source) error
+	//
+	// Arg mode controls how the underlying connection is opened (see Open),
+	// and is not merely advisory even though a ping performs no writes: for
+	// a file-backed source it determines what the ping validates and what
+	// side effects it has. Callers therefore ping in the mode the source
+	// will be used in. The two callers differ deliberately:
+	//
+	//   - "sq ping" pings ModeReadOnly: a non-disturbing connectivity check
+	//     that takes no write lock and creates nothing.
+	//   - "sq add" pings ModeReadWrite: it validates write access and, for a
+	//     not-yet-existing file source (DuckDB, SQLite), creates the file as
+	//     a side effect, which is the established add-a-new-file behavior.
+	//
+	// The distinction is material for DuckDB: opening a non-existent file
+	// ModeReadOnly fails (DuckDB READ_ONLY requires an existing file), while
+	// ModeReadWrite creates it. Drivers that don't honor read-only ignore
+	// mode (see Open).
+	Ping(ctx context.Context, src *source.Source, mode AccessMode) error
 
 	// DriverMetadata returns driver metadata.
 	DriverMetadata() Metadata
@@ -113,7 +132,16 @@ type SQLDriver interface {
 	//
 	// RecordMeta also returns a NewRecordFunc which can be
 	// applied to the scan row from sql.Rows.
-	RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, NewRecordFunc, error)
+	//
+	// The hints arg carries forced result-column kinds, keyed by zero-based
+	// output position, recorded during SLQ rendering (e.g. SQLite/rqlite pinning
+	// sum() to kind.Decimal, or Oracle pinning count()/rownum() to kind.Int). A
+	// hint overrides the kind derived from colTypes, which in turn selects the
+	// scan target, so it must be applied before any row is scanned. Callers
+	// outside the SLQ query path (table metadata, ingest/copy) pass nil; drivers
+	// that surface no such hints ignore the arg.
+	RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints map[int]kind.Kind) (
+		record.Meta, NewRecordFunc, error)
 
 	// PrepareInsertStmt prepares a statement for inserting
 	// values to destColNames in destTbl. numRows specifies
@@ -230,6 +258,40 @@ type SQLDriver interface {
 	// is often a scalar such as an int, string, or bool, but can be a nested
 	// map or array.
 	DBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error)
+
+	// DBSemver returns the database server version as a canonical semver
+	// string (e.g. "v8.0.36"), comparable via golang.org/x/mod/semver. The
+	// value reflects the running server, parsed from the engine's native
+	// version string; it is distinct from the free-form
+	// metadata.Source.DBVersion display value. An error is returned if the
+	// version cannot be determined or parsed.
+	DBSemver(ctx context.Context, db sqlz.DB) (string, error)
+}
+
+// ReadOnlyConflictDetector is an optional interface implemented by
+// drivers whose location syntax can explicitly demand write access,
+// contradicting a read-only request. The canonical example is DuckDB's
+// access_mode=READ_WRITE query parameter. It is consulted in two places
+// when the user explicitly requests read-only access (sq sql --readonly):
+// the CLI surfaces the conflict preemptively, before any connection is
+// opened, and the driver itself rejects such an open as defense-in-depth
+// so the conflict can't slip through for a non-CLI caller. Either way the
+// location does not silently win over the read-only request.
+//
+// Drivers without a location-level access mode (most drivers) simply
+// don't implement the interface, and no conflict is possible. Mirrors
+// the optional-capability pattern of [ConnParamDetector].
+type ReadOnlyConflictDetector interface {
+	// DetectReadOnlyConflict examines loc and reports whether it
+	// explicitly demands write access, conflicting with a read-only
+	// request. On conflict, the returned descriptor identifies the
+	// offending location component for use in the error message,
+	// echoing what the user typed (e.g. "access_mode=READ_WRITE"). A
+	// location that expresses no access preference, or one that is
+	// already compatible with read-only access, returns ok=false.
+	// Implementations must not perform I/O: this is a pure inspection
+	// of the location string.
+	DetectReadOnlyConflict(loc string) (conflict string, ok bool)
 }
 
 // Metadata holds driver metadata.
@@ -257,16 +319,41 @@ type Metadata struct {
 	// effectively has a single table, such as CSV.
 	Monotable bool `json:"monotable" yaml:"monotable"`
 
+	// IsEmbeddedSQL is true if this is an embedded (in-process, no separate
+	// server or network endpoint) SQL driver, such as SQLite or DuckDB. It is
+	// false for external SQL engines that connect over the network, including
+	// rqlite (which is SQLite-backed but reached over HTTP), and for all non-SQL
+	// drivers. An embedded SQL driver is exactly an [IsSQL] driver with no
+	// network endpoint.
+	IsEmbeddedSQL bool `json:"is_embedded_sql" yaml:"is_embedded_sql"`
+
 	// DefaultPort is the default port that a driver connects on. A
 	// value <= 0 indicates not applicable.
 	DefaultPort int `json:"default_port" yaml:"default_port"`
 }
 
-// OpeningPing is a standardized mechanism to ping db using
-// driver.OptConnOpenTimeout. This should be invoked by each SQL
-// driver impl in its Open method. If the ping fails, db is closed.
-// In practice, this function probably isn't needed. Maybe ditch it.
-func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
+// OpeningPing verifies db connectivity at grip-open, under
+// [OptConnOpenTimeout]. Each SQL driver impl should invoke it from its Open
+// method. If the ping fails, db is closed and an error is returned.
+//
+// Rather than a bare ping, fetchSemver (typically the driver's
+// [SQLDriver.DBSemver]) is executed as the ping: a successful version select
+// proves the connection alive just as well, and the returned semver lets the
+// caller prime its grip's [SemverCache], so the pipeline's render-time DBSemver
+// read costs no further round-trip (issue #1013).
+//
+// The whole check runs on a single connection checked out of the pool. If that
+// checkout fails (unreachable host, wrong password), the error is returned
+// directly: there is nothing further to try, and a retry would only redial
+// with the same credentials, doubling the failed-login count against server
+// lockout thresholds. If the checkout succeeds but fetchSemver fails, that is
+// not treated as a connectivity failure: the same connection is pinged
+// instead, so a live server that rejects the version query (e.g. a restricted
+// proxy, or an under-privileged account) still opens, and the returned semver
+// is empty, meaning undeterminable.
+func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB,
+	fetchSemver func(ctx context.Context, db sqlz.DB) (string, error),
+) (ver string, err error) {
 	bar := progress.FromContext(ctx).NewWaiter("Ping " + src.Handle)
 	defer bar.Stop()
 
@@ -274,16 +361,33 @@ func OpeningPing(ctx context.Context, src *source.Source, db *sql.DB) error {
 	timeout := OptConnOpenTimeout.Get(o)
 	ctx, cancelFn := context.WithTimeout(ctx, timeout)
 	defer cancelFn()
+	log := lg.FromContext(ctx)
 
-	if err := db.PingContext(ctx); err != nil {
+	fail := func(err error) (string, error) {
 		err = errz.Wrapf(err, "open ping %s", src.Handle)
-		log := lg.FromContext(ctx)
 		log.Error("Failed opening ping", lga.Src, src, lga.Err, err)
 		lg.WarnIfCloseError(log, lgm.CloseDB, db)
-		return err
+		return "", err
 	}
 
-	return nil
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fail(err)
+	}
+	// Closing a sql.Conn returns it to the pool.
+	defer lg.WarnIfCloseError(log, "Release opening ping conn", conn)
+
+	if ver, err = fetchSemver(ctx, conn); err == nil {
+		return ver, nil
+	}
+
+	log.Debug("Opening ping: version fetch failed on a live connection, falling back to plain ping",
+		lga.Src, src, lga.Err, err)
+	if err = conn.PingContext(ctx); err != nil {
+		return fail(err)
+	}
+
+	return "", nil
 }
 
 // EmptyDataError indicates that there's no data, e.g. an empty document.

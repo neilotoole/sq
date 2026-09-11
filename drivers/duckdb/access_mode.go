@@ -3,6 +3,8 @@ package duckdb
 import (
 	"net/url"
 	"strings"
+
+	"github.com/neilotoole/sq/libsq/driver"
 )
 
 // accessModeKey is the DuckDB DSN query-string key controlling open mode.
@@ -67,10 +69,28 @@ func ApplyReadOnlyToLocation(loc string, explicit bool) (out string, changed boo
 	return loc + "?" + accessModeKey + "=READ_ONLY", true
 }
 
+// Compile-time check: driveri implements driver.ReadOnlyConflictDetector.
+var _ driver.ReadOnlyConflictDetector = (*driveri)(nil)
+
+// DetectReadOnlyConflict implements driver.ReadOnlyConflictDetector.
+// Only an explicit access_mode=READ_WRITE in loc is a hard conflict
+// with a read-only request: access_mode=AUTOMATIC is overridden to
+// READ_ONLY by the driver when the request is explicit (see
+// ApplyReadOnlyToLocation), and READ_ONLY already agrees. The returned
+// descriptor echoes the access_mode value as the user typed it.
+func (d *driveri) DetectReadOnlyConflict(loc string) (conflict string, ok bool) {
+	mode, has := ExplicitAccessMode(loc)
+	if !has || !strings.EqualFold(mode, "READ_WRITE") {
+		return "", false
+	}
+	return accessModeKey + "=" + mode, true
+}
+
 // ExplicitAccessMode returns the access_mode value the user set in loc's
-// query string, if any. Used by the CLI to detect --readonly vs URL
-// conflicts. Value is returned as-is (no case normalization) so callers
-// can echo what the user typed in error messages.
+// query string, if any. Used by DetectReadOnlyConflict to detect
+// --readonly vs URL conflicts. Value is returned as-is (no case
+// normalization) so callers can echo what the user typed in error
+// messages.
 func ExplicitAccessMode(loc string) (mode string, ok bool) {
 	if !strings.HasPrefix(loc, Prefix) {
 		return "", false

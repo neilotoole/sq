@@ -128,15 +128,16 @@ func (d *driveri) DBProperties(ctx context.Context, db sqlz.DB) (map[string]any,
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        drivertype.SQLite,
-		Description: "SQLite",
-		Doc:         "https://github.com/mattn/go-sqlite3",
-		IsSQL:       true,
+		Type:          drivertype.SQLite,
+		Description:   "SQLite",
+		Doc:           "https://github.com/mattn/go-sqlite3",
+		IsSQL:         true,
+		IsEmbeddedSQL: true,
 	}
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -144,11 +145,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -183,7 +187,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		return 0, errw(err)
 	}
 
-	affected, err = sqlz.ExecAffected(ctx, tx, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err = sqlz.ExecAffected(ctx, tx, "DELETE FROM "+stringz.DoubleQuote(tbl))
 	if err != nil {
 		return affected, errz.Append(err, errw(tx.Rollback()))
 	}
@@ -217,8 +221,12 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	return src, nil
 }
 
-// Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+// Ping implements driver.Driver. SQLite does not honor read-only mode, so
+// mode is ignored: doOpen always opens with SQLite's create-capable
+// default. The practical effect matches DuckDB's ModeReadWrite ping, so
+// "sq add" of a new .sqlite file still creates it; there is just no
+// read-only variant to distinguish. See driver.Driver.Ping.
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
@@ -227,7 +235,8 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
 
 	if err = db.PingContext(ctx); err != nil {
 		err = errz.Wrapf(err, "ping %s: %s", src.Handle, src.Location)
-		lg.FromContext(ctx).Warn("ping failed",
+		lg.FromContext(ctx).Warn(
+			"ping failed",
 			lga.Src, src,
 			lga.Err, err,
 		)
@@ -243,6 +252,7 @@ func (d *driveri) Dialect() dialect.Dialect {
 		Placeholders:   placeholders,
 		Enquote:        stringz.DoubleQuote,
 		MaxBatchValues: 500,
+		SingleWriter:   true,
 		Ops:            dialect.DefaultOps(),
 		ExecModeFor:    dialect.DefaultExecModeFor,
 		Joins:          jointype.All(),
@@ -282,6 +292,16 @@ func (d *driveri) Renderer() *render.Renderer {
 	// renderer to make the equivalence explicit.
 	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLike
 	r.FunctionOverrides[ast.FuncNameILike] = renderFuncLike
+
+	// sum() is harmonized to decimal across drivers (issue #839). SQLite has no
+	// decimal type and reports no usable type for a sum() expression, so a SQL
+	// cast can't pin the surfaced type. Instead, pin the result kind here; the
+	// driver applies it when building record metadata, scanning the value as a
+	// decimal. Note: SQLite computes sum() over a non-integer column in floating
+	// point, so a decimal-column sum may still carry that drift (e.g.
+	// 67416.51000000001); the kind is unified, but the engine's computed value
+	// is not corrected.
+	r.FunctionResultKinds[ast.FuncNameSum] = kind.Decimal
 
 	return r
 }
@@ -464,10 +484,10 @@ func copyTableCompanionDDL(ctx context.Context, db sqlz.DB,
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
-	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
+	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes, hints)
 	if err != nil {
 		return nil, nil, errw(err)
 	}
@@ -1095,7 +1115,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1104,6 +1124,37 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 }
 
 var _ driver.ScratchSrcFunc = NewScratchSource
+
+// scratchConnParams is the "?key=val&..." connection-string suffix appended
+// to scratch (disposable) SQLite DB locations: the ingest cache DB for
+// document sources (CSV, Excel, JSON, etc.), join work DBs, and ephemeral
+// DBs. These DBs are never authoritative: each is rebuilt from its source if
+// it is missing, stale, or corrupt, so durability buys nothing.
+//
+// synchronous=OFF + journal_mode=MEMORY drops the per-write fsync that
+// otherwise dominates large ingests: with SQLite's defaults (synchronous=FULL,
+// rollback journal) every autocommit INSERT performs a full fsync. On a slow
+// filesystem that cost is brutal (gh #866: a 5,462-row JSONL ingest took ~408s
+// on Windows vs ~12s on Linux/macOS, one fsync per row). MEMORY is chosen over
+// WAL because the latter leaves -wal/-shm sidecar files that the scratch
+// cleanup would have to track, whereas an in-memory journal needs no on-disk
+// state. The only durability downside, a torn DB after a hard crash or power
+// loss, is self-healing: the cache is regenerated from source on next use.
+//
+// An in-memory rollback journal can in principle grow large enough to OOM,
+// but not for the ingest workload: ingest always targets a freshly-created
+// (empty) cache DB and the document drivers build no secondary indexes, so
+// inserts only append to the table's rowid b-tree. SQLite does not journal
+// pages allocated beyond the database's size at transaction start (rollback
+// just truncates), so the in-memory journal holds only the constant handful
+// of pre-existing pages that get modified, regardless of row count. CAVEAT:
+// if a future change maintains a secondary index (or otherwise rewrites many
+// pre-existing pages) inside a single ingest transaction, the in-memory
+// journal would grow with the data and this choice should be revisited (e.g.
+// switch to synchronous=NORMAL + journal_mode=WAL, whose journal is on disk).
+//
+// See gh #868.
+const scratchConnParams = "?_synchronous=OFF&_journal_mode=MEMORY"
 
 // NewScratchSource returns a new scratch src. The supplied fpath
 // must be the absolute path to the location to create the SQLite DB file,
@@ -1114,14 +1165,19 @@ func NewScratchSource(ctx context.Context, fpath string) (src *source.Source, cl
 	src = &source.Source{
 		Type:     drivertype.SQLite,
 		Handle:   source.ScratchHandle,
-		Location: Prefix + fpath,
+		Location: Prefix + fpath + scratchConnParams,
 		// The path is an internally constructed literal, not a
 		// placeholder template: mark it so resolution is a no-op.
 		SecretsResolved: true,
 	}
 
 	clnup = func() error {
-		if journal := filepath.Join(fpath, ".db-journal"); ioz.FileAccessible(journal) {
+		// SQLite's rollback journal for "<fpath>" is the sibling file
+		// "<fpath>-journal", not a "<fpath>/.db-journal" child path. Under
+		// scratchConnParams' journal_mode=MEMORY no on-disk journal is
+		// normally created, but remove a stale one defensively (e.g. left by
+		// an earlier abnormal exit before this DB's mode was applied).
+		if journal := fpath + "-journal"; ioz.FileAccessible(journal) {
 			lg.WarnIfError(log, "Delete sqlite3 db journal file", os.Remove(journal))
 		}
 

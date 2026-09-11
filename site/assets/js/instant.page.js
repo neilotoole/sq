@@ -1,1 +1,1 @@
-import 'instant.page';
+import "instant.page";

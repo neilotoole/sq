@@ -309,11 +309,23 @@ func (d *driveri) Renderer() *render.Renderer {
 	// an override because the default emits LOWER(col) LIKE LOWER(pat),
 	// whereas ClickHouse supports native ILIKE.
 	r.FunctionOverrides[ast.FuncNameILike] = renderFuncILike
+	// sum() is harmonized to decimal across drivers (issue #839). ClickHouse
+	// already returns sum() over a decimal column as a decimal, but sum() over an
+	// integer column as an integer; casting the result to Decimal unifies both as
+	// decimal. The cast target is wrapped in Nullable because ClickHouse's
+	// Decimal is non-nullable and sum() over a nullable column can yield NULL
+	// (e.g. an all-NULL or empty input); casting that NULL to a bare Decimal
+	// raises an error. A Nullable(Decimal) result scans as decimal.NullDecimal,
+	// so trailing zeros from the fixed scale are trimmed by stringz.FormatDecimal
+	// at render time, as on the other result-cast drivers.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult(
+		fmt.Sprintf("Nullable(Decimal(%d, %d))", render.AggDecimalPrecision, render.AggDecimalScale),
+	)
 	return r
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
@@ -334,7 +346,7 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 //
 // The returned grip should be closed when no longer needed to release
 // the database connection.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -342,11 +354,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 // doOpen creates the underlying sql.DB connection to ClickHouse.
@@ -368,7 +383,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	}
 
 	if portAdded {
-		log.Debug("Applied default ClickHouse port at connection time",
+		log.Debug(
+			"Applied default ClickHouse port at connection time",
 			lga.Src, src.Handle,
 			lga.Before, src.Location,
 			lga.After, loc,
@@ -418,7 +434,8 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	}
 
 	if portAdded {
-		d.log.Debug("Applied default ClickHouse port to source location",
+		d.log.Debug(
+			"Applied default ClickHouse port to source location",
 			lga.Src, src.Handle,
 			lga.Before, src.Location,
 			lga.After, loc,
@@ -432,7 +449,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
@@ -485,7 +502,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	}
 
 	// ClickHouse uses TRUNCATE TABLE syntax
-	truncateQuery := "TRUNCATE TABLE " + stringz.BacktickQuote(tbl)
+	truncateQuery := "TRUNCATE TABLE " + stringz.BacktickQuote(tbl) //nolint:gosec // G202: tbl is backtick-quoted
 	_, err = db.ExecContext(ctx, truncateQuery)
 	if err != nil {
 		return 0, errw(err)
@@ -1002,7 +1019,8 @@ func (d *driveri) PrepareUpdateStmt(ctx context.Context, db sqlz.DB, destTbl str
 // columns (NotNull is false by default), but ClickHouse columns are
 // non-nullable by default. This matches the behavior of buildCreateTableStmt.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s Nullable(%s)",
+	q := fmt.Sprintf(
+		"ALTER TABLE %s ADD COLUMN %s Nullable(%s)",
 		stringz.BacktickQuote(tbl),
 		stringz.BacktickQuote(col),
 		dbTypeNameFromKind(knd),
@@ -1015,7 +1033,8 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 // AlterTableRename implements driver.SQLDriver. It renames a table using
 // RENAME TABLE syntax.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	q := fmt.Sprintf("RENAME TABLE %s TO %s",
+	q := fmt.Sprintf(
+		"RENAME TABLE %s TO %s",
 		stringz.BacktickQuote(tbl),
 		stringz.BacktickQuote(newName),
 	)
@@ -1027,7 +1046,8 @@ func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName
 // AlterTableRenameColumn implements driver.SQLDriver. It renames a column
 // using ALTER TABLE ... RENAME COLUMN syntax.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s",
+	q := fmt.Sprintf(
+		"ALTER TABLE %s RENAME COLUMN %s TO %s",
 		stringz.BacktickQuote(tbl),
 		stringz.BacktickQuote(col),
 		stringz.BacktickQuote(newName),
@@ -1075,7 +1095,8 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context,
 	}
 
 	for i, col := range colNames {
-		q := fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s Nullable(%s)",
+		q := fmt.Sprintf(
+			"ALTER TABLE %s MODIFY COLUMN %s Nullable(%s)",
 			stringz.BacktickQuote(tbl),
 			stringz.BacktickQuote(col),
 			dbTypeNameFromKind(kinds[i]),

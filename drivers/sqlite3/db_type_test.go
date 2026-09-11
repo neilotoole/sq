@@ -16,7 +16,6 @@ import (
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
-	"github.com/neilotoole/sq/testh/tu"
 )
 
 // typeTestTableDDLPath is the location of the SQL CREATE statement
@@ -166,8 +165,6 @@ func createTypeTestTbls(th *testh.Helper, src *source.Source, nTimes int, withDa
 // the returned data matches the inserted data, including verifying
 // that NULL is handled correctly.
 func TestDatabaseTypes(t *testing.T) {
-	tu.SkipIssueWindows(t, tu.GH355SQLiteDecimalWin)
-
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 	actualTblName := createTypeTestTbls(th, src, 1, true)[0]
@@ -177,7 +174,7 @@ func TestDatabaseTypes(t *testing.T) {
 
 	sink := &testh.RecordSink{}
 	recw := output.NewRecordWriterAdapter(th.Context, sink)
-	err := libsq.QuerySQL(th.Context, th.Open(src), nil, recw, "SELECT * FROM "+actualTblName)
+	err := libsq.QuerySQL(th.Context, th.Open(src), nil, recw, nil, "SELECT * FROM "+actualTblName)
 	require.NoError(t, err)
 	_, err = recw.Wait()
 	require.NoError(t, err)

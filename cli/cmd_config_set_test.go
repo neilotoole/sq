@@ -58,12 +58,14 @@ func TestConfigSetBaseOptOnSourceIsError(t *testing.T) {
 
 	const tpl = "{{.Name}}"
 	tr = testrun.New(ctx, t, tr)
-	require.NoError(t, tr.Exec("config", "set",
+	require.NoError(t, tr.Exec(
+		"config", "set",
 		driver.OptResultColRename.Key(), tpl,
 	), "should work for base config")
 
 	tr = testrun.New(ctx, t, tr)
-	err := tr.Exec("config", "set",
+	err := tr.Exec(
+		"config", "set",
 		"--"+flag.ConfigSrc, handle,
 		driver.OptResultColRename.Key(), tpl,
 	)
@@ -102,7 +104,8 @@ func TestSourceOptOverridesBaseOpt(t *testing.T) {
 
 			const baseTpl = "base_{{.Name}}"
 			tr = testrun.New(ctx, t, tr)
-			require.NoError(t, tr.Exec("config", "set",
+			require.NoError(t, tr.Exec(
+				"config", "set",
 				opt.Key(), baseTpl,
 			))
 
@@ -114,7 +117,8 @@ func TestSourceOptOverridesBaseOpt(t *testing.T) {
 
 			const srcTpl = "src_{{.Name}}"
 			tr = testrun.New(ctx, t, tr)
-			require.NoError(t, tr.Exec("config", "set",
+			require.NoError(t, tr.Exec(
+				"config", "set",
 				"--"+flag.ConfigSrc, handle,
 				opt.Key(), srcTpl,
 			))
@@ -127,7 +131,8 @@ func TestSourceOptOverridesBaseOpt(t *testing.T) {
 
 			// Unset base opt
 			tr = testrun.New(ctx, t, tr)
-			require.NoError(t, tr.Exec("config", "set",
+			require.NoError(t, tr.Exec(
+				"config", "set",
 				opt.Key(), "",
 			))
 
@@ -138,7 +143,8 @@ func TestSourceOptOverridesBaseOpt(t *testing.T) {
 
 			// Unset src opt
 			tr = testrun.New(ctx, t, tr)
-			require.NoError(t, tr.Exec("config", "set",
+			require.NoError(t, tr.Exec(
+				"config", "set",
 				"--"+flag.ConfigSrc, handle,
 				opt.Key(), "",
 			))
@@ -173,13 +179,15 @@ func TestColRenameOptsInteraction(t *testing.T) {
 
 			const ingestTpl = "x_{{.Name}}"
 			tr = testrun.New(ctx, t, tr)
-			require.NoError(t, tr.Exec("config", "set",
+			require.NoError(t, tr.Exec(
+				"config", "set",
 				driver.OptIngestColRename.Key(), ingestTpl,
 			))
 
 			const resultTpl = "{{.Name}}_y"
 			tr = testrun.New(ctx, t, tr)
-			require.NoError(t, tr.Exec("config", "set",
+			require.NoError(t, tr.Exec(
+				"config", "set",
 				driver.OptResultColRename.Key(), resultTpl,
 			))
 

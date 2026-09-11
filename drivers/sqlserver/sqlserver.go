@@ -48,7 +48,7 @@ type Provider struct {
 // DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
 	if typ != drivertype.MSSQL {
-		return nil, errz.Errorf("unsupported driver type {%s}}", typ)
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
 	}
 
 	return &driveri{log: p.Log}, nil
@@ -164,6 +164,23 @@ func (d *driveri) Renderer() *render.Renderer {
 
 	r.FunctionNames[ast.FuncNameSchema] = "SCHEMA_NAME"
 	r.FunctionNames[ast.FuncNameCatalog] = "DB_NAME"
+	// SQL Server computes AVG over an integer column using integer division,
+	// truncating the fractional part (e.g. the average of 1..200 returns 100,
+	// not 100.5). Cast the operand, not the result: CAST(AVG(col) AS FLOAT)
+	// still truncates because AVG has already returned an int. See issue #594.
+	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastOperand("FLOAT")
+	// sum() is harmonized to decimal across drivers (issue #839). SQL Server's
+	// SUM(int) returns int and overflows at the int range, so cast the operand
+	// (not the result): summing CAST(col AS DECIMAL) widens the accumulator
+	// before it can overflow, whereas CAST(SUM(col) AS DECIMAL) overflows first.
+	// The non-zero scale also pins the result to decimal; trailing zeros from the
+	// fixed scale are trimmed by stringz.FormatDecimal at render time. Because the
+	// operand (not the result) is cast, a column with more than AggDecimalScale
+	// fractional digits is rounded per row before summing, unlike the result-cast
+	// dialects which round the final sum.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastOperand(
+		fmt.Sprintf("DECIMAL(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale),
+	)
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsCollate
 	r.FunctionOverrides[ast.FuncNameStartsWith] = renderFuncStartsWithCollate
@@ -191,7 +208,7 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -199,11 +216,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -217,7 +237,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		cfg.Database = src.Catalog
 		loc = cfg.URL().String()
 
-		log.Debug("Using catalog as database in connection string",
+		log.Debug(
+			"Using catalog as database in connection string",
 			lga.Src, src,
 			lga.Catalog, src.Catalog,
 			lga.Conn, location.Redact(loc),
@@ -245,7 +266,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
@@ -285,13 +306,18 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
-	affected, err = sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err = sqlz.ExecAffected(ctx, db, `DELETE FROM `+stringz.DoubleQuote(tbl))
 	if err != nil {
 		return affected, errz.Wrapf(errw(err), "truncate: failed to delete from %q", tbl)
 	}
 
 	if reset {
-		_, err = db.ExecContext(ctx, fmt.Sprintf("DBCC CHECKIDENT ('%s', RESEED, 1)", tbl))
+		// DBCC CHECKIDENT parses the table name out of a string literal (as a
+		// possibly-multipart name), so it gets the same bracket-then-single
+		// quoting as sp_spaceused: bracket-quote so a name with a '.' resolves
+		// as one identifier (matching the DELETE above), then single-quote the
+		// literal. Raw single-quoting diverged from the DELETE for such names.
+		_, err = db.ExecContext(ctx, `DBCC CHECKIDENT (`+stringz.SingleQuote(bracketQuote(tbl))+`, RESEED, 1)`)
 		if err != nil {
 			if hasErrCode(err, errNoIdentityColumn) {
 				// The table has no identity column, so we can't reseed.
@@ -352,7 +378,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
@@ -448,7 +474,10 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 WHERE SCHEMA_NAME = @p1 AND CATALOG_NAME = DB_NAME()`
 
 	var count int
-	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
+	if err := db.QueryRowContext(ctx, q, schma).Scan(&count); err != nil {
+		return false, errw(err)
+	}
+	return count > 0, nil
 }
 
 // ListSchemaMetadata implements driver.SQLDriver.
@@ -508,7 +537,10 @@ func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string)
 	const q = `SELECT COUNT(name) FROM sys.databases WHERE name = @p1`
 
 	var count int
-	return count > 0, errw(db.QueryRowContext(ctx, q, catalog).Scan(&count))
+	if err := db.QueryRowContext(ctx, q, catalog).Scan(&count); err != nil {
+		return false, errw(err)
+	}
+	return count > 0, nil
 }
 
 // ListCatalogs implements driver.SQLDriver.
@@ -561,7 +593,7 @@ func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string)
 		return errz.Wrapf(err, "failed to drop objects in schema {%s}", schemaName)
 	}
 
-	dropSchemaStmt := `DROP SCHEMA [` + schemaName + `]`
+	dropSchemaStmt := `DROP SCHEMA ` + stringz.DoubleQuote(schemaName)
 	if _, err := db.ExecContext(ctx, dropSchemaStmt); err != nil {
 		return errz.Wrapf(err, "failed to drop schema {%s}", schemaName)
 	}
@@ -618,7 +650,8 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Ta
 
 // AlterTableAddColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD %q ", tbl, col) + dbTypeNameFromKind(knd)
+	q := `ALTER TABLE ` + stringz.DoubleQuote(tbl) + ` ADD ` +
+		stringz.DoubleQuote(col) + ` ` + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to add column %q to table %q", col, tbl)
@@ -631,7 +664,12 @@ func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName
 		return err
 	}
 
-	q := fmt.Sprintf(`exec sp_rename '[%s].[%s]', '%s'`, schma, tbl, newName)
+	// sp_rename receives the current object name inside a string literal and
+	// parses it with bracket quoting; the new name is a bare literal it uses
+	// verbatim. Bracket-quote each identifier part, then single-quote the
+	// whole literal so embedded ] or ' can't break out.
+	oldName := bracketQuote(schma) + "." + bracketQuote(tbl)
+	q := `exec sp_rename ` + stringz.SingleQuote(oldName) + `, ` + stringz.SingleQuote(newName)
 	_, err = db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename table %q to %q", tbl, newName)
 }
@@ -643,7 +681,8 @@ func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, c
 		return err
 	}
 
-	q := fmt.Sprintf(`exec sp_rename '[%s].[%s].[%s]', '%s'`, schma, tbl, col, newName)
+	oldName := bracketQuote(schma) + "." + bracketQuote(tbl) + "." + bracketQuote(col)
+	q := `exec sp_rename ` + stringz.SingleQuote(oldName) + `, ` + stringz.SingleQuote(newName)
 	_, err = db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s.%s} to {%s}", schma, tbl, col, newName)
 }
@@ -682,7 +721,9 @@ func (d *driveri) DropTable(ctx context.Context, db sqlz.DB, tbl tablefq.T, ifEx
 	tblID := tblfmt(tbl)
 
 	if ifExists {
-		stmt = fmt.Sprintf("IF OBJECT_ID('%s', 'U') IS NOT NULL DROP TABLE %s", tblID, tblID)
+		// OBJECT_ID takes the object name as a string literal; single-quote the
+		// (already identifier-quoted) tblID so an embedded ' can't break it.
+		stmt = `IF OBJECT_ID(` + stringz.SingleQuote(tblID) + `, 'U') IS NOT NULL DROP TABLE ` + tblID
 	} else {
 		stmt = "DROP TABLE " + tblID
 	}
@@ -768,10 +809,11 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 	}
 
 	if rows.Err() != nil {
+		sqlz.CloseRows(d.log, rows)
 		return nil, errw(rows.Err())
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
 	if err != nil {
 		sqlz.CloseRows(d.log, rows)
 		return nil, errw(err)
@@ -839,8 +881,15 @@ func setIdentityInsert(ctx context.Context, db sqlz.DB, tbl string, on bool) err
 // tblfmt formats a table name for use in a query. The arg can be a string,
 // or a tablefq.T.
 func tblfmt[T string | tablefq.T](tbl T) string {
-	tfq := tablefq.From(tbl)
-	return tfq.Render(stringz.DoubleQuote)
+	return tablefq.Format(tbl, stringz.DoubleQuote)
+}
+
+// bracketQuote quotes a SQL Server identifier using [ ] delimiters, doubling
+// any embedded ] (the SQL Server escape char). It is for contexts such as
+// sp_rename that receive a name inside a string literal and parse it with
+// bracket quoting; the literal itself is single-quoted separately.
+func bracketQuote(s string) string {
+	return "[" + strings.ReplaceAll(s, "]", "]]") + "]"
 }
 
 // genDropSchemaObjectsStmt generates a SQL statement that drops all
@@ -856,7 +905,7 @@ func tblfmt[T string | tablefq.T](tbl T) string {
 //nolint:lll
 func genDropSchemaObjectsStmt(schemaName string) string {
 	const tpl = `
-declare @SchemaName nvarchar(100) = '%s'
+declare @SchemaName nvarchar(100) = %s
 declare @SchemaID int = schema_id(@SchemaName)
 
 declare @n char(1)
@@ -904,5 +953,8 @@ where schema_id = @SchemaID and is_user_defined = 1
 exec sp_executesql @stmt
 `
 
-	return fmt.Sprintf(tpl, schemaName)
+	// @SchemaName is assigned from a string literal; single-quote it so an
+	// embedded ' can't break out. (The inner dynamic SQL still bracket-quotes
+	// object names server-side.)
+	return fmt.Sprintf(tpl, stringz.SingleQuote(schemaName))
 }

@@ -1,5 +1,5 @@
 // Package v0_54_0 upgrades YAML config to v0.54.0.
-package v0_54_0 //nolint:revive
+package v0_54_0
 
 import (
 	"context"
@@ -78,7 +78,8 @@ func Upgrade(ctx context.Context, before []byte) (after []byte, err error) {
 					if !ok {
 						return nil, errz.Errorf(
 							"corrupt config: invalid 'collection.sources[%d].options' field (want map, got %T)",
-							i, rawSrcOpts)
+							i, rawSrcOpts,
+						)
 					}
 					handle, _ := src["handle"].(string)
 					ctxLabel := fmt.Sprintf("collection.sources[%d] (%s)", i, handle)

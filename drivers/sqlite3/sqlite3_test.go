@@ -11,6 +11,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
@@ -356,7 +357,7 @@ func TestPlaceholderLocation_Connect(t *testing.T) {
 	reg.Register("env", env.NewResolver())
 
 	th := testh.New(t)
-	ctx := secret.NewContext(th.Context, reg)
+	ctx := th.Context
 
 	src := &source.Source{
 		Handle:   "@gh798",
@@ -364,14 +365,14 @@ func TestPlaceholderLocation_Connect(t *testing.T) {
 		Location: "${env:SQ_TEST_GH798_DB_PATH}",
 	}
 
-	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	resolved, err := driver.ResolveSourceSecrets(ctx, reg, src)
 	require.NoError(t, err)
 	require.Equal(t, "sqlite3://"+filepath.ToSlash(dbPath), resolved.Location)
 
 	// SQLite creates the file on open, so Ping succeeds iff the
 	// resolved location is in canonical driver form.
 	drvr := th.DriverFor(resolved)
-	require.NoError(t, drvr.Ping(ctx, resolved))
+	require.NoError(t, drvr.Ping(ctx, resolved, driver.ModeReadWrite))
 }
 
 func TestSQLQuery_Whitespace(t *testing.T) {
@@ -497,6 +498,64 @@ func TestDriveri_AlterTableColumnKinds_QuotedIdentifier(t *testing.T) {
 			require.Equal(t, kind.Text.String(), md.Column("age").Kind.String())
 		})
 	}
+}
+
+// TestDriveri_AlterTruncate_EmbeddedQuoteIdentifier reproduces gh821: the
+// AlterTableRename, AlterTableRenameColumn, AlterTableAddColumn, and Truncate
+// paths used %q for SQL identifier quoting, which emits Go backslash escaping
+// that SQLite rejects for names containing a double quote (e.g. a we"ird table,
+// creatable from a CSV header). Each path must use SQL double-quote escaping.
+func TestDriveri_AlterTruncate_EmbeddedQuoteIdentifier(t *testing.T) {
+	const (
+		tblName = `we"ird`
+		colName = `na"me`
+	)
+
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@test",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "test.db"),
+	}
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+	drvr := grip.SQLDriver()
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("CREATE TABLE %s (id INTEGER)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+
+	// AlterTableAddColumn: add a column whose name also contains a quote.
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tblName, colName, kind.Text))
+
+	// AlterTableRenameColumn: rename the quoted column to another quoted name.
+	const renamedCol = `re"named`
+	require.NoError(t, drvr.AlterTableRenameColumn(th.Context, db, tblName, colName, renamedCol))
+
+	md, err := grip.TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 2)
+	require.Equal(t, renamedCol, md.Columns[1].Name)
+
+	// Truncate: insert a row, then delete all rows via the truncate path.
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("INSERT INTO %s (id) VALUES (1)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+	affected, err := drvr.Truncate(th.Context, src, tblName, false)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), affected)
+
+	// AlterTableRename: rename the quoted table to another quoted name.
+	const newName = `we"ird2`
+	require.NoError(t, drvr.AlterTableRename(th.Context, db, tblName, newName))
+	exists, err := drvr.TableExists(th.Context, db, newName)
+	require.NoError(t, err)
+	require.True(t, exists)
+	exists, err = drvr.TableExists(th.Context, db, tblName)
+	require.NoError(t, err)
+	require.False(t, exists)
 }
 
 // TestDriveri_AlterTableColumnKinds_EscapedQuoteColumnName reproduces gh789
@@ -1272,10 +1331,69 @@ func TestNewScratchSource_SecretsResolved(t *testing.T) {
 	require.True(t, src.SecretsResolved,
 		"internally constructed literal locations must be marked resolved")
 
-	resolved, err := driver.ResolveSourceSecrets(ctx, src)
+	resolved, err := driver.ResolveSourceSecrets(ctx, nil, src)
 	require.NoError(t, err)
 	require.Equal(t, src.Location, resolved.Location,
 		"resolution must not alter the literal scratch path")
+}
+
+// TestNewScratchSource_RelaxedDurability verifies gh868: the scratch
+// (disposable) cache DB is opened with relaxed durability pragmas, so
+// large document ingests don't pay a per-INSERT fsync. The params must
+// be both present in the Location and actually applied on the connection
+// by the underlying driver.
+func TestNewScratchSource_RelaxedDurability(t *testing.T) {
+	th := testh.New(t)
+	fpath := filepath.Join(t.TempDir(), "scratch.sqlite")
+
+	src, clnup, err := sqlite3.NewScratchSource(th.Context, fpath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = clnup() })
+
+	require.True(t, strings.HasSuffix(src.Location, "?_synchronous=OFF&_journal_mode=MEMORY"),
+		"scratch location must carry the relaxed-durability params")
+
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	// PRAGMA synchronous reports the numeric level: 0 == OFF.
+	var sync int
+	require.NoError(t, db.QueryRowContext(th.Context, `PRAGMA synchronous`).Scan(&sync))
+	require.Zero(t, sync, "synchronous must be OFF (0)")
+
+	var journalMode string
+	require.NoError(t, db.QueryRowContext(th.Context, `PRAGMA journal_mode`).Scan(&journalMode))
+	require.Equal(t, "memory", strings.ToLower(journalMode), "journal_mode must be MEMORY")
+
+	// Close the grip before the test returns so t.TempDir()'s cleanup can
+	// delete the DB file: Windows cannot remove a file that still has an open
+	// handle, and the testh Helper otherwise closes the grip only after
+	// t.TempDir()'s RemoveAll runs. grip.Close is idempotent (closeOnce), so
+	// the Helper's later close is a harmless no-op.
+	require.NoError(t, grip.Close())
+}
+
+// TestNewScratchSource_CleanupRemovesJournal verifies that the scratch
+// cleanup func targets SQLite's rollback journal sibling file
+// ("<fpath>-journal"), not the bogus "<fpath>/.db-journal" child path it
+// used previously. journal_mode=MEMORY means no journal is normally
+// created, so this guards the corrected path against regression (gh868).
+func TestNewScratchSource_CleanupRemovesJournal(t *testing.T) {
+	th := testh.New(t)
+	fpath := filepath.Join(t.TempDir(), "scratch.sqlite")
+
+	// Simulate an on-disk scratch DB plus a stale rollback journal.
+	require.NoError(t, os.WriteFile(fpath, []byte("db"), 0o600))
+	journal := fpath + "-journal"
+	require.NoError(t, os.WriteFile(journal, []byte("journal"), 0o600))
+
+	_, clnup, err := sqlite3.NewScratchSource(th.Context, fpath)
+	require.NoError(t, err)
+
+	require.NoError(t, clnup())
+	require.NoFileExists(t, fpath, "scratch DB file must be removed")
+	require.NoFileExists(t, journal, "scratch DB journal sibling must be removed")
 }
 
 // TestDriveri_CopyTable_CopiesIndexesAndTriggers verifies gh758:
@@ -1459,4 +1577,17 @@ func TestDriveri_CopyTable_NoCompanions_StructureOnly(t *testing.T) {
 		`SELECT count(*) FROM sqlite_master WHERE tbl_name='dst'
 			AND type IN ('index','trigger')`).Scan(&companionCount))
 	require.Equal(t, int64(0), companionCount)
+}
+
+func TestDBSemver(t *testing.T) {
+	t.Parallel()
+	th, src, _, grip, _ := testh.NewWith(t, sakila.SL3)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
+	require.NotEqual(t, "v0.0.0", v, "want a real engine version, got degenerate %q", v)
+
+	md, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+	require.Equal(t, v, md.DBSemver, "metadata.Source.DBSemver must match Grip.DBSemver")
 }

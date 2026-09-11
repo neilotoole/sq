@@ -43,7 +43,8 @@ Examples:
   $ sq config keyring migrate --all
 
 Available Commands:
-  ls          List keyring paths referenced by sources
+  ls          List keyring entries and their status
+  prune       Delete orphaned keyring entries
   create      Create a new keyring entry
   update      Update an existing keyring entry
   get         Get a keyring secret

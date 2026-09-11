@@ -37,18 +37,24 @@ func (cu *Cleanup) Len() int {
 	return len(cu.fns)
 }
 
-// Append c's cleanup funcs to cu.
+// Append copies c's cleanup funcs onto cu. It is a no-op if c is nil or
+// is cu itself. Note that the funcs are copied by reference: if both cu
+// and c are subsequently run, the appended funcs execute once per Run.
 func (cu *Cleanup) Append(c *Cleanup) *Cleanup {
 	if c == nil || c == cu {
 		return cu
 	}
 
+	// Snapshot c's funcs under c's lock, then release it before locking
+	// cu. Never holding both locks at once avoids a lock-ordering
+	// deadlock when, e.g., a.Append(b) and b.Append(a) run concurrently.
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	fns := append([]func() error(nil), c.fns...)
+	c.mu.Unlock()
+
 	cu.mu.Lock()
 	defer cu.mu.Unlock()
-
-	cu.fns = append(cu.fns, c.fns...)
+	cu.fns = append(cu.fns, fns...)
 	return cu
 }
 
@@ -103,6 +109,9 @@ func (cu *Cleanup) AddC(c io.Closer) *Cleanup {
 // an error from a func. Any errors are combined into a single error.
 // The set of cleanup funcs is removed when Run returns.
 //
+// Run holds cu's lock while executing the funcs, so a cleanup func must
+// not call back into cu (e.g. cu.Add) or it will deadlock.
+//
 // TODO: Consider renaming Run to Close so that Cleanup
 // implements io.Closer?
 func (cu *Cleanup) Run() error {
@@ -120,14 +129,11 @@ func (cu *Cleanup) Run() error {
 	// Capture any cleanup func errors
 	var err error
 
-	// Run cleanups in reverse order
+	// Run cleanups in reverse order. The fns slice can't contain nil
+	// entries: Add, AddE, AddC, and Append all reject or wrap nil before
+	// appending, so no nil guard is needed here.
 	for i := len(cu.fns) - 1; i >= 0; i-- {
-		fn := cu.fns[i]
-		if fn == nil {
-			// skip any nil fns
-			continue
-		}
-		err = errz.Append(err, fn())
+		err = errz.Append(err, cu.fns[i]())
 	}
 
 	// Set fns to nil so that the cleanup funcs

@@ -29,7 +29,7 @@ func uniqueTableName(prefix string) string {
 // stricter drivers like ClickHouse.
 func TestQueryVsExec_DDL_CREATE(t *testing.T) {
 	testCases := []string{
-		sakila.Pg12,
+		sakila.Pg,
 		sakila.SL3,
 	}
 
@@ -115,7 +115,7 @@ func TestQueryVsExec_DDL_CREATE(t *testing.T) {
 // - ExecContext on INSERT returns correct affected row count.
 func TestQueryVsExec_DML_INSERT(t *testing.T) {
 	testCases := []string{
-		sakila.Pg12,
+		sakila.Pg,
 		sakila.SL3,
 	}
 
@@ -204,7 +204,7 @@ func TestQueryVsExec_DML_INSERT(t *testing.T) {
 // TestQueryVsExec_DML_UPDATE demonstrates affected row count for UPDATE.
 func TestQueryVsExec_DML_UPDATE(t *testing.T) {
 	testCases := []string{
-		sakila.Pg12,
+		sakila.Pg,
 		sakila.SL3,
 	}
 
@@ -273,7 +273,7 @@ func TestQueryVsExec_DML_UPDATE(t *testing.T) {
 // TestExecSQL_Function tests the libsq.ExecSQL function we added.
 func TestExecSQL_Function(t *testing.T) {
 	testCases := []string{
-		sakila.Pg12,
+		sakila.Pg,
 		sakila.SL3,
 	}
 

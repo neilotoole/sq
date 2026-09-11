@@ -10,16 +10,17 @@ Examples:
   $ sq sql 'SELECT * FROM actor'
 
   # Select from a specified source
-  $ sq sql --src=@sakila_pg12 'SELECT * FROM actor'
+  $ sq sql --src=@sakila_pg 'SELECT * FROM actor'
 
-  # Drop table @sakila_pg12.actor
-  $ sq sql --src=@sakila_pg12 'DROP TABLE actor'
+  # Drop table @sakila_pg.actor
+  $ sq sql --src=@sakila_pg 'DROP TABLE actor'
 
-  # Select from active source and write results to @sakila_ms17.actor
-  $ sq sql 'SELECT * FROM actor' --insert=@sakila_ms17.actor
+  # Select from active source and write results to @sakila_ms.actor
+  $ sq sql 'SELECT * FROM actor' --insert=@sakila_ms.actor
 
 Flags:
   -f, --format string                  Specify output format (default "text")
+      --format.decimal string          Render decimal as string or number (JSON, YAML) (default "string")
   -t, --text                           Output text
   -h, --header                         Print header row (default true)
   -H, --no-header                      Don't print header row
@@ -54,7 +55,7 @@ Flags:
       --no-cache                       Don't cache ingest data
       --driver.csv.delim string        Delimiter for ingest CSV data (default "comma")
       --driver.csv.empty-as-null       Treat ingest empty CSV fields as NULL (default true)
-      --readonly                       Open sources read-only (DuckDB only; other drivers ignore)
+      --readonly                       Open sources read-only, if the driver supports it
       --ro                             Alias for --readonly
       --help                           help for sql
 

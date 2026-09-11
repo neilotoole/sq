@@ -10,6 +10,7 @@ menu:
 toc: false
 url: /docs/cmd/config-keyring-update
 ---
+
 Part of the [`sq config keyring`](/docs/cmd/config-keyring) command group;
 see [Secrets](/docs/secrets) for the broader picture. Typical use is to rotate a
 credential: pass the same `PATH` that already appears in a source's

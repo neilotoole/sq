@@ -6,8 +6,45 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output/commonw"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
+
+func TestColumnAutoLabel(t *testing.T) {
+	// nil must not panic
+	require.Equal(t, "", commonw.ColumnAutoLabel(nil), "nil column: no label")
+
+	col := &metadata.Column{}
+	require.Equal(t, "", commonw.ColumnAutoLabel(col), "plain column: no label")
+
+	col.Generated = true
+	require.Equal(t, "generated", commonw.ColumnAutoLabel(col))
+
+	// auto_inc beats generated
+	col.AutoIncrement = true
+	require.Equal(t, "auto_inc", commonw.ColumnAutoLabel(col))
+
+	// identity beats everything
+	col.Identity = true
+	require.Equal(t, "identity", commonw.ColumnAutoLabel(col))
+
+	// only identity
+	require.Equal(t, "identity", commonw.ColumnAutoLabel(&metadata.Column{Identity: true}))
+	// only auto_inc
+	require.Equal(t, "auto_inc", commonw.ColumnAutoLabel(&metadata.Column{AutoIncrement: true}))
+	// only generated
+	require.Equal(t, "generated", commonw.ColumnAutoLabel(&metadata.Column{Generated: true}))
+}
+
+func TestTriggerEnabledMark(t *testing.T) {
+	require.Equal(t, "", commonw.TriggerEnabledMark(nil), "nil: no concept of enabled")
+
+	tr := true
+	require.Equal(t, "✓", commonw.TriggerEnabledMark(&tr))
+
+	fa := false
+	require.Equal(t, "✗", commonw.TriggerEnabledMark(&fa))
+}
 
 func TestFKColumnSet(t *testing.T) {
 	tbl := &metadata.Table{
@@ -27,13 +64,16 @@ func TestFKColumnSet(t *testing.T) {
 func TestViews(t *testing.T) {
 	tbl := &metadata.Table{Name: "t", TableType: "table"}
 	view := &metadata.Table{Name: "v", TableType: "view"}
+	matview := &metadata.Table{Name: "mv", TableType: sqlz.TableTypeMaterializedView}
 
 	require.False(t, commonw.IsView(tbl))
 	require.True(t, commonw.IsView(view))
+	require.True(t, commonw.IsView(matview))
 	require.False(t, commonw.IsView(nil))
 
 	require.False(t, commonw.HasViews([]*metadata.Table{tbl}))
 	require.True(t, commonw.HasViews([]*metadata.Table{tbl, view}))
+	require.True(t, commonw.HasViews([]*metadata.Table{tbl, matview}))
 }
 
 func TestFKRows(t *testing.T) {

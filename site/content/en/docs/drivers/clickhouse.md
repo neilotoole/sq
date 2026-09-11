@@ -7,6 +7,7 @@ weight: 4035
 toc: true
 url: /docs/drivers/clickhouse
 ---
+
 The `sq` ClickHouse driver implements connectivity for
 [ClickHouse](https://clickhouse.com), an open-source columnar database focused on
 real-time analytics. The driver requires ClickHouse v25+.
@@ -44,7 +45,7 @@ clickhouse://username:password@hostname:9000/database?param=value
 Default ports:
 
 | Protocol | Non-Secure | Secure (TLS) |
-|----------|------------|--------------|
+| -------- | ---------- | ------------ |
 | Native   | `9000`     | `9440`       |
 
 If the port is omitted, `sq` auto-applies the default port: `9000` for
@@ -93,7 +94,7 @@ before mapping. For example, `LowCardinality(Nullable(String))` is treated
 as `String`, which maps to `kind.Text`.
 
 | ClickHouse Type (read)                | sq Kind         | ClickHouse Type (write) | Notes                              |
-|---------------------------------------|-----------------|-------------------------|------------------------------------|
+| ------------------------------------- | --------------- | ----------------------- | ---------------------------------- |
 | `Int8`, `Int16`, `Int32`, `Int64`     | `kind.Int`      | `Int64`                 | All signed integers                |
 | `UInt8`, `UInt16`, `UInt32`, `UInt64` | `kind.Int`      | `Int64`                 | All unsigned integers              |
 | `Float32`, `Float64`                  | `kind.Float`    | `Float64`               |                                    |
@@ -126,6 +127,18 @@ comma-separated text values. For example, `["Action", "Drama"]` becomes
 cannot be reconstructed from the text representation.
 See [#545](https://github.com/neilotoole/sq/issues/545).
 
+#### Binary data
+
+ClickHouse has no dedicated binary or `BLOB` type. Its `String` type holds
+arbitrary bytes (including null bytes) and deliberately stands in for `BLOB`,
+`VARCHAR`, `CLOB`, and `TEXT`. Binary data therefore stores fine, but a column
+cannot be marked as binary versus text: `sq` maps `String` and `FixedString` to
+`kind.Text`, and a `kind.Bytes` value written to ClickHouse reads back as
+`kind.Text`. This is intentional upstream (see
+[ClickHouse/ClickHouse#53482](https://github.com/ClickHouse/ClickHouse/issues/53482)),
+not a gap awaiting a fix, so a faithful binary column is not representable on
+ClickHouse.
+
 ### Inspect field provenance
 
 `sq inspect` populates the fields below from ClickHouse built-in functions
@@ -133,25 +146,23 @@ and the `system.tables` catalog.
 
 #### Source-level fields
 
-| Field | Source |
-| --- | --- |
-| `name`, `schema`, `catalog` | `currentDatabase()` |
-| `user` | `currentUser()` |
-| `db_product` | `"ClickHouse " + version()` |
-| `db_version` | `version()` |
-| `size` | `SELECT SUM(total_bytes) FROM system.tables WHERE database = ?` |
+| Field                       | Source                                                          |
+| --------------------------- | --------------------------------------------------------------- |
+| `name`, `schema`, `catalog` | `currentDatabase()`                                             |
+| `user`                      | `currentUser()`                                                 |
+| `db_product`                | `"ClickHouse " + version()`                                     |
+| `db_version`                | `version()`                                                     |
+| `size`                      | `SELECT SUM(total_bytes) FROM system.tables WHERE database = ?` |
 
 #### Per-table fields
 
-| Field | Source |
-| --- | --- |
+| Field       | Source                                                                                            |
+| ----------- | ------------------------------------------------------------------------------------------------- |
 | `row_count` | `total_rows` from `system.tables` (note: approximate for some engines such as `MergeTree` family) |
-| `size` | `total_bytes` from `system.tables` |
+| `size`      | `total_bytes` from `system.tables`                                                                |
 
 ## Related
 
-<!-- markdownlint-disable-next-line MD013 -->
-- [ClickHouse driver README](https://github.com/neilotoole/sq/blob/master/drivers/clickhouse/README.md)
 - [#544](https://github.com/neilotoole/sq/issues/544) — Type roundtrip issues (`kind.Time`, `kind.Bytes`)
 - [#545](https://github.com/neilotoole/sq/issues/545) — Array types flattened to CSV text
   (information loss)

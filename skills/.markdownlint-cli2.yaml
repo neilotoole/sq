@@ -1,7 +1,0 @@
-# Skill files are designed for agent ingestion; long lines are intentional.
-# This file overrides ONLY MD013 for skills/**; every other rule is inherited
-# from the repo-root .markdownlint-cli2.yaml via markdownlint-cli2's config
-# merge. It deliberately defines no globs/ignores so skills/ is linted as part
-# of the root invocation.
-config:
-  MD013: false

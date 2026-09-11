@@ -129,7 +129,7 @@ const (
 	// asks the driver to open the source in read-only mode (currently
 	// honored by DuckDB; other drivers ignore it).
 	SQLReadOnly      = "readonly"
-	SQLReadOnlyUsage = "Open sources read-only (DuckDB only; other drivers ignore)"
+	SQLReadOnlyUsage = "Open sources read-only, if the driver supports it"
 
 	// SQLReadOnlyAlias is a convenience alias for SQLReadOnly. It is
 	// registered as a separate pflag on the sql subcommand (see

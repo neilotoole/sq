@@ -20,6 +20,7 @@ func TestMungeForDriver_EmptyPath(t *testing.T) {
 		typ  drivertype.Type
 		loc  string
 	}{
+		{name: "sqlite3 whitespace only", typ: drivertype.SQLite, loc: "   "},
 		{name: "sqlite3 prefix only", typ: drivertype.SQLite, loc: "sqlite3://"},
 		{name: "sqlite3 bare scheme only", typ: drivertype.SQLite, loc: "sqlite3:"},
 		{name: "sqlite3 empty path with query", typ: drivertype.SQLite, loc: "sqlite3://?mode=ro"},
@@ -40,6 +41,22 @@ func TestMungeForDriver_EmptyPath(t *testing.T) {
 	got, err := location.MungeForDriver(drivertype.DuckDB, "duckdb://:memory:")
 	require.NoError(t, err)
 	require.Equal(t, "duckdb://:memory:", got)
+
+	// :memory: with a connection-string query suffix is preserved.
+	got, err = location.MungeForDriver(drivertype.DuckDB, "duckdb://:memory:?access_mode=READ_ONLY")
+	require.NoError(t, err)
+	require.Equal(t, "duckdb://:memory:?access_mode=READ_ONLY", got)
+
+	// :memory: via the bare scheme form (no "//") canonicalizes to the
+	// double-slash form.
+	got, err = location.MungeForDriver(drivertype.DuckDB, "duckdb::memory:")
+	require.NoError(t, err)
+	require.Equal(t, "duckdb://:memory:", got)
+
+	// A pass-through driver type returns the location unchanged.
+	got, err = location.MungeForDriver(drivertype.Pg, "postgres://alice@host/db")
+	require.NoError(t, err)
+	require.Equal(t, "postgres://alice@host/db", got)
 }
 
 // dollarDirNames are directory names containing bytes that are
@@ -194,10 +211,19 @@ func TestMungeTemplateForDriver_RejectsPlaceholders(t *testing.T) {
 
 		t.Run(tu.Name(typ.String(), "escaped dollar is ref-free"), func(t *testing.T) {
 			// '$$' is the escape for a literal '$': no ref is formed, so
-			// the template munges normally.
+			// the template munges normally. Assert the portable invariants
+			// (the escaped '$$' survives verbatim and forms no ref) rather
+			// than the exact absolute string, which is drive-qualified on
+			// Windows ("/var/db" -> "D:/var/db").
 			got, err := location.MungeTemplateForDriver(typ, "/var/db/q$${env:X}.db")
 			require.NoError(t, err)
-			require.Equal(t, string(typ)+":///var/db/q$${env:X}.db", got)
+			require.True(t, strings.HasPrefix(got, string(typ)+"://"),
+				"munged template must carry the driver scheme prefix")
+			require.True(t, strings.HasSuffix(got, "/q$${env:X}.db"),
+				"escaped '$$' must be preserved verbatim")
+			refs, err := secret.ExtractRefs(got)
+			require.NoError(t, err)
+			require.Empty(t, refs, "'$$' must not form a placeholder ref")
 		})
 	}
 
@@ -219,4 +245,26 @@ func TestMungeTemplateForDriver_QuerySuffixPreserved(t *testing.T) {
 	require.NoError(t, err)
 	want := "sqlite3://" + filepath.ToSlash(filepath.Join(secret.Escape(cwd), "sakila.db")) + "?mode=ro"
 	require.Equal(t, want, got)
+}
+
+// TestAbs_DriverSchemeNotAbsolutized is the gh #797 regression: a
+// driver-scheme location (sqlite3:, duckdb:) is not a bare file path, so
+// Abs must return it unchanged and never join it under the cwd. The sqlite3
+// scheme was missed because isFpath checked for "sqlite:" (no '3'); on
+// Windows "sqlite3:C:\db" has no ":/" either, so it was wrongly absolutized
+// to "<cwd>\sqlite3:C:\db", corrupting the location before the add-time
+// '$$' guard could see a valid path.
+func TestAbs_DriverSchemeNotAbsolutized(t *testing.T) {
+	locs := []string{
+		`sqlite3:C:\Users\x\my.db`,
+		`duckdb:C:\Users\x\my.duckdb`,
+		`sqlite3:sakila.db`,
+		`duckdb:foo.duckdb`,
+	}
+	for _, loc := range locs {
+		t.Run(loc, func(t *testing.T) {
+			require.Equal(t, loc, location.Abs(loc),
+				"a driver-scheme location must pass through Abs unchanged")
+		})
+	}
 }

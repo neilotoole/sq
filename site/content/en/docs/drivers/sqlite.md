@@ -7,6 +7,7 @@ weight: 4040
 toc: true
 url: /docs/drivers/sqlite
 ---
+
 The `sq` SQLite driver implements connectivity for
 the [SQLite](https://www.sqlite.org) database. It makes use of the backing
 [`mattn/sqlite3`](https://github.com/mattn/go-sqlite3) library.
@@ -76,7 +77,7 @@ extension features.
 {{< /alert >}}
 
 | Extension        | Details                                                                                                                                                 |
-|------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `vtable`         | [Virtual Table](https://www.sqlite.org/vtab.html) <br/><small>👉 [`sq inspect`](/docs/inspect) will show the virtual table's type as `virtual`.</small> |
 | `fts5`           | [Full Text Search 5](https://www.sqlite.org/fts5.html)                                                                                                  |
 | `json`           | [JSON](https://sqlite.org/json1.html)                                                                                                                   |
@@ -96,19 +97,19 @@ functions, and the database file itself.
 
 ### Source-level fields
 
-| Field | Source |
-| --- | --- |
-| `name` | DB file basename |
-| `schema` | first row of `pragma_database_list` (typically `main`) |
-| `catalog` | hardcoded `default` — SQLite has no catalog concept |
-| `user` | not populated — SQLite has no user model |
-| `db_product` | `"SQLite3 v" + db_version` |
-| `db_version` | `sqlite_version()` |
-| `size` | filesystem size of the DB file (`os.Stat`) |
+| Field        | Source                                                 |
+| ------------ | ------------------------------------------------------ |
+| `name`       | DB file basename                                       |
+| `schema`     | first row of `pragma_database_list` (typically `main`) |
+| `catalog`    | hardcoded `default` — SQLite has no catalog concept    |
+| `user`       | not populated — SQLite has no user model               |
+| `db_product` | `"SQLite3 v" + db_version`                             |
+| `db_version` | `sqlite_version()`                                     |
+| `size`       | filesystem size of the DB file (`os.Stat`)             |
 
 ### Per-table fields
 
-| Field | Source |
-| --- | --- |
-| `row_count` | live `SELECT COUNT(*) FROM "tbl"` |
-| `size` | not reported — SQLite does not expose per-table storage |
+| Field       | Source                                                  |
+| ----------- | ------------------------------------------------------- |
+| `row_count` | live `SELECT COUNT(*) FROM "tbl"`                       |
+| `size`      | not reported — SQLite does not expose per-table storage |

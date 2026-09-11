@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -46,7 +47,7 @@ func TestPing(t *testing.T) {
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 
-	require.NoError(t, drvr.Ping(th.Context, src))
+	require.NoError(t, drvr.Ping(th.Context, src, driver.ModeReadWrite))
 }
 
 // TestValidateSource verifies that ValidateSource returns the same source
@@ -216,6 +217,32 @@ func TestCreateSchema_DropSchema(t *testing.T) {
 	ctx := th.Context
 
 	const schemaName = "test_schema"
+	require.NoError(t, drvr.CreateSchema(ctx, db, schemaName))
+
+	exists, err := drvr.SchemaExists(ctx, db, schemaName)
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	require.NoError(t, drvr.DropSchema(ctx, db, schemaName))
+
+	exists, err = drvr.SchemaExists(ctx, db, schemaName)
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
+// TestCreateSchema_DropSchema_EmbeddedQuoteIdentifier covers a schema name that
+// contains a double quote. CreateSchema and DropSchema previously quoted the
+// schema name with Go's %q verb, which emits C-style backslash escaping
+// ("sc\"hema") that DuckDB rejects; they must use SQL double-quote escaping
+// ("sc""hema") via stringz.DoubleQuote, matching the alter/truncate/count fix
+// in #976.
+func TestCreateSchema_DropSchema_EmbeddedQuoteIdentifier(t *testing.T) {
+	db, th, src := newImplTestDB(t)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	ctx := th.Context
+
+	const schemaName = `sc"hema`
 	require.NoError(t, drvr.CreateSchema(ctx, db, schemaName))
 
 	exists, err := drvr.SchemaExists(ctx, db, schemaName)

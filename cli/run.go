@@ -212,23 +212,27 @@ func preRun(cmd *cobra.Command, ru *run.Run) error {
 	if cmdFlagChanged(ru.Cmd, flag.NoRedact) {
 		lg.FromContext(ctx).Warn(
 			"--no-redact is deprecated; use --reveal instead",
-			lga.Cmd, ru.Cmd.CommandPath())
+			lga.Cmd, ru.Cmd.CommandPath(),
+		)
 	}
 
-	if err = FinishRunInit(ctx, ru); err != nil {
-		return err
-	}
-
+	// Build the secret registry before FinishRunInit, which constructs
+	// ru.Grips: Grips captures the registry at construction time to
+	// resolve ${scheme:path} placeholders in source Locations.
 	ru.SecretRegistry = secret.NewRegistry()
 	ru.SecretRegistry.Register("keyring", keyring.NewStore())
 	ru.SecretRegistry.Register("env", env.NewResolver())
 	ru.SecretRegistry.Register("file", file.NewResolver())
 	ru.SecretRegistry.Register("op", op.NewResolver())
-	ctx = secret.NewContext(ctx, ru.SecretRegistry)
+
+	if err = FinishRunInit(ctx, ru); err != nil {
+		return err
+	}
+
 	cmd.SetContext(ctx)
 
 	var outCfg *outputConfig
-	ru.Writers, outCfg = newWriters(ru.Cmd, ru.Files, ru.Cleanup, cmdOpts, ru.Stdout, ru.Stderr)
+	ru.Writers, outCfg = newWriters(ru, cmdOpts)
 	ru.Out = outCfg.out
 	ru.ErrOut = outCfg.errOut
 
@@ -312,7 +316,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	ru.DriverRegistry = driver.NewRegistry(log)
 	dr := ru.DriverRegistry
 
-	ru.Grips = driver.NewGrips(dr, ru.Files, scratchSrcFunc)
+	ru.Grips = driver.NewGrips(dr, ru.Files, ru.SecretRegistry, scratchSrcFunc)
 	ru.Cleanup.AddC(ru.Grips)
 	ru.MDCache = mdcache.New(log, cfg.Collection, ru.Grips)
 	ru.Cleanup.AddC(ru.MDCache)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/rqlite"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -16,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -33,7 +35,7 @@ func TestSmoke(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	require.Equal(t, drivertype.Rqlite, src.Type)
 
 	sink, err := th.QuerySQL(src, nil, "SELECT * FROM "+sakila.TblActor)
@@ -43,13 +45,13 @@ func TestSmoke(t *testing.T) {
 
 // TestSourceMetadata verifies that getSourceMetadata returns the
 // expected shape: rqlite driver, "main" schema, and the right
-// table/view counts (16 tables, 5 views in the bundled Sakila).
+// table/view counts (16 tables, 7 views in the bundled Sakila).
 func TestSourceMetadata(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 
 	md, err := grip.SourceMetadata(th.Context, false)
@@ -58,15 +60,96 @@ func TestSourceMetadata(t *testing.T) {
 	require.Equal(t, "main", md.Schema)
 	require.Equal(t, "default", md.Catalog)
 	require.NotEmpty(t, md.DBVersion, "expected SQLite version from rqlite")
-	// The strict baseline is 16 tables; parallel write-path tests
-	// create extra transient tables that may still be live when the
-	// metadata query runs. Assert the lower bound rather than equality.
+	// The strict baseline is 16 tables and 7 views; parallel write-path
+	// tests create extra transient tables and views (e.g. the inspect
+	// DDL-metadata test) that may still be live when the metadata query
+	// runs. Assert the lower bound rather than equality.
 	require.GreaterOrEqual(t, md.TableCount, int64(16))
-	require.Equal(t, int64(5), md.ViewCount)
+	require.GreaterOrEqual(t, md.ViewCount, int64(7))
 	// rqlite's HTTP API doesn't expose a database file size, so the
 	// driver leaves Source.Size as nil (gh744). Asserting nil prevents a
 	// regression to the int64 zero value, which would render as "0.0B".
 	require.Nil(t, md.Size, "rqlite source size should not be reported")
+}
+
+// TestInspect_DDLMetadata exercises the DDL-derived inspect metadata that
+// SQLite/rqlite exposes only in the CREATE statements in sqlite_master:
+// generated columns, AUTOINCREMENT, CHECK constraints, triggers (timing +
+// events), and view definitions. It creates uniquely-named objects in the
+// shared rqlite container and drops them on cleanup (views/triggers need
+// explicit DROP; the table goes via DropTable).
+func TestInspect_DDLMetadata(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.RQ)
+	grip := th.Open(src)
+	ctx := th.Context
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	suffix := stringz.Uniq8()
+	tblName := "widget_" + suffix
+	trgName := "widget_ai_" + suffix
+	viewName := "widget_view_" + suffix
+
+	stmts := []string{
+		fmt.Sprintf(`CREATE TABLE %q (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	price INTEGER NOT NULL CHECK (price > 0),
+	discount INTEGER NOT NULL DEFAULT 0,
+	net INTEGER GENERATED ALWAYS AS (price - discount) STORED,
+	CONSTRAINT chk_discount CHECK (discount < price)
+)`, tblName),
+		fmt.Sprintf(`CREATE TRIGGER %q AFTER INSERT ON %q BEGIN SELECT 1; END`, trgName, tblName),
+		fmt.Sprintf(`CREATE VIEW %q AS SELECT id, price FROM %q WHERE price > 10`, viewName, tblName),
+	}
+	for _, stmt := range stmts {
+		_, err = db.ExecContext(ctx, stmt)
+		require.NoError(t, err)
+	}
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(ctx, fmt.Sprintf("DROP VIEW IF EXISTS %q", viewName))
+		_, _ = db.ExecContext(ctx, fmt.Sprintf("DROP TRIGGER IF EXISTS %q", trgName))
+		_ = grip.SQLDriver().DropTable(ctx, db, tablefq.T{Table: tblName}, true)
+	})
+
+	md, err := grip.TableMetadata(ctx, tblName)
+	require.NoError(t, err)
+
+	colByName := make(map[string]*metadata.Column, len(md.Columns))
+	for _, col := range md.Columns {
+		colByName[col.Name] = col
+	}
+	require.True(t, colByName["id"].AutoIncrement, "id should be AUTOINCREMENT")
+	require.True(t, colByName["net"].Generated, "net should be a generated column")
+	require.Equal(t, "price - discount", colByName["net"].GeneratedExpr)
+
+	require.Len(t, md.CheckConstraints, 2)
+	var foundNamed bool
+	for _, cc := range md.CheckConstraints {
+		require.Equal(t, tblName, cc.Table)
+		require.NotEmpty(t, cc.Clause)
+		if cc.Name == "chk_discount" {
+			foundNamed = true
+		}
+	}
+	require.True(t, foundNamed, "named CHECK constraint chk_discount not found")
+
+	require.Len(t, md.Triggers, 1)
+	trg := md.Triggers[0]
+	require.Equal(t, trgName, trg.Name)
+	require.Equal(t, "AFTER", trg.Timing)
+	require.Equal(t, []string{"INSERT"}, trg.Events)
+	require.NotEmpty(t, trg.Definition)
+	require.Nil(t, trg.Enabled)
+
+	viewMd, err := grip.TableMetadata(ctx, viewName)
+	require.NoError(t, err)
+	require.Equal(t, sqlz.TableTypeView, viewMd.TableType)
+	require.NotEmpty(t, viewMd.ViewDefinition)
+	require.Contains(t, viewMd.ViewDefinition, "SELECT")
 }
 
 // TestTableMetadata_Actor verifies the per-table metadata path:
@@ -76,7 +159,7 @@ func TestTableMetadata_Actor(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 
 	tbl, err := grip.TableMetadata(th.Context, sakila.TblActor)
@@ -88,12 +171,11 @@ func TestTableMetadata_Actor(t *testing.T) {
 	for i, col := range tbl.Columns {
 		gotKinds[i] = col.Kind
 	}
-	// actor: actor_id (decimal due to NUMERIC affinity), first_name,
-	// last_name (text), last_update (datetime). sakila.TblActorColKinds
-	// returns kind.Int for actor_id; the SQLite-on-rqlite shape uses
-	// NUMERIC → decimal, so we assert the column kinds explicitly here
-	// rather than reusing the shared helper.
-	require.Equal(t, []kind.Kind{kind.Decimal, kind.Text, kind.Text, kind.Datetime}, gotKinds)
+	// The canonical rqlite fixture (16 tables + 7 views) declares actor_id as
+	// INTEGER, so its column kinds match the shared helper: actor_id (int),
+	// first_name, last_name (text), last_update (datetime). (Older fixtures used
+	// NUMERIC affinity, which mapped actor_id to decimal instead.)
+	require.Equal(t, sakila.TblActorColKinds(), gotKinds)
 	require.True(t, tbl.Columns[0].PrimaryKey, "actor_id should be primary key")
 }
 
@@ -102,7 +184,7 @@ func TestCreateTable(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -113,7 +195,8 @@ func TestCreateTable(t *testing.T) {
 		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
 	})
 
-	tblDef := schema.NewTable(tblName,
+	tblDef := schema.NewTable(
+		tblName,
 		[]string{"id", "name", "ts"},
 		[]kind.Kind{kind.Int, kind.Text, kind.Datetime},
 	)
@@ -135,7 +218,7 @@ func TestAlterTableRename(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -167,7 +250,7 @@ func TestAlterTableAddColumn(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -198,7 +281,7 @@ func TestAlterTableRenameColumn(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -228,7 +311,7 @@ func TestTruncate_NoReset(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -263,7 +346,7 @@ func TestTruncate_Reset(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -299,12 +382,71 @@ func TestTruncate_Reset(t *testing.T) {
 	require.Equal(t, int64(1), id, "AUTOINCREMENT counter should have been reset")
 }
 
+// TestAlterTruncate_EmbeddedQuoteIdentifier reproduces gh821: the
+// AlterTableRename, AlterTableRenameColumn, AlterTableAddColumn, and Truncate
+// paths used %q for SQL identifier quoting, which emits Go backslash escaping
+// that SQLite rejects for names containing a double quote (e.g. a we"ird table,
+// creatable from a CSV header). Each path must use SQL double-quote escaping.
+func TestAlterTruncate_EmbeddedQuoteIdentifier(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.RQ)
+	grip := th.Open(src)
+	drvr := grip.SQLDriver()
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	uniq := stringz.Uniq8()
+	tblName := `we"ird_` + uniq
+	newName := `we"ird2_` + uniq
+	t.Cleanup(func() {
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: tblName}, true)
+		_ = drvr.DropTable(th.Context, db, tablefq.T{Table: newName}, true)
+	})
+
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("CREATE TABLE %s (id INTEGER)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+
+	// AlterTableAddColumn: add a column whose name also contains a quote.
+	const colName = `na"me`
+	require.NoError(t, drvr.AlterTableAddColumn(th.Context, db, tblName, colName, kind.Text))
+
+	// AlterTableRenameColumn: rename the quoted column to another quoted name.
+	const renamedCol = `re"named`
+	require.NoError(t, drvr.AlterTableRenameColumn(th.Context, db, tblName, colName, renamedCol))
+
+	md, err := grip.TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	require.Len(t, md.Columns, 2)
+	require.Equal(t, renamedCol, md.Columns[1].Name)
+
+	// Truncate: insert a row, then delete all rows via the truncate path.
+	_, err = db.ExecContext(th.Context,
+		fmt.Sprintf("INSERT INTO %s (id) VALUES (1)", stringz.DoubleQuote(tblName)))
+	require.NoError(t, err)
+	affected, err := drvr.Truncate(th.Context, src, tblName, false)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), affected)
+
+	// AlterTableRename: rename the quoted table to another quoted name.
+	require.NoError(t, drvr.AlterTableRename(th.Context, db, tblName, newName))
+	exists, err := drvr.TableExists(th.Context, db, newName)
+	require.NoError(t, err)
+	require.True(t, exists)
+	exists, err = drvr.TableExists(th.Context, db, tblName)
+	require.NoError(t, err)
+	require.False(t, exists)
+}
+
 func TestCopyTable_StructureOnly(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -325,7 +467,7 @@ func TestCopyTable_StructureOnly(t *testing.T) {
 	require.Equal(t, dstName, md.Name)
 	require.Equal(t, int64(0), md.RowCount)
 
-	src2 := th.Source(sakila.Rq)
+	src2 := th.Source(sakila.RQ)
 	srcMd, err := th.Open(src2).TableMetadata(th.Context, sakila.TblActor)
 	require.NoError(t, err)
 	require.Len(t, md.Columns, len(srcMd.Columns))
@@ -336,7 +478,7 @@ func TestCopyTable_WithData(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -362,7 +504,7 @@ func TestAlterTableColumnKinds(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -409,7 +551,7 @@ func TestAlterTableColumnKinds_PreservesAutoincrementSeq(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -421,7 +563,8 @@ func TestAlterTableColumnKinds_PreservesAutoincrementSeq(t *testing.T) {
 	})
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`CREATE TABLE %q (id INTEGER PRIMARY KEY AUTOINCREMENT, val INTEGER NOT NULL)`, tblName))
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY AUTOINCREMENT, val INTEGER NOT NULL)`, tblName,
+	))
 	require.NoError(t, err)
 
 	for i := 1; i <= 10; i++ {
@@ -479,7 +622,7 @@ func TestAlterTableColumnKinds_QuotedIdentifier(t *testing.T) {
 			t.Parallel()
 
 			th := testh.New(t)
-			src := th.Source(sakila.Rq)
+			src := th.Source(sakila.RQ)
 			grip := th.Open(src)
 			drvr := grip.SQLDriver()
 			db, err := grip.DB(th.Context)
@@ -543,7 +686,7 @@ func TestAlterTableColumnKinds_ColumnNamePrefixesType(t *testing.T) {
 			t.Parallel()
 
 			th := testh.New(t)
-			src := th.Source(sakila.Rq)
+			src := th.Source(sakila.RQ)
 			grip := th.Open(src)
 			drvr := grip.SQLDriver()
 			db, err := grip.DB(th.Context)
@@ -581,7 +724,7 @@ func TestCopyTable_TableIdentInDefaultLiteral(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -619,7 +762,7 @@ func TestPrepareInsertStmt(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -659,7 +802,7 @@ func TestBatchInsert(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -672,7 +815,8 @@ func TestBatchInsert(t *testing.T) {
 
 	// 4 columns -> batchSize = MaxBatchValues(500) / 4 = 125.
 	// 1500 records => 12 batches, exercising the goroutine flush path.
-	tblDef := schema.NewTable(tblName,
+	tblDef := schema.NewTable(
+		tblName,
 		[]string{"a", "b", "c", "d"},
 		[]kind.Kind{kind.Int, kind.Text, kind.Text, kind.Datetime},
 	)
@@ -715,7 +859,7 @@ func TestPrepareUpdateStmt(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -758,7 +902,7 @@ func TestAlterTableColumnKinds_MismatchedLength(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -781,7 +925,7 @@ func TestConsistencyLevels_Smoke(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	base := th.Source(sakila.Rq)
+	base := th.Source(sakila.RQ)
 
 	levels := []string{"none", "weak", "linearizable", "strong"}
 	for _, level := range levels {
@@ -805,7 +949,7 @@ func TestConsistencyLevels_Smoke(t *testing.T) {
 			drvr, err := provider.DriverFor(drivertype.Rqlite)
 			require.NoError(t, err)
 
-			grip, err := drvr.Open(th.Context, src)
+			grip, err := drvr.Open(th.Context, src, driver.ModeReadWrite)
 			require.NoError(t, err)
 			t.Cleanup(func() { _ = grip.Close() })
 
@@ -825,7 +969,7 @@ func TestAlterTableColumnKinds_UnknownColumn(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -854,7 +998,7 @@ func TestOpen_DefaultsPort(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	base := th.Source(sakila.Rq)
+	base := th.Source(sakila.RQ)
 
 	u, err := url.Parse(base.Location)
 	require.NoError(t, err)
@@ -874,7 +1018,7 @@ func TestOpen_DefaultsPort(t *testing.T) {
 	provider := &rqlite.Provider{Log: lg.FromContext(th.Context)}
 	drvr, err := provider.DriverFor(drivertype.Rqlite)
 	require.NoError(t, err)
-	grip, err := drvr.Open(th.Context, src)
+	grip, err := drvr.Open(th.Context, src, driver.ModeReadWrite)
 	require.NoError(t, err, "should auto-default port 4001")
 	t.Cleanup(func() { _ = grip.Close() })
 
@@ -895,7 +1039,7 @@ func TestWriteAtomic_PerStatementError(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -927,22 +1071,22 @@ func TestWriteAtomic_PerStatementError(t *testing.T) {
 		"the underlying cause should be preserved")
 }
 
-// TestCoerce_NumericAffinityInt verifies that NUMERIC-declared columns
-// holding integer values surface as int64. This pins the cross-driver
-// integer contract for NUMERIC affinity: gorqlite hands back JSON
-// numbers as float64, which the rqlite driver coerces back to int64
-// for integer-valued NUMERIC cells (matching mattn/go-sqlite3's native
-// behavior). The CREATE TABLE is issued by hand rather than via
-// schema.NewTable because the latter emits INTEGER, not NUMERIC, so
-// would not exercise the coercion path. This guards against future
-// upstream Sakila schema fixes that would otherwise silently retire
-// the existing Sakila-driven coverage.
-func TestCoerce_NumericAffinityInt(t *testing.T) {
+// TestCoerce_NumericAffinityWholeNumber verifies that a NUMERIC-declared
+// column holding an integer value surfaces as a decimal.Decimal, not an
+// int64. This pins the cross-driver contract for NUMERIC affinity:
+// mattn/go-sqlite3 and Postgres both surface a NUMERIC column as a decimal
+// regardless of whether the stored value is whole, so rqlite matches that
+// rather than demoting whole values to int64 (issue #839). The CREATE TABLE
+// is issued by hand rather than via schema.NewTable because the latter emits
+// INTEGER, not NUMERIC, so would not exercise the coercion path. This guards
+// against future upstream Sakila schema fixes that would otherwise silently
+// retire the existing Sakila-driven coverage.
+func TestCoerce_NumericAffinityWholeNumber(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -967,22 +1111,22 @@ func TestCoerce_NumericAffinityInt(t *testing.T) {
 	require.Len(t, sink.Recs, 1)
 	require.Len(t, sink.Recs[0], 2)
 
-	gotID, ok := sink.Recs[0][0].(int64)
-	require.True(t, ok, "expected int64 for integer-valued NUMERIC column, got %T", sink.Recs[0][0])
-	require.Equal(t, int64(42), gotID)
+	gotID, ok := sink.Recs[0][0].(decimal.Decimal)
+	require.True(t, ok, "expected decimal.Decimal for integer-valued NUMERIC column, got %T", sink.Recs[0][0])
+	require.True(t, gotID.Equal(decimal.NewFromInt(42)), "expected 42, got %s", gotID.String())
 	require.Equal(t, "alpha", sink.Recs[0][1])
 }
 
 // TestCoerce_NumericAffinityDecimal verifies that NUMERIC-declared
 // columns holding non-integer values surface as decimal.Decimal.
-// Pairs with TestCoerce_NumericAffinityInt to cover both branches of
-// coerceDecimal (integer demotion vs. decimal pass-through).
+// Pairs with TestCoerce_NumericAffinityWholeNumber, which covers the
+// integer-valued case; both surface as decimal (see issue #839).
 func TestCoerce_NumericAffinityDecimal(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1013,8 +1157,7 @@ func TestCoerce_NumericAffinityDecimal(t *testing.T) {
 	require.Equal(t, int64(1), gotID)
 
 	// price is NUMERIC affinity with a non-integer value, so it
-	// surfaces as decimal.Decimal (coerceDecimal returns the value
-	// unchanged when !IsInteger).
+	// surfaces as decimal.Decimal.
 	gotPrice, ok := sink.Recs[0][1].(decimal.Decimal)
 	require.True(t, ok, "expected decimal.Decimal for non-integer NUMERIC column, got %T", sink.Recs[0][1])
 	require.True(t, gotPrice.Equal(decimal.NewFromFloat(19.99)),
@@ -1030,7 +1173,7 @@ func TestCoerce_RealAffinityFloat(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1070,7 +1213,7 @@ func TestCopyTable_PreservesFKs(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1152,7 +1295,7 @@ func TestCopyTable_RewritesSelfFK(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			th := testh.New(t)
-			src := th.Source(sakila.Rq)
+			src := th.Source(sakila.RQ)
 			grip := th.Open(src)
 			drvr := grip.SQLDriver()
 			db, err := grip.DB(th.Context)
@@ -1207,7 +1350,7 @@ func TestCopyTable_LeavesCrossFKsAlone(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1224,14 +1367,16 @@ func TestCopyTable_LeavesCrossFKsAlone(t *testing.T) {
 	})
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`CREATE TABLE %q (id INTEGER PRIMARY KEY)`, parentName))
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY)`, parentName,
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (`+
 			`id INTEGER PRIMARY KEY, `+
 			`parent_id INTEGER REFERENCES %q(id), `+
 			`other_id INTEGER REFERENCES %q(id))`,
-		srcName, srcName, parentName))
+		srcName, srcName, parentName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1263,7 +1408,7 @@ func TestCopyTable_MultipleSelfFKs(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1282,7 +1427,8 @@ func TestCopyTable_MultipleSelfFKs(t *testing.T) {
 			`id INTEGER PRIMARY KEY, `+
 			`parent_id INTEGER REFERENCES %q(id), `+
 			`buddy_id INTEGER REFERENCES %q(id))`,
-		srcName, srcName, srcName))
+		srcName, srcName, srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1307,7 +1453,7 @@ func TestCopyTable_CompositeSelfFK(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1326,7 +1472,8 @@ func TestCopyTable_CompositeSelfFK(t *testing.T) {
 			`a INTEGER, b INTEGER, x INTEGER, y INTEGER, `+
 			`PRIMARY KEY (x, y), `+
 			`FOREIGN KEY(a, b) REFERENCES %q(x, y))`,
-		srcName, srcName))
+		srcName, srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1352,7 +1499,7 @@ func TestCopyTable_CaseMismatchSelfFK(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1369,7 +1516,8 @@ func TestCopyTable_CaseMismatchSelfFK(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %s (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %s(id))`,
-		srcName, upperFKTarget))
+		srcName, upperFKTarget,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1401,7 +1549,7 @@ func TestCopyTable_SchemaQualifiedDest(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1417,7 +1565,8 @@ func TestCopyTable_SchemaQualifiedDest(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES %q(id))`,
-		srcName, srcName))
+		srcName, srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1447,7 +1596,7 @@ func TestAlterTableColumnKinds_PreservesFKs(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1462,13 +1611,15 @@ func TestAlterTableColumnKinds_PreservesFKs(t *testing.T) {
 	})
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`CREATE TABLE %q (id INTEGER PRIMARY KEY)`, parentName))
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY)`, parentName,
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (`+
 			`id INTEGER PRIMARY KEY, parent_id INTEGER, payload TEXT, `+
 			`FOREIGN KEY (parent_id) REFERENCES %q(id))`,
-		childName, parentName))
+		childName, parentName,
+	))
 	require.NoError(t, err)
 
 	err = drvr.AlterTableColumnKinds(th.Context, db, childName,
@@ -1495,7 +1646,7 @@ func TestColumnTypes_EmptyTable(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1520,7 +1671,8 @@ func TestColumnTypes_EmptyTable(t *testing.T) {
 			r REAL,
 			b BOOLEAN,
 			blob BLOB
-		)`, tblName))
+		)`, tblName,
+	))
 	require.NoError(t, err)
 
 	// TableColumnTypes runs through a *sql.Conn so the path matches the
@@ -1548,7 +1700,7 @@ func TestColumnTypes_EmptyTable(t *testing.T) {
 	// RecordMeta should map each declared type to its expected
 	// non-Unknown kind, end-to-end. This is the assertion that ties
 	// the wrapper's DatabaseTypeName back to the rest of the driver.
-	recMeta, _, err := drvr.RecordMeta(th.Context, colTypes)
+	recMeta, _, err := drvr.RecordMeta(th.Context, colTypes, nil)
 	require.NoError(t, err)
 	require.Equal(t, []kind.Kind{
 		kind.Int,
@@ -1572,7 +1724,7 @@ func TestCopyTable_PreservesUniqueConstraints(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1588,7 +1740,8 @@ func TestCopyTable_PreservesUniqueConstraints(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL)`,
-		srcName))
+		srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1596,11 +1749,13 @@ func TestCopyTable_PreservesUniqueConstraints(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, email) VALUES (1, 'a@a.com')`, dstName))
+		`INSERT INTO %q (id, email) VALUES (1, 'a@a.com')`, dstName,
+	))
 	require.NoError(t, err)
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, email) VALUES (2, 'a@a.com')`, dstName))
+		`INSERT INTO %q (id, email) VALUES (2, 'a@a.com')`, dstName,
+	))
 	require.Error(t, err, "duplicate email should violate UNIQUE on copied table")
 }
 
@@ -1614,7 +1769,7 @@ func TestCopyTable_PreservesDefaultExpression(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1629,7 +1784,8 @@ func TestCopyTable_PreservesDefaultExpression(t *testing.T) {
 	})
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`CREATE TABLE %q (id INTEGER PRIMARY KEY, salary REAL DEFAULT 50000)`, srcName))
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY, salary REAL DEFAULT 50000)`, srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1637,7 +1793,8 @@ func TestCopyTable_PreservesDefaultExpression(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id) VALUES (1)`, dstName))
+		`INSERT INTO %q (id) VALUES (1)`, dstName,
+	))
 	require.NoError(t, err)
 
 	var got float64
@@ -1658,7 +1815,7 @@ func TestCopyTable_PreservesAutoIncrement(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1673,12 +1830,14 @@ func TestCopyTable_PreservesAutoIncrement(t *testing.T) {
 	})
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`CREATE TABLE %q (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)`, srcName))
+		`CREATE TABLE %q (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)`, srcName,
+	))
 	require.NoError(t, err)
 
 	for _, name := range []string{"a", "b", "c"} {
 		_, err = db.ExecContext(th.Context, fmt.Sprintf(
-			`INSERT INTO %q (name) VALUES (?)`, srcName), name)
+			`INSERT INTO %q (name) VALUES (?)`, srcName,
+		), name)
 		require.NoError(t, err)
 	}
 
@@ -1688,7 +1847,8 @@ func TestCopyTable_PreservesAutoIncrement(t *testing.T) {
 	require.Equal(t, int64(3), affected)
 
 	res, err := db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (name) VALUES ('x')`, dstName))
+		`INSERT INTO %q (name) VALUES ('x')`, dstName,
+	))
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
@@ -1711,7 +1871,7 @@ func TestCopyTable_PreservesCompositePK(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1740,11 +1900,13 @@ func TestCopyTable_PreservesCompositePK(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`INSERT INTO %q (actor_id, film_id, last_update) VALUES (1, 1, CURRENT_TIMESTAMP)`,
-		dstName))
+		dstName,
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`INSERT INTO %q (actor_id, film_id, last_update) VALUES (1, 1, CURRENT_TIMESTAMP)`,
-		dstName))
+		dstName,
+	))
 	require.Error(t, err, "duplicate composite PK should be rejected")
 }
 
@@ -1758,7 +1920,7 @@ func TestCopyTable_PreservesCheckConstraints(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1774,7 +1936,8 @@ func TestCopyTable_PreservesCheckConstraints(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (id INTEGER PRIMARY KEY, age INTEGER NOT NULL CHECK (age >= 0))`,
-		srcName))
+		srcName,
+	))
 	require.NoError(t, err)
 
 	_, err = drvr.CopyTable(th.Context, db,
@@ -1783,12 +1946,14 @@ func TestCopyTable_PreservesCheckConstraints(t *testing.T) {
 
 	// Sanity: a valid insert succeeds.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, age) VALUES (1, 5)`, dstName))
+		`INSERT INTO %q (id, age) VALUES (1, 5)`, dstName,
+	))
 	require.NoError(t, err)
 
 	// CHECK violation: negative age should be rejected on the destination.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, age) VALUES (2, -1)`, dstName))
+		`INSERT INTO %q (id, age) VALUES (2, -1)`, dstName,
+	))
 	require.Error(t, err,
 		"CHECK (age >= 0) should be preserved and reject negative ages")
 }
@@ -1804,7 +1969,7 @@ func TestAlterTableColumnKinds_PreservesUniqueAndDefault(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1817,7 +1982,8 @@ func TestAlterTableColumnKinds_PreservesUniqueAndDefault(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		`CREATE TABLE %q (id INTEGER PRIMARY KEY, email TEXT UNIQUE, salary REAL DEFAULT 50000)`,
-		tblName))
+		tblName,
+	))
 	require.NoError(t, err)
 
 	err = drvr.AlterTableColumnKinds(th.Context, db, tblName,
@@ -1825,10 +1991,12 @@ func TestAlterTableColumnKinds_PreservesUniqueAndDefault(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, email) VALUES (1, 'a@a.com')`, tblName))
+		`INSERT INTO %q (id, email) VALUES (1, 'a@a.com')`, tblName,
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (id, email) VALUES (2, 'a@a.com')`, tblName))
+		`INSERT INTO %q (id, email) VALUES (2, 'a@a.com')`, tblName,
+	))
 	require.Error(t, err, "UNIQUE on email should survive the rebuild")
 
 	var salary float64
@@ -1853,7 +2021,7 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 	tu.SkipShort(t, true)
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1886,10 +2054,12 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 	for _, tblName := range tblNames {
 		quoted := stringz.DoubleQuote(tblName)
 		_, err = db.ExecContext(th.Context, fmt.Sprintf(
-			"CREATE TABLE %s (id INTEGER PRIMARY KEY, val TEXT)", quoted))
+			"CREATE TABLE %s (id INTEGER PRIMARY KEY, val TEXT)", quoted,
+		))
 		require.NoError(t, err)
 		_, err = db.ExecContext(th.Context, fmt.Sprintf(
-			"INSERT INTO %s (val) VALUES ('a'), ('b')", quoted))
+			"INSERT INTO %s (val) VALUES ('a'), ('b')", quoted,
+		))
 		require.NoError(t, err)
 	}
 
@@ -1927,7 +2097,7 @@ func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
 	tu.SkipShort(t, true)
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -1945,17 +2115,21 @@ func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
 
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		"CREATE TABLE %s (id INTEGER PRIMARY KEY, val INTEGER NOT NULL)",
-		stringz.DoubleQuote(parentTbl)))
+		stringz.DoubleQuote(parentTbl),
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
 		"CREATE TABLE %s (id INTEGER PRIMARY KEY, pid INTEGER NOT NULL REFERENCES %s(id))",
-		stringz.DoubleQuote(childTbl), stringz.DoubleQuote(parentTbl)))
+		stringz.DoubleQuote(childTbl), stringz.DoubleQuote(parentTbl),
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, val) VALUES (1, 42)", stringz.DoubleQuote(parentTbl)))
+		"INSERT INTO %s (id, val) VALUES (1, 42)", stringz.DoubleQuote(parentTbl),
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, pid) VALUES (1, 1)", stringz.DoubleQuote(childTbl)))
+		"INSERT INTO %s (id, pid) VALUES (1, 1)", stringz.DoubleQuote(childTbl),
+	))
 	require.NoError(t, err)
 
 	// Enable FK enforcement on the node's write connection. This must go
@@ -1965,7 +2139,8 @@ func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
 
 	// Sanity check: enforcement is live, so a dangling child insert fails.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, pid) VALUES (99, 999)", stringz.DoubleQuote(childTbl)))
+		"INSERT INTO %s (id, pid) VALUES (99, 999)", stringz.DoubleQuote(childTbl),
+	))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "FOREIGN KEY constraint failed")
 
@@ -1998,21 +2173,25 @@ func TestAlterTableColumnKinds_ForeignKeyEnforcement(t *testing.T) {
 	// dangling insert succeeding here proves the restore ran. On a node
 	// actually running -fk, the same restore re-enables enforcement.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, pid) VALUES (100, 999)", stringz.DoubleQuote(childTbl)))
+		"INSERT INTO %s (id, pid) VALUES (100, 999)", stringz.DoubleQuote(childTbl),
+	))
 	require.NoError(t, err)
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"DELETE FROM %s WHERE id = 100", stringz.DoubleQuote(childTbl)))
+		"DELETE FROM %s WHERE id = 100", stringz.DoubleQuote(childTbl),
+	))
 	require.NoError(t, err)
 
 	// Re-enable enforcement: the child's FK must still be wired to the
 	// rebuilt parent (the DROP/RENAME preserved the relationship).
 	require.NoError(t, rqlite.ExecNonTx(th.Context, db, "PRAGMA foreign_keys=on"))
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, pid) VALUES (101, 999)", stringz.DoubleQuote(childTbl)))
+		"INSERT INTO %s (id, pid) VALUES (101, 999)", stringz.DoubleQuote(childTbl),
+	))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "FOREIGN KEY constraint failed")
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		"INSERT INTO %s (id, pid) VALUES (2, 1)", stringz.DoubleQuote(childTbl)))
+		"INSERT INTO %s (id, pid) VALUES (2, 1)", stringz.DoubleQuote(childTbl),
+	))
 	require.NoError(t, err)
 }
 
@@ -2030,7 +2209,7 @@ func TestCopyTable_CopiesIndexesAndTriggers(t *testing.T) {
 	t.Parallel()
 
 	th := testh.New(t)
-	src := th.Source(sakila.Rq)
+	src := th.Source(sakila.RQ)
 	grip := th.Open(src)
 	drvr := grip.SQLDriver()
 	db, err := grip.DB(th.Context)
@@ -2105,7 +2284,8 @@ func TestCopyTable_CopiesIndexesAndTriggers(t *testing.T) {
 
 	// The copied trigger's side effect fires on insert into the destination.
 	_, err = db.ExecContext(th.Context, fmt.Sprintf(
-		`INSERT INTO %q (name, email) VALUES ('dave', 'd@x.com')`, dstName))
+		`INSERT INTO %q (name, email) VALUES ('dave', 'd@x.com')`, dstName,
+	))
 	require.NoError(t, err)
 	require.NoError(t, db.QueryRowContext(th.Context,
 		fmt.Sprintf(`SELECT count(*) FROM %q WHERE msg='dave'`, logName)).Scan(&logCount))
@@ -2118,4 +2298,18 @@ func TestCopyTable_CopiesIndexesAndTriggers(t *testing.T) {
 		`SELECT count(*) FROM sqlite_master WHERE tbl_name=? AND name IN (?, ?)`,
 		srcName, idxName, trgName).Scan(&srcCompanionCount))
 	require.Equal(t, int64(2), srcCompanionCount)
+}
+
+func TestDBSemver(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+	th, src, _, grip, _ := testh.NewWith(t, sakila.RQ)
+	v, err := grip.DBSemver(th.Context)
+	require.NoError(t, err)
+	require.True(t, semver.IsValid(v), "want canonical semver, got %q", v)
+	require.NotEqual(t, "v0.0.0", v, "want a real engine version, got degenerate %q", v)
+
+	md, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+	require.Equal(t, v, md.DBSemver, "metadata.Source.DBSemver must match Grip.DBSemver")
 }

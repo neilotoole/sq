@@ -12,6 +12,43 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 )
 
+// TestSanitizeCwdSegment verifies that a cwd is reduced to a path segment safe
+// to nest under a temp dir on any OS. The Windows-drive case is the gh #797
+// regression: an absolute cwd outside the project tree (as t.Chdir into a temp
+// dir produces) must not inject a drive component like "...\sq\test\C:".
+func TestSanitizeCwdSegment(t *testing.T) {
+	const unixProj = "/home/user/work/sq/sq"
+	const winProj = `C:\work\sq\sq`
+	testCases := []struct {
+		name    string
+		dir     string
+		projDir string
+		want    string
+	}{
+		{name: "inside_project_unix", dir: unixProj + "/drivers/sqlite3", projDir: unixProj, want: "drivers/sqlite3"},
+		{name: "project_root_unix", dir: unixProj, projDir: unixProj, want: ""},
+		{
+			name: "abs_outside_project_unix", dir: "/var/folders/xy/tmp.dollar",
+			projDir: unixProj, want: "var/folders/xy/tmp.dollar",
+		},
+		{name: "inside_project_win", dir: winProj + `\drivers\sqlite3`, projDir: winProj, want: `drivers\sqlite3`},
+		{
+			name: "drive_outside_project_win", dir: `C:\Users\RUNNER~1\Temp\dollar$dir`,
+			projDir: winProj, want: `Users\RUNNER~1\Temp\dollar$dir`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := sanitizeCwdSegment(tc.dir, tc.projDir)
+			require.Equal(t, tc.want, got)
+			require.NotContains(t, got, ":", "result must not contain a volume colon")
+			require.False(t, strings.HasPrefix(got, "/") || strings.HasPrefix(got, `\`),
+				"result must not start with a path separator")
+		})
+	}
+}
+
 // TestFieldExtractionFunctions tests StructFieldValue, SliceFieldValues,
 // SliceFieldKeyValues.
 func TestFieldExtractionFunctions(t *testing.T) {

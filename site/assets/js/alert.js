@@ -1,20 +1,18 @@
-var announcement = document.getElementById('announcement');
+const announcement = document.getElementById("announcement");
 
 if (announcement !== null) {
+  const id = announcement.dataset.id;
 
-  var id = announcement.dataset.id;
-
-  Object.keys(localStorage).forEach(function(key) {
+  Object.keys(localStorage).forEach((key) => {
     if (/^global-alert-/.test(key)) {
-      if (key !== id ) {
+      if (key !== id) {
         localStorage.removeItem(key);
-        document.documentElement.removeAttribute('data-global-alert');
+        document.documentElement.removeAttribute("data-global-alert");
       }
     }
   });
 
-  announcement.addEventListener('closed.bs.alert', () => {
-    localStorage.setItem(id, 'closed');
+  announcement.addEventListener("closed.bs.alert", () => {
+    localStorage.setItem(id, "closed");
   });
-
 }

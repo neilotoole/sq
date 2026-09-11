@@ -139,7 +139,7 @@ func (c *Cache) DBPropertiesPair(ctx context.Context,
 // db is a convenience method that gets the sqlz.DB and driver.SQLDriver for
 // src.
 func (c *Cache) db(ctx context.Context, src *source.Source) (sqlz.DB, driver.SQLDriver, error) {
-	grip, err := c.grips.Open(ctx, src)
+	grip, err := c.grips.Open(ctx, src, driver.ModeReadOnly)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -231,7 +231,7 @@ func (c *Cache) gripForTable(ctx context.Context, tbl source.Table) (grip driver
 		return nil, err
 	}
 
-	return c.grips.Open(ctx, src)
+	return c.grips.Open(ctx, src, driver.ModeReadOnly)
 }
 
 func (c *Cache) gripForHandle(ctx context.Context, handle string) (grip driver.Grip, err error) {
@@ -240,7 +240,7 @@ func (c *Cache) gripForHandle(ctx context.Context, handle string) (grip driver.G
 		return nil, err
 	}
 
-	return c.grips.Open(ctx, src)
+	return c.grips.Open(ctx, src, driver.ModeReadOnly)
 }
 
 // getPair is a helper that fetches a pair of values from the cache. If both

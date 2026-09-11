@@ -29,5 +29,5 @@ var (
 	RTypeNullTime    = reflect.TypeFor[sql.NullTime]()
 	RTypeBytes       = reflect.TypeFor[[]byte]()
 	RTypeNil         = reflect.TypeOf(nil)
-	RTypeAny         = reflect.TypeOf((any)(nil))
+	RTypeAny         = reflect.TypeOf(any(nil))
 )

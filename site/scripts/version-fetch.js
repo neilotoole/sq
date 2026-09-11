@@ -7,8 +7,7 @@
  * are baked into the site at build time by scripts/gen-site-data.js.
  */
 
-const RELEASES_LATEST_URL =
-  "https://api.github.com/repos/neilotoole/sq/releases/latest";
+const RELEASES_LATEST_URL = "https://api.github.com/repos/neilotoole/sq/releases/latest";
 const REPO_URL = "https://api.github.com/repos/neilotoole/sq";
 const FETCH_TIMEOUT_MS = 5000;
 const USER_AGENT = "sq-site-version-fetch";
@@ -45,9 +44,7 @@ async function fetchGitHubJson(url) {
     });
     clearTimeout(timeoutId);
     if (!res.ok) {
-      throw new Error(
-        `GitHub fetch failed: ${res.status} ${res.statusText} (${url})`,
-      );
+      throw new Error(`GitHub fetch failed: ${res.status} ${res.statusText} (${url})`);
     }
     return await res.json();
   } catch (err) {

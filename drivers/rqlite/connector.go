@@ -25,7 +25,11 @@ type insecureConnector struct {
 func (c *insecureConnector) Connect(_ context.Context) (driver.Conn, error) {
 	conn, err := gorqlite.OpenWithClient(c.dsn, c.client)
 	if err != nil {
-		return nil, errw(err)
+		// Strip any *url.Error wrapper first: c.dsn carries inline
+		// userinfo, and gorqlite returns a bare net/url parse error for a
+		// bad URL, whose message embeds the raw URL (password included).
+		// Mirrors dsnFromLocation's redaction guarantee.
+		return nil, errw(stripURLError(err))
 	}
 	// Wrap with sqConn (matching sqDriver.Open) so the
 	// ColumnTypeDatabaseTypeName enrichment from sqRows is in

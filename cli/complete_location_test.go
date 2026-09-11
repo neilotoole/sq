@@ -659,7 +659,7 @@ func TestCompleteAddLocation_MySQL(t *testing.T) {
 				"mysql://alice@localhost/sakila?connectionAttributes=",
 				"mysql://alice@localhost/sakila?interpolateParams=",
 				"mysql://alice@localhost/sakila?loc=",
-				"mysql://alice@localhost/sakila?maxAllowedPackage=",
+				"mysql://alice@localhost/sakila?maxAllowedPacket=",
 				"mysql://alice@localhost/sakila?multiStatements=",
 				"mysql://alice@localhost/sakila?parseTime=",
 				"mysql://alice@localhost/sakila?readTimeout=",

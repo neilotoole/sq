@@ -143,7 +143,8 @@ func (d *driveri) ingestCSV(ctx context.Context, src *source.Source, destGrip dr
 		return err
 	}
 
-	log.Info("Ingested rows",
+	log.Info(
+		"Ingested rows",
 		lga.Count, inserted,
 		lga.Elapsed, time.Since(startUTC).Round(time.Millisecond),
 		lga.Target, source.Target(destGrip.Source(), tblDef.Name),

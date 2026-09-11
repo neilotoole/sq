@@ -7,10 +7,66 @@ import (
 	"os"
 	"testing"
 
+	"github.com/fatih/color"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/colorz"
 	"github.com/neilotoole/sq/libsq/core/diffdoc"
 )
+
+// TestColorizer_singleCharLines exercises the single-character (length == 1)
+// diff lines: a bare marker with no content. Each marker must be colorized with
+// the same color the multi-character path would use. This guards against the
+// former bug where the single-char branch was unreachable (gated on the
+// impossible length == 0) and miscolored "+" as a deletion.
+func TestColorizer_singleCharLines(t *testing.T) {
+	// Neutralize ambient NO_COLOR / FORCE_COLOR and force color on, so the
+	// assertions always exercise non-empty, distinct sequences regardless of
+	// the environment (color.New bakes ambient NO_COLOR into the instance).
+	t.Setenv("NO_COLOR", "")
+	t.Setenv("FORCE_COLOR", "")
+	previous := color.NoColor
+	t.Cleanup(func() { color.NoColor = previous })
+	color.NoColor = false
+
+	seqs := func(c *color.Color) (prefix, suffix string) {
+		s := colorz.ExtractSeqs(c)
+		return string(s.Prefix), string(s.Suffix)
+	}
+
+	clrs := diffdoc.NewColors()
+	delP, delS := seqs(clrs.Deletion)
+	insP, insS := seqs(clrs.Insertion)
+	ctxP, ctxS := seqs(clrs.Context)
+	cmdP, cmdS := seqs(clrs.CmdTitle)
+
+	// Guard the guard: if any sequence were empty, or deletion and insertion
+	// shared a color, the table assertions could pass without actually
+	// validating colorization. Fail loudly instead.
+	require.NotEmpty(t, delP)
+	require.NotEmpty(t, insP)
+	require.NotEqual(t, delP, insP, "deletion and insertion must use distinct colors")
+
+	testCases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "deletion", in: "-", want: delP + "-" + delS + "\n"},
+		{name: "insertion", in: "+", want: insP + "+" + insS + "\n"},
+		{name: "context", in: " ", want: ctxP + " " + ctxS + "\n"},
+		{name: "command", in: "x", want: cmdP + "x" + cmdS + "\n"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := diffdoc.NewColorizer(context.Background(), diffdoc.NewColors(), bytes.NewReader([]byte(tc.in)))
+			got, err := io.ReadAll(r)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+		})
+	}
+}
 
 func TestNewColorizer(t *testing.T) {
 	f, err := os.Open("testdata/kubla.monochrome.patch")

@@ -144,12 +144,20 @@ func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
 	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
+	// avg() returns a portable float64 instead of Postgres's native numeric
+	// (which sq surfaces as a decimal.Decimal). See issue #594.
+	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastResult("DOUBLE PRECISION")
+	// sum() returns a decimal across all drivers (issue #839). Postgres already
+	// computes sum(int) as bigint and sum(numeric) as numeric losslessly; the
+	// cast to unconstrained NUMERIC unifies the surfaced type as decimal without
+	// constraining precision or scale.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("NUMERIC")
 	render.RegisterILikeFamily(r)
 	return r
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -157,11 +165,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -215,7 +226,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
@@ -246,6 +257,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	if err != nil {
 		return affected, errw(err)
 	}
+	defer lg.WarnIfCloseError(d.log, lgm.CloseDB, db)
 
 	affectedQuery := "SELECT COUNT(*) FROM " + idSanitize(tbl)
 	err = db.QueryRowContext(ctx, affectedQuery).Scan(&affected)
@@ -253,7 +265,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 		return 0, errw(err)
 	}
 
-	truncateQuery := "TRUNCATE TABLE " + idSanitize(tbl)
+	truncateQuery := "TRUNCATE TABLE " + idSanitize(tbl) //nolint:gosec // G202: tbl is sanitized
 	if reset {
 		// if reset & src.DBVersion >= 8.2
 		truncateQuery += " RESTART IDENTITY" // default is CONTINUE IDENTITY
@@ -431,7 +443,10 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
  WHERE schema_name = $1 AND catalog_name = current_database()`
 
 	var count int
-	return count > 0, errw(db.QueryRowContext(ctx, q, schma).Scan(&count))
+	if err := db.QueryRowContext(ctx, q, schma).Scan(&count); err != nil {
+		return false, errw(err)
+	}
+	return count > 0, nil
 }
 
 // CatalogExists implements driver.SQLDriver.
@@ -444,30 +459,33 @@ func (d *driveri) CatalogExists(ctx context.Context, db sqlz.DB, catalog string)
 WHERE datistemplate = FALSE AND datallowconn = TRUE AND datname = $1`
 
 	var count int
-	return count > 0, errw(db.QueryRowContext(ctx, q, catalog).Scan(&count))
+	if err := db.QueryRowContext(ctx, q, catalog).Scan(&count); err != nil {
+		return false, errw(err)
+	}
+	return count > 0, nil
 }
 
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
+	q := fmt.Sprintf(`ALTER TABLE %s RENAME TO %s`, idSanitize(tbl), idSanitize(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", tbl, col, newName)
+	q := fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s", idSanitize(tbl), idSanitize(col), idSanitize(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + dbTypeNameFromKind(knd)
+	q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s ", idSanitize(tbl), idSanitize(col)) + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
-		return errz.Wrapf(err, "alter table: failed to add column {%s} to table {%s}", col, tbl)
+		return errz.Wrapf(errw(err), "alter table: failed to add column {%s} to table {%s}", col, tbl)
 	}
 
 	return nil
@@ -679,7 +697,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 	sb.WriteString("SELECT\n")
 	for i, colName := range colNames {
 		colNameQuoted := enquote(colName)
-		sb.WriteString(fmt.Sprintf("  (SELECT %s FROM %s LIMIT 1) AS %s", colNameQuoted, tblNameQuoted, colNameQuoted))
+		fmt.Fprintf(&sb, "  (SELECT %s FROM %s LIMIT 1) AS %s", colNameQuoted, tblNameQuoted, colNameQuoted)
 		if i < len(colNames)-1 {
 			sb.WriteRune(',')
 		}
@@ -721,7 +739,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -756,7 +774,7 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 		colNames = append(colNames, colName)
 	}
 
-	if rows.Err() != nil {
+	if err = rows.Err(); err != nil {
 		sqlz.CloseRows(log, rows)
 		return nil, errw(err)
 	}
@@ -770,7 +788,7 @@ func getTableColumnNames(ctx context.Context, db sqlz.DB, tblName string) ([]str
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	// The jackc/pgx driver doesn't report nullability (sql.ColumnType)
@@ -884,4 +902,14 @@ func getPoolConfig(src *source.Source, includeConnTimeout bool) (*pgxpool.Config
 func doRetry(ctx context.Context, fn func() error) error {
 	maxRetryInterval := tuning.OptMaxRetryInterval.Get(options.FromContext(ctx))
 	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
+}
+
+// doRetryVanished is like doRetry, but also retries when a relation vanishes
+// mid-operation because of concurrent DDL. A source-wide metadata scan issues
+// bulk catalog queries against a live database, so a table dropped mid-query is
+// transient; retrying lets the churn settle. The error is still returned if
+// retries are exhausted.
+func doRetryVanished(ctx context.Context, fn func() error) error {
+	maxRetryInterval := tuning.OptMaxRetryInterval.Get(options.FromContext(ctx))
+	return retry.Do(ctx, maxRetryInterval, fn, isErrScanRetryable)
 }

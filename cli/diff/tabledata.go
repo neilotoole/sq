@@ -150,6 +150,9 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 	// any errors will be sent to the shared errCh.
 
 	qc := run.NewQueryContext(cfg.Run, nil)
+	// diff only reads source data; open the source grips read-only so the
+	// pipeline's opens don't take a write lock (e.g. on DuckDB files).
+	qc.AccessMode = driver.ModeReadOnly
 
 	// We give the DB query goroutines their own context, dbCtx. This is so that
 	// we can explicitly stop the queries using dbCancel(errz.ErrStop) if we reach
@@ -162,7 +165,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc, //noli
 			switch {
 			case errz.Has[*driver.NotExistError](err):
 				// For diffing, it's totally ok if a table is not found.
-				log.Debug("Diff: table not found", lga.Table, td2.String())
+				log.Debug("Diff: table not found", lga.Table, td1.String())
 				return
 			case errors.Is(err, errz.ErrStop) || errz.IsContextStop(dbCtx):
 				// This means we explicitly stopped the query, probably due to reaching
@@ -352,6 +355,12 @@ func (rd *recordDiffer) exec(ctx context.Context, recPairsCh <-chan record.Pair,
 		// numLines of pairs before and after differing pair.
 		hunkPairs []record.Pair
 
+		// pendingHunk holds a hunk that has been created (via doc.NewHunk) but not
+		// yet populated (and thus not yet sealed). It is cleared once populateHunk
+		// seals it, and sealed explicitly at the end of the function if some exit
+		// path (e.g. context cancellation) left it unpopulated.
+		pendingHunk *diffdoc.Hunk
+
 		rp      record.Pair
 		ok      bool
 		err     error
@@ -396,6 +405,7 @@ LOOP:
 		if hunk, err = doc.NewHunk(row - (len(hunkPairs) - 1)); err != nil {
 			break
 		}
+		pendingHunk = hunk
 
 		// Now we need to get the after-the-difference record pairs. We look for a
 		// sequence of non-differing (matching) record pairs, appending each
@@ -409,14 +419,14 @@ LOOP:
 		// situation where directly adjacent hunks duplicate the last line of the
 		// earlier hunk as the first line of the later hunk, e.g.
 		//
-		//  -34        AUDREY      OLIVIER    2020-06-11T02:50:54Z
-		//  +34        AUDREY      SWIFT      2020-06-11T02:50:54Z
-		//   35        JUDY        DEAN       2020-06-11T02:50:54Z
-		//   36        BURT        DUKAKIS    2020-06-11T02:50:54Z
+		//  -34        AUDREY      OLIVIER    2006-02-15T04:34:33Z
+		//  +34        AUDREY      SWIFT      2006-02-15T04:34:33Z
+		//   35        JUDY        DEAN       2006-02-15T04:34:33Z
+		//   36        BURT        DUKAKIS    2006-02-15T04:34:33Z
 		//  @@ -36,6 +36,6 @@
-		//   36        BURT        DUKAKIS    2020-06-11T02:50:54Z
-		//   37        VAL         BOLGER     2020-06-11T02:50:54Z
-		//  -38        TOM         MCKELLEN   2020-06-11T02:50:54Z
+		//   36        BURT        DUKAKIS    2006-02-15T04:34:33Z
+		//   37        VAL         BOLGER     2006-02-15T04:34:33Z
+		//  -38        TOM         MCKELLEN   2006-02-15T04:34:33Z
 		//
 		// The cfg.HunkMaxSize limit exists to prevent unbounded growth of the hunk,
 		// which could eventually lead to an OOM situation if the diff is huge. If
@@ -479,7 +489,10 @@ LOOP:
 		}
 
 		// OK, now we've got enough record pairs to populate the hunk.
+		// populateHunk seals the hunk (via RecordHunkWriter.WriteHunk), so it is
+		// no longer pending.
 		rd.populateHunk(ctx, hunkPairs, hunk)
+		pendingHunk = nil
 
 		if len(hunkPairs) >= rd.cfg.HunkMaxSize {
 			// If we've hit the hunk max size, we need to clear the tailbuf, because
@@ -499,6 +512,20 @@ LOOP:
 	if err == nil {
 		// Even if err is nil, it's still possible that the context was canceled.
 		err = errz.Err(context.Cause(ctx))
+	}
+
+	// If we exited with a hunk created but not yet populated (e.g. the context
+	// was canceled in the look-ahead loop), it was never sealed. Seal it now so
+	// the doc's reader never blocks on an unsealed hunk. See issue #906.
+	//
+	// This is deliberately a plain statement, not a defer: populateHunk seals the
+	// hunk via RecordHunkWriter.WriteHunk's own defer, even when WriteHunk panics.
+	// A defer here would therefore double-seal (and panic) on the populateHunk
+	// panic path. A plain statement runs only on a normal return, by which point
+	// populateHunk has either sealed the hunk and cleared pendingHunk, or been
+	// skipped entirely.
+	if pendingHunk != nil {
+		pendingHunk.Seal(nil, err)
 	}
 
 	return err

@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/secret"
 )
 
@@ -93,6 +94,9 @@ func expandPath(path string) (string, error) {
 		// RFC 8089 file:// URI with empty authority: ${file:///etc/passwd}
 		// is just sugar for ${file:/etc/passwd}. Strip the leading "//".
 		path = path[2:]
+		// On Windows the volume follows the leading slash (file:///C:/x
+		// yields "/C:/x"); recover the OS path. No-op on Unix.
+		path = ioz.FilePathFromURI(path)
 	} else if strings.HasPrefix(path, "//") {
 		// Two slashes only: either a URI with a non-empty authority
 		// (file://host/path — remote, not supported) or an ambiguous

@@ -38,12 +38,7 @@ func NewDefaultClient() *http.Client {
 func NewClient(opts ...Opt) *http.Client {
 	c := *http.DefaultClient
 	c.Timeout = 0
-	var tr *http.Transport
-	if c.Transport == nil {
-		tr = (http.DefaultTransport.(*http.Transport)).Clone()
-	} else {
-		tr = (c.Transport.(*http.Transport)).Clone()
-	}
+	tr := baseTransport(&c)
 
 	DefaultTLSVersion.apply(tr)
 	for _, opt := range opts {
@@ -59,6 +54,15 @@ func NewClient(opts ...Opt) *http.Client {
 	}
 	c.Transport = RoundTrip(c.Transport, contextCause())
 	return &c
+}
+
+// baseTransport returns a clone of c's transport, or a clone of
+// http.DefaultTransport if c has none (as is the case for http.DefaultClient).
+func baseTransport(c *http.Client) *http.Transport {
+	if c.Transport == nil {
+		return http.DefaultTransport.(*http.Transport).Clone()
+	}
+	return c.Transport.(*http.Transport).Clone()
 }
 
 var _ Opt = (*TripFunc)(nil)
@@ -98,32 +102,53 @@ func ResponseLogValue(resp *http.Response) slog.Value {
 
 	var attrs []slog.Attr
 	if resp.Request != nil {
-		attrs = append(attrs,
-			slog.String("method", resp.Request.Method),
-			slog.String("url", resp.Request.URL.String()),
-		)
+		attrs = append(attrs, slog.String("method", resp.Request.Method))
+		if resp.Request.URL != nil {
+			attrs = append(attrs, slog.String("url", resp.Request.URL.String()))
+		}
 	}
 	attrs = append(attrs,
 		slog.String("proto", resp.Proto),
 		slog.String("status", resp.Status))
 
-	h := resp.Header
-	var hAttrs []slog.Attr
-	for k := range h {
-		vals := h.Values(k)
-		if len(vals) == 1 {
-			hAttrs = append(hAttrs, slog.String(k, vals[0]))
-			continue
-		}
-
-		hAttrs = append(hAttrs, slog.Any(k, h.Get(k)))
-	}
-
-	if len(hAttrs) > 0 {
+	if hAttrs := headerLogAttrs(resp.Header); len(hAttrs) > 0 {
 		attrs = append(attrs, slog.Any("headers", slog.GroupValue(hAttrs...)))
 	}
 
 	return slog.GroupValue(attrs...)
+}
+
+// sensitiveHeaders are header names whose values are redacted in log output, to
+// avoid leaking credentials into logs.
+var sensitiveHeaders = map[string]bool{
+	"Authorization":       true,
+	"Proxy-Authorization": true,
+	"Cookie":              true,
+	"Set-Cookie":          true,
+	"Www-Authenticate":    true,
+	"Proxy-Authenticate":  true,
+}
+
+// headerLogAttrs returns slog attrs for h. Credential-bearing headers (see
+// sensitiveHeaders) are redacted; a single-value header is logged as a plain
+// string, and a multi-value header logs all of its values.
+func headerLogAttrs(h http.Header) []slog.Attr {
+	var attrs []slog.Attr
+	for k := range h {
+		if sensitiveHeaders[http.CanonicalHeaderKey(k)] {
+			attrs = append(attrs, slog.String(k, stringz.Redacted))
+			continue
+		}
+
+		vals := h.Values(k)
+		if len(vals) == 1 {
+			attrs = append(attrs, slog.String(k, vals[0]))
+			continue
+		}
+
+		attrs = append(attrs, slog.Any(k, vals))
+	}
+	return attrs
 }
 
 // RequestLogValue implements slog.LogValuer for http.Request.
@@ -132,9 +157,12 @@ func RequestLogValue(req *http.Request) slog.Value {
 		return slog.Value{}
 	}
 
-	p := req.URL.Path
-	if p == "" {
-		p = req.URL.RawPath
+	var p string
+	if req.URL != nil {
+		p = req.URL.Path
+		if p == "" {
+			p = req.URL.RawPath
+		}
 	}
 
 	attrs := []slog.Attr{
@@ -149,16 +177,7 @@ func RequestLogValue(req *http.Request) slog.Value {
 		attrs = append(attrs, slog.String("host", req.Host))
 	}
 
-	h := req.Header
-	for k := range h {
-		vals := h.Values(k)
-		if len(vals) == 1 {
-			attrs = append(attrs, slog.String(k, vals[0]))
-			continue
-		}
-
-		attrs = append(attrs, slog.Any(k, h.Get(k)))
-	}
+	attrs = append(attrs, headerLogAttrs(req.Header)...)
 
 	return slog.GroupValue(attrs...)
 }
@@ -182,6 +201,9 @@ func Filename(resp *http.Response) string {
 	}
 
 	if filename == "" {
+		if resp.Request == nil || resp.Request.URL == nil {
+			return ""
+		}
 		filename = path.Base(resp.Request.URL.Path)
 	} else {
 		filename = filepath.Base(filename)
@@ -191,8 +213,8 @@ func Filename(resp *http.Response) string {
 }
 
 // ReadResponseHeader is a fork of http.ReadResponse that reads only the
-// header from req and not the body. Note that resp.Body will be nil, and
-// that the resp object is borked for general use.
+// header from r (associating it with request req) and not the body. Note that
+// resp.Body will be nil, and that the resp object is borked for general use.
 func ReadResponseHeader(r *bufio.Reader, req *http.Request) (resp *http.Response, err error) {
 	tp := textproto.NewReader(r)
 	resp = &http.Response{Request: req}

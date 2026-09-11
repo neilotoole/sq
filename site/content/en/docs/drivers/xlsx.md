@@ -7,6 +7,7 @@ weight: 4060
 toc: true
 url: /docs/drivers/xlsx
 ---
+
 The `sq` Excel driver implements connectivity
 for Microsoft [XLSX](https://www.microsoft.com/en-us/microsoft-365/excel)
 files and [variants](#supported-file-formats).

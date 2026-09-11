@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -558,11 +559,19 @@ func TestCmdAdd_Placeholder_FileRelativeIsAbsolutized(t *testing.T) {
 // preserved verbatim — absolutizing them would harm portability
 // (~/ is user-relative by design) or be pointless (absolute paths).
 func TestCmdAdd_Placeholder_FilePassthroughForms(t *testing.T) {
+	// The "absolute" case needs a path that is absolute on the host OS, so the
+	// add-time absolutize rewrite is a no-op and the location passes through
+	// unchanged. A bare Unix path like "/etc/sq/pg.dsn" is drive-relative on
+	// Windows and would be rewritten to "D:\etc\sq\pg.dsn".
+	absDSN := "/etc/sq/pg.dsn"
+	if runtime.GOOS == "windows" {
+		absDSN = `C:\etc\sq\pg.dsn`
+	}
 	tests := []struct {
 		name string
 		loc  string
 	}{
-		{name: "absolute", loc: "${file:/etc/sq/pg.dsn}"},
+		{name: "absolute", loc: "${file:" + absDSN + "}"},
 		{name: "home-relative", loc: "${file:~/.sq/pg.dsn}"},
 		{name: "file URI sugar", loc: "${file:///etc/sq/pg.dsn}"},
 	}
@@ -869,8 +878,8 @@ func TestCmdAdd_InlinePassword_EscapesDollar(t *testing.T) {
 		"literal password must be stored in escaped (template) form")
 
 	// Round-trip: the driver must receive the literal password. Zero
-	// refs, so no secret.Registry is needed on the context.
-	resolved, err := driver.ResolveSourceSecrets(context.Background(), src)
+	// refs, so a nil secret.Registry suffices.
+	resolved, err := driver.ResolveSourceSecrets(context.Background(), nil, src)
 	require.NoError(t, err)
 	require.Equal(t, "postgres://alice:pa$$word@localhost:5432/sakila", resolved.Location)
 }
@@ -1114,7 +1123,8 @@ func TestCmdAdd_Rqlite_ConnParamDetection(t *testing.T) {
 			func(w http.ResponseWriter, r *http.Request) {
 				hits.Add(1)
 				inner.ServeHTTP(w, r)
-			}))
+			},
+		))
 		t.Cleanup(server.Close)
 		host = server.Listener.Addr().String()
 
@@ -1204,11 +1214,11 @@ func TestFilterToAdvertisedParams(t *testing.T) {
 // methods are never called.
 type nonSQLDriverStub struct{}
 
-func (nonSQLDriverStub) Open(context.Context, *source.Source) (driver.Grip, error) {
+func (nonSQLDriverStub) Open(context.Context, *source.Source, driver.AccessMode) (driver.Grip, error) {
 	panic("not implemented")
 }
 
-func (nonSQLDriverStub) Ping(context.Context, *source.Source) error {
+func (nonSQLDriverStub) Ping(context.Context, *source.Source, driver.AccessMode) error {
 	panic("not implemented")
 }
 
@@ -1274,7 +1284,7 @@ func TestCmdAdd_CwdDollarDir_CSV(t *testing.T) {
 			require.NoError(t, err, "stored template must parse cleanly")
 			require.Empty(t, refs, "filesystem-derived bytes must not form placeholder refs")
 
-			resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, src)
+			resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, nil, src)
 			require.NoError(t, err)
 			require.Equal(t, filepath.Join(cwd, "actor.csv"), resolvedSrc.Location,
 				"resolved location must be the true filesystem path")
@@ -1332,7 +1342,7 @@ func TestCmdAdd_CwdDollarDir_FileDB(t *testing.T) {
 				require.NoError(t, err, "stored template must parse cleanly")
 				require.Empty(t, refs, "filesystem-derived bytes must not form placeholder refs")
 
-				resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, src)
+				resolvedSrc, err := driver.ResolveSourceSecrets(th.Context, nil, src)
 				require.NoError(t, err)
 				wantLit := drvr.prefix + filepath.ToSlash(filepath.Join(cwd, drvr.fname))
 				require.Equal(t, wantLit, resolvedSrc.Location,

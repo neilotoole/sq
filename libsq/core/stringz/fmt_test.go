@@ -11,9 +11,12 @@ import (
 )
 
 // TestDecimal tests FormatDecimal, DecimalPlaces, and DecimalFloatOK.
-// The FormatDecimal tests verifies that the function formats a decimal
-// value as expected, especially that the number of decimal places matches
-// the exponent of the decimal value.
+// FormatDecimal trims trailing fractional zeros, so a decimal's value is
+// rendered consistently regardless of the scale it was computed with. This
+// matters for cross-driver aggregate output (e.g. sum()), where backends
+// otherwise return the same value with different scales. DecimalPlaces still
+// reports the scale derived from the decimal's exponent; the two are
+// intentionally decoupled.
 func TestDecimal(t *testing.T) {
 	testCases := []struct {
 		in          decimal.Decimal
@@ -22,12 +25,17 @@ func TestDecimal(t *testing.T) {
 		wantFloatOK bool
 	}{
 		{in: decimal.New(0, 0), wantStr: "0", wantPlaces: 0, wantFloatOK: true},
-		{in: decimal.New(0, -1), wantStr: "0.0", wantPlaces: 1, wantFloatOK: true},
-		{in: decimal.New(0, -2), wantStr: "0.00", wantPlaces: 2, wantFloatOK: true},
+		{in: decimal.New(0, -1), wantStr: "0", wantPlaces: 1, wantFloatOK: true},
+		{in: decimal.New(0, -2), wantStr: "0", wantPlaces: 2, wantFloatOK: true},
 		{in: decimal.New(0, 2), wantStr: "0", wantPlaces: 0, wantFloatOK: true},
 		{in: decimal.NewFromFloat(1.1), wantStr: "1.1", wantPlaces: 1, wantFloatOK: true},
-		{in: decimal.New(100, -2), wantStr: "1.00", wantPlaces: 2, wantFloatOK: true},
-		{in: decimal.New(10000, -4), wantStr: "1.0000", wantPlaces: 4, wantFloatOK: true},
+		{in: decimal.New(100, -2), wantStr: "1", wantPlaces: 2, wantFloatOK: true},
+		{in: decimal.New(10000, -4), wantStr: "1", wantPlaces: 4, wantFloatOK: true},
+		// Trailing zeros are trimmed (issue #839): the same sum value must
+		// render identically no matter which scale a backend cast produced.
+		{in: decimal.RequireFromString("20100.000000"), wantStr: "20100", wantPlaces: 6, wantFloatOK: true},
+		{in: decimal.RequireFromString("67416.510000"), wantStr: "67416.51", wantPlaces: 6, wantFloatOK: true},
+		{in: decimal.RequireFromString("100.50"), wantStr: "100.5", wantPlaces: 2, wantFloatOK: true},
 	}
 
 	for i, tc := range testCases {

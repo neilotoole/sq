@@ -124,7 +124,7 @@ func execTblCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	var grip driver.Grip
-	grip, err = ru.Grips.Open(ctx, tblHandles[0].src)
+	grip, err = ru.Grips.Open(ctx, tblHandles[0].src, driver.ModeReadWrite)
 	if err != nil {
 		return err
 	}
@@ -273,7 +273,7 @@ func execTblDrop(cmd *cobra.Command, args []string) (err error) {
 		}
 
 		var grip driver.Grip
-		if grip, err = ru.Grips.Open(ctx, tblH.src); err != nil {
+		if grip, err = ru.Grips.Open(ctx, tblH.src, driver.ModeReadWrite); err != nil {
 			return err
 		}
 

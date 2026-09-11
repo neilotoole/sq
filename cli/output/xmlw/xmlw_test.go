@@ -27,28 +27,28 @@ func TestRecordWriter_Actor(t *testing.T) {
     <actor_id>1</actor_id>
     <first_name>PENELOPE</first_name>
     <last_name>GUINESS</last_name>
-    <last_update>2020-06-11T02:50:54Z</last_update>
+    <last_update>2006-02-15T04:34:33Z</last_update>
   </record>
   <record>
     <actor_id>2</actor_id>
     <first_name>NICK</first_name>
     <last_name>WAHLBERG</last_name>
-    <last_update>2020-06-11T02:50:54Z</last_update>
+    <last_update>2006-02-15T04:34:33Z</last_update>
   </record>
   <record>
     <actor_id>3</actor_id>
     <first_name>ED</first_name>
     <last_name>CHASE</last_name>
-    <last_update>2020-06-11T02:50:54Z</last_update>
+    <last_update>2006-02-15T04:34:33Z</last_update>
   </record>
 </records>
 `
 
 		want3NoPretty = `<?xml version="1.0"?>
 <records>
-<record><actor_id>1</actor_id><first_name>PENELOPE</first_name><last_name>GUINESS</last_name><last_update>2020-06-11T02:50:54Z</last_update></record>
-<record><actor_id>2</actor_id><first_name>NICK</first_name><last_name>WAHLBERG</last_name><last_update>2020-06-11T02:50:54Z</last_update></record>
-<record><actor_id>3</actor_id><first_name>ED</first_name><last_name>CHASE</last_name><last_update>2020-06-11T02:50:54Z</last_update></record>
+<record><actor_id>1</actor_id><first_name>PENELOPE</first_name><last_name>GUINESS</last_name><last_update>2006-02-15T04:34:33Z</last_update></record>
+<record><actor_id>2</actor_id><first_name>NICK</first_name><last_name>WAHLBERG</last_name><last_update>2006-02-15T04:34:33Z</last_update></record>
+<record><actor_id>3</actor_id><first_name>ED</first_name><last_name>CHASE</last_name><last_update>2006-02-15T04:34:33Z</last_update></record>
 </records>
 `
 	)

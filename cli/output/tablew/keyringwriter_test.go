@@ -28,6 +28,7 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 	tests := []struct {
 		name     string
 		row      output.KeyringMigrateRow
+		verbose  bool
 		contains []string
 	}{
 		{
@@ -36,7 +37,7 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 				Handle: "@plan_src",
 				Status: output.KeyringMigrateStatusPlanned,
 			},
-			contains: []string{"@plan_src", "->", "${keyring:<new-id>}"},
+			contains: []string{"@plan_src", "migrate", "${keyring:<new-id>}"},
 		},
 		{
 			name: "skip",
@@ -45,6 +46,7 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 				Status: output.KeyringMigrateStatusSkip,
 				Reason: "no password component",
 			},
+			verbose:  true, // skipped sources render only in verbose mode
 			contains: []string{"@skip_src", "skip", "no password component"},
 		},
 		{
@@ -54,7 +56,7 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 				Status:      output.KeyringMigrateStatusMigrated,
 				NewLocation: "${keyring:abc1234567}",
 			},
-			contains: []string{"@done_src", "done", "${keyring:abc1234567}"},
+			contains: []string{"@done_src", "migrated", "${keyring:abc1234567}"},
 		},
 		{
 			name: "failed",
@@ -63,13 +65,15 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 				Status: output.KeyringMigrateStatusFailed,
 				Error:  "save config (rolled back): boom",
 			},
-			contains: []string{"@fail_src", "FAIL", "save config (rolled back): boom"},
+			contains: []string{"@fail_src", "failed", "save config (rolled back): boom"},
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			w := tablew.NewKeyringWriter(&buf, newTestPrinting())
+			pr := newTestPrinting()
+			pr.Verbose = tc.verbose
+			w := tablew.NewKeyringWriter(&buf, pr)
 			require.NoError(t, w.Migrate([]output.KeyringMigrateRow{tc.row}, false))
 			out := buf.String()
 			for _, s := range tc.contains {
@@ -79,8 +83,91 @@ func TestKeyringWriter_Migrate_RowFormatting(t *testing.T) {
 	}
 }
 
+// TestKeyringWriter_Migrate_Colorized verifies the color scheme renders:
+// migrate is green, a failed status is red, and a skipped row is muted in
+// full (handle and status both faint).
+func TestKeyringWriter_Migrate_Colorized(t *testing.T) {
+	pr := output.NewPrinting()
+	pr.EnableColor(true)
+	pr.Verbose = true // render skip rows too
+
+	// Guard: the assertions below are meaningless unless color is actually on.
+	require.NotEqual(t, "migrate", pr.Success.Sprint("migrate"),
+		"color must be enabled for this test to verify anything")
+
+	var buf bytes.Buffer
+	w := tablew.NewKeyringWriter(&buf, pr)
+	require.NoError(t, w.Migrate([]output.KeyringMigrateRow{
+		{Handle: "@pg", Status: output.KeyringMigrateStatusPlanned},
+		{Handle: "@csv", Status: output.KeyringMigrateStatusSkip, Reason: "not a URL"},
+		{Handle: "@bad", Status: output.KeyringMigrateStatusFailed, Error: "boom"},
+	}, true))
+	out := buf.String()
+
+	require.Contains(t, out, pr.Success.Sprint("migrate"), "migrate status must be green")
+	require.Contains(t, out, pr.Error.Sprint("failed"), "failed status must be red")
+	require.Contains(t, out, pr.Faint.Sprint("skip"), "skip status must be muted")
+	require.Contains(t, out, pr.Faint.Sprint("@csv"), "skip row's handle must be muted too")
+}
+
+// TestKeyringWriter_Prune_RowFormatting pins the text-mode output shape
+// for each KeyringPruneRow status. Without this test, a regression that
+// drops the status word or kind suffix from any branch (planned/deleted/
+// failed) would silently break the user-facing prune log.
+func TestKeyringWriter_Prune_RowFormatting(t *testing.T) {
+	tests := []struct {
+		name     string
+		row      output.KeyringPruneRow
+		dryRun   bool
+		contains []string
+	}{
+		{
+			name:   "planned",
+			dryRun: true,
+			row: output.KeyringPruneRow{
+				Path:   "m4n8k2pxtz",
+				Kind:   output.KeyringKindID,
+				Status: output.KeyringPruneStatusPlanned,
+			},
+			contains: []string{"delete", "m4n8k2pxtz", "id"},
+		},
+		{
+			name:   "deleted",
+			dryRun: false,
+			row: output.KeyringPruneRow{
+				Path:   "named_orphan",
+				Kind:   output.KeyringKindNamed,
+				Status: output.KeyringPruneStatusDeleted,
+			},
+			contains: []string{"deleted", "named_orphan", "named"},
+		},
+		{
+			name:   "failed",
+			dryRun: false,
+			row: output.KeyringPruneRow{
+				Path:   "bad_entry",
+				Kind:   output.KeyringKindNamed,
+				Status: output.KeyringPruneStatusFailed,
+				Error:  "keychain locked",
+			},
+			contains: []string{"failed", "bad_entry", "named", "keychain locked"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			w := tablew.NewKeyringWriter(&buf, newTestPrinting())
+			require.NoError(t, w.Prune([]output.KeyringPruneRow{tc.row}, tc.dryRun))
+			out := buf.String()
+			for _, s := range tc.contains {
+				require.Contains(t, out, s, "rendered output must contain %q; got: %s", s, out)
+			}
+		})
+	}
+}
+
 // TestKeyringWriter_List_HeaderToggle verifies that List honors
-// pr.ShowHeader: header row prints when true (with PATH/HANDLE/DRIVER
+// pr.ShowHeader: header row prints when true (with STATUS/PATH/HANDLE/DRIVER
 // labels) and is omitted when false.
 func TestKeyringWriter_List_HeaderToggle(t *testing.T) {
 	refs := []output.KeyringRef{
@@ -94,6 +181,7 @@ func TestKeyringWriter_List_HeaderToggle(t *testing.T) {
 		w := tablew.NewKeyringWriter(&buf, pr)
 		require.NoError(t, w.List(refs))
 		out := buf.String()
+		require.Contains(t, out, "STATUS")
 		require.Contains(t, out, "PATH")
 		require.Contains(t, out, "HANDLE")
 		require.Contains(t, out, "DRIVER")
@@ -107,9 +195,31 @@ func TestKeyringWriter_List_HeaderToggle(t *testing.T) {
 		w := tablew.NewKeyringWriter(&buf, pr)
 		require.NoError(t, w.List(refs))
 		out := buf.String()
+		require.NotContains(t, out, "STATUS")
 		require.NotContains(t, out, "PATH")
 		require.NotContains(t, out, "HANDLE")
 		require.NotContains(t, out, "DRIVER")
 		require.Contains(t, out, "abc123")
 	})
+}
+
+// TestKeyringWriter_ListStatusColumn verifies that List renders the STATUS
+// column with the correct values for referenced, orphan, and missing rows.
+func TestKeyringWriter_ListStatusColumn(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := tablew.NewKeyringWriter(buf, newTestPrinting())
+
+	err := w.List([]output.KeyringRef{
+		{Status: output.KeyringStatusReferenced, Path: "j2k7m3pxtz", Handle: "@prod", Driver: "postgres"},
+		{Status: output.KeyringStatusOrphan, Path: "m4n8k2pxtz"},
+		{Status: output.KeyringStatusMissing, Path: "@stale/pw", Handle: "@stale", Driver: "mysql"},
+	})
+	require.NoError(t, err)
+
+	out := buf.String()
+	require.Contains(t, out, "STATUS")
+	require.Contains(t, out, "referenced")
+	require.Contains(t, out, "orphan")
+	require.Contains(t, out, "missing")
+	require.Contains(t, out, "m4n8k2pxtz")
 }

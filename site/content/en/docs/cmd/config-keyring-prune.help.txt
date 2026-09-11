@@ -1,0 +1,42 @@
+Delete every keyring entry under the sq service that no source
+references. An entry is an orphan when no source Location contains a
+${keyring:PATH} placeholder naming it; hand-crafted references count, so
+an entry wired into any source is never pruned.
+
+Both sq-generated opaque IDs and user-named entries are pruned. Use
+'sq config keyring ls' to review entries first, and --dry-run to preview
+what prune would remove without deleting anything.
+
+Usage:
+  sq config keyring prune
+
+Examples:
+  # Preview orphans without deleting
+  $ sq config keyring prune --dry-run
+
+  # Delete all orphaned entries
+  $ sq config keyring prune
+
+Flags:
+      --dry-run     Show orphans that would be deleted, make no changes
+  -t, --text        Output text
+  -j, --json        Output JSON
+  -h, --header      Print header row (default true)
+  -H, --no-header   Don't print header row
+      --help        help for prune
+
+Global Flags:
+      --config string         Load config from here
+      --debug.pprof string    pprof profiling mode (default "off")
+      --error.format string   Error output format (default "text")
+  -E, --error.stack           Print error stack trace to stderr
+      --expand                Resolve ${scheme:path} placeholders to their underlying values
+      --log                   Enable logging
+      --log.file string       Log file path (default "$HOME/Library/Logs/sq/sq.log")
+      --log.format string     Log output format (text or json) (default "text")
+      --log.level string      Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+  -M, --monochrome            Don't print color output
+      --no-progress           Don't show progress bar
+      --no-redact             Don't redact passwords in output (deprecated, use --reveal)
+      --reveal                Show secret values in output (don't redact passwords; print keyring values)
+  -v, --verbose               Print verbose output

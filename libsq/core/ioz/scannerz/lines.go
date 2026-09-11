@@ -91,23 +91,16 @@ func LineCount(ctx context.Context, r io.Reader, skipEmpty bool) int {
 
 	sc := NewScanner(ctx, r)
 	var i int
-
-	if skipEmpty {
-		for sc.Scan() {
-			if len(sc.Bytes()) > 0 {
-				i++
-			}
+	for sc.Scan() {
+		if !skipEmpty || len(sc.Bytes()) > 0 {
+			i++
 		}
-
-		if sc.Err() != nil {
-			return -1
-		}
-
-		return i
 	}
 
-	for i = 0; sc.Scan(); i++ { //nolint:revive
-		// no-op
+	// Honor the doc contract: -1 on any scan error (e.g. a line exceeding the
+	// scan buffer limit, or an underlying read error), for both modes.
+	if sc.Err() != nil {
+		return -1
 	}
 
 	return i

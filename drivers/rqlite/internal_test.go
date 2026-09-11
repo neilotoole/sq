@@ -29,6 +29,7 @@ import (
 var (
 	KindFromDBTypeName = kindFromDBTypeName
 	RTypeNullTime      = rtypeNullTime
+	GetTblRowCounts    = getTblRowCounts
 )
 
 // ExecNonTx executes query as a single non-transactional request via
@@ -238,6 +239,16 @@ func TestLocationWithDefaultPort(t *testing.T) {
 	}
 }
 
+// TestLocationWithDefaultPort_RedactsCreds verifies that a malformed
+// location whose url.Parse fails does not echo inline credentials: the
+// *url.Error from url.Parse embeds the raw location (password included),
+// so the error path must strip it.
+func TestLocationWithDefaultPort_RedactsCreds(t *testing.T) {
+	_, _, err := locationWithDefaultPort("rqlite://user:s3cret@\x7fbad-host:4001")
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "s3cret")
+}
+
 // TestCoerceFloat64 covers the per-kind reshaping that
 // newRecordFromScanRow applies to gorqlite's JSON-number float64
 // returns. The Sakila-driven cross-driver tests exercise the kind.Int
@@ -258,7 +269,7 @@ func TestCoerceFloat64(t *testing.T) {
 	}{
 		{name: "int_whole", knd: kind.Int, in: 42, want: int64(42)},
 		{name: "int_truncates_fraction", knd: kind.Int, in: 42.9, want: int64(42)},
-		{name: "decimal_integer_demoted", knd: kind.Decimal, in: 42, want: int64(42)},
+		{name: "decimal_integer_preserved", knd: kind.Decimal, in: 42, want: decimal.NewFromInt(42)},
 		{name: "decimal_fractional_preserved", knd: kind.Decimal, in: 19.99, want: decimal.NewFromFloat(19.99)},
 		{name: "bool_zero_false", knd: kind.Bool, in: 0, want: false},
 		{name: "bool_nonzero_true", knd: kind.Bool, in: 1, want: true},
@@ -278,27 +289,6 @@ func TestCoerceFloat64(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
-}
-
-// TestCoerceDecimal covers the whole-number demotion that pairs with
-// coerceFloat64's kind.Decimal branch and the *decimal.NullDecimal /
-// *decimal.Decimal scan cases in newRecordFromScanRow.
-func TestCoerceDecimal(t *testing.T) {
-	t.Run("integer_demoted_to_int64", func(t *testing.T) {
-		got := coerceDecimal(decimal.NewFromInt(42))
-		require.Equal(t, int64(42), got)
-	})
-	t.Run("fractional_passthrough", func(t *testing.T) {
-		want := decimal.NewFromFloat(19.99)
-		got := coerceDecimal(want)
-		gotDec, ok := got.(decimal.Decimal)
-		require.True(t, ok, "expected decimal.Decimal, got %T", got)
-		require.True(t, want.Equal(gotDec))
-	})
-	t.Run("negative_integer_demoted", func(t *testing.T) {
-		got := coerceDecimal(decimal.NewFromInt(-7))
-		require.Equal(t, int64(-7), got)
-	})
 }
 
 func TestBuildCreateTableStmt_ForeignKey(t *testing.T) {
@@ -811,6 +801,31 @@ func Test_rewritePeerDiscoveryError(t *testing.T) {
 			for _, sub := range tc.wantSubstrAll {
 				require.Contains(t, msg, sub, "rewritten message missing substring %q: %s", sub, msg)
 			}
+		})
+	}
+}
+
+func TestParseSemver(t *testing.T) {
+	testCases := []struct {
+		raw     string
+		want    string
+		wantErr bool
+	}{
+		{raw: "3.45.1", want: "v3.45.1"}, // rqlite reports its SQLite version
+		{raw: "3.46.0", want: "v3.46.0"},
+		{raw: "not-a-version", wantErr: true},
+		{raw: "", wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.raw, func(t *testing.T) {
+			got, err := parseSemver(tc.raw)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

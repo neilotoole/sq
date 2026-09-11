@@ -12,7 +12,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/secret"
-	"github.com/neilotoole/sq/libsq/core/urlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -297,7 +296,7 @@ func (s *locSuggestions) hostsWithPathAndQuery() []string {
 				lga.Loc, location.Redact(src.Location), lga.Err, err)
 			return nil
 		}
-		v := urlz.StripSchemeAndUser(du.URL)
+		v := stripSchemeAndUser(du.URL)
 		if v != "" {
 			values = append(values, v)
 		}
@@ -334,3 +333,11 @@ func (s *locSuggestions) pathsWithQueries() []string {
 
 // Compile-time check that locSuggestions implements driver.Suggestions.
 var _ driver.Suggestions = (*locSuggestions)(nil)
+
+// stripSchemeAndUser removes the URL's scheme and user info.
+func stripSchemeAndUser(u url.URL) string {
+	u.User = nil
+	u.Scheme = ""
+	s := u.String()
+	return strings.TrimPrefix(s, "//")
+}

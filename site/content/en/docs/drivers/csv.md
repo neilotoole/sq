@@ -7,6 +7,7 @@ weight: 4050
 toc: true
 url: /docs/drivers/csv
 ---
+
 The `sq` CSV driver implements connectivity for [CSV](https://en.wikipedia.org/wiki/Comma-separated_values)
 and variants, such as [TSV](https://en.wikipedia.org/wiki/Tab-separated_values), pipe-delimited, etc..
 
@@ -82,7 +83,7 @@ sq add ./actor.csv --driver.csv.delim=pipe
 The accepted values are:
 
 | Delim    | Value                     |
-|----------|---------------------------|
+| -------- | ------------------------- |
 | `comma`  | `,`                       |
 | `space`  | <code>&nbsp;</code>       |
 | `pipe`   | <code>&vert;</code>       |

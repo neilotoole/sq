@@ -76,7 +76,7 @@ func (d *driveri) ConnParams() map[string][]string {
 		"connectionAttributes":     nil,
 		"interpolateParams":        {"false", "true"},
 		"loc":                      {"UTC"},
-		"maxAllowedPackage":        {"0", "67108864"},
+		"maxAllowedPacket":         {"0", "67108864"},
 		"multiStatements":          {"false", "true"},
 		"parseTime":                {"false", "true"},
 		"readTimeout":              {"0"},
@@ -149,6 +149,19 @@ func placeholders(numCols, numRows int) string {
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()
 	r.FunctionNames[ast.FuncNameSchema] = "DATABASE"
+	// avg() returns a portable float64 instead of MySQL's native DECIMAL
+	// (which sq surfaces as a decimal.Decimal). See issue #594. The cast is
+	// version-aware: see renderFuncAvg (issue #973).
+	r.FunctionOverrides[ast.FuncNameAvg] = renderFuncAvg
+	// sum() is harmonized to decimal across drivers (issue #839). MySQL already
+	// returns sum() over an integer or decimal column as DECIMAL, but sum() over
+	// a FLOAT/DOUBLE column as DOUBLE (kind.Float); casting the result to DECIMAL
+	// unifies all cases as decimal. Both bounds are MySQL's maximums: precision
+	// 65 preserves the accumulator range, and scale 30 is the largest scale any
+	// MySQL DECIMAL column can have, so unlike the precision-38 dialects (which
+	// round to render.AggDecimalScale) this cast never reduces a native decimal
+	// sum's scale. Trailing zeros are trimmed by stringz.FormatDecimal.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult("DECIMAL(65, 30)")
 	r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
 	r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
 	r.FunctionOverrides[ast.FuncNameContains] = renderFuncContainsBinary
@@ -165,7 +178,7 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
@@ -200,7 +213,8 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Ta
 
 // AlterTableAddColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN `%s` ", tbl, col) + dbTypeNameFromKind(knd)
+	q := "ALTER TABLE " + stringz.BacktickQuote(tbl) + " ADD COLUMN " +
+		stringz.BacktickQuote(col) + " " + dbTypeNameFromKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
@@ -367,15 +381,44 @@ func (d *driveri) CatalogExists(_ context.Context, _ sqlz.DB, catalog string) (b
 
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	q := fmt.Sprintf("RENAME TABLE `%s` TO `%s`", tbl, newName)
+	q := "RENAME TABLE " + stringz.BacktickQuote(tbl) + " TO " + stringz.BacktickQuote(newName)
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
-// AlterTableRenameColumn implements driver.SQLDriver.
+// AlterTableRenameColumn implements driver.SQLDriver. ALTER TABLE ... RENAME
+// COLUMN was added in MySQL 8.0.0 (MariaDB 10.5.2); on older servers (or when
+// the version can't be determined) the rename goes through CHANGE COLUMN, which
+// requires restating the column's full definition (else nullability/default/
+// charset/AUTO_INCREMENT/comment are dropped). The definition is taken verbatim
+// from SHOW CREATE TABLE. See issue #973. (Note: the RENAME COLUMN threshold is
+// distinct from the avg-cast threshold; see supportsRenameColumn.)
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf("ALTER TABLE `%s` RENAME COLUMN `%s` TO `%s`", tbl, col, newName)
-	_, err := db.ExecContext(ctx, q)
+	v, err := d.DBSemver(ctx, db)
+	if err != nil || !supportsRenameColumn(v) {
+		return d.renameColumnViaChange(ctx, db, tbl, col, newName)
+	}
+	q := "ALTER TABLE " + stringz.BacktickQuote(tbl) + " RENAME COLUMN " +
+		stringz.BacktickQuote(col) + " TO " + stringz.BacktickQuote(newName)
+	_, err = db.ExecContext(ctx, q)
+	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
+}
+
+// renameColumnViaChange renames col to newName on pre-8.0 MySQL using
+// CHANGE COLUMN with the column's definition from SHOW CREATE TABLE.
+func (d *driveri) renameColumnViaChange(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
+	var tblName, showCreate string
+	if err := db.QueryRowContext(ctx, "SHOW CREATE TABLE "+stringz.BacktickQuote(tbl)).
+		Scan(&tblName, &showCreate); err != nil {
+		return errz.Wrapf(errw(err), "alter table: failed to read definition of {%s}", tbl)
+	}
+	def, err := extractColumnDef(showCreate, col)
+	if err != nil {
+		return errz.Wrapf(err, "alter table: rename column {%s.%s}", tbl, col)
+	}
+	q := "ALTER TABLE " + stringz.BacktickQuote(tbl) + " CHANGE COLUMN " +
+		stringz.BacktickQuote(col) + " " + stringz.BacktickQuote(newName) + " " + def
+	_, err = db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
@@ -543,7 +586,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -552,7 +595,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -560,11 +603,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -584,7 +630,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 	// - https://github.com/go-sql-driver/mysql#readtimeout
 
 	if src.Schema != "" {
-		lg.FromContext(ctx).Debug("Setting default schema for MysQL connection",
+		lg.FromContext(ctx).Debug(
+			"Setting default schema for MySQL connection",
 			lga.Src, src,
 			lga.Schema, src.Schema,
 		)
@@ -610,7 +657,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
@@ -642,14 +689,14 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// For whatever reason, the "affected" count from TRUNCATE
 	// always returns zero. So, we're going to synthesize it.
 	var beforeCount int64
-	err = tx.QueryRowContext(ctx, fmt.Sprintf("SELECT COUNT(*) FROM `%s`", tbl)).Scan(&beforeCount)
+	err = tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+stringz.BacktickQuote(tbl)).Scan(&beforeCount)
 	if err != nil {
-		return 0, errz.Append(err, errw(tx.Rollback()))
+		return 0, errz.Append(errw(err), errw(tx.Rollback()))
 	}
 
-	affected, err = sqlz.ExecAffected(ctx, tx, fmt.Sprintf("TRUNCATE TABLE `%s`", tbl))
+	affected, err = sqlz.ExecAffected(ctx, tx, "TRUNCATE TABLE "+stringz.BacktickQuote(tbl))
 	if err != nil {
-		return affected, errz.Append(err, errw(tx.Rollback()))
+		return affected, errz.Append(errw(err), errw(tx.Rollback()))
 	}
 
 	if affected != 0 {
@@ -703,8 +750,7 @@ func doRetry(ctx context.Context, fn func() error) error {
 // tblfmt formats a table name for use in a query. The arg can be a string,
 // or a tablefq.T.
 func tblfmt[T string | tablefq.T](tbl T) string {
-	tfq := tablefq.From(tbl)
-	return tfq.Render(stringz.BacktickQuote)
+	return tablefq.Format(tbl, stringz.BacktickQuote)
 }
 
 const selectCatalog = `SELECT CATALOG_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = DATABASE() LIMIT 1`

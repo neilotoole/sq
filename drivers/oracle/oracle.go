@@ -173,43 +173,38 @@ func (d *driveri) Renderer() *render.Renderer {
 	const oracleCatalogFrag = `SYS_CONTEXT('USERENV', 'DB_NAME')`
 	r.FunctionOverrides[ast.FuncNameSchema] = render.FuncOverrideString(oracleSchemaFrag)
 	r.FunctionOverrides[ast.FuncNameCatalog] = render.FuncOverrideString(oracleCatalogFrag)
-	r.FunctionOverrides[ast.FuncNameAvg] = doRenderFuncAvg
-	r.FunctionOverrides[ast.FuncNameSum] = doRenderFuncSum
+	// Oracle returns AVG/SUM as NUMBER(38, 255) (floating-scale,
+	// indistinguishable from COUNT at the metadata layer), which classifies as
+	// kind.Int, so scanning a fractional value into int64 fails.
+	//
+	// avg() always yields a fraction and is harmonized to float64 across drivers
+	// (issue #594), so it casts to BINARY_DOUBLE. Tradeoff: avg loses precision
+	// beyond ~15-17 significant digits.
+	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastResult("BINARY_DOUBLE")
+	// sum() is harmonized to decimal across drivers (issue #839), so casting it
+	// to a float would be a precision regression. The cast to NUMBER with an
+	// explicit non-zero scale gives the result column a fixed scale, which
+	// refineBareNumberKind classifies as kind.Decimal (not kind.Int), avoiding
+	// the int64 scan crash. The value is exact up to AggDecimalScale fractional
+	// digits; a sum of values with more decimal places is rounded to that scale.
+	r.FunctionOverrides[ast.FuncNameSum] = render.FuncOverrideCastResult(
+		fmt.Sprintf("NUMBER(%d, %d)", render.AggDecimalPrecision, render.AggDecimalScale),
+	)
+	// count(), count_unique(), and rownum() are integer-valued, but Oracle reports
+	// their result column as the same floating-scale NUMBER as division and other
+	// arithmetic, which refineBareNumberKind now classifies as kind.Decimal to
+	// avoid the fractional-value scan crash (issue #844). Without intervention
+	// these would surface as a decimal string ("200") instead of an integer. Pin
+	// them to kind.Int so they scan as int64 and stay numbers, matching every
+	// other driver. RecordMeta applies these hints via its kindHints parameter.
+	r.FunctionResultKinds[ast.FuncNameCount] = kind.Int
+	r.FunctionResultKinds[ast.FuncNameCountUnique] = kind.Int
+	r.FunctionResultKinds[ast.FuncNameRowNum] = kind.Int
 	return r
 }
 
-// doRenderFuncAvg wraps avg() in CAST(... AS BINARY_DOUBLE). Oracle returns
-// AVG over an integer column as NUMBER(38, 255) (floating-scale, indistinguishable
-// from COUNT/SUM at the metadata layer), which classifies as kind.Int. AVG
-// can yield fractional values, so scanning into int64 fails. The cast pins
-// the result type to a float so it scans cleanly.
-func doRenderFuncAvg(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	inner, err := render.RenderFuncDefault(rc, fn)
-	if err != nil {
-		return "", err
-	}
-	return "CAST(" + inner + " AS BINARY_DOUBLE)", nil
-}
-
-// doRenderFuncSum wraps sum() in CAST(... AS BINARY_DOUBLE). Same shape as
-// doRenderFuncAvg: Oracle returns SUM as NUMBER(38, 255) regardless of operand
-// type, which the metadata layer classifies as kind.Int. SUM over a decimal
-// column (e.g. payment.amount) yields fractional values, so scanning into
-// int64 fails. Casting to BINARY_DOUBLE pins the result to a float.
-//
-// Tradeoff: integer-valued sums lose precision beyond ~15-17 significant
-// digits. Acceptable for sq's ad-hoc use; users needing lossless big-integer
-// sums should use raw SQL. See #594 for cross-driver type harmonization.
-func doRenderFuncSum(rc *render.Context, fn *ast.FuncNode) (string, error) {
-	inner, err := render.RenderFuncDefault(rc, fn)
-	if err != nil {
-		return "", err
-	}
-	return "CAST(" + inner + " AS BINARY_DOUBLE)", nil
-}
-
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -217,11 +212,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 // doOpen opens a connection to the Oracle database.
@@ -248,7 +246,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 }
 
 // Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
@@ -372,9 +370,17 @@ func (d *driveri) ListTableNames(ctx context.Context, db sqlz.DB, schma string, 
 	owner := strings.ToUpper(schma)
 
 	if tables {
-		const queryTables = `SELECT table_name FROM all_tables
-WHERE owner = :1 AND temporary = 'N'
-ORDER BY table_name`
+		// A materialized view's container table appears in ALL_TABLES under
+		// the same name as the MV in ALL_MVIEWS. Exclude those container
+		// tables so the MV name isn't returned twice (once here, once from
+		// the ALL_MVIEWS query below).
+		const queryTables = `SELECT t.table_name FROM all_tables t
+WHERE t.owner = :1 AND t.temporary = 'N'
+  AND NOT EXISTS (
+    SELECT 1 FROM all_mviews m
+    WHERE m.owner = t.owner AND m.mview_name = t.table_name
+  )
+ORDER BY t.table_name`
 		rows, err := db.QueryContext(ctx, queryTables, owner)
 		if err != nil {
 			return nil, errw(err)
@@ -475,7 +481,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 
 	// reset maps to DROP STORAGE vs REUSE STORAGE. Oracle does not reset
 	// sequences via TRUNCATE; callers should not assume identity reseed.
-	truncateQuery := "TRUNCATE TABLE " + tblName
+	truncateQuery := "TRUNCATE TABLE " + tblName //nolint:gosec // G202: tblName is double-quoted
 	if reset {
 		truncateQuery += " DROP STORAGE"
 	} else {
@@ -609,11 +615,16 @@ ORDER BY column_id`
 
 // RecordMeta implements driver.SQLDriver.
 func (d *driveri) RecordMeta(
-	ctx context.Context, colTypes []*sql.ColumnType,
+	ctx context.Context, colTypes []*sql.ColumnType, kindHints map[int]kind.Kind,
 ) (record.Meta, driver.NewRecordFunc, error) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 
+	// kindHints carries forced result-column kinds recorded during rendering,
+	// e.g. count() and rownum() pinned to kind.Int. Oracle reports their result
+	// column as a floating-scale NUMBER that refineBareNumberKind classifies as
+	// kind.Decimal (to avoid the fractional-value scan crash, issue #844), so
+	// without a hint these integer-valued functions would surface as decimal.
 	for i, colType := range colTypes {
 		knd := kindFromDBTypeName(d.log, colType.Name(), colType.DatabaseTypeName())
 		// Refine bare NUMBER using precision/scale from the column type metadata.
@@ -621,6 +632,11 @@ func (d *driveri) RecordMeta(
 		// DatabaseTypeName(), so DecimalSize() distinguishes integer-range columns.
 		if colType.DatabaseTypeName() == "NUMBER" && knd == kind.Decimal {
 			knd = refineBareNumberKind(colType.DecimalSize())
+		}
+		if hint, ok := kindHints[i]; ok {
+			// Force the renderer-pinned kind; setScanType derives the scan
+			// target from it, so kind.Int yields an int64 scan.
+			knd = hint
 		}
 		colTypeData := record.NewColumnTypeData(colType, knd)
 		d.setScanType(colTypeData, knd)
@@ -689,7 +705,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	recMeta, _, err := d.RecordMeta(ctx, colTypes)
+	recMeta, _, err := d.RecordMeta(ctx, colTypes, nil)
 	return recMeta, err
 }
 

@@ -1,0 +1,32 @@
+# Shared policy for the generated-site link checks. check-links.sh adds the
+# generated site's dynamic root directory and selects internal or full scope.
+
+no_progress = true
+format = "detailed"
+timeout = 25
+max_retries = 3
+retry_wait_time = 2
+max_redirects = 20
+max_concurrency = 32
+host_concurrency = 4
+host_request_interval = "100ms"
+index_files = ["index.html"]
+
+# External infrastructure failures are noisy in CI. Keep genuine dead links
+# such as 404 and 410 fatal, while tolerating bot blocking, rate limiting, and
+# transient server errors.
+accept = ["100..=103", "200..=299", "403", "429", "500..=599"]
+
+# These hosts block automated checks or redirect indefinitely from CI. Keep
+# the list explicit so a newly broken external link remains visible by default.
+exclude = [
+  '^https://asciinema\.org',
+  '^https://dev\.mysql\.com',
+  '^https://github\.com',
+  '^https://no-color\.org',
+  '^https://spin\.atomicobject\.com',
+  '^https://stackoverflow\.com',
+  '^https://www\.microsoft\.com',
+  '^https://www\.mysql\.com',
+  '^https://hub\.docker\.com/repository/docker/sakiladb/oracle/general$',
+]

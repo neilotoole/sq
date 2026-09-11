@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -80,6 +81,22 @@ type completion struct {
 	directives []cobra.ShellCompDirective
 }
 
+// schemaCompletionTimeout is the shell-completion timeout used by the
+// flag.ActiveSchema tests. The 500ms default is a UX budget, not a correctness
+// property, and these tests assert what completion returns, not how fast it
+// returns it. A cold source open on a loaded CI runner can exceed 500ms, which
+// surfaces as an empty result and ShellCompDirectiveError. See gh #595.
+const schemaCompletionTimeout = time.Second * 10
+
+// setCompletionTimeout sets cli.OptShellCompletionTimeout in tr's config store.
+// The store is what testComplete's run loads from, so the value must be
+// persisted, not just set on tr's in-memory config.
+func setCompletionTimeout(tb testing.TB, tr *testrun.TestRun, d time.Duration) {
+	tb.Helper()
+	tr.Run.Config.Options[cli.OptShellCompletionTimeout.Key()] = d
+	require.NoError(tb, tr.Run.ConfigStore.Save(tr.Context, tr.Run.Config))
+}
+
 // TestCompleteFlagActiveSchema_query_cmds tests flag.ActiveSchema
 // behavior for the query commands (slq, sql).
 //
@@ -131,23 +148,27 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) { //nolint:tparallel
 			wantDirective: wantDirective,
 		},
 		{
-			handles:           []string{sakila.My, sakila.Pg},
-			withFlagActiveSrc: sakila.Pg,
-			arg:               "publ",
-			wantContains:      []string{"public"},
-			wantDirective:     wantDirective,
+			// The flag selects Duck, whose catalog "sakila" completes. SL3
+			// offers no such catalog, so the case fails if the flag is ignored.
+			handles:           []string{sakila.SL3, sakila.Duck},
+			withFlagActiveSrc: sakila.Duck,
+			arg:               "sak",
+			wantContains:      []string{"sakila."},
+			wantDirective:     wantDirective | cobra.ShellCompDirectiveNoSpace,
 		},
 		{
-			handles:           []string{sakila.Pg, sakila.My},
-			withFlagActiveSrc: sakila.My,
+			// The flag selects SL3, which offers only the "main" schema, and so
+			// no NoSpace directive. Duck would also offer its catalog.
+			handles:           []string{sakila.Duck, sakila.SL3},
+			withFlagActiveSrc: sakila.SL3,
 			arg:               "",
-			wantContains:      []string{"mysql", "sys", "information_schema", "sakila"},
+			wantContains:      []string{"main"},
 			wantDirective:     wantDirective,
 		},
 		{
-			handles:           []string{sakila.My, sakila.Pg},
+			handles:           []string{sakila.SL3, sakila.Duck},
 			withFlagActiveSrc: sakila.MS,
-			arg:               "publ",
+			arg:               "ma",
 			// Should error because sakila.MS isn't a loaded source (via "handles").
 			wantDirective: cobra.ShellCompDirectiveError,
 		},
@@ -163,6 +184,7 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) { //nolint:tparallel
 
 					th := testh.New(t)
 					tr := testrun.New(th.Context, t, nil)
+					setCompletionTimeout(t, tr, schemaCompletionTimeout)
 					for _, handle := range tc.handles {
 						tr.Add(*th.Source(handle))
 					}
@@ -246,23 +268,27 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 			wantDirective: wantDirective,
 		},
 		{
-			handles:          []string{sakila.My, sakila.Pg},
-			withArgActiveSrc: sakila.Pg,
-			arg:              "publ",
-			wantContains:     []string{"public"},
-			wantDirective:    wantDirective,
+			// The arg selects Duck, whose catalog "sakila" completes. SL3
+			// offers no such catalog, so the case fails if the arg is ignored.
+			handles:          []string{sakila.SL3, sakila.Duck},
+			withArgActiveSrc: sakila.Duck,
+			arg:              "sak",
+			wantContains:     []string{"sakila."},
+			wantDirective:    wantDirective | cobra.ShellCompDirectiveNoSpace,
 		},
 		{
-			handles:          []string{sakila.Pg, sakila.My},
-			withArgActiveSrc: sakila.My,
+			// The arg selects SL3, which offers only the "main" schema, and so
+			// no NoSpace directive. Duck would also offer its catalog.
+			handles:          []string{sakila.Duck, sakila.SL3},
+			withArgActiveSrc: sakila.SL3,
 			arg:              "",
-			wantContains:     []string{"mysql", "sys", "information_schema", "sakila"},
+			wantContains:     []string{"main"},
 			wantDirective:    wantDirective,
 		},
 		{
-			handles:          []string{sakila.My, sakila.Pg},
+			handles:          []string{sakila.SL3, sakila.Duck},
 			withArgActiveSrc: sakila.MS,
-			arg:              "publ",
+			arg:              "ma",
 			// Should error because sakila.MS isn't a loaded source (via "handles").
 			wantDirective: cobra.ShellCompDirectiveError,
 		},
@@ -274,6 +300,7 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 
 			th := testh.New(t)
 			tr := testrun.New(th.Context, t, nil)
+			setCompletionTimeout(t, tr, schemaCompletionTimeout)
 			for _, handle := range tc.handles {
 				tr.Add(*th.Source(handle))
 			}
@@ -526,6 +553,148 @@ func TestCompleteAllCobraRequestCmds(t *testing.T) {
 				})
 			})
 		}
+	}
+}
+
+// TestCompleteFlagValues_afterPositional is a regression test for flag value
+// completion being suppressed once the command already has a positional arg.
+// The bug: completion helpers capped on len(args) (the positional args), which
+// is correct for positional completion but wrongly gated flag value completion,
+// since a flag takes a single value regardless of how many positionals precede
+// it. The fix split the helpers: completeStrings no longer caps (flag-only), and
+// completeHandle's positional cap is used only via the positional ValidArgsFunc,
+// with completeHandleFlag for flag values. See the formerly broken --store /
+// --src / --log.* / --error.format cases.
+func TestCompleteFlagValues_afterPositional(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
+	t.Parallel()
+
+	// completeStrings flags suppress file completion and keep the listed order;
+	// the &-vs-| regression (NoFileComp & KeepOrder == 0 == Default) would
+	// re-enable file completion and drop order, so assert the directive too.
+	const stringsDirective = cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
+	// completeHandleFlag suppresses file completion but sorts handles.
+	const handleDirective = cobra.ShellCompDirectiveNoFileComp
+
+	testCases := []struct {
+		name          string
+		args          []string
+		wantContains  []string
+		wantEmpty     bool // assert no candidates at all (free-form value)
+		wantDirective cobra.ShellCompDirective
+	}{
+		{
+			name:          "add_store",
+			args:          []string{"add", "postgres://x", "--" + flag.AddStore, ""},
+			wantContains:  []string{flag.AddStoreInline, flag.AddStoreKeyring},
+			wantDirective: stringsDirective,
+		},
+		{
+			name:          "log_level",
+			args:          []string{".data", "--log.level", ""},
+			wantContains:  []string{"DEBUG", "INFO", "WARN", "ERROR"},
+			wantDirective: stringsDirective,
+		},
+		{
+			name:          "log_format",
+			args:          []string{".data", "--log.format", ""},
+			wantContains:  []string{"text", "json"},
+			wantDirective: stringsDirective,
+		},
+		{
+			name:          "error_format",
+			args:          []string{".data", "--error.format", ""},
+			wantContains:  []string{"text", "json"},
+			wantDirective: stringsDirective,
+		},
+		{
+			name:          "config_get_src",
+			args:          []string{"config", "get", "format", "--" + flag.ConfigSrc, ""},
+			wantContains:  []string{sakila.Pg},
+			wantDirective: handleDirective,
+		},
+		{
+			name:          "config_set_src",
+			args:          []string{"config", "set", "format", "json", "--" + flag.ConfigSrc, ""},
+			wantContains:  []string{sakila.Pg},
+			wantDirective: handleDirective,
+		},
+		{
+			// --arg NAME slot is free-form (a variable name): no candidates,
+			// but file completion is suppressed rather than left as default.
+			name:          "arg_name",
+			args:          []string{".actor", "--" + flag.Arg, ""},
+			wantEmpty:     true,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			// --arg VALUE slot ("sq --arg first <TAB>"): cobra consumes the
+			// name as the flag value and would otherwise offer query/table
+			// completions for the trailing positional. The value is free-form,
+			// so suppress them.
+			name:          "arg_value",
+			args:          []string{"--" + flag.Arg, "first", ""},
+			wantEmpty:     true,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			// The "=" form "--arg=NAME:VALUE" is a self-contained token, so the
+			// next word is a real query positional that must still complete (it
+			// is not the dangling VALUE slot of the space form).
+			name:          "arg_equals_form_completes_query",
+			args:          []string{"--" + flag.Arg + "=name:TOM", "@"},
+			wantContains:  []string{sakila.Pg},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			// Space form with both NAME and VALUE present: cobra sees VALUE as a
+			// positional, so args is non-empty. The current word is a real query
+			// positional that must still complete. Use "@" prefix (handle
+			// completion) so no live DB is needed for this short test.
+			name:          "arg_space_form_complete_pair_completes_query",
+			args:          []string{"--" + flag.Arg, "first", "TOM", "@"},
+			wantContains:  []string{sakila.Pg},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+		{
+			// Two space-form pairs, second one mid-VALUE ("--arg a A --arg b
+			// <TAB>"): the second VALUE slot is still open, so suppress.
+			name:          "arg_two_pairs_mid_value",
+			args:          []string{"--" + flag.Arg, "a", "A", "--" + flag.Arg, "b", ""},
+			wantEmpty:     true,
+			wantDirective: cobra.ShellCompDirectiveNoFileComp,
+		},
+		{
+			// Two complete space-form pairs ("--arg a A --arg b B @<TAB>"): both
+			// VALUE slots are filled, so the current word is a real query
+			// positional that must still complete.
+			name:          "arg_two_pairs_complete_completes_query",
+			args:          []string{"--" + flag.Arg, "a", "A", "--" + flag.Arg, "b", "B", "@"},
+			wantContains:  []string{sakila.Pg},
+			wantDirective: cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveNoSpace,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			th := testh.New(t)
+			tr := testrun.New(th.Context, t, nil)
+			tr.Add(*th.Source(sakila.Pg))
+
+			got := testComplete(t, tr, tc.args...)
+			assert.Equal(t, tc.wantDirective, got.result,
+				"wanted: %v\ngot   : %v",
+				cobraz.MarshalDirective(tc.wantDirective),
+				cobraz.MarshalDirective(got.result))
+			if tc.wantEmpty {
+				assert.Empty(t, got.values)
+			}
+			for j := range tc.wantContains {
+				assert.Contains(t, got.values, tc.wantContains[j])
+			}
+		})
 	}
 }
 

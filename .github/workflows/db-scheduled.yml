@@ -1,0 +1,33 @@
+name: DB integration (scheduled)
+
+# Drives db-integration.yml on a schedule (gh #1133):
+#   nightly: every engine at bookends (latest + oldest supported version)
+#   weekly:  every engine at every supported version
+# The two modes differ only in tag selection; both run go test ./... per leg.
+# Manual dispatch picks a mode. To run specific engines, dispatch
+# db-integration.yml directly instead.
+
+on:
+  schedule:
+    # Every day except Monday: the Monday weekly run an hour later is a superset.
+    - cron: "0 4 * * 0,2-6" # nightly: every engine at bookends
+    # This exact string is matched in the run job's selection expression.
+    - cron: "0 5 * * 1" # weekly (Mon): every engine at every version
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "bookends (every engine at latest + oldest) or all (every published tag)"
+        type: choice
+        options: [bookends, all]
+        default: bookends
+
+jobs:
+  run:
+    uses: ./.github/workflows/db-integration.yml
+    with:
+      # github.event.inputs.mode is empty on a cron trigger, so the weekly cron
+      # is matched by its schedule string; everything else is bookends.
+      selection: >-
+        ${{ (github.event.schedule == '0 5 * * 1' || github.event.inputs.mode == 'all')
+            && '{"*":["all"]}'
+            || '{"*":["bookends"]}' }}

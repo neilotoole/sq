@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/core/secret/file"
 )
@@ -144,7 +145,11 @@ func TestResolver_EmptyAuthorityURIForm(t *testing.T) {
 	// the scheme). This is sugar for "/path" and should resolve the same
 	// file.
 	p := write(t, "uri-value")
-	got, err := file.NewResolver().Resolve(context.Background(), "//"+p)
+	// Build the empty-authority form portably: on Unix "//" + "/var/x" yields
+	// "///var/x"; on Windows the volume must follow the leading slash, so
+	// "//" + "/C:/x" yields "///C:/x" (file:///C:/x), not "//C:\x" (remote).
+	uriForm := "//" + ioz.FileURIPath(filepath.ToSlash(p))
+	got, err := file.NewResolver().Resolve(context.Background(), uriForm)
 	require.NoError(t, err)
 	require.Equal(t, "uri-value", got)
 }

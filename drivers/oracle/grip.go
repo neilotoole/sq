@@ -16,11 +16,12 @@ import (
 
 // grip implements driver.Grip for Oracle.
 type grip struct {
+	closeErr  error
 	log       *slog.Logger
-	drvr      *driveri
 	db        *sql.DB
 	src       *source.Source
-	closeErr  error
+	drvr      *driveri
+	semver    driver.SemverCache
 	closeOnce sync.Once
 }
 
@@ -44,7 +45,8 @@ func (g *grip) Source() *source.Source {
 // TableMetadata implements driver.Grip.
 func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Table, error) {
 	bar := progress.FromContext(ctx).NewUnitCounter(
-		g.Source().Handle+"."+tblName+": read schema", "item")
+		g.Source().Handle+"."+tblName+": read schema", "item",
+	)
 	defer bar.Stop()
 	ctx = progress.NewBarContext(ctx, bar)
 
@@ -54,11 +56,17 @@ func (g *grip) TableMetadata(ctx context.Context, tblName string) (*metadata.Tab
 // SourceMetadata implements driver.Grip.
 func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	bar := progress.FromContext(ctx).NewUnitCounter(
-		g.Source().Handle+": read schema", "item")
+		g.Source().Handle+": read schema", "item",
+	)
 	defer bar.Stop()
 	ctx = progress.NewBarContext(ctx, bar)
 
 	return getSourceMetadata(ctx, g.src, g.db, noSchema)
+}
+
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	return g.semver.Get(func() (string, error) { return g.drvr.DBSemver(ctx, g.db) })
 }
 
 // Close implements driver.Grip.

@@ -8,8 +8,7 @@ before:
 dist: dist-linux
 
 builds:
-  -
-    main: .
+  - main: .
     binary: sq
     flags:
       - -a
@@ -37,4 +36,4 @@ builds:
       - sqlite_json
       - sqlite_math_functions
 archives:
-  - formats: [ binary ]
+  - formats: [binary]

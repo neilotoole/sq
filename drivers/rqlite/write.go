@@ -166,7 +166,8 @@ func write(ctx context.Context, db sqlz.DB, withTx bool,
 	if len(results) != len(stmts) {
 		return results, errz.Errorf(
 			"rqlite: write batch: expected %d results but got %d",
-			len(stmts), len(results))
+			len(stmts), len(results),
+		)
 	}
 	return results, nil
 }

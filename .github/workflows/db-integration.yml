@@ -1,0 +1,179 @@
+name: DB integration
+
+on:
+  workflow_call:
+    inputs:
+      selection:
+        description: "JSON object {engine:[selectors]} of engines/selectors to test"
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      # Each engine input is a comma-separated list of selectors: explicit tags
+      # (18, 5.7), latest, oldest, bookends (latest + oldest) or all. Default ""
+      # so a blank engine is skipped (see the select(.value != "") filter
+      # below). "Every engine" is db-scheduled.yml's job: dispatch that with
+      # mode=bookends or mode=all. A dispatch here names the engines it wants.
+      postgres: {
+        description: "postgres selectors (comma-sep; blank=skip)",
+        type: string,
+        default: "",
+      }
+      mysql: { description: "mysql selectors (comma-sep; blank=skip)", type: string, default: "" }
+      sqlserver: {
+        description: "sqlserver selectors (comma-sep; blank=skip)",
+        type: string,
+        default: "",
+      }
+      clickhouse: {
+        description: "clickhouse selectors (comma-sep; blank=skip)",
+        type: string,
+        default: "",
+      }
+      oracle: { description: "oracle selectors (comma-sep; blank=skip)", type: string, default: "" }
+      rqlite: { description: "rqlite selectors (comma-sep; blank=skip)", type: string, default: "" }
+
+env:
+  BUILD_TAGS: "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions"
+  # Single source of truth for the sakiladb registry. GHCR isn't subject to
+  # Docker Hub's anonymous pull rate limits (easily tripped from shared runner
+  # IPs) and mirrors the same images with identical digests. build-db-matrix.sh
+  # reads it and stamps each matrix entry's `image` ref; the test service and
+  # dedup-db-matrix.sh then both consume that ref, so the registry lives here only.
+  SAKILADB_REGISTRY: ghcr.io/sakiladb
+
+jobs:
+  setup:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: build
+        shell: bash
+        env:
+          INPUT_POSTGRES: ${{ inputs.postgres   || github.event.inputs.postgres }}
+          INPUT_MYSQL: ${{ inputs.mysql      || github.event.inputs.mysql }}
+          INPUT_SQLSERVER: ${{ inputs.sqlserver  || github.event.inputs.sqlserver }}
+          INPUT_CLICKHOUSE: ${{ inputs.clickhouse || github.event.inputs.clickhouse }}
+          INPUT_ORACLE: ${{ inputs.oracle     || github.event.inputs.oracle }}
+          INPUT_RQLITE: ${{ inputs.rqlite     || github.event.inputs.rqlite }}
+          INPUT_SELECTION: ${{ inputs.selection }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_SELECTION" ]; then
+            # Invoked via workflow_call (e.g. db-scheduled.yml): use the selection JSON.
+            sel="$INPUT_SELECTION"
+          else
+            # Direct workflow_dispatch: build the selection from the per-engine
+            # selector inputs. Entries are trimmed and empties dropped, so
+            # "18, 17" and "18," mean what a human meant by them.
+            sel=$(jq -cn \
+              --arg postgres   "$INPUT_POSTGRES" \
+              --arg mysql      "$INPUT_MYSQL" \
+              --arg sqlserver  "$INPUT_SQLSERVER" \
+              --arg clickhouse "$INPUT_CLICKHOUSE" \
+              --arg oracle     "$INPUT_ORACLE" \
+              --arg rqlite     "$INPUT_RQLITE" '
+              {postgres:$postgres, mysql:$mysql, sqlserver:$sqlserver,
+               clickhouse:$clickhouse, oracle:$oracle, rqlite:$rqlite}
+              | to_entries | map(select(.value != ""))
+              | map({key:.key, value:(.value | split(",")
+                  | map(gsub("^\\s+|\\s+$"; "")) | map(select(. != "")))})
+              | from_entries')
+          fi
+          # dedup-db-matrix.sh collapses tags that resolve to the same image
+          # (e.g. a dispatch naming both "latest" and "18" for postgres, or
+          # "bookends" on a single-tag engine) so the image is tested once, not
+          # twice. It's best-effort: an unresolvable digest leaves the entry in
+          # place rather than dropping coverage.
+          inc=$(scripts/build-db-matrix.sh "$sel" | scripts/dedup-db-matrix.sh)
+          matrix="{\"include\":$inc}"
+          echo "::notice::selection=$sel"
+          echo "::notice::matrix=$matrix"
+          # Fail loudly rather than silently skipping the test job: an empty
+          # selection means nothing would run, which otherwise reports a false
+          # green (a skipped matrix job is not a failure).
+          if [ "$(jq 'length' <<<"$inc")" -eq 0 ]; then
+            echo "::error::Empty engine selection: nothing to test. Provide at least one engine selector (dispatch) or a non-empty selection (call)."
+            exit 1
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: setup
+    if: ${{ fromJSON(needs.setup.outputs.matrix).include[0] != null }}
+    # Concise name; without this the matrix auto-appends every include field
+    # (image, port, env) to the job title.
+    name: test ${{ matrix.engine }}:${{ matrix.tag }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+    services:
+      db:
+        image: ${{ matrix.image }}
+        ports:
+          - ${{ matrix.port }}:${{ matrix.port }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # go test ./... exhausts the runner's root filesystem: many embedded
+      # SQLite/DuckDB temp databases plus large test binaries (observed: a
+      # pg17 leg hit "no space left on device", and compile/link of ./libsq/...
+      # and ./cli/... has hit ENOSPC on mysql and sqlserver legs). The runner
+      # has ~86 GB free on / but the preinstalled toolchains removed below are
+      # millions of small files, so the rm reclaims inodes as much as the
+      # ~20 GB. It costs 55-108s per leg on average; reducing that is tracked
+      # separately from gh #1133.
+      - name: Free disk space
+        shell: bash
+        run: |
+          set -euo pipefail
+          before=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+          sudo rm -rf \
+            /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /usr/share/swift
+          after=$(df -BG --output=avail / | tail -1 | tr -dc '0-9')
+          echo "Freed disk on /: ${before}G -> ${after}G available"
+
+      - name: Wait for DB healthy
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid='${{ job.services.db.id }}'
+          for i in $(seq 1 60); do
+            status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cid")
+            echo "attempt $i: $status"
+            if [ "$status" = healthy ]; then exit 0; fi
+            if [ "$status" = none ]; then echo "image has no HEALTHCHECK; proceeding"; exit 0; fi
+            sleep 5
+          done
+          echo "::error::DB ${{ matrix.engine }}:${{ matrix.tag }} did not become healthy"
+          docker logs "$cid" | tail -100 || true
+          exit 1
+
+      - name: Build
+        run: go build -tags '${{ env.BUILD_TAGS }}' ./...
+
+      - name: Integration tests (${{ matrix.engine }}:${{ matrix.tag }})
+        shell: bash
+        env:
+          ENGINE: ${{ matrix.engine }}
+          ENV_NAME: ${{ matrix.env }}
+        run: |
+          set -euo pipefail
+          # Look up the DSN from the manifest at runtime — it carries credentials
+          # that GitHub masks, so it must not travel through the job-output matrix.
+          dsn=$(jq -r --arg e "$ENGINE" '.[$e].dsn' .github/sakila-db.json)
+          export "$ENV_NAME=$dsn"
+          go test -tags '${{ env.BUILD_TAGS }}' -timeout 25m -v ./...

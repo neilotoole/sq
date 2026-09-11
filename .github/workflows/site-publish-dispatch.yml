@@ -20,11 +20,11 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type DEPLOY to confirm production publish to https://sq.io'
+        description: "Type DEPLOY to confirm production publish to https://sq.io"
         required: true
         type: string
       message:
-        description: 'Optional deploy message (shown in the Netlify deploy log)'
+        description: "Optional deploy message (shown in the Netlify deploy log)"
         required: false
         type: string
 

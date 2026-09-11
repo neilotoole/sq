@@ -139,7 +139,6 @@ See docs and more: https://sq.io`,
 	addOptionFlag(cmd.PersistentFlags(), OptVerbose)
 	addOptionFlag(cmd.PersistentFlags(), pprofile.OptMode)
 	panicOn(cmd.RegisterFlagCompletionFunc(pprofile.OptMode.Flag().Name, completeStrings(
-		-1,
 		pprofile.Modes()...,
 	)))
 
@@ -156,7 +155,6 @@ See docs and more: https://sq.io`,
 
 	addOptionFlag(cmd.PersistentFlags(), OptLogLevel)
 	panicOn(cmd.RegisterFlagCompletionFunc(OptLogLevel.Flag().Name, completeStrings(
-		1,
 		slog.LevelDebug.String(),
 		slog.LevelInfo.String(),
 		slog.LevelWarn.String(),
@@ -165,12 +163,15 @@ See docs and more: https://sq.io`,
 
 	addOptionFlag(cmd.PersistentFlags(), OptLogFormat)
 	panicOn(cmd.RegisterFlagCompletionFunc(OptLogFormat.Flag().Name, completeStrings(
-		1,
 		string(format.Text),
 		string(format.JSON),
 	)))
 
 	addOptionFlag(cmd.PersistentFlags(), OptErrorFormat)
+	panicOn(cmd.RegisterFlagCompletionFunc(OptErrorFormat.Flag().Name, completeStrings(
+		string(format.Text),
+		string(format.JSON),
+	)))
 	addOptionFlag(cmd.PersistentFlags(), OptErrorStack)
 
 	return cmd

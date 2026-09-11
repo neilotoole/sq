@@ -7,16 +7,17 @@ weight: 4030
 toc: false
 url: /docs/drivers/sqlserver
 aliases:
-- /docs/driver/sql-server
-- /docs/drivers/sql-server
+  - /docs/driver/sql-server
+  - /docs/drivers/sql-server
 ---
+
 The `sq` SQL Server driver implements connectivity for
 Microsoft [SQL Server](https://www.microsoft.com/en-us/sql-server).
 The driver implements all optional driver features.
 
 ## Add source
 
-Use [`sq add`](/docs/cmd/add) to add a source.  The location argument should
+Use [`sq add`](/docs/cmd/add) to add a source. The location argument should
 start with `sqlserver://`. For example:
 
 ```shell
@@ -91,19 +92,19 @@ views and the `sp_spaceused` system procedure.
 
 #### Source-level fields
 
-| Field | Source |
-| --- | --- |
-| `name`, `catalog` | `DB_NAME()` |
-| `schema` | `SCHEMA_NAME()` (default schema for the connected user) |
-| `user` | not populated |
-| `db_product` | `@@VERSION` (full descriptive string) |
-| `db_version` | `SERVERPROPERTY('ProductVersion')` (numeric, e.g. `15.0.4123.1`) |
-| `size` | `SUM(size) * 8192` over `sys.master_files WHERE database_id = DB_ID()` — total bytes across all data files (`size` is in 8 KB pages) |
+| Field             | Source                                                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `name`, `catalog` | `DB_NAME()`                                                                                                                          |
+| `schema`          | `SCHEMA_NAME()` (default schema for the connected user)                                                                              |
+| `user`            | not populated                                                                                                                        |
+| `db_product`      | `@@VERSION` (full descriptive string)                                                                                                |
+| `db_version`      | `SERVERPROPERTY('ProductVersion')` (numeric, e.g. `15.0.4123.1`)                                                                     |
+| `size`            | `SUM(size) * 8192` over `sys.master_files WHERE database_id = DB_ID()` — total bytes across all data files (`size` is in 8 KB pages) |
 
 #### Per-table fields
 
-| Field | Source |
-| --- | --- |
-| `row_count` (tables) | `sp_spaceused 'tbl'` |
-| `row_count` (views) | live `SELECT COUNT(*)` (`sp_spaceused` does not return a row count for views) |
-| `size` | `sp_spaceused 'tbl'` (reserved / data / index breakdown) |
+| Field                | Source                                                                        |
+| -------------------- | ----------------------------------------------------------------------------- |
+| `row_count` (tables) | `sp_spaceused 'tbl'`                                                          |
+| `row_count` (views)  | live `SELECT COUNT(*)` (`sp_spaceused` does not return a row count for views) |
+| `size`               | `sp_spaceused 'tbl'` (reserved / data / index breakdown)                      |

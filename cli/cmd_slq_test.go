@@ -127,12 +127,20 @@ func TestCmdSLQ_Insert_MultipleSchemas(t *testing.T) {
 //   - SLQ query parsing and execution across different database backends
 //   - The CLI's ability to manage multiple source connections simultaneously
 //
-// The test matrix covers all combinations of supported SQL databases as both
-// origin (data source) and destination (insert target).
+// The test matrix pairs each engine with an embedded source (SQLite/DuckDB) as
+// both origin and destination, plus same-source self-inserts. External x external
+// cross pairs are excluded via sakila.CrossSourceDests because they don't scale
+// (multiple external containers live at once, O(N^2) in the number of engines)
+// and can't run under the per-engine CI model; see gh #964. The origin==dest
+// cells are self-inserts; the @sakila_duck/@sakila_duck cell is the regression
+// guard for the DuckDB self-insert path (handle+mode cache +
+// QueryContext.WriteHandle, gh #779): without it, the source would open
+// read-only while the destination holds the file read-write, which DuckDB
+// rejects.
 func TestCmdSLQ_Insert(t *testing.T) {
 	for _, origin := range sakila.SQLLatest() {
 		t.Run("origin_"+origin, func(t *testing.T) {
-			for _, dest := range sakila.SQLLatest() {
+			for _, dest := range sakila.CrossSourceDests(origin) {
 				t.Run("dest_"+dest, func(t *testing.T) {
 					t.Parallel()
 
@@ -467,7 +475,8 @@ See: https://github.com/neilotoole/sq/issues/437`,
 
 			// Test combination of --src and --src.schema
 			const qInfoSchemaActor = `.tables | .table_catalog, .table_schema, .table_name, .table_type | where(.table_name == "actor")` //nolint:lll
-			require.NoError(t, tr.Reset().Exec("--csv", "-H",
+			require.NoError(t, tr.Reset().Exec(
+				"--csv", "-H",
 				"--src", tc.handle,
 				"--src.schema", "information_schema",
 				qInfoSchemaActor,
@@ -483,7 +492,8 @@ See: https://github.com/neilotoole/sq/issues/437`,
 			require.Equal(t, tc.defaultSchema, tr.OutString())
 
 			// Test just --src.schema (schema part only)
-			require.NoError(t, tr.Reset().Exec("--csv", "-H",
+			require.NoError(t, tr.Reset().Exec(
+				"--csv", "-H",
 				"--src.schema", "information_schema",
 				qInfoSchemaActor,
 			))
@@ -492,7 +502,8 @@ See: https://github.com/neilotoole/sq/issues/437`,
 
 			if th.SQLDriverFor(src).Dialect().Catalog {
 				// Test --src.schema (catalog and schema parts)
-				require.NoError(t, tr.Reset().Exec("--csv", "-H",
+				require.NoError(t, tr.Reset().Exec(
+					"--csv", "-H",
 					"--src.schema", tc.altCatalog+".information_schema",
 					`.schemata | .catalog_name | unique`,
 				))
@@ -779,13 +790,15 @@ func TestCmdSLQ_NumericSchema(t *testing.T) {
 			tblName := "query_test_tbl"
 			_, err = db.ExecContext(ctx, fmt.Sprintf(
 				`CREATE TABLE %q.%q (id serial PRIMARY KEY, name text, value int)`,
-				schemaName, tblName))
+				schemaName, tblName,
+			))
 			require.NoError(t, err)
 
 			// Insert test data.
 			_, err = db.ExecContext(ctx, fmt.Sprintf(
 				`INSERT INTO %q.%q (name, value) VALUES ('alice', 10), ('bob', 20), ('charlie', 30)`,
-				schemaName, tblName))
+				schemaName, tblName,
+			))
 			require.NoError(t, err)
 
 			// Execute SLQ query with --src.schema pointing to numeric schema.
@@ -892,4 +905,67 @@ func TestSLQ_DuckDB_RenderSQL_DoesNotModifyMtime(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
 		"DuckDB file mtime must not change after sq slq --render-sql")
+}
+
+// TestCmdSLQ_Print_ReadOnly guards that the plain `sq <slq>` print path opens
+// sources read-only. The DuckDB file is made read-only on disk (0444), so a
+// read-write open would fail; read-only succeeds. Mirrors TestDiff_Data_ReadOnly.
+func TestCmdSLQ_Print_ReadOnly(t *testing.T) {
+	tu.SkipReadOnlyFileUnenforceable(t)
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	path := strings.TrimPrefix(src.Location, "duckdb://")
+
+	require.NoError(t, os.Chmod(path, 0o444))
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) }) // let TempDir cleanup remove it
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src)
+	require.NoError(t, tr.Exec("slq", src.Handle+".actor"),
+		"sq <slq> must open the source read-only (no write lock)")
+}
+
+// TestCmdSLQ_Insert_FromReadOnlySource guards that an --insert can READ from a
+// source that is read-only on disk (0444). The destination opens read-write;
+// the source, having a different handle, must open read-only (gh #779 per-source
+// mode via QueryContext.WriteHandle). A regression here forces the source RW and
+// fails with "permission denied" on the 0444 DuckDB file. The destination is a
+// (writable) SQLite source; the point is the read-only DuckDB source.
+func TestCmdSLQ_Insert_FromReadOnlySource(t *testing.T) {
+	tu.SkipReadOnlyFileUnenforceable(t)
+	th := testh.New(t)
+	src := th.Source(sakila.Duck)
+	dest := th.Source(sakila.SL3)
+
+	srcPath := strings.TrimPrefix(src.Location, "duckdb://")
+	require.NoError(t, os.Chmod(srcPath, 0o444))
+	t.Cleanup(func() { _ = os.Chmod(srcPath, 0o644) })
+
+	destTbl := "actor_ro_copy_" + stringz.Uniq8()
+	tr := testrun.New(th.Context, t, nil).Hush().Add(*src, *dest)
+	require.NoError(t, tr.Exec("slq", "--insert="+dest.Handle+"."+destTbl, src.Handle+".actor"),
+		"insert from a read-only source must open the source read-only and succeed")
+}
+
+func TestCmdSLQ_FormatDecimal(t *testing.T) {
+	t.Parallel()
+
+	t.Run("default_string", func(t *testing.T) {
+		t.Parallel()
+		th := testh.New(t)
+		src := th.Source(sakila.SL3)
+		tr := testrun.New(th.Context, t, nil).Add(*src)
+		require.NoError(t, tr.Exec("slq", "--format=json", "--compact", ".actor | sum(.actor_id)"))
+		require.Contains(t, tr.Out.String(), `:"20100"}`)
+	})
+
+	t.Run("number", func(t *testing.T) {
+		t.Parallel()
+		th := testh.New(t)
+		src := th.Source(sakila.SL3)
+		tr := testrun.New(th.Context, t, nil).Add(*src)
+		require.NoError(t, tr.Exec("slq", "--format=json", "--compact", "--format.decimal=number", ".actor | sum(.actor_id)"))
+		out := tr.Out.String()
+		require.Contains(t, out, ":20100}")
+		require.NotContains(t, out, `"20100"`)
+	})
 }

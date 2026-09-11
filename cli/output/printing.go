@@ -34,7 +34,7 @@ type Printing struct {
 	// Active is the color for an active handle (or group, etc).
 	Active *color.Color
 
-	// Bold is the color for bold elements. Frequently Punc will just be color.Bold.
+	// Bold is the color for bold elements.
 	Bold *color.Color
 
 	// Bool is the color for boolean values.
@@ -179,6 +179,11 @@ type Printing struct {
 	// rendered as naked numbers (instead of as a string) if possible.
 	// See cli.OptDateFormatAsNumber.
 	FormatDateAsNumber bool
+
+	// DecimalAsNumber renders decimal values as bare numbers rather than
+	// quoted strings, in formats that distinguish the two (JSON, YAML).
+	// See cli.OptFormatDecimal and issue #846.
+	DecimalAsNumber bool
 }
 
 // NewPrinting returns a Printing instance. Color and pretty-print
@@ -197,6 +202,7 @@ func NewPrinting() *Printing {
 		FormatTimeAsNumber:     false,
 		FormatDate:             timez.FormatFunc(timez.DefaultDate),
 		FormatDateAsNumber:     false,
+		DecimalAsNumber:        false,
 		monochrome:             false,
 		Indent:                 "  ",
 		Active:                 color.New(color.FgGreen, color.Bold),
@@ -219,7 +225,7 @@ func NewPrinting() *Printing {
 		Normal:                 color.New(),
 		Null:                   color.New(color.Faint),
 		Number:                 color.New(color.FgCyan),
-		Punc:                   color.New(color.Bold),
+		Punc:                   color.New(color.Faint),
 		String:                 color.New(color.FgGreen),
 		Subdued:                color.New(color.Faint, color.Italic),
 		Stack:                  color.New(color.Faint),
@@ -250,6 +256,7 @@ func (pr *Printing) Clone() *Printing {
 		FormatTimeAsNumber:     pr.FormatTimeAsNumber,
 		FormatDate:             pr.FormatDate,
 		FormatDateAsNumber:     pr.FormatDateAsNumber,
+		DecimalAsNumber:        pr.DecimalAsNumber,
 		ExcelDatetimeFormat:    pr.ExcelDatetimeFormat,
 		ExcelDateFormat:        pr.ExcelDateFormat,
 		ExcelTimeFormat:        pr.ExcelTimeFormat,

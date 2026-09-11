@@ -10,6 +10,7 @@ menu:
 toc: false
 url: /docs/cmd/config-keyring-ls
 ---
+
 Part of the [`sq config keyring`](/docs/cmd/config-keyring) command group;
 see [Secrets](/docs/secrets) for the broader picture.
 

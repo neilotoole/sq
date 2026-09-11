@@ -26,7 +26,7 @@ var _ Opt = (*Skip)(nil)
 type Skip int
 
 func (s Skip) apply(e *errz) {
-	*(e.stack) = (*e.stack)[int(s):]
+	*e.stack = (*e.stack)[int(s):]
 }
 
 const unknown = "unknown"

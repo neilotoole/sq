@@ -11,9 +11,12 @@ import (
 	gokeyring "github.com/zalando/go-keyring"
 
 	"github.com/neilotoole/sq/cli/config"
+	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz/lockfile"
+	"github.com/neilotoole/sq/libsq/core/secret"
+	"github.com/neilotoole/sq/libsq/core/secret/keyring"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -39,6 +42,20 @@ func (s *failingConfigStore) Lockfile() (lockfile.Lockfile, error) {
 	return s.underlying.Lockfile()
 }
 
+// countingConfigStore wraps a config.Store and counts Save invocations,
+// used to assert that migrate persists the config exactly once for the
+// whole batch (atomic) rather than once per source. Methods other than
+// Save delegate to the embedded store.
+type countingConfigStore struct {
+	config.Store
+	saves int
+}
+
+func (s *countingConfigStore) Save(ctx context.Context, cfg *config.Config) error {
+	s.saves++
+	return s.Store.Save(ctx, cfg)
+}
+
 // migrateRollbackRow / migrateRollbackEnvelope and migrateJSONRow /
 // migrateJSONEnvelope are JSON unmarshal targets for migrate-result
 // tests. Promoted to top-level types (rather than inline anonymous
@@ -60,6 +77,17 @@ type migrateJSONRow struct {
 type migrateJSONEnvelope struct {
 	Rows   []migrateJSONRow `json:"rows"`
 	DryRun bool             `json:"dry_run"`
+}
+
+type pruneJSONRow struct {
+	Path   string `json:"path"`
+	Kind   string `json:"kind"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+type pruneJSONEnvelope struct {
+	Rows   []pruneJSONRow `json:"rows"`
+	DryRun bool           `json:"dry_run"`
 }
 
 func TestCmdConfigKeyringCreate_ExplicitValue(t *testing.T) {
@@ -315,6 +343,15 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 			wantKeyring: "postgres://alice:hunter2@db/sakila",
 		},
 		{
+			// A scheme-bearing URL with a password but an empty host still
+			// carries an inline credential, so it must migrate (regression
+			// guard: the host check used to skip it, leaving the password
+			// in sq.yml).
+			name:        "url with password but empty host",
+			inLocation:  "postgres://alice:hunter2@/sakila",
+			wantKeyring: "postgres://alice:hunter2@/sakila",
+		},
+		{
 			name:           "url without password",
 			inLocation:     "postgres://alice@db/sakila",
 			wantSkipReason: "no password",
@@ -322,7 +359,7 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 		{
 			name:           "non-url",
 			inLocation:     "/data/file.xlsx",
-			wantSkipReason: "not a URL",
+			wantSkipReason: "no credentials",
 		},
 		{
 			name: "malformed placeholder is surfaced, not silently migrated",
@@ -358,9 +395,9 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 			// working via the connect-path unescape, so skipping is
 			// safe; migrating would have to unescape (see previous
 			// case).
-			name:           "escaped placeholder skipped as non-URL",
+			name:           "escaped placeholder makes a malformed URL",
 			inLocation:     "postgres://alice:$${env:HOME}@db/sakila",
-			wantSkipReason: "not a URL",
+			wantSkipReason: "malformed location",
 		},
 	}
 	for _, tc := range tests {
@@ -368,13 +405,14 @@ func TestCmdConfigKeyringMigrate_PerCase(t *testing.T) {
 			gokeyring.MockInit()
 			th := testh.New(t)
 			tr := testrun.New(th.Context, t, nil)
-			require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+			tr.Add(source.Source{
 				Handle:   "@h",
 				Type:     "postgres",
 				Location: tc.inLocation,
-			}))
+			})
 
-			require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes"))
+			// -v so skipped sources (and their reasons) appear in the output.
+			require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes", "-v"))
 
 			src, err := tr.Run.Config.Collection.Get("@h")
 			require.NoError(t, err)
@@ -400,11 +438,11 @@ func TestCmdConfigKeyringMigrate_DryRun(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@h_dr",
 		Type:     "postgres",
 		Location: "postgres://alice:hunter2@db/sakila",
-	}))
+	})
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--dry-run"))
 
@@ -582,6 +620,7 @@ func TestCmdConfigKeyringLs_HeaderRow(t *testing.T) {
 	require.Contains(t, out, "PATH")
 	require.Contains(t, out, "HANDLE")
 	require.Contains(t, out, "DRIVER")
+	require.Contains(t, out, "STATUS")
 	require.Contains(t, out, "hdr_id")
 
 	// --no-header (and the -H short form) suppresses it.
@@ -622,15 +661,19 @@ func TestCmdConfigKeyringLs_JSON(t *testing.T) {
 		Path   string `json:"path"`
 		Handle string `json:"handle"`
 		Driver string `json:"driver"`
+		Status string `json:"status"`
 	}
 	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &got))
 	require.Len(t, got, 2, "env source must not produce a row")
 	require.Equal(t, "abc1", got[0].Path)
 	require.Equal(t, "@a_js", got[0].Handle)
 	require.Equal(t, "postgres", got[0].Driver)
+	// Paths are referenced by sources but not written to the mock keyring.
+	require.Equal(t, output.KeyringStatusMissing, got[0].Status)
 	require.Equal(t, "abc2", got[1].Path)
 	require.Equal(t, "@b_js", got[1].Handle)
 	require.Equal(t, "mysql", got[1].Driver)
+	require.Equal(t, output.KeyringStatusMissing, got[1].Status)
 }
 
 // TestCmdConfigKeyringLs_JSON_Empty: empty collection emits a JSON
@@ -773,16 +816,16 @@ func TestCmdConfigKeyringMigrate_JSON_DryRun(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@m_pw",
 		Type:     "postgres",
 		Location: "postgres://alice:hunter2@db/sakila",
-	}))
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	})
+	tr.Add(source.Source{
 		Handle:   "@m_skip",
 		Type:     "postgres",
 		Location: "postgres://alice@db/sakila", // no password -> skip
-	}))
+	})
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--dry-run", "--json"))
 
@@ -818,13 +861,16 @@ func TestCmdConfigKeyringMigrate_JSON_Apply(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@m_pw_apply",
 		Type:     "postgres",
 		Location: "postgres://alice:hunter2@db/sakila",
-	}))
+	})
 
 	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--json"))
+
+	// JSON output must stay plain: no ANSI color escapes.
+	require.NotContains(t, tr.Out.String(), "\x1b[", "JSON output must not be colorized")
 
 	type applyRow struct {
 		Handle      string `json:"handle"`
@@ -854,27 +900,27 @@ func TestCmdConfigKeyringMigrate_JSON_Apply(t *testing.T) {
 //     "rolled back" so JSON consumers can detect the path.
 //   - The command surfaces a non-nil error.
 //
-// The rollback also calls kr.Delete on the orphan keyring entry, but
+// The rollback also calls kr.Delete on the keyring entry it wrote, but
 // the test doesn't assert that directly because the minted ID isn't
-// observable from outside (orphan listing is pending — see #715).
+// observable from outside.
 func TestCmdConfigKeyringMigrate_RollbackOnSaveFailure(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
 
 	const origLoc = "postgres://alice:hunter2@db/sakila"
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@rb_src",
 		Type:     "postgres",
 		Location: origLoc,
-	}))
+	})
 	// Swap in a failing store AFTER initial setup so the source-add
 	// Save() above still succeeds. Now any further Save errors.
 	tr.Run.ConfigStore = &failingConfigStore{underlying: tr.Run.ConfigStore}
 
 	err := tr.Exec("config", "keyring", "migrate", "--all", "--yes", "--json")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "one or more sources failed")
+	require.Contains(t, err.Error(), "no sources were changed")
 
 	// The in-memory source must reflect the rollback: Location is the
 	// original DSN, not a ${keyring:...} placeholder.
@@ -893,6 +939,160 @@ func TestCmdConfigKeyringMigrate_RollbackOnSaveFailure(t *testing.T) {
 	require.Contains(t, env.Rows[0].Error, "rolled back")
 }
 
+// TestCmdConfigKeyringMigrate_Completion verifies that migrate completes
+// source handles (not keyring paths), and caps at one handle.
+func TestCmdConfigKeyringMigrate_Completion(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil).Add(
+		source.Source{
+			Handle:   "@mig_a",
+			Type:     drivertype.Pg,
+			Location: "postgres://alice:hunter2@db/sakila",
+		},
+		source.Source{
+			Handle:   "@mig_b",
+			Type:     drivertype.Pg,
+			Location: "postgres://bob:s3cr3t@db/sakila2",
+		},
+	)
+
+	// Source handles are offered for the first arg (alongside any other
+	// handles the harness seeds).
+	got := testComplete(t, tr, "config", "keyring", "migrate", "")
+	require.Subset(t, got.values, []string{"@mig_a", "@mig_b"})
+	require.Contains(t, got.directives, cobra.ShellCompDirectiveNoFileComp)
+
+	// A prefix narrows the real handles (the "@active" shortcut token is
+	// always offered when includeActive is set, so don't assert against it).
+	got = testComplete(t, tr, "config", "keyring", "migrate", "@mig_a")
+	require.Contains(t, got.values, "@mig_a")
+	require.NotContains(t, got.values, "@mig_b")
+
+	// migrate takes at most one handle: no completions for a second arg.
+	got = testComplete(t, tr, "config", "keyring", "migrate", "@mig_a", "")
+	require.Empty(t, got.values)
+}
+
+// TestCmdConfigKeyringMigrate_HidesSkipsByDefault verifies that the
+// default (non-verbose) output shows only the sources that migrate, and
+// omits skipped sources and their reasons.
+func TestCmdConfigKeyringMigrate_HidesSkipsByDefault(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(
+		source.Source{Handle: "@hide_pg", Type: drivertype.Pg, Location: "postgres://alice:hunter2@db/sakila"},
+		source.Source{Handle: "@hide_csv", Type: "csv", Location: "/data/file.csv"},
+		source.Source{Handle: "@hide_nopw", Type: drivertype.Pg, Location: "postgres://alice@db/sakila"},
+	)
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes"))
+
+	out := tr.Out.String()
+	require.Contains(t, out, "@hide_pg") // the migrating source is shown
+	require.NotContains(t, out, "no credentials")
+	require.NotContains(t, out, "no password")
+	require.NotContains(t, out, "@hide_csv")
+	require.NotContains(t, out, "@hide_nopw")
+}
+
+// TestCmdConfigKeyringMigrate_NothingToMigrate verifies that when every
+// source is skipped, migrate reports "Nothing to migrate", does not prompt,
+// and changes nothing.
+func TestCmdConfigKeyringMigrate_NothingToMigrate(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(
+		source.Source{Handle: "@nm_csv", Type: "csv", Location: "/data/a.csv"},
+		source.Source{Handle: "@nm_nopw", Type: drivertype.Pg, Location: "postgres://alice@db/sakila"},
+	)
+	// "n" on stdin would cancel if a prompt fired; it must not, because the
+	// command short-circuits before prompting when nothing is actionable.
+	tr.PipeStdin("n\n")
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all"))
+
+	require.Contains(t, tr.Out.String(), "Nothing to migrate")
+	csv, err := tr.Run.Config.Collection.Get("@nm_csv")
+	require.NoError(t, err)
+	require.Equal(t, "/data/a.csv", csv.Location)
+}
+
+// TestCmdConfigKeyringMigrate_JSON_NothingActionable verifies that a JSON-mode
+// run with nothing eligible does not rewrite sq.yml (no no-op save), matching
+// the text-mode short-circuit.
+func TestCmdConfigKeyringMigrate_JSON_NothingActionable(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(source.Source{Handle: "@js_csv", Type: "csv", Location: "/tmp/x.csv"})
+	counter := &countingConfigStore{Store: tr.Run.ConfigStore}
+	tr.Run.ConfigStore = counter
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--json"))
+	require.Equal(t, 0, counter.saves, "an all-skipped JSON run must not save sq.yml")
+}
+
+// TestCmdConfigKeyringMigrate_AtomicSingleSave verifies the migration is
+// atomic: a multi-source run saves the config exactly once for the whole
+// batch, not once per source. That single save is what makes a mid-batch
+// failure all-or-nothing.
+func TestCmdConfigKeyringMigrate_AtomicSingleSave(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	tr.Add(
+		source.Source{Handle: "@as_a", Type: "postgres", Location: "postgres://u:p1@db/a"},
+		source.Source{Handle: "@as_b", Type: "postgres", Location: "postgres://u:p2@db/b"},
+		source.Source{Handle: "@as_c", Type: "postgres", Location: "postgres://u:p3@db/c"},
+	)
+	counter := &countingConfigStore{Store: tr.Run.ConfigStore}
+	tr.Run.ConfigStore = counter
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes"))
+
+	require.Equal(t, 1, counter.saves,
+		"atomic migrate must save the config once for the batch, not once per source")
+	for _, h := range []string{"@as_a", "@as_b", "@as_c"} {
+		src, err := tr.Run.Config.Collection.Get(h)
+		require.NoError(t, err)
+		require.Contains(t, src.Location, "${keyring:", "%s should be migrated", h)
+	}
+}
+
+// TestCmdConfigKeyringMigrate_AtomicRollbackMultiSource verifies the
+// all-or-nothing guarantee across multiple sources: when the config save
+// fails, every source is rolled back to its original inline Location, not
+// just one.
+func TestCmdConfigKeyringMigrate_AtomicRollbackMultiSource(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const locA = "postgres://alice:hunter2@db/sakila"
+	const locB = "postgres://bob:s3cr3t@db/sakila2"
+	tr.Add(
+		source.Source{Handle: "@arb_a", Type: "postgres", Location: locA},
+		source.Source{Handle: "@arb_b", Type: "postgres", Location: locB},
+	)
+	// Fail the save (after the tr.Add setup save), so the single end-of-run
+	// save fails and the whole batch must roll back.
+	tr.Run.ConfigStore = &failingConfigStore{underlying: tr.Run.ConfigStore}
+
+	err := tr.Exec("config", "keyring", "migrate", "--all", "--yes")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no sources were changed")
+
+	a, err := tr.Run.Config.Collection.Get("@arb_a")
+	require.NoError(t, err)
+	require.Equal(t, locA, a.Location, "@arb_a must be rolled back")
+	b, err := tr.Run.Config.Collection.Get("@arb_b")
+	require.NoError(t, err)
+	require.Equal(t, locB, b.Location, "@arb_b must be rolled back")
+}
+
 // TestCmdConfigKeyringMigrate_JSON_SkipsPrompt verifies the documented
 // behavior in cmd_config_keyring_migrate.go: in --json mode the
 // y/N confirmation prompt is bypassed entirely, because JSON consumers
@@ -906,11 +1106,11 @@ func TestCmdConfigKeyringMigrate_JSON_SkipsPrompt(t *testing.T) {
 	gokeyring.MockInit()
 	th := testh.New(t)
 	tr := testrun.New(th.Context, t, nil)
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@js_prompt",
 		Type:     "postgres",
 		Location: "postgres://alice:hunter2@db/sakila",
-	}))
+	})
 	// Pipe "n\n" so the y/N prompt — if reached — would answer "no".
 	tr.PipeStdin("n\n")
 
@@ -949,11 +1149,11 @@ func TestCmdConfigKeyringMigrate_ConfigFormatJSON_SkipsPrompt(t *testing.T) {
 	require.NoError(t, tr.Exec("config", "set", "format", "json"))
 	tr = testrun.New(th.Context, t, tr)
 
-	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+	tr.Add(source.Source{
 		Handle:   "@cfg_json",
 		Type:     "postgres",
 		Location: "postgres://alice:hunter2@db/sakila",
-	}))
+	})
 	// Pipe "n\n" so the y/N prompt (if reached) would answer "no".
 	tr.PipeStdin("n\n")
 
@@ -975,6 +1175,253 @@ func TestCmdConfigKeyringMigrate_ConfigFormatJSON_SkipsPrompt(t *testing.T) {
 	src, err := tr.Run.Config.Collection.Get("@cfg_json")
 	require.NoError(t, err)
 	require.Contains(t, src.Location, "${keyring:")
+}
+
+// TestCmdConfigKeyringMigrate_PromptAbort verifies that answering "n" at the
+// y/N confirmation leaves the source untouched and returns no error (abort is
+// not a failure).
+func TestCmdConfigKeyringMigrate_PromptAbort(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const origLoc = "postgres://alice:hunter2@db/sakila"
+	tr.Add(source.Source{
+		Handle:   "@pa_src",
+		Type:     "postgres",
+		Location: origLoc,
+	})
+
+	// Answer "no" at the prompt.
+	tr.PipeStdin("n\n")
+	execErr := tr.Exec("config", "keyring", "migrate", "--all")
+	require.Error(t, execErr, "declining must exit non-zero")
+	require.Contains(t, execErr.Error(), "cancelled")
+
+	// Declining changes nothing; the source Location must be unchanged.
+	src, err := tr.Run.Config.Collection.Get("@pa_src")
+	require.NoError(t, err)
+	require.Equal(t, origLoc, src.Location, "abort must not modify the Location")
+
+	// No keyring entry written: Location still lacks a ${keyring:...} placeholder.
+	require.NotContains(t, src.Location, "${keyring:")
+
+	// The plan/prompt text must appear so the user can see what would run.
+	require.Contains(t, tr.Out.String(), "@pa_src")
+}
+
+// TestCmdConfigKeyringMigrate_PromptProceedEmptyAborts verifies that pressing
+// Enter without typing confirms the [y/N] default of "no", aborting the
+// migration without error.
+func TestCmdConfigKeyringMigrate_PromptProceedEmptyAborts(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const origLoc = "postgres://alice:hunter2@db/sakila"
+	tr.Add(source.Source{
+		Handle:   "@pe_src",
+		Type:     "postgres",
+		Location: origLoc,
+	})
+
+	// Empty input (just Enter) defaults to "no", which cancels (non-zero).
+	tr.PipeStdin("\n")
+	execErr := tr.Exec("config", "keyring", "migrate", "--all")
+	require.Error(t, execErr, "empty Enter (default no) must exit non-zero")
+
+	src, err := tr.Run.Config.Collection.Get("@pe_src")
+	require.NoError(t, err)
+	require.Equal(t, origLoc, src.Location, "empty Enter must abort and leave Location unchanged")
+	require.NotContains(t, src.Location, "${keyring:")
+}
+
+// TestCmdConfigKeyringMigrate_PromptProceed verifies that answering "y" at the
+// confirmation prompt executes the migration.
+func TestCmdConfigKeyringMigrate_PromptProceed(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const origLoc = "postgres://alice:hunter2@db/sakila"
+	tr.Add(source.Source{
+		Handle:   "@pp_src",
+		Type:     "postgres",
+		Location: origLoc,
+	})
+
+	// Answer "yes" at the prompt.
+	tr.PipeStdin("y\n")
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all"))
+
+	src, err := tr.Run.Config.Collection.Get("@pp_src")
+	require.NoError(t, err)
+
+	// Location must now be a bare ${keyring:<id>} placeholder.
+	id := extractKeyringID(t, src.Location)
+
+	// The keyring entry must hold the original DSN verbatim.
+	got, err := gokeyring.Get("sq", id)
+	require.NoError(t, err)
+	require.Equal(t, origLoc, got)
+}
+
+// TestCmdConfigKeyringMigrate_SingleHandle verifies that passing a single
+// @HANDLE migrates only that source, leaving other eligible sources unchanged.
+func TestCmdConfigKeyringMigrate_SingleHandle(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const loc1 = "postgres://alice:hunter2@db/sakila"
+	const loc2 = "postgres://bob:secret99@db2/northwind"
+	tr.Add(source.Source{
+		Handle:   "@h1",
+		Type:     "postgres",
+		Location: loc1,
+	})
+	tr.Add(source.Source{
+		Handle:   "@h2",
+		Type:     "postgres",
+		Location: loc2,
+	})
+
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "@h1", "--yes"))
+
+	// @h1 must be migrated.
+	src1, err := tr.Run.Config.Collection.Get("@h1")
+	require.NoError(t, err)
+	id := extractKeyringID(t, src1.Location)
+	got, err := gokeyring.Get("sq", id)
+	require.NoError(t, err)
+	require.Equal(t, loc1, got)
+
+	// @h2 must be untouched.
+	src2, err := tr.Run.Config.Collection.Get("@h2")
+	require.NoError(t, err)
+	require.Equal(t, loc2, src2.Location, "@h2 must not be migrated when only @h1 was specified")
+}
+
+// TestCmdConfigKeyringMigrate_RequiresHandleOrAll verifies that running
+// migrate with no handle and no --all flag returns an error.
+func TestCmdConfigKeyringMigrate_RequiresHandleOrAll(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("config", "keyring", "migrate")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "specify @HANDLE or --all")
+}
+
+// TestCmdConfigKeyringMigrate_UnknownHandle verifies that migrating a handle
+// that does not exist in the collection returns an error.
+func TestCmdConfigKeyringMigrate_UnknownHandle(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	err := tr.Exec("config", "keyring", "migrate", "@nonexistent", "--yes")
+	require.Error(t, err)
+}
+
+// TestCmdConfigKeyringMigrate_MixedCollection verifies that --all --yes
+// migrates only eligible sources and skips the rest with an informative
+// reason. Three sources: one eligible, one without a password, one non-URL.
+func TestCmdConfigKeyringMigrate_MixedCollection(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	const eligibleLoc = "postgres://alice:hunter2@db/sakila"
+	const noPassLoc = "postgres://alice@db/sakila"
+	const fileLoc = "/data/file.xlsx"
+
+	tr.Add(source.Source{
+		Handle:   "@mc_eligible",
+		Type:     "postgres",
+		Location: eligibleLoc,
+	})
+	tr.Add(source.Source{
+		Handle:   "@mc_nopass",
+		Type:     "postgres",
+		Location: noPassLoc,
+	})
+	tr.Add(source.Source{
+		Handle:   "@mc_file",
+		Type:     "xlsx",
+		Location: fileLoc,
+	})
+
+	// -v so the skipped sources (and their reasons) appear in the output.
+	require.NoError(t, tr.Exec("config", "keyring", "migrate", "--all", "--yes", "-v"))
+
+	// The eligible source must be migrated.
+	srcEligible, err := tr.Run.Config.Collection.Get("@mc_eligible")
+	require.NoError(t, err)
+	id := extractKeyringID(t, srcEligible.Location)
+	got, err := gokeyring.Get("sq", id)
+	require.NoError(t, err)
+	require.Equal(t, eligibleLoc, got)
+
+	// The no-password source must be unchanged.
+	srcNoPass, err := tr.Run.Config.Collection.Get("@mc_nopass")
+	require.NoError(t, err)
+	require.Equal(t, noPassLoc, srcNoPass.Location)
+
+	// The file source must be unchanged.
+	srcFile, err := tr.Run.Config.Collection.Get("@mc_file")
+	require.NoError(t, err)
+	require.Equal(t, fileLoc, srcFile.Location)
+
+	// Skip reasons must appear in output.
+	out := tr.Out.String()
+	require.Contains(t, out, "no password")
+	require.Contains(t, out, "no credentials")
+}
+
+// TestCmdConfigKeyringLs_Statuses verifies the three-state classification:
+// referenced (in keyring + in config), orphan (in keyring, no config ref),
+// and missing (in config, absent from keyring).
+func TestCmdConfigKeyringLs_Statuses(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	// A referenced entry: source references it AND it exists in the keyring.
+	require.NoError(t, keyring.NewStore().Set(th.Context, "ref1234567", "live-secret"))
+	// An orphan: exists in the keyring, referenced by nothing.
+	require.NoError(t, keyring.NewStore().Set(th.Context, "orphan23456", "stale-secret"))
+
+	tr.Add(
+		source.Source{
+			Handle:   "@ref_pg",
+			Type:     drivertype.Pg,
+			Location: "${keyring:ref1234567}",
+		},
+		// A missing entry: source references it, but it is NOT in the keyring.
+		source.Source{
+			Handle:   "@missing_pg",
+			Type:     drivertype.Pg,
+			Location: "${keyring:gone7654321}",
+		},
+	)
+
+	require.NoError(t, tr.Exec("config", "keyring", "ls"))
+	out := tr.Out.String()
+	require.Contains(t, out, "referenced")
+	require.Contains(t, out, "orphan")
+	require.Contains(t, out, "missing")
+	require.Contains(t, out, "ref1234567")
+	require.Contains(t, out, "orphan23456")
+	require.Contains(t, out, "gone7654321")
+
+	// Spec mandates sort order: referenced → orphan → missing.
+	idxReferenced := strings.Index(out, "ref1234567")
+	idxOrphan := strings.Index(out, "orphan23456")
+	idxMissing := strings.Index(out, "gone7654321")
+	require.Less(t, idxReferenced, idxOrphan, "referenced must appear before orphan")
+	require.Less(t, idxOrphan, idxMissing, "orphan must appear before missing")
 }
 
 // TestCmdConfigKeyringRm_Completion_TolerantOfMalformedSource verifies
@@ -1005,4 +1452,261 @@ func TestCmdConfigKeyringRm_Completion_TolerantOfMalformedSource(t *testing.T) {
 	got := testComplete(t, tr, "config", "keyring", "rm", "")
 	require.Contains(t, got.values, "goodid",
 		"malformed source must not block completion of healthy refs")
+}
+
+// TestCmdConfigKeyringPrune_MalformedSourceAbortsWithoutDeleting verifies
+// that prune hard-fails when any source has a malformed placeholder in its
+// Location, and that no keyring entries are deleted in that case. A source
+// whose Location has both a valid ${keyring:...} ref and a malformed
+// placeholder would have its valid ref silently dropped by ExtractRefs
+// (all-or-nothing); prune would then misclassify the live entry as an
+// orphan and delete it. Hard-failing before the delete loop prevents that
+// data loss.
+func TestCmdConfigKeyringPrune_MalformedSourceAbortsWithoutDeleting(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	kr := keyring.NewStore()
+	// A live entry referenced by the malformed source (must NOT be deleted).
+	require.NoError(t, kr.Set(th.Context, "keepme1234", "live"))
+	// A genuine orphan (must also NOT be deleted, because prune must abort
+	// before touching anything when the referenced set may be incomplete).
+	require.NoError(t, kr.Set(th.Context, "orphan9999", "stale"))
+
+	// Add a source whose Location contains both a valid ${keyring:...} ref
+	// and an unclosed ${ that makes ExtractRefs return an error.
+	tr.Add(source.Source{
+		Handle:   "@bad_src",
+		Type:     drivertype.Pg,
+		Location: "postgres://u:${keyring:keepme1234}@host/db?x=${env:UNCLOSED",
+	})
+
+	err := tr.Exec("config", "keyring", "prune")
+	require.Error(t, err, "prune must error when a source has a malformed Location")
+
+	// Neither entry may have been deleted.
+	v, resolveErr := kr.Resolve(th.Context, "keepme1234")
+	require.NoError(t, resolveErr)
+	require.Equal(t, "live", v, "referenced entry must survive")
+
+	v, resolveErr = kr.Resolve(th.Context, "orphan9999")
+	require.NoError(t, resolveErr)
+	require.Equal(t, "stale", v, "orphan entry must survive when prune aborts early")
+}
+
+// TestCmdConfigKeyringLs_MalformedSourceErrors verifies that ls returns a
+// non-nil error when any source has a malformed placeholder in its Location.
+// An incomplete referenced set would misclassify live entries as orphans
+// in the output, so hard-failing is correct.
+func TestCmdConfigKeyringLs_MalformedSourceErrors(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	tr.Add(source.Source{
+		Handle:   "@bad_ls",
+		Type:     drivertype.Pg,
+		Location: "postgres://u:${keyring:keepme1234}@host/db?x=${env:UNCLOSED",
+	})
+
+	err := tr.Exec("config", "keyring", "ls")
+	require.Error(t, err, "ls must error when a source has a malformed Location")
+}
+
+func TestCmdConfigKeyringPrune_DeletesOrphans(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	kr := keyring.NewStore()
+	require.NoError(t, kr.Set(th.Context, "keep1234567", "live"))   // referenced
+	require.NoError(t, kr.Set(th.Context, "m4n8k2pxtz", "stale"))   // orphan (valid sq-minted opaque ID)
+	require.NoError(t, kr.Set(th.Context, "named_orphan", "stale")) // orphan (named)
+
+	tr.Add(source.Source{
+		Handle:   "@keep_pg",
+		Type:     drivertype.Pg,
+		Location: "${keyring:keep1234567}",
+	})
+
+	require.NoError(t, tr.Exec("config", "keyring", "prune"))
+
+	out := tr.Out.String()
+	// Output must label both the opaque-ID and named-kind orphans (KIND column).
+	require.Contains(t, out, "id")
+	require.Contains(t, out, "named")
+
+	// Referenced entry survives.
+	v, err := kr.Resolve(th.Context, "keep1234567")
+	require.NoError(t, err)
+	require.Equal(t, "live", v)
+
+	// Both orphans (opaque-ID and named) are deleted.
+	_, err = kr.Resolve(th.Context, "m4n8k2pxtz")
+	require.ErrorIs(t, err, secret.ErrNotFound)
+	_, err = kr.Resolve(th.Context, "named_orphan")
+	require.ErrorIs(t, err, secret.ErrNotFound)
+}
+
+// TestCmdConfigKeyringPrune_NothingToPrune verifies that with no orphans,
+// prune reports it rather than printing an empty table.
+func TestCmdConfigKeyringPrune_NothingToPrune(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+	// A referenced entry exists, but nothing is orphaned.
+	require.NoError(t, keyring.NewStore().Set(th.Context, "keep7654321", "live"))
+	tr.Add(source.Source{
+		Handle:   "@keep2",
+		Type:     drivertype.Pg,
+		Location: "${keyring:keep7654321}",
+	})
+
+	require.NoError(t, tr.Exec("config", "keyring", "prune"))
+	require.Contains(t, tr.Out.String(), "No orphaned entries to prune")
+}
+
+func TestCmdConfigKeyringPrune_DryRun(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	kr := keyring.NewStore()
+	// m4n8k2pxtz is a valid sq-minted opaque ID (10-char Crockford).
+	require.NoError(t, kr.Set(th.Context, "m4n8k2pxtz", "stale"))
+
+	require.NoError(t, tr.Exec("config", "keyring", "prune", "--dry-run"))
+	out := tr.Out.String()
+	require.Contains(t, out, "m4n8k2pxtz")
+
+	// Dry-run deletes nothing.
+	v, err := kr.Resolve(th.Context, "m4n8k2pxtz")
+	require.NoError(t, err)
+	require.Equal(t, "stale", v)
+}
+
+// TestCmdConfigKeyringPrune_JSON verifies the JSON envelope emitted by
+// "sq config keyring prune --json". It checks both the apply path
+// (dry_run=false, status="deleted") and the dry-run path
+// (dry_run=true, status="planned"), and that dry-run leaves entries intact.
+func TestCmdConfigKeyringPrune_JSON(t *testing.T) {
+	// --- Apply path ---
+	t.Run("apply", func(t *testing.T) {
+		gokeyring.MockInit()
+		th := testh.New(t)
+		tr := testrun.New(th.Context, t, nil)
+
+		kr := keyring.NewStore()
+		// m4n8k2pxtz is a valid sq-minted opaque ID (10-char Crockford).
+		require.NoError(t, kr.Set(th.Context, "m4n8k2pxtz", "stale"))
+		require.NoError(t, kr.Set(th.Context, "named_orphan", "stale"))
+
+		require.NoError(t, tr.Exec("config", "keyring", "prune", "--json"))
+
+		var env pruneJSONEnvelope
+		require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &env))
+		require.False(t, env.DryRun)
+		require.Len(t, env.Rows, 2)
+
+		byPath := map[string]pruneJSONRow{}
+		for _, r := range env.Rows {
+			byPath[r.Path] = r
+		}
+		require.Equal(t, output.KeyringKindID, byPath["m4n8k2pxtz"].Kind)
+		require.Equal(t, output.KeyringPruneStatusDeleted, byPath["m4n8k2pxtz"].Status)
+		require.Equal(t, output.KeyringKindNamed, byPath["named_orphan"].Kind)
+		require.Equal(t, output.KeyringPruneStatusDeleted, byPath["named_orphan"].Status)
+
+		// Both entries must be gone after apply.
+		_, err := kr.Resolve(th.Context, "m4n8k2pxtz")
+		require.ErrorIs(t, err, secret.ErrNotFound)
+		_, err = kr.Resolve(th.Context, "named_orphan")
+		require.ErrorIs(t, err, secret.ErrNotFound)
+	})
+
+	// --- Dry-run path ---
+	t.Run("dry-run", func(t *testing.T) {
+		gokeyring.MockInit()
+		th := testh.New(t)
+		tr := testrun.New(th.Context, t, nil)
+
+		kr := keyring.NewStore()
+		require.NoError(t, kr.Set(th.Context, "m4n8k2pxtz", "stale"))
+		require.NoError(t, kr.Set(th.Context, "named_orphan", "stale"))
+
+		require.NoError(t, tr.Exec("config", "keyring", "prune", "--dry-run", "--json"))
+
+		var env pruneJSONEnvelope
+		require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &env))
+		require.True(t, env.DryRun)
+		require.Len(t, env.Rows, 2)
+
+		byPath := map[string]pruneJSONRow{}
+		for _, r := range env.Rows {
+			byPath[r.Path] = r
+		}
+		require.Equal(t, output.KeyringPruneStatusPlanned, byPath["m4n8k2pxtz"].Status)
+		require.Equal(t, output.KeyringPruneStatusPlanned, byPath["named_orphan"].Status)
+
+		// Dry-run must not delete anything.
+		v, err := kr.Resolve(th.Context, "m4n8k2pxtz")
+		require.NoError(t, err)
+		require.Equal(t, "stale", v)
+		v, err = kr.Resolve(th.Context, "named_orphan")
+		require.NoError(t, err)
+		require.Equal(t, "stale", v)
+	})
+}
+
+// TestCmdConfigKeyringPrune_WriterError exercises the errz.Append branch
+// where the output writer itself fails. The command must surface the writer
+// error even when no individual deletion failed.
+//
+// The test pre-populates tr.Run.Writers with an erroring stub before calling
+// Exec. preRun skips writer initialization when Writers is non-nil (see
+// cli/run.go), so the stub is preserved through command execution. The prune
+// command accesses only ru.Writers.Keyring, so nil values in the other
+// Writers fields do not cause a panic.
+//
+// Note on Delete seam: forcing kr.Delete to fail is not cleanly testable via
+// the zalando/go-keyring mock. MockInit installs an in-memory map backend;
+// Delete on a present key always succeeds, and Store.Delete treats not-found
+// as success explicitly. Adding a seam for a forced Delete failure would
+// require production code changes purely for testing, so the partial-delete-
+// failure path is not tested at the kr.Delete level.
+func TestCmdConfigKeyringPrune_WriterError(t *testing.T) {
+	gokeyring.MockInit()
+	th := testh.New(t)
+	tr := testrun.New(th.Context, t, nil)
+
+	kr := keyring.NewStore()
+	require.NoError(t, kr.Set(th.Context, "orphan23456", "stale"))
+
+	// Pre-populate Writers with a stub so preRun skips writer
+	// initialization. Only Keyring needs to be set; the prune
+	// command touches no other writer field.
+	tr.Run.Writers = &output.Writers{Keyring: &failingKeyringWriter{}}
+
+	err := tr.Exec("config", "keyring", "prune")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "simulated prune writer failure")
+}
+
+// failingKeyringWriter is a KeyringWriter stub whose Prune always errors,
+// used by TestCmdConfigKeyringPrune_WriterError.
+type failingKeyringWriter struct{}
+
+func (w *failingKeyringWriter) List(_ []output.KeyringRef) error { return nil }
+func (w *failingKeyringWriter) Get(_, _ string, _ bool) error    { return nil }
+func (w *failingKeyringWriter) Created(_ string) error           { return nil }
+func (w *failingKeyringWriter) Updated(_ string) error           { return nil }
+func (w *failingKeyringWriter) Rm(_ string) error                { return nil }
+
+func (w *failingKeyringWriter) Migrate(_ []output.KeyringMigrateRow, _ bool) error {
+	return nil
+}
+
+func (w *failingKeyringWriter) Prune(_ []output.KeyringPruneRow, _ bool) error {
+	return errz.New("simulated prune writer failure")
 }

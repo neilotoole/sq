@@ -6,6 +6,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/testh/sakila"
 )
 
 //nolint:exhaustive
@@ -20,6 +21,10 @@ func TestQuery_count(t *testing.T) {
 				drivertype.ClickHouse: "SELECT count(*) AS `quantity` FROM `actor`",
 			},
 			wantRecCount: 1,
+			// count() must surface as int64 on every driver, including Oracle,
+			// where the result is pinned to kind.Int (Renderer.FunctionResultKinds)
+			// so it does not regress to a decimal string. See #844.
+			sinkFns: []SinkTestFunc{assertSinkCellValue(0, 0, int64(sakila.TblActorCount))},
 		},
 		{
 			name:    "count-same-alias",

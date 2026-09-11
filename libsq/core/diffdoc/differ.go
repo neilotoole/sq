@@ -55,7 +55,7 @@ func (d *Differ) execute(ctx context.Context, cancelFn func(error)) func() error
 func Execute(ctx context.Context, w io.Writer, concurrency int, differs []*Differ) (hasDiffs bool, err error) {
 	defer func() {
 		for _, differ := range differs {
-			if differs == nil || differ.doc == nil {
+			if differ == nil || differ.doc == nil {
 				continue
 			}
 			if closeErr := differ.doc.Close(); closeErr != nil {
@@ -69,6 +69,12 @@ func Execute(ctx context.Context, w io.Writer, concurrency int, differs []*Diffe
 	defer func() { cancelFn(err) }()
 
 	g := &errgroup.Group{}
+	// errgroup.SetLimit(0) would deadlock: no goroutine could ever acquire a
+	// token, so g.Go would block forever. A concurrency of zero means
+	// sequential execution, which is a limit of one goroutine at a time.
+	if concurrency == 0 {
+		concurrency = 1
+	}
 	g.SetLimit(concurrency)
 	for i := range differs {
 		if differs[i] == nil {

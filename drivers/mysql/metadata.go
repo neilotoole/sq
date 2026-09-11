@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/samber/lo"
+	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/core/debugz"
@@ -177,7 +179,7 @@ func getNewRecordFunc(rowMeta record.Meta) driver.NewRecordFunc {
 // implementation of Grip.TableMetadata.
 func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadata.Table, error) {
 	query := `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT, (DATA_LENGTH + INDEX_LENGTH) AS table_size,
-(SELECT COUNT(*) FROM ` + "`" + tblName + "`" + `) AS row_count
+(SELECT COUNT(*) FROM ` + stringz.BacktickQuote(tblName) + `) AS row_count
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 
@@ -205,9 +207,19 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 		return nil, err
 	}
 
-	// FK / unique-constraint / index introspection is only meaningful
-	// for real tables. Views show up in INFORMATION_SCHEMA.TABLES but
-	// carry no FKs, UCs, or indexes, so skip the four extra round-trips.
+	// For views, load only the view definition.
+	if tblMeta.TableType == sqlz.TableTypeView {
+		var viewDefs map[string]string
+		viewDefs, err = getMySQLViewDefinitions(ctx, db, tblMeta.Name)
+		if err != nil {
+			return nil, err
+		}
+		tblMeta.ViewDefinition = viewDefs[tblMeta.Name]
+		return tblMeta, nil
+	}
+
+	// FK / unique-constraint / check / trigger / index introspection is
+	// only meaningful for real tables. All other relation types are skipped.
 	if tblMeta.TableType != sqlz.TableTypeTable {
 		return tblMeta, nil
 	}
@@ -223,6 +235,16 @@ WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`
 	tblMeta.FK = metadata.NewFKGroup(outgoing, incoming)
 
 	tblMeta.UniqueConstraints, err = getMySQLUniqueConstraints(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.CheckConstraints, err = getMySQLCheckConstraints(ctx, db, tblName)
+	if err != nil {
+		return nil, err
+	}
+
+	tblMeta.Triggers, err = getMySQLTriggers(ctx, db, tblName)
 	if err != nil {
 		return nil, err
 	}
@@ -552,15 +574,38 @@ ORDER BY kcu.TABLE_NAME, rc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION`
 func getColumnMetadata(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Column, error) {
 	log := lg.FromContext(ctx)
 
+	// generation_expression was added to information_schema.columns in MySQL 5.7.6.
+	// On MySQL < 5.7.6, querying it produces ER_BAD_FIELD_ERROR (1054). In that
+	// case we fall back to queryLegacy which omits the column; generated columns
+	// did not exist before 5.7.6, so leaving Column.Generated/GeneratedExpr empty
+	// is correct. collation_name has been present since MySQL 4.x; no guard needed.
 	const query = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
-       is_nullable, column_key, column_comment, extra
+       is_nullable, column_key, column_comment, extra,
+       COALESCE(generation_expression, '') AS generation_expression,
+       COALESCE(collation_name, '') AS collation_name
+FROM information_schema.columns cols
+WHERE cols.TABLE_SCHEMA = DATABASE() AND cols.TABLE_NAME = ?
+ORDER BY cols.ordinal_position ASC`
+
+	const queryLegacy = `SELECT column_name, data_type, column_type, ordinal_position, column_default,
+       is_nullable, column_key, column_comment, extra,
+       COALESCE(collation_name, '') AS collation_name
 FROM information_schema.columns cols
 WHERE cols.TABLE_SCHEMA = DATABASE() AND cols.TABLE_NAME = ?
 ORDER BY cols.ordinal_position ASC`
 
 	rows, err := db.QueryContext(ctx, query, tblName)
+	hasGenExpr := true
 	if err != nil {
-		return nil, errw(err)
+		if !hasErrCode(err, errNumUnknownColumn) {
+			return nil, errw(err)
+		}
+		// MySQL < 5.7.6: generation_expression column is absent. Use legacy query.
+		hasGenExpr = false
+		rows, err = db.QueryContext(ctx, queryLegacy, tblName)
+		if err != nil {
+			return nil, errw(err)
+		}
 	}
 	defer sqlz.CloseRows(log, rows)
 
@@ -568,11 +613,17 @@ ORDER BY cols.ordinal_position ASC`
 
 	for rows.Next() {
 		col := &metadata.Column{}
-		var isNullable, colKey, extra string
+		var isNullable, colKey, extra, collationName string
+		var generationExpr string
 
 		defVal := &sql.NullString{}
-		err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey,
-			&col.Comment, &extra)
+		if hasGenExpr {
+			err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey,
+				&col.Comment, &extra, &generationExpr, &collationName)
+		} else {
+			err = rows.Scan(&col.Name, &col.BaseType, &col.ColumnType, &col.Position, defVal, &isNullable, &colKey,
+				&col.Comment, &extra, &collationName)
+		}
 		if err != nil {
 			return nil, errw(err)
 		}
@@ -589,6 +640,13 @@ ORDER BY cols.ordinal_position ASC`
 
 		col.DefaultValue = defVal.String
 		col.Kind = kindFromDBTypeName(ctx, col.Name, col.BaseType)
+
+		if strings.Contains(strings.ToLower(extra), "auto_increment") {
+			col.AutoIncrement = true
+		}
+		col.Generated = generationExpr != ""
+		col.GeneratedExpr = generationExpr
+		col.Collation = collationName
 
 		cols = append(cols, col)
 	}
@@ -658,14 +716,7 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		return nil, err
 	}
 
-	for _, tbl := range md.Tables {
-		switch tbl.TableType {
-		case sqlz.TableTypeTable:
-			md.TableCount++
-		case sqlz.TableTypeView:
-			md.ViewCount++
-		}
-	}
+	md.RecomputeTableCounts()
 
 	if !noSchema {
 		log := lg.FromContext(ctx)
@@ -675,7 +726,6 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 			return nil, err
 		}
 		metadata.AssignForeignKeys(log, md.Tables, allFKs)
-		metadata.LinkForeignKeys(log, md)
 
 		allUCs, err := getMySQLUniqueConstraints(ctx, db, "")
 		if err != nil {
@@ -683,11 +733,35 @@ func getSourceMetadata(ctx context.Context, src *source.Source, db sqlz.DB, noSc
 		}
 		metadata.AssignUniqueConstraints(log, md.Tables, allUCs)
 
+		allChecks, err := getMySQLCheckConstraints(ctx, db, "")
+		if err != nil {
+			return nil, err
+		}
+		metadata.AssignCheckConstraints(log, md.Tables, allChecks)
+
+		allTriggers, err := getMySQLTriggers(ctx, db, "")
+		if err != nil {
+			return nil, err
+		}
+		metadata.AssignTriggers(log, md.Tables, allTriggers)
+
 		allIdxs, err := getMySQLIndexes(ctx, db, "")
 		if err != nil {
 			return nil, err
 		}
 		metadata.AssignIndexes(log, md.Tables, allIdxs)
+
+		allViewDefs, err := getMySQLViewDefinitions(ctx, db, "")
+		if err != nil {
+			return nil, err
+		}
+		for _, tbl := range md.Tables {
+			if tbl.TableType == sqlz.TableTypeView {
+				tbl.ViewDefinition = allViewDefs[tbl.Name]
+			}
+		}
+
+		metadata.LinkForeignKeys(log, md)
 	}
 
 	return md, nil
@@ -725,6 +799,12 @@ func setSourceSummaryMeta(ctx context.Context, db sqlz.DB, md *metadata.Source) 
 		md.Size = &size.Int64
 	}
 	md.DBVersion = version
+	if v, semverErr := parseSemver(md.DBVersion); semverErr != nil {
+		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
+			lga.Err, semverErr, lga.Version, md.DBVersion)
+	} else {
+		md.DBSemver = v
+	}
 	md.DBProduct = fmt.Sprintf("%s %s / %s (%s)", versionComment, version, versionOS, versionArch)
 	return nil
 }
@@ -778,10 +858,30 @@ func getDBProperties(ctx context.Context, db sqlz.DB) (map[string]any, error) {
 func getAllTblMetas(ctx context.Context, db sqlz.DB) ([]*metadata.Table, error) {
 	log := lg.FromContext(ctx)
 
+	// GENERATION_EXPRESSION was added to information_schema.COLUMNS in MySQL 5.7.6.
+	// On MySQL < 5.7.6, querying it produces ER_BAD_FIELD_ERROR (1054). In that
+	// case we fall back to queryLegacy which omits the column; generated columns
+	// did not exist before 5.7.6, so leaving Column.Generated/GeneratedExpr empty
+	// is correct. COLLATION_NAME has been present since MySQL 4.x; no guard needed.
 	const query = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
        (DATA_LENGTH + INDEX_LENGTH) AS table_size,
        c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE,
-       c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA
+       c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA,
+       COALESCE(c.GENERATION_EXPRESSION, '') AS generation_expression,
+       COALESCE(c.COLLATION_NAME, '') AS collation_name
+FROM information_schema.TABLES t
+         LEFT JOIN information_schema.COLUMNS c
+                   ON c.TABLE_CATALOG = t.TABLE_CATALOG
+                       AND c.TABLE_SCHEMA = t.TABLE_SCHEMA
+                       AND c.TABLE_NAME = t.TABLE_NAME
+WHERE t.TABLE_SCHEMA = DATABASE()
+ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
+
+	const queryLegacy = `SELECT t.TABLE_SCHEMA, t.TABLE_NAME, t.TABLE_TYPE, t.TABLE_COMMENT,
+       (DATA_LENGTH + INDEX_LENGTH) AS table_size,
+       c.COLUMN_NAME, c.ORDINAL_POSITION, c.COLUMN_KEY, c.DATA_TYPE, c.COLUMN_TYPE,
+       c.IS_NULLABLE, c.COLUMN_DEFAULT, c.COLUMN_COMMENT, c.EXTRA,
+       COALESCE(c.COLLATION_NAME, '') AS collation_name
 FROM information_schema.TABLES t
          LEFT JOIN information_schema.COLUMNS c
                    ON c.TABLE_CATALOG = t.TABLE_CATALOG
@@ -810,8 +910,17 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 	)
 
 	rows, err := db.QueryContext(ctx, query)
+	hasGenExpr := true
 	if err != nil {
-		return nil, errw(err)
+		if !hasErrCode(err, errNumUnknownColumn) {
+			return nil, errw(err)
+		}
+		// MySQL < 5.7.6: GENERATION_EXPRESSION column is absent. Use legacy query.
+		hasGenExpr = false
+		rows, err = db.QueryContext(ctx, queryLegacy)
+		if err != nil {
+			return nil, errw(err)
+		}
 	}
 	defer sqlz.CloseRows(log, rows)
 
@@ -822,11 +931,22 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		default:
 		}
 
-		var colName, colDefault, colNullable, colKey, colBaseType, colColumnType, colComment, colExtra sql.NullString
+		var (
+			colName, colDefault, colNullable, colKey         sql.NullString
+			colBaseType, colColumnType, colComment, colExtra sql.NullString
+			colGenExpr, colCollation                         sql.NullString
+		)
 		var colPosition sql.NullInt64
 
-		err = rows.Scan(&schema, &curTblName, &curTblType, &curTblComment, &curTblSize, &colName, &colPosition,
-			&colKey, &colBaseType, &colColumnType, &colNullable, &colDefault, &colComment, &colExtra)
+		if hasGenExpr {
+			err = rows.Scan(&schema, &curTblName, &curTblType, &curTblComment, &curTblSize, &colName, &colPosition,
+				&colKey, &colBaseType, &colColumnType, &colNullable, &colDefault, &colComment, &colExtra,
+				&colGenExpr, &colCollation)
+		} else {
+			err = rows.Scan(&schema, &curTblName, &curTblType, &curTblComment, &curTblSize, &colName, &colPosition,
+				&colKey, &colBaseType, &colColumnType, &colNullable, &colDefault, &colComment, &colExtra,
+				&colCollation)
+		}
 		if err != nil {
 			return nil, errw(err)
 		}
@@ -876,6 +996,13 @@ ORDER BY c.TABLE_NAME ASC, c.ORDINAL_POSITION ASC`
 		if strings.Contains(colKey.String, "PRI") {
 			col.PrimaryKey = true
 		}
+
+		if strings.Contains(strings.ToLower(colExtra.String), "auto_increment") {
+			col.AutoIncrement = true
+		}
+		col.Generated = colGenExpr.String != ""
+		col.GeneratedExpr = colGenExpr.String
+		col.Collation = colCollation.String
 
 		curTblMeta.Columns = append(curTblMeta.Columns, col)
 	}
@@ -957,8 +1084,8 @@ func getTableRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) (map[
 			if i > 0 {
 				qb.WriteString("\nUNION\n")
 			}
-			qb.WriteString(fmt.Sprintf("SELECT %s AS tn, COUNT(*) AS rc FROM %s",
-				stringz.SingleQuote(tblNames[i]), stringz.BacktickQuote(tblNames[i])))
+			fmt.Fprintf(&qb, "SELECT %s AS tn, COUNT(*) AS rc FROM %s",
+				stringz.SingleQuote(tblNames[i]), stringz.BacktickQuote(tblNames[i]))
 		}
 
 		query := qb.String()
@@ -1124,6 +1251,142 @@ func mungeSetZeroValue(i int, rec []any, destMeta record.Meta) {
 	rec[i] = z
 }
 
+// getMySQLCheckConstraints returns the CHECK constraints declared on tables in
+// the current database. If tblName is empty, constraints for every table are
+// returned; otherwise only constraints on tblName are returned.
+//
+// Graceful degradation: information_schema.CHECK_CONSTRAINTS was added in
+// MySQL 8.0.16. On older MySQL or some MariaDB variants the table is absent
+// and the query returns error 1146. In that case an empty slice is returned
+// (no error) so that inspect degrades silently rather than failing.
+func getMySQLCheckConstraints(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.CheckConstraint, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT tc.TABLE_NAME, cc.CONSTRAINT_NAME, cc.CHECK_CLAUSE
+FROM information_schema.CHECK_CONSTRAINTS cc
+JOIN information_schema.TABLE_CONSTRAINTS tc
+  ON  tc.CONSTRAINT_SCHEMA = cc.CONSTRAINT_SCHEMA
+  AND tc.CONSTRAINT_NAME   = cc.CONSTRAINT_NAME
+WHERE tc.CONSTRAINT_TYPE = 'CHECK'
+  AND cc.CONSTRAINT_SCHEMA = DATABASE()`
+	var args []any
+	if tblName != "" {
+		query += ` AND tc.TABLE_NAME = ?`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY tc.TABLE_NAME, cc.CONSTRAINT_NAME`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		// CHECK_CONSTRAINTS is absent in MySQL < 8.0.16 and some MariaDB
+		// variants. Return empty slice rather than failing the inspect.
+		// (MySQL 8.0 reports 1146; MySQL 5.6 reports 1109.)
+		if isMissingInfoSchemaTable(err) {
+			return nil, nil
+		}
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var checks []*metadata.CheckConstraint
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		cc := &metadata.CheckConstraint{}
+		if err = rows.Scan(&cc.Table, &cc.Name, &cc.Clause); err != nil {
+			return nil, errw(err)
+		}
+		checks = append(checks, cc)
+	}
+	return checks, errw(rows.Err())
+}
+
+// getMySQLTriggers returns the triggers declared on tables in the current
+// database. If tblName is empty, triggers for every table are returned;
+// otherwise only triggers on tblName are returned.
+//
+// MySQL has no enabled/disabled state for individual triggers, so the
+// Enabled field is always left nil.
+func getMySQLTriggers(ctx context.Context, db sqlz.DB, tblName string) ([]*metadata.Trigger, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT EVENT_OBJECT_TABLE, TRIGGER_NAME, ACTION_TIMING,
+       EVENT_MANIPULATION, ACTION_STATEMENT
+FROM information_schema.TRIGGERS
+WHERE TRIGGER_SCHEMA = DATABASE()`
+	var args []any
+	if tblName != "" {
+		query += ` AND EVENT_OBJECT_TABLE = ?`
+		args = append(args, tblName)
+	}
+	query += ` ORDER BY EVENT_OBJECT_TABLE, TRIGGER_NAME`
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var triggers []*metadata.Trigger
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var tbl, name, timing, event, definition string
+		if err = rows.Scan(&tbl, &name, &timing, &event, &definition); err != nil {
+			return nil, errw(err)
+		}
+		// MySQL has no per-trigger enabled/disabled state; Enabled stays nil.
+		triggers = append(triggers, &metadata.Trigger{
+			Name:       name,
+			Table:      tbl,
+			Timing:     timing,
+			Events:     []string{event},
+			Definition: definition,
+		})
+	}
+	return triggers, errw(rows.Err())
+}
+
+// getMySQLViewDefinitions returns a map of view name → defining SQL for
+// views in the current database. If tblName is non-empty, only that view
+// is returned; passing an empty tblName returns all views.
+func getMySQLViewDefinitions(ctx context.Context, db sqlz.DB, tblName string) (map[string]string, error) {
+	log := lg.FromContext(ctx)
+
+	query := `SELECT TABLE_NAME, VIEW_DEFINITION
+FROM information_schema.VIEWS
+WHERE TABLE_SCHEMA = DATABASE()`
+	var args []any
+	if tblName != "" {
+		query += ` AND TABLE_NAME = ?`
+		args = append(args, tblName)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	defs := map[string]string{}
+	for rows.Next() {
+		progress.Incr(ctx, 1)
+		debugz.DebugSleep(ctx)
+
+		var (
+			name string
+			def  sql.NullString
+		)
+		if err = rows.Scan(&name, &def); err != nil {
+			return nil, errw(err)
+		}
+		defs[name] = strings.TrimSpace(def.String)
+	}
+	return defs, errw(rows.Err())
+}
+
 // canonicalTableType returns the canonical name for "BASE TABLE"
 // and "VIEW".
 func canonicalTableType(dbType string) string {
@@ -1135,4 +1398,75 @@ func canonicalTableType(dbType string) string {
 	case "VIEW":
 		return sqlz.TableTypeView
 	}
+}
+
+// semverRx matches a leading dotted-numeric version token (up to three parts),
+// e.g. the "8.0.36" in MySQL's "8.0.36-0ubuntu0.22.04.1".
+var semverRx = regexp.MustCompile(`^v?(\d+(?:\.\d+){0,2})`)
+
+// parseSemver normalizes a MySQL or MariaDB @@version string to a canonical
+// semver value (e.g. "v8.0.36"), comparable via golang.org/x/mod/semver.
+//
+// Vanilla MySQL: "8.0.36-0ubuntu0.22.04.1" -> "v8.0.36".
+// MariaDB:       "5.5.5-10.6.4-MariaDB"    -> "v10.6.4". The leading "5.5.5-" is
+// a replication-protocol sentinel, not the real version, so it is stripped only
+// for MariaDB. Modern MariaDB ("10.11.2-MariaDB-...") has no sentinel and parses
+// directly. Vanilla MySQL can genuinely be version 5.5.5 (e.g. "5.5.5-log"), so
+// the sentinel must not be stripped for non-MariaDB versions.
+func parseSemver(raw string) (string, error) {
+	s := strings.TrimSpace(raw)
+	// MariaDB prepends a "5.5.5-" replication-protocol sentinel to @@version
+	// (e.g. "5.5.5-10.6.4-MariaDB"); strip it only for MariaDB, since "5.5.5"
+	// is itself a valid MySQL version that must not be trimmed.
+	if strings.Contains(s, "MariaDB") {
+		s = strings.TrimPrefix(s, "5.5.5-")
+	}
+	m := semverRx.FindStringSubmatch(s)
+	if m == nil {
+		return "", errz.Errorf("no semver in mysql version string: %q", raw)
+	}
+	v := semver.Canonical("v" + m[1])
+	if !semver.IsValid(v) {
+		return "", errz.Errorf("invalid mysql semver %q from %q", v, raw)
+	}
+	return v, nil
+}
+
+// DBSemver implements driver.SQLDriver.
+func (d *driveri) DBSemver(ctx context.Context, db sqlz.DB) (string, error) {
+	var raw string
+	if err := db.QueryRowContext(ctx, "SELECT @@GLOBAL.version").Scan(&raw); err != nil {
+		return "", errw(err)
+	}
+	return parseSemver(raw)
+}
+
+// This driver serves both MySQL and MariaDB, whose feature-version numbers
+// diverge: MariaDB reports 10.x/11.x versions (a range MySQL has never used, so
+// a canonical semver >= v10.0.0 identifies MariaDB) and gained several features
+// at different points than MySQL. The supportsXxx helpers below encapsulate that
+// split so callers gate on capability rather than a raw MySQL-numbered compare
+// (which would misjudge MariaDB). An empty or otherwise invalid v (version
+// undeterminable) compares below every threshold via semver.Compare, so each
+// helper returns false and callers fall back to the form valid on all versions.
+// See issue #973.
+
+// supportsCastAsDouble reports whether the server supports CAST(... AS DOUBLE),
+// added to CAST()/CONVERT() in MySQL 8.0.17 and MariaDB 10.4.0. Below that, a
+// query must promote to DOUBLE another way (e.g. "expr + 0e0").
+func supportsCastAsDouble(v string) bool {
+	if semver.Compare(v, "v10.0.0") >= 0 { // MariaDB
+		return semver.Compare(v, "v10.4.0") >= 0
+	}
+	return semver.Compare(v, "v8.0.17") >= 0 // MySQL
+}
+
+// supportsRenameColumn reports whether the server supports
+// ALTER TABLE ... RENAME COLUMN, added in MySQL 8.0.0 and MariaDB 10.5.2. Below
+// that, a rename must go through CHANGE COLUMN (restating the column definition).
+func supportsRenameColumn(v string) bool {
+	if semver.Compare(v, "v10.0.0") >= 0 { // MariaDB
+		return semver.Compare(v, "v10.5.2") >= 0
+	}
+	return semver.Compare(v, "v8.0.0") >= 0 // MySQL
 }

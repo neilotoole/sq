@@ -2,8 +2,12 @@ package stringz_test
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
+	"unicode"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -11,6 +15,14 @@ import (
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/testh/tu"
 )
+
+// stringerImpl implements fmt.Stringer for testing the Stringer
+// branch of Strings and StringsD.
+type stringerImpl struct {
+	s string
+}
+
+func (x stringerImpl) String() string { return x.s }
 
 func TestGenerateAlphaColName(t *testing.T) {
 	quantity := 704
@@ -42,12 +54,51 @@ func TestGenerateAlphaColName(t *testing.T) {
 	for _, item := range items {
 		assert.Equal(t, item.colName, colNames[item.index])
 	}
+
+	// Verify the lower-case variant.
+	lowerCases := map[int]string{0: "a", 1: "b", 25: "z", 26: "aa", 701: "zz", 702: "aaa"}
+	for index, want := range lowerCases {
+		assert.Equal(t, want, stringz.GenerateAlphaColName(index, true))
+	}
 }
 
 func TestUUID(t *testing.T) {
 	for range 100 {
 		u := stringz.Uniq32()
 		require.Equal(t, 32, len(u))
+	}
+
+	for range 100 {
+		u := stringz.UUID()
+		require.Equal(t, 36, len(u))
+		_, err := uuid.Parse(u)
+		require.NoError(t, err)
+	}
+}
+
+func TestUniqSuffixPrefix(t *testing.T) {
+	const s = "hello"
+	suffixed := stringz.UniqSuffix(s)
+	require.True(t, strings.HasPrefix(suffixed, s+"_"))
+	require.Equal(t, len(s)+1+8, len(suffixed))
+
+	prefixed := stringz.UniqPrefix(s)
+	require.True(t, strings.HasSuffix(prefixed, "_"+s))
+	require.Equal(t, 8+1+len(s), len(prefixed))
+}
+
+func TestUniqN(t *testing.T) {
+	require.Equal(t, "", stringz.UniqN(0))
+	require.Equal(t, "", stringz.UniqN(-1))
+
+	one := stringz.UniqN(1)
+	require.Equal(t, 1, len(one))
+	require.True(t, unicode.IsLetter(rune(one[0])), "first element must be a letter")
+
+	for _, n := range []int{2, 8, 16, 32} {
+		got := stringz.UniqN(n)
+		require.Equal(t, n, len(got))
+		require.True(t, unicode.IsLetter(rune(got[0])), "first element must be a letter")
 	}
 }
 
@@ -57,6 +108,8 @@ func TestTrimLen(t *testing.T) {
 		i    int
 		want string
 	}{
+		{s: "", i: -1, want: ""},
+		{s: "abc", i: -1, want: ""},
 		{s: "", i: 0, want: ""},
 		{s: "", i: 1, want: ""},
 		{s: "abc", i: 0, want: ""},
@@ -150,6 +203,30 @@ func TestPrefixSlice(t *testing.T) {
 		got := stringz.PrefixSlice(tc.a, tc.w)
 		require.Equal(t, tc.want, got)
 	}
+}
+
+func TestSuffixSlice(t *testing.T) {
+	testCases := []struct {
+		a    []string
+		w    string
+		want []string
+	}{
+		{a: nil, w: "__", want: nil},
+		{a: []string{}, w: "__", want: []string{}},
+		{a: []string{""}, w: "__", want: []string{"__"}},
+		{a: []string{"hello", "world"}, w: "__", want: []string{"hello__", "world__"}},
+		{a: []string{"hello", "world"}, w: "", want: []string{"hello", "world"}},
+	}
+
+	for _, tc := range testCases {
+		got := stringz.SuffixSlice(tc.a, tc.w)
+		require.Equal(t, tc.want, got)
+	}
+
+	// SuffixSlice must not mutate the caller's input slice.
+	input := []string{"a", "b"}
+	_ = stringz.SuffixSlice(input, "/")
+	require.Equal(t, []string{"a", "b"}, input, "input slice must be unchanged")
 }
 
 // TestSliceIndex_InSlice tests SliceIndex and InSlice.
@@ -251,6 +328,12 @@ func TestStrings(t *testing.T) {
 			in:   []any{"hello", 1, true},
 			want: []any{"hello", "1", "true"},
 		},
+		{
+			// fmt.Stringer is rendered via String(); a typed-nil pointer
+			// does not match the nil case, so it renders as "<nil>".
+			in:   []any{stringerImpl{s: "stringer"}, (*string)(nil)},
+			want: []any{"stringer", "<nil>"},
+		},
 	}
 
 	for i, tc := range testCases {
@@ -277,6 +360,12 @@ func TestStringsD(t *testing.T) {
 		{
 			in:   []any{"hello", new("hello"), 1, new(1), true, new(true)},
 			want: []any{"hello", "hello", "1", "1", "true", "true"},
+		},
+		{
+			// StringsD dereferences first: a *Stringer hits the Stringer
+			// branch, and a typed-nil pointer derefs to nil, becoming "".
+			in:   []any{stringerImpl{s: "stringer"}, new(stringerImpl{s: "ptr"}), (*string)(nil)},
+			want: []any{"stringer", "ptr", ""},
 		},
 	}
 
@@ -358,6 +447,8 @@ func TestEllipsifyASCII(t *testing.T) {
 	}{
 		{input: "", maxLen: 0, want: ""},
 		{input: "", maxLen: 1, want: ""},
+		{input: "abc", maxLen: 1, want: "a"},
+		{input: "abcdefghijk", maxLen: 1, want: "a"},
 		{input: "abc", maxLen: 2, want: "ac"},
 		{input: "abcdefghijk", maxLen: 2, want: "ak"},
 		{input: "abcdefghijk", maxLen: 3, want: "a.k"},
@@ -412,4 +503,87 @@ func TestTypeNames(t *testing.T) {
 	a := []any{1, "hello", true, errs}
 	names = stringz.TypeNames(a...)
 	require.Equal(t, []string{"int", "string", "bool", "[]error"}, names)
+}
+
+func TestType(t *testing.T) {
+	require.Equal(t, "int", stringz.Type(1))
+	require.Equal(t, "string", stringz.Type("hello"))
+	require.Equal(t, "bool", stringz.Type(true))
+	require.Equal(t, "<nil>", stringz.Type(nil))
+	// Assert only the stable package/pointer prefix; the concrete type
+	// name is an unexported errz implementation detail.
+	require.True(t, strings.HasPrefix(stringz.Type(errz.New("x")), "*errz."),
+		"want a pointer to a type in the errz package")
+}
+
+func TestSprintJSON(t *testing.T) {
+	got := stringz.SprintJSON(map[string]any{"a": 1, "b": "two"})
+	require.Equal(t, "{\n  \"a\": 1,\n  \"b\": \"two\"\n}", got)
+
+	require.Equal(t, "null", stringz.SprintJSON(nil))
+
+	// A channel cannot be marshaled, so SprintJSON panics.
+	require.Panics(t, func() {
+		_ = stringz.SprintJSON(make(chan int))
+	})
+}
+
+func TestFilterPrefix(t *testing.T) {
+	testCases := []struct {
+		prefix string
+		a      []string
+		want   []string
+	}{
+		{prefix: "a", a: nil, want: []string{}},
+		{prefix: "a", a: []string{}, want: []string{}},
+		{prefix: "a", a: []string{"apple", "banana", "avocado"}, want: []string{"apple", "avocado"}},
+		{prefix: "z", a: []string{"apple", "banana"}, want: []string{}},
+		{prefix: "", a: []string{"apple", "banana"}, want: []string{"apple", "banana"}},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tu.Name(i, tc.prefix), func(t *testing.T) {
+			got := stringz.FilterPrefix(tc.prefix, tc.a...)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestVal(t *testing.T) {
+	require.Nil(t, stringz.Val(nil))
+	require.Nil(t, stringz.Val((*string)(nil)))
+	require.Nil(t, stringz.Val((**string)(nil)))
+
+	var nilIface fmt.Stringer
+	require.Nil(t, stringz.Val(nilIface))
+
+	require.Equal(t, "hello", stringz.Val("hello"))
+	require.Equal(t, "hello", stringz.Val(new("hello")))
+	require.Equal(t, "hello", stringz.Val(new(new("hello"))))
+	require.Equal(t, 42, stringz.Val(42))
+}
+
+func TestUnsafeBytesString(t *testing.T) {
+	testCases := []string{"", "a", "hello world", "日本語"}
+	for i, s := range testCases {
+		t.Run(tu.Name(i, s), func(t *testing.T) {
+			b := stringz.UnsafeBytes(s)
+			require.Equal(t, len(s), len(b))
+			// Round-trip back to a string must equal the original.
+			require.Equal(t, s, stringz.UnsafeString(b))
+		})
+	}
+
+	// UnsafeString of an empty slice returns "".
+	require.Equal(t, "", stringz.UnsafeString(nil))
+	require.Equal(t, "", stringz.UnsafeString([]byte{}))
+}
+
+func TestUniqTableName_Sanitize(t *testing.T) {
+	// Input is lower-cased and "@" / "/" are replaced with "_".
+	got := stringz.UniqTableName("My@Tbl/Name")
+	require.True(t, strings.HasPrefix(got, "my_tbl_name__"))
+	require.NotContains(t, got, "@")
+	require.NotContains(t, got, "/")
+	require.Equal(t, got, strings.ToLower(got))
 }

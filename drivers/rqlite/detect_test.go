@@ -238,7 +238,8 @@ func TestDetectConnParams_NonRqliteServer(t *testing.T) {
 		func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			_, _ = w.Write([]byte("<html>hello</html>"))
-		}))
+		},
+	))
 	t.Cleanup(server.Close)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -264,7 +265,8 @@ func TestDetectConnParams_NonRqliteJSON(t *testing.T) {
 		func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"version":"8","status":"ok"}`))
-		}), &hits))
+		},
+	), &hits))
 	t.Cleanup(server.Close)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -304,7 +306,8 @@ func TestDetectConnParams_RedirectToHTTPS(t *testing.T) {
 			hits.Add(1)
 			target := "https://" + r.Host + r.URL.Path
 			http.Redirect(w, r, target, http.StatusMovedPermanently)
-		}))
+		},
+	))
 	t.Cleanup(front.Close)
 	host := front.Listener.Addr().String()
 
@@ -326,7 +329,8 @@ func TestDetectConnParams_RedirectToHTTPS(t *testing.T) {
 func TestDetectConnParams_HangingEndpointBounded(t *testing.T) {
 	block := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(
-		func(http.ResponseWriter, *http.Request) { <-block }))
+		func(http.ResponseWriter, *http.Request) { <-block },
+	))
 	t.Cleanup(func() { close(block); server.Close() })
 
 	src := detectTestSrc("rqlite://" + server.Listener.Addr().String())
@@ -361,13 +365,15 @@ func TestDetectConnParams_RedirectNotFollowedToBackend(t *testing.T) {
 		func(w http.ResponseWriter, r *http.Request) {
 			backendHits.Add(1)
 			newRqliteMockHandler(&host).ServeHTTP(w, r)
-		}))
+		},
+	))
 	t.Cleanup(backend.Close)
 
 	front := httptest.NewServer(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, backend.URL+r.URL.Path, http.StatusMovedPermanently)
-		}))
+		},
+	))
 	t.Cleanup(front.Close)
 	host = front.Listener.Addr().String()
 
@@ -410,7 +416,8 @@ func TestDetectConnParams_BasicAuth(t *testing.T) {
 				gotAuth.Store(true)
 			}
 			inner.ServeHTTP(w, r)
-		}))
+		},
+	))
 	t.Cleanup(server.Close)
 	host = server.Listener.Addr().String()
 
@@ -439,7 +446,8 @@ func TestDetectConnParams_BasicAuthPasswordOnly(t *testing.T) {
 				gotAuth.Store(true)
 			}
 			inner.ServeHTTP(w, r)
-		}))
+		},
+	))
 	t.Cleanup(server.Close)
 	host = server.Listener.Addr().String()
 

@@ -38,7 +38,7 @@ func TestQueryRailsDatetime(t *testing.T) {
 
 	sink := &testh.RecordSink{}
 	recw := output.NewRecordWriterAdapter(th.Context, sink)
-	err = libsq.QuerySQL(th.Context, th.Open(src), nil, recw,
+	err = libsq.QuerySQL(th.Context, th.Open(src), nil, recw, nil,
 		"SELECT id, created_at FROM "+tbl+" ORDER BY id")
 	require.NoError(t, err)
 	_, err = recw.Wait()

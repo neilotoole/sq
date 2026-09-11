@@ -156,7 +156,7 @@ func (d *driveri) DriverMetadata() driver.Metadata {
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
 	db, err := d.doOpen(ctx, src)
@@ -164,14 +164,17 @@ func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, er
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, enrichConnError(err, src)
 	}
 
-	return &grip{
+	g := &grip{
 		log: d.log, db: db, src: src, drvr: d,
 		drvrw: &enrichingSQLDriver{driveri: d, src: src},
-	}, nil
+	}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -180,7 +183,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		return nil, err
 	}
 	if portAdded {
-		lg.FromContext(ctx).Debug("rqlite: applied default port",
+		lg.FromContext(ctx).Debug(
+			"rqlite: applied default port",
 			lga.Src, src.Handle,
 			lga.Default, defaultPort,
 		)
@@ -259,7 +263,7 @@ func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, 
 	// Truncate has src in hand (unlike most SQLDriver methods, which
 	// take a bare db), so its errors get the connection-error
 	// enrichments too, consistent with the query and metadata paths.
-	affected, err := sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err := sqlz.ExecAffected(ctx, db, "DELETE FROM "+stringz.DoubleQuote(tbl))
 	if err != nil {
 		return affected, enrichConnError(errw(err), src)
 	}
@@ -326,7 +330,7 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 // real round-trip query, so that it verifies the source is actually
 // usable: this surfaces auth, cluster discovery, and transport
 // problems at add time rather than at first query.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
+func (d *driveri) Ping(ctx context.Context, src *source.Source, _ driver.AccessMode) error {
 	db, err := d.doOpen(ctx, src)
 	if err != nil {
 		return err
@@ -389,6 +393,12 @@ func (d *driveri) Renderer() *render.Renderer {
 	r.FunctionOverrides[ast.FuncNameLike] = renderFuncLike
 	r.FunctionOverrides[ast.FuncNameILike] = renderFuncLike
 
+	// sum() is harmonized to decimal across drivers (issue #839). As with the
+	// sqlite3 driver, SQLite reports no usable type for a sum() expression, so
+	// the result kind is pinned here and applied when building record metadata.
+	// The SQLite float-computation caveat for non-integer columns applies.
+	r.FunctionResultKinds[ast.FuncNameSum] = kind.Decimal
+
 	return r
 }
 
@@ -403,8 +413,10 @@ func (d *driveri) Renderer() *render.Renderer {
 func locationWithDefaultPort(loc string) (string, bool, error) {
 	u, err := url.Parse(loc)
 	if err != nil {
-		// Don't include loc in the error: it may carry credentials.
-		return "", false, errz.Wrap(err, "rqlite: parse location")
+		// The *url.Error from url.Parse embeds the raw loc (including any
+		// inline credentials) in its message; stripURLError drops that
+		// wrapper so only the underlying cause is reported.
+		return "", false, errz.Wrap(stripURLError(err), "rqlite: parse location")
 	}
 
 	if u.Hostname() == "" {
@@ -454,15 +466,11 @@ func dsnFromLocation(loc string) (string, dsnOpts, error) {
 
 	u, err := url.Parse(loc)
 	if err != nil {
-		// url.Error embeds the raw input URL in its message, which
-		// would echo inline credentials. Strip that wrapper so the
+		// url.Error embeds the raw input URL in its message, which would
+		// echo inline credentials. stripURLError drops that wrapper so the
 		// underlying cause (e.g. "missing ']' in host") is preserved
 		// without the URL.
-		var uerr *url.Error
-		if errors.As(err, &uerr) {
-			err = uerr.Err
-		}
-		return "", opts, errz.Wrap(err, "rqlite: invalid location")
+		return "", opts, errz.Wrap(stripURLError(err), "rqlite: invalid location")
 	}
 
 	q := u.Query()
@@ -478,7 +486,8 @@ func dsnFromLocation(loc string) (string, dsnOpts, error) {
 			opts.tls = false
 		default:
 			return "", opts, errz.Errorf(
-				`rqlite: tls must be "true" or "false", got %q`, v)
+				`rqlite: tls must be "true" or "false", got %q`, v,
+			)
 		}
 		q.Del("tls")
 	}
@@ -491,7 +500,8 @@ func dsnFromLocation(loc string) (string, dsnOpts, error) {
 			opts.insecure = false
 		default:
 			return "", opts, errz.Errorf(
-				`rqlite: insecure must be "true" or "false", got %q`, v)
+				`rqlite: insecure must be "true" or "false", got %q`, v,
+			)
 		}
 		q.Del("insecure")
 	}
@@ -499,7 +509,8 @@ func dsnFromLocation(loc string) (string, dsnOpts, error) {
 	if opts.insecure && !opts.tls {
 		return "", opts, errz.New(
 			"rqlite: insecure has no effect without tls=true; " +
-				"either add tls=true or remove insecure")
+				"either add tls=true or remove insecure",
+		)
 	}
 
 	u.Scheme = scheme
@@ -696,10 +707,10 @@ func copyTableCompanionDDL(ctx context.Context, db sqlz.DB,
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
-	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
+	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes, hints)
 	if err != nil {
 		return nil, nil, errw(err)
 	}
@@ -842,9 +853,13 @@ func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB) ([]*metada
 	return schemas, nil
 }
 
-// CatalogExists implements driver.SQLDriver.
+// CatalogExists implements driver.SQLDriver. Like CurrentCatalog and
+// ListCatalogs, it reports the unsupported-catalog condition as an error
+// rather than a silent false, so a source configured with a catalog gets
+// an accurate diagnostic instead of a misleading "catalog doesn't exist".
+// Matches the sqlite3 driver.
 func (d *driveri) CatalogExists(_ context.Context, _ sqlz.DB, _ string) (bool, error) {
-	return false, nil
+	return false, errz.New("rqlite: catalogs are not supported (SQLite has no catalogs)")
 }
 
 // CurrentCatalog implements driver.SQLDriver.
@@ -993,7 +1008,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1003,14 +1018,15 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
+	q := fmt.Sprintf(`ALTER TABLE %s RENAME TO %s`, stringz.DoubleQuote(tbl), stringz.DoubleQuote(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "rqlite: alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q %s", tbl, col, DBTypeForKind(knd))
+	q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s",
+		stringz.DoubleQuote(tbl), stringz.DoubleQuote(col), DBTypeForKind(knd))
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
 		return errz.Wrapf(errw(err), "rqlite: alter table: failed to add column {%s} to table {%s}", col, tbl)
@@ -1020,7 +1036,8 @@ func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col 
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", tbl, col, newName)
+	q := fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s",
+		stringz.DoubleQuote(tbl), stringz.DoubleQuote(col), stringz.DoubleQuote(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "rqlite: alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
@@ -1119,6 +1136,11 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		return errz.Wrap(err, "rqlite: alter table: failed to extract column definitions")
 	}
 
+	// colDefs is built in lockstep with colNames: exactly one entry is
+	// appended per name (erroring if a name is absent), so on success
+	// len(colDefs) == len(colNames), which the len(colNames) == len(kinds)
+	// guard above makes equal to len(kinds). The kinds[i] index in the edit
+	// loop below is therefore always in range.
 	colDefs := make([]*sqlparser.ColDef, 0, len(colNames))
 	for _, colName := range colNames {
 		var found *sqlparser.ColDef
@@ -1147,9 +1169,10 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 	edits := make([]sqlparser.Edit, 0, len(colDefs)+1)
 	for i, colDef := range colDefs {
 		edits = append(edits, sqlparser.Edit{
-			Start:       colDef.RawTypeOffset,
-			End:         colDef.RawTypeOffset + len(colDef.RawType),
-			Replacement: DBTypeForKind(kinds[i]),
+			Start: colDef.RawTypeOffset,
+			End:   colDef.RawTypeOffset + len(colDef.RawType),
+			// len(colDefs) == len(kinds); see the colDefs construction above.
+			Replacement: DBTypeForKind(kinds[i]), //nolint:gosec // G602 false positive: i < len(colDefs) == len(kinds)
 		})
 	}
 	edits = append(edits, sqlparser.Edit{
@@ -1201,7 +1224,8 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 		// INSERT covers the case of no row existing. sqlite_sequence has
 		// no unique constraint on name, which rules out INSERT OR
 		// REPLACE.
-		stmts = append(stmts,
+		stmts = append(
+			stmts,
 			gorqlite.ParameterizedStatement{
 				Query:     "UPDATE sqlite_sequence SET seq = max(seq, ?) WHERE name = ?",
 				Arguments: []any{srcSeq.Int64, tbl},
@@ -1240,7 +1264,8 @@ func (d *driveri) AlterTableColumnKinds(ctx context.Context, db sqlz.DB,
 				"rqlite: alter table: failed to restore foreign_keys pragma")
 			lg.FromContext(ctx).Error(
 				"rqlite: alter table: failed to restore foreign_keys pragma",
-				lga.Err, restoreErr)
+				lga.Err, restoreErr,
+			)
 			retErr = errz.Append(retErr, restoreErr)
 		}
 	}()
@@ -1264,7 +1289,8 @@ func readSqliteSequence(ctx context.Context, db sqlz.DB, tbl string) (sql.NullIn
 	// sqlite_sequence only exists once an AUTOINCREMENT table has been
 	// created in the DB; querying it blindly would error.
 	var n int
-	if err := db.QueryRowContext(ctx,
+	if err := db.QueryRowContext(
+		ctx,
 		"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'",
 	).Scan(&n); err != nil {
 		return seq, errz.Wrap(errw(err),
@@ -1274,7 +1300,8 @@ func readSqliteSequence(ctx context.Context, db sqlz.DB, tbl string) (sql.NullIn
 		return seq, nil
 	}
 
-	if err := db.QueryRowContext(ctx,
+	if err := db.QueryRowContext(
+		ctx,
 		"SELECT seq FROM sqlite_sequence WHERE name=?", tbl,
 	).Scan(&seq); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return seq, errz.Wrapf(errw(err),

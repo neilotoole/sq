@@ -1,5 +1,5 @@
 ---
-title : "Docs"
+title: "Docs"
 description: "sq docs"
 lead: ""
 draft: false

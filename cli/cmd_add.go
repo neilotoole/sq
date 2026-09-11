@@ -189,14 +189,14 @@ More examples:
 	cmd.Flags().BoolP(flag.PasswordPrompt, flag.PasswordPromptShort, false, flag.PasswordPromptUsage)
 	cmd.Flags().String(flag.AddStore, "", flag.AddStoreUsage)
 	panicOn(cmd.RegisterFlagCompletionFunc(flag.AddStore,
-		completeStrings(1, flag.AddStoreInline, flag.AddStoreKeyring)))
+		completeStrings(flag.AddStoreInline, flag.AddStoreKeyring)))
 	cmd.Flags().Bool(flag.SkipVerify, false, flag.SkipVerifyUsage)
 	cmd.Flags().BoolP(flag.AddActive, flag.AddActiveShort, false, flag.AddActiveUsage)
 
 	addOptionFlag(cmd.Flags(), driver.OptIngestHeader)
 	addOptionFlag(cmd.Flags(), csv.OptEmptyAsNull)
 	addOptionFlag(cmd.Flags(), csv.OptDelim)
-	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Flag().Name, completeStrings(-1, csv.NamedDelims()...)))
+	panicOn(cmd.RegisterFlagCompletionFunc(csv.OptDelim.Flag().Name, completeStrings(csv.NamedDelims()...)))
 
 	return cmd
 }
@@ -376,11 +376,16 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 		// string. Same expansion is needed for ${env:...}, ${file:...},
 		// or any composition form.
 		var pingSrc *source.Source
-		pingSrc, err = driver.ResolveSourceSecrets(ctx, src)
+		pingSrc, err = driver.ResolveSourceSecrets(ctx, ru.SecretRegistry, src)
 		if err != nil {
 			return err
 		}
-		if err = drvr.Ping(ctx, pingSrc); err != nil {
+		// Ping read-write (not read-only like "sq ping"): "sq add" validates
+		// the source the way it will be used (writable by default), and for a
+		// not-yet-existing file source (DuckDB, SQLite) the read-write ping
+		// creates the file, which is the established add-a-new-file behavior.
+		// See driver.Driver.Ping.
+		if err = drvr.Ping(ctx, pingSrc, driver.ModeReadWrite); err != nil {
 			return err
 		}
 	}
@@ -394,10 +399,6 @@ func execSrcAdd(cmd *cobra.Command, args []string) (err error) {
 	keyringRollbackID = ""
 
 	if src, err = ru.Config.Collection.Get(src.Handle); err != nil {
-		return err
-	}
-
-	if src, err = maybeExpandSource(ctx, ru, cmd, src); err != nil {
 		return err
 	}
 
@@ -530,7 +531,8 @@ func checkPathEscape(typedPath string) error {
 		return errz.Errorf(
 			"location contains %q, which sq interprets as an escaped literal '$': "+
 				"a file exists at %s, but the interpreted path %s does not",
-			"$$", typedPath, interpreted)
+			"$$", typedPath, interpreted,
+		)
 	}
 	return nil
 }
@@ -617,7 +619,8 @@ func resolveDriverType(
 					"Either store a full DSN in the secret (e.g. postgres://alice:pw@db/sakila), "+
 					"compose the placeholder into a DSN (e.g. postgres://alice:%s@db/sakila), "+
 					"or pass --%s",
-				location.Redact(loc), location.Redact(loc), flag.AddDriver)
+				location.Redact(loc), location.Redact(loc), flag.AddDriver,
+			)
 		}
 		return typ, nil
 	}
@@ -827,7 +830,10 @@ func detectConnParamsForAdd(ctx context.Context, cmd *cobra.Command,
 		return nil
 	}
 
-	probeSrc, err := driver.ResolveSourceSecrets(ctx, src)
+	// len(refs) == 0 is guaranteed by the early return above, so
+	// ResolveSourceSecrets only unescapes "$$" and never consults the
+	// registry: pass nil rather than reaching back into the context.
+	probeSrc, err := driver.ResolveSourceSecrets(ctx, nil, src)
 	if err != nil {
 		return err
 	}
@@ -868,7 +874,8 @@ func filterToAdvertisedParams(ctx context.Context, drvr driver.Driver,
 		// them all rather than persisting unvetted params.
 		lg.FromContext(ctx).Warn(
 			"Detected conn params from non-SQL driver; dropping all",
-			lga.Src, src.Handle)
+			lga.Src, src.Handle,
+		)
 		return url.Values{}
 	}
 	advertised := sqlDrvr.ConnParams()
@@ -877,7 +884,8 @@ func filterToAdvertisedParams(ctx context.Context, drvr driver.Driver,
 		if _, ok := advertised[k]; !ok {
 			lg.FromContext(ctx).Warn(
 				"Detected conn param not advertised by driver; dropping",
-				lga.Src, src.Handle, lga.Key, k)
+				lga.Src, src.Handle, lga.Key, k,
+			)
 			continue
 		}
 		out[k] = vs

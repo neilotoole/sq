@@ -59,44 +59,47 @@ func RenderFuncDefault(rc *Context, fn *ast.FuncNode) (string, error) {
 			sb.WriteString(", ")
 		}
 
-		switch node := child.(type) {
-		case *ast.ColSelectorNode, *ast.TblColSelectorNode, *ast.TblSelectorNode:
-			s, err := renderSelectorNode(rc.Dialect, node)
-			if err != nil {
-				return "", err
-			}
-			sb.WriteString(s)
-		case *ast.OperatorNode:
-			sb.WriteString(node.Text())
-		case *ast.LiteralNode:
-			// TODO: This is all a bit of a mess. We probably need to
-			// move to using bound parameters instead of inlining
-			// literal values.
-			val, wasQuoted, err := unquoteLiteral(node.Text())
-			if err != nil {
-				return "", err
-			}
-
-			if wasQuoted {
-				// The literal had quotes, so it's a regular string.
-				sb.WriteString(stringz.SingleQuote(val))
-			} else {
-				sb.WriteString(val)
-			}
-		case *ast.ExprNode:
-			s, err := rc.Renderer.Expr(rc, node)
-			if err != nil {
-				return "", err
-			}
-			sb.WriteString(s)
-		default:
-			return "", errz.Errorf("unknown AST child node %T: %s", node, node)
+		s, err := RenderFuncArg(rc, child)
+		if err != nil {
+			return "", err
 		}
+		sb.WriteString(s)
 	}
 
 	sb.WriteRune(')')
 	sql := sb.String()
 	return sql, nil
+}
+
+// RenderFuncArg renders a single function-argument node to SQL. It's exported
+// so that a driver's FunctionOverrides impl can render an operand in isolation,
+// for example to wrap it in a CAST. See the SQL Server avg() override, which
+// emits avg(CAST(col AS FLOAT)) to defeat integer-AVG truncation.
+func RenderFuncArg(rc *Context, node ast.Node) (string, error) {
+	switch node := node.(type) {
+	case *ast.ColSelectorNode, *ast.TblColSelectorNode, *ast.TblSelectorNode:
+		return renderSelectorNode(rc.Dialect, node)
+	case *ast.OperatorNode:
+		return node.Text(), nil
+	case *ast.LiteralNode:
+		// TODO: This is all a bit of a mess. We probably need to
+		// move to using bound parameters instead of inlining
+		// literal values.
+		val, wasQuoted, err := unquoteLiteral(node.Text())
+		if err != nil {
+			return "", err
+		}
+
+		if wasQuoted {
+			// The literal had quotes, so it's a regular string.
+			return stringz.SingleQuote(val), nil
+		}
+		return val, nil
+	case *ast.ExprNode:
+		return rc.Renderer.Expr(rc, node)
+	default:
+		return "", errz.Errorf("unknown AST child node %T: %s", node, node)
+	}
 }
 
 // doFuncRowNum renders the rownum() function.

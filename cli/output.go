@@ -28,6 +28,7 @@ import (
 	"github.com/neilotoole/sq/cli/output/xlsxw"
 	"github.com/neilotoole/sq/cli/output/xmlw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
+	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/cleanup"
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -66,6 +67,38 @@ command, sq falls back to "text". Available formats:
   text, csv, tsv, xlsx,
   json, jsona, jsonl,
   markdown, html, xlsx, xml, yaml, raw`,
+	)
+
+	// OptFormatDecimal controls how decimal values render in output formats that
+	// distinguish a number from a string (JSON, YAML). "string" (the default)
+	// emits a quoted string, precision-safe beyond float64 range; "number" emits
+	// a bare number, convenient for jq-style consumers. See issue #846.
+	OptFormatDecimal = options.NewString(
+		"format.decimal",
+		&options.Flag{Name: "format.decimal"},
+		"string",
+		func(s string) error {
+			switch s {
+			case "string", "number":
+				return nil
+			default:
+				return errz.Errorf("option {format.decimal} allows only %q or %q", "string", "number")
+			}
+		},
+		"Render decimal as string or number (JSON, YAML)",
+		`Controls how decimal values render in output formats that distinguish a number
+from a string (JSON and YAML). "string" (the default) emits a quoted string,
+which is precision-safe for values beyond float64 range. "number" emits a bare
+number, which is convenient for jq-style consumers but lossy on read for very
+large values. XLSX always stores decimals adaptively and is unaffected; all-text
+formats such as CSV are no-ops.
+
+  format.decimal=string
+  [{"total":"20100"}]
+  format.decimal=number
+  [{"total":20100}]
+`,
+		options.TagOutput,
 	)
 
 	OptErrorFormat = format.NewOpt(
@@ -302,11 +335,12 @@ If zero, no progress bar is rendered.`,
 )
 
 // newWriters returns an output.Writers instance configured per defaults and/or
-// flags from cmd. The returned writers in [outputConfig] may differ from
-// the stdout and stderr params (e.g. decorated to support colorization).
-func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o options.Options,
-	stdout, stderr io.Writer,
-) (w *output.Writers, outCfg *outputConfig) {
+// flags from ru.Cmd. The returned writers in [outputConfig] may differ from
+// ru.Stdout / ru.Stderr (e.g. decorated to support colorization).
+func newWriters(ru *run.Run, o options.Options) (w *output.Writers, outCfg *outputConfig) {
+	cmd, fs, clnup := ru.Cmd, ru.Files, ru.Cleanup
+	stdout, stderr := ru.Stdout, ru.Stderr
+
 	// Invoke getFormat to see if the format was specified
 	// via config or flag.
 	fm := getFormat(cmd, o)
@@ -395,6 +429,21 @@ func newWriters(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup, o o
 		log.Warn("No record writer impl for format", "format", fm)
 	} else {
 		w.Record = recwFn(outCfg.out, outCfg.outPr)
+	}
+
+	if cmd != nil {
+		// Decorate the writers that print source locations so that the
+		// --expand flag is honored centrally, in the writer layer, much
+		// as Printing.Redact enforces redaction once for every writer.
+		// (Redaction is a Printing field the format writers consult;
+		// expansion is a cli-side decorator instead, because it performs
+		// fallible resolver I/O that shouldn't be duplicated into every
+		// writer impl. See expand_writer.go for that rationale.) Any
+		// command that prints a location gets --expand for free; the
+		// decorators no-op when the flag is unset.
+		w.Source = &expandSourceWriter{w: w.Source, expander: expander{cmd: cmd, ru: ru}}
+		w.Ping = &expandPingWriter{w: w.Ping, expander: expander{cmd: cmd, ru: ru}}
+		w.Metadata = &expandMetadataWriter{w: w.Metadata, expander: expander{cmd: cmd, ru: ru}}
 	}
 
 	return w, outCfg
@@ -513,6 +562,7 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 	pr.FormatTimeAsNumber = OptTimeFormatAsNumber.Get(o)
 	pr.FormatDate = timez.FormatFunc(OptDateFormat.Get(o))
 	pr.FormatDateAsNumber = OptDateFormatAsNumber.Get(o)
+	pr.DecimalAsNumber = OptFormatDecimal.Get(o) == "number"
 
 	pr.ExcelDatetimeFormat = xlsxw.OptDatetimeFormat.Get(o)
 	pr.ExcelDateFormat = xlsxw.OptDateFormat.Get(o)
@@ -561,11 +611,16 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 
 	switch {
 	case forceProg, termz.IsColorTerminal(stderr) && !monochrome:
-		// Either forceProg is true, or stderr is a color terminal and we're
-		// colorizing, thus we enable progress if allowed and if ctx is non-nil.
+		// Either forceProg is true, or stderr should be colorized (TTY or
+		// FORCE_COLOR), thus we enable progress if allowed and if ctx is non-nil.
 		var colorize bool
 		if f, ok := stderr.(*os.File); ok {
 			outCfg.errOut = colorable.NewColorable(f)
+			colorize = true
+		} else if termz.IsColorTerminal(stderr) {
+			// Color is forced via FORCE_COLOR but stderr is not *os.File (pipe,
+			// buffer): write raw ANSI, matching the stdout branch below.
+			outCfg.errOut = stderr
 			colorize = true
 		} else {
 			outCfg.errOut = colorable.NewNonColorable(stderr)
@@ -607,15 +662,23 @@ func getOutputConfig(cmd *cobra.Command, fs *files.Files, clnup *cleanup.Cleanup
 		outCfg.out = stdout
 		outCfg.outPr.EnableColor(false)
 	case termz.IsColorTerminal(stdout) && !monochrome:
-		// stdout is a color terminal and we're colorizing.
-		outCfg.out = colorable.NewColorable(stdout.(*os.File))
+		// stdout should be colorized (TTY or FORCE_COLOR). Guard the type
+		// assertion: IsColorTerminal can return true when color is forced via
+		// FORCE_COLOR, in which case stdout may not be an *os.File (e.g. a
+		// bytes.Buffer in tests, or a pipe). go-colorable's NewColorable
+		// requires an *os.File, so fall back to writing raw ANSI to non-file
+		// writers, which pass through unchanged on non-Windows.
+		if f, ok := stdout.(*os.File); ok {
+			outCfg.out = colorable.NewColorable(f)
+		} else {
+			outCfg.out = stdout
+		}
 		outCfg.outPr.EnableColor(true)
-	case termz.IsTerminal(stderr):
-		// stdout is a terminal, but won't be colorized.
-		outCfg.out = colorable.NewNonColorable(stdout)
-		outCfg.outPr.EnableColor(false)
 	default:
-		// stdout is a not a terminal at all. No color.
+		// stdout is either a non-color terminal or not a terminal at all, and
+		// won't be colorized either way. Unlike the stderr switch above, there's
+		// no progress bar riding on stdout, so the terminal-vs-not distinction
+		// makes no observable difference here; a single arm covers both.
 		outCfg.out = colorable.NewNonColorable(stdout)
 		outCfg.outPr.EnableColor(false)
 	}

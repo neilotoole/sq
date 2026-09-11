@@ -43,7 +43,7 @@ just for that source.`,
 	addOptionFlag(cmd.Flags(), OptCompact)
 
 	cmd.Flags().String(flag.ConfigSrc, "", flag.ConfigSrcUsage)
-	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandle(1, true)))
+	panicOn(cmd.RegisterFlagCompletionFunc(flag.ConfigSrc, completeHandleFlag(true)))
 
 	return cmd
 }

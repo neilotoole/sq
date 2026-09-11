@@ -12,12 +12,11 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/options"
-	"github.com/neilotoole/sq/libsq/core/record"
-	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/core/tuning"
@@ -51,6 +50,15 @@ type pipeline struct {
 	// is executed against targetGrip. Typically tasks is used to
 	// set up the joindb before it is queried.
 	tasks []tasker
+
+	// tasksSingleWriter, when true, routes executeTasks through the fan-in copy
+	// path (concurrent source reads funneled through a single serialized
+	// writer) instead of the concurrent fused path. It is set from the join
+	// destination's dialect.SingleWriter so that a single-writer joindb (SQLite)
+	// serializes its writes rather than contending on the write lock and failing
+	// with "database is locked" (gh975), while its source reads still overlap
+	// (#995).
+	tasksSingleWriter bool
 }
 
 // newPipeline parses query, returning a pipeline prepared for
@@ -119,7 +127,15 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 		}
 	}
 
-	if err := QuerySQL(ctx, p.targetGrip, conn, recw, p.targetSQL); err != nil {
+	// Pass any result-column kind hints recorded during rendering (e.g.
+	// SQLite/rqlite pinning sum() to kind.Decimal) so the driver can apply them
+	// when building record metadata. See issues #839 and #848.
+	var hints map[int]kind.Kind
+	if p.rc != nil {
+		hints = p.rc.ResultColumnKinds
+	}
+
+	if err := QuerySQL(ctx, p.targetGrip, conn, recw, hints, p.targetSQL); err != nil {
 		return err
 	}
 
@@ -146,8 +162,60 @@ func (p *pipeline) executeTasks(ctx context.Context) error {
 	default:
 	}
 
+	// A single-writer joindb (SQLite) permits only one write tx at a time. Fan
+	// the copies in: run the source reads concurrently but funnel them through a
+	// single serialized writer, so the copies don't contend on the write lock
+	// (gh975) yet still overlap their reads (#995).
+	if p.tasksSingleWriter {
+		if copyTasks, ok := copyTasksOf(p.tasks); ok {
+			return executeCopyTasksFanIn(ctx, copyTasks)
+		}
+		// joinCopyTask is the only tasker, so copyTasksOf always succeeds above.
+		// This branch is unreachable today; if another tasker type is ever
+		// introduced, serialize it rather than running concurrent writers
+		// against the single-writer joindb (which would reintroduce gh975).
+		return p.executeTasksSerial(ctx)
+	}
+
+	// A multi-writer joindb tolerates concurrent writers, so the fused copies
+	// run concurrently up to the errgroup limit.
+	return p.executeTasksConcurrent(ctx)
+}
+
+// executeTasksSerial runs the tasks one at a time, in order, checking for
+// context cancellation before each.
+func (p *pipeline) executeTasksSerial(ctx context.Context) error {
+	for _, task := range p.tasks {
+		if ctx.Err() != nil {
+			return context.Cause(ctx)
+		}
+		if err := task.executeTask(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// copyTasksOf returns tasks as a slice of *joinCopyTask, reporting false if any
+// element is not a *joinCopyTask.
+func copyTasksOf(tasks []tasker) ([]*joinCopyTask, bool) {
+	copyTasks := make([]*joinCopyTask, len(tasks))
+	for i, t := range tasks {
+		ct, ok := t.(*joinCopyTask)
+		if !ok {
+			return nil, false
+		}
+		copyTasks[i] = ct
+	}
+	return copyTasks, true
+}
+
+// executeTasksConcurrent runs the tasks concurrently, up to the errgroup limit.
+func (p *pipeline) executeTasksConcurrent(ctx context.Context) error {
+	limit := tuning.OptErrgroupLimit.Get(options.FromContext(ctx))
+
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(tuning.OptErrgroupLimit.Get(options.FromContext(ctx)))
+	g.SetLimit(limit)
 
 	for _, task := range p.tasks {
 		g.Go(func() error {
@@ -190,6 +258,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 				Renderer: p.targetGrip.SQLDriver().Renderer(),
 				Args:     p.qc.Args,
 				Dialect:  p.targetGrip.SQLDriver().Dialect(),
+				DBSemver: dbSemverOf(ctx, p.targetGrip),
 			}
 			return nil
 		}
@@ -200,7 +269,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 	}
 
 	// At this point, src is non-nil.
-	if p.targetGrip, err = p.qc.Grips.Open(ctx, src); err != nil {
+	if p.targetGrip, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle)); err != nil {
 		return err
 	}
 
@@ -208,6 +277,7 @@ func (p *pipeline) prepareNoTable(ctx context.Context, qm *queryModel) error {
 		Renderer: p.targetGrip.SQLDriver().Renderer(),
 		Args:     p.qc.Args,
 		Dialect:  p.targetGrip.SQLDriver().Dialect(),
+		DBSemver: dbSemverOf(ctx, p.targetGrip),
 	}
 
 	return nil
@@ -232,7 +302,7 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		return "", nil, err
 	}
 
-	fromGrip, err = p.qc.Grips.Open(ctx, src)
+	fromGrip, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle))
 	if err != nil {
 		return "", nil, err
 	}
@@ -242,6 +312,7 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		Renderer: rndr,
 		Args:     p.qc.Args,
 		Dialect:  fromGrip.SQLDriver().Dialect(),
+		DBSemver: dbSemverOf(ctx, fromGrip),
 	}
 
 	fromClause, err = rndr.FromTable(p.rc, tblSel)
@@ -250,6 +321,17 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 	}
 
 	return fromClause, fromGrip, nil
+}
+
+// dbSemverOf returns grip's canonical semver, or "" if it can't be determined.
+// Renderers compare "" below every feature-version threshold, so an
+// undeterminable version falls back to SQL valid on all server versions rather
+// than failing the query. This is normally a cache hit: the version is fetched
+// as part of the connectivity check when the grip is opened (see
+// driver.OpeningPing), so no extra round-trip is made here.
+func dbSemverOf(ctx context.Context, grip driver.Grip) string {
+	v, _ := grip.DBSemver(ctx)
+	return v
 }
 
 // joinClause models the SQL "JOIN" construct.
@@ -325,7 +407,7 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		return "", nil, err
 	}
 
-	fromGrip, err = p.qc.Grips.Open(ctx, src)
+	fromGrip, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle))
 	if err != nil {
 		return "", nil, err
 	}
@@ -335,6 +417,7 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		Renderer: rndr,
 		Args:     p.qc.Args,
 		Dialect:  fromGrip.SQLDriver().Dialect(),
+		DBSemver: dbSemverOf(ctx, fromGrip),
 	}
 
 	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)
@@ -373,6 +456,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 		Renderer: rndr,
 		Args:     p.qc.Args,
 		Dialect:  joinGrip.SQLDriver().Dialect(),
+		DBSemver: dbSemverOf(ctx, joinGrip),
 	}
 
 	leftHandle := jc.leftTbl.Handle()
@@ -458,7 +542,7 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 			return "", nil, err
 		}
 		var db driver.Grip
-		if db, err = p.qc.Grips.Open(ctx, src); err != nil {
+		if db, err = p.qc.Grips.Open(ctx, src, p.qc.openModeFor(src.Handle)); err != nil {
 			return "", nil, err
 		}
 
@@ -485,6 +569,13 @@ func (p *pipeline) joinCrossSource(ctx context.Context, jc *joinClause) (fromCla
 
 		p.tasks = append(p.tasks, task)
 	}
+
+	// Route copy execution based on what the joindb tolerates. A single-writer
+	// joindb (SQLite) reports SingleWriter, so its copies fan in through one
+	// serialized writer (concurrent reads, no write-lock contention; gh975 /
+	// #995); a multi-writer joindb runs the fused copies concurrently up to the
+	// errgroup limit.
+	p.tasksSingleWriter = joinGrip.SQLDriver().Dialect().SingleWriter
 
 	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)
 	if err != nil {
@@ -521,31 +612,16 @@ func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
 ) error {
 	log := lg.FromContext(ctx)
 
-	createTblHook := func(ctx context.Context, originRecMeta record.Meta, destGrip driver.Grip,
-		tx sqlz.DB,
-	) error {
-		destColNames := originRecMeta.Names()
-		destColKinds := originRecMeta.Kinds()
-		destTblDef := schema.NewTable(destTbl.Table, destColNames, destColKinds)
-
-		err := destGrip.SQLDriver().CreateTable(ctx, tx, destTblDef)
-		if err != nil {
-			return errz.Wrapf(err, "failed to create dest table %s.%s", destGrip.Source().Handle, destTbl)
-		}
-
-		return nil
-	}
-
 	inserter := NewDBWriter(
 		"Copy records",
 		destGrip,
 		destTbl.Table,
 		tuning.OptRecBufSize.Get(destGrip.Source().Options),
-		createTblHook,
+		newJoinDestTableHook(destTbl),
 	)
 
 	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)
-	err := QuerySQL(ctx, fromDB, nil, inserter, query)
+	err := QuerySQL(ctx, fromDB, nil, inserter, nil, query)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destGrip.Source().Handle, destTbl)
 	}

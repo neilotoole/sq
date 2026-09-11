@@ -150,7 +150,8 @@ func ingestXLSX(ctx context.Context, src *source.Source, destGrip driver.Grip, x
 		bar.Incr(1)
 	}
 
-	log.Debug("Sheets ingested",
+	log.Debug(
+		"Sheets ingested",
 		lga.Count, ingestCount,
 		"skipped", skipped,
 		lga.From, src,
@@ -497,7 +498,8 @@ func rowToRecord(ctx context.Context, destColKinds []kind.Kind, ingestMungeFns [
 				// This shouldn't happen, but if it does, fall back
 				// to the string value.
 				vals[coli] = str
-				log.Warn("Cell munge func failed",
+				log.Warn(
+					"Cell munge func failed",
 					laSheet, sheetName,
 					"cell", fmt.Sprintf("%d:%d", rowi, coli),
 					lga.Val, vals[coli],

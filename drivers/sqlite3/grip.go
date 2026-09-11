@@ -12,7 +12,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
 	"github.com/neilotoole/sq/libsq/core/progress"
-	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -26,6 +25,7 @@ type grip struct {
 	db       *sql.DB
 	src      *source.Source
 	drvr     *driveri
+	semver   driver.SemverCache
 
 	// closeOnce and closeErr are used to ensure that Close is only called once.
 	// This is particularly relevant to sqlite, as calling Close multiple times
@@ -80,6 +80,11 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	return md, nil
 }
 
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	return g.semver.Get(func() (string, error) { return g.drvr.DBSemver(ctx, g.db) })
+}
+
 // SourceMetadata implements driver.Grip.
 func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	// https://stackoverflow.com/questions/9646353/how-to-find-sqlite-database-file-version
@@ -96,6 +101,12 @@ func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.
 	err = g.db.QueryRowContext(ctx, q).Scan(&md.DBVersion, &md.Schema)
 	if err != nil {
 		return nil, errw(err)
+	}
+	if v, semverErr := parseSemver(md.DBVersion); semverErr != nil {
+		lg.FromContext(ctx).Warn("Cannot derive db_semver from db_version",
+			lga.Err, semverErr, lga.Version, md.DBVersion)
+	} else {
+		md.DBSemver = v
 	}
 	progress.Incr(ctx, 1)
 
@@ -128,14 +139,7 @@ func (g *grip) getSourceMetadata(ctx context.Context, noSchema bool) (*metadata.
 		return nil, err
 	}
 
-	for _, tbl := range md.Tables {
-		switch tbl.TableType {
-		case sqlz.TableTypeTable:
-			md.TableCount++
-		case sqlz.TableTypeView:
-			md.ViewCount++
-		}
-	}
+	md.RecomputeTableCounts()
 
 	metadata.LinkForeignKeys(lg.FromContext(ctx), md)
 

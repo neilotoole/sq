@@ -330,7 +330,16 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,c
 			}
 
 			if err != nil {
-				lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
+				// dl.do returns a nil response on a transport error, so there's
+				// no fresh body to close here. (The earlier code closed
+				// resp.Body unconditionally, panicking on the nil response.)
+				// The cached response body, however, is still open: cache.get
+				// requires its caller to close it, so do that before returning.
+				// This is the common "airplane mode" path: a stale cache is
+				// being refreshed, the network is unavailable, and
+				// cacheFileOnError serves the stale download if
+				// OptContinueOnError is set.
+				lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
 					return fp, nil, nil
 				}
@@ -339,7 +348,10 @@ func (dl *Downloader) get(req *http.Request) (dlFile string, //nolint:gocognit,c
 			}
 
 			if resp.StatusCode != http.StatusOK {
+				// Close both the fresh non-200 response body and the still-open
+				// cached body (cache.get requires the caller to close it).
 				lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, resp.Body)
+				lg.WarnIfCloseError(log, lgm.CloseHTTPResponseBody, cachedResp.Body)
 				err = errz.Errorf("download: unexpected HTTP status: %s", httpz.StatusText(resp.StatusCode))
 				if fp := dl.cacheFileOnError(req, err); fp != "" {
 					return fp, nil, nil

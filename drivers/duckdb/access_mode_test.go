@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/drivers/duckdb"
+	"github.com/neilotoole/sq/libsq/core/lg/lgt"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -199,14 +200,82 @@ func TestDoOpen_HonorsReadOnlyContext(t *testing.T) {
 		Location: "duckdb://" + tmp,
 	}
 
-	ctx := driver.WithReadOnly(context.Background())
+	ctx := context.Background()
 
 	prov := &duckdb.Provider{}
 	drvr, err := prov.DriverFor(drivertype.DuckDB)
 	require.NoError(t, err)
 
-	_, openErr := drvr.Open(ctx, src)
+	_, openErr := drvr.Open(ctx, src, driver.ModeReadOnly)
 	require.Error(t, openErr, "READ_ONLY open of nonexistent file must fail")
 	require.NoFileExists(t, tmp,
 		"DuckDB must not have created the file when opened READ_ONLY")
+}
+
+// TestPing_ReadOnly_MissingFile pins that a read-only ping of a non-existent
+// DuckDB file fails and does not create the file. This guards the Ping mode
+// wiring: "sq ping" passes ModeReadOnly precisely so a ping never creates or
+// write-locks the file (whereas "sq add" pings ModeReadWrite and does create).
+func TestPing_ReadOnly_MissingFile(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "doesnotexist.duckdb")
+	src := &source.Source{
+		Handle:   "@test_ping_ro",
+		Type:     drivertype.DuckDB,
+		Location: "duckdb://" + tmp,
+	}
+
+	prov := &duckdb.Provider{}
+	drvr, err := prov.DriverFor(drivertype.DuckDB)
+	require.NoError(t, err)
+
+	require.Error(t, drvr.Ping(context.Background(), src, driver.ModeReadOnly),
+		"read-only ping of a missing file must fail")
+	require.NoFileExists(t, tmp, "ping must not create the file when read-only")
+}
+
+// TestDetectReadOnlyConflict verifies the driver.ReadOnlyConflictDetector
+// implementation: only an explicit access_mode=READ_WRITE in the location
+// is a conflict with a read-only request.
+func TestDetectReadOnlyConflict(t *testing.T) {
+	p := &duckdb.Provider{Log: lgt.New(t)}
+	drvr, err := p.DriverFor(drivertype.DuckDB)
+	require.NoError(t, err)
+
+	detector, ok := drvr.(driver.ReadOnlyConflictDetector)
+	require.True(t, ok,
+		"duckdb driver must implement driver.ReadOnlyConflictDetector")
+
+	testCases := []struct {
+		name         string
+		in           string
+		wantConflict string
+		wantOK       bool
+	}{
+		{name: "no_query", in: "duckdb:///f.duckdb", wantOK: false},
+		{name: "other_param", in: "duckdb:///f.duckdb?threads=4", wantOK: false},
+		{name: "read_only", in: "duckdb:///f.duckdb?access_mode=READ_ONLY", wantOK: false},
+		{name: "automatic", in: "duckdb:///f.duckdb?access_mode=AUTOMATIC", wantOK: false},
+		{
+			name:         "read_write",
+			in:           "duckdb:///f.duckdb?access_mode=READ_WRITE",
+			wantConflict: "access_mode=READ_WRITE",
+			wantOK:       true,
+		},
+		{
+			name:         "read_write_lowercase_echoes_user_input",
+			in:           "duckdb:///f.duckdb?access_mode=read_write",
+			wantConflict: "access_mode=read_write",
+			wantOK:       true,
+		},
+		{name: "empty", in: "", wantOK: false},
+		{name: "non_duckdb", in: "sqlite3:///f.db?access_mode=READ_WRITE", wantOK: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotConflict, gotOK := detector.DetectReadOnlyConflict(tc.in)
+			require.Equal(t, tc.wantOK, gotOK)
+			require.Equal(t, tc.wantConflict, gotConflict)
+		})
+	}
 }

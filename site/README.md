@@ -101,7 +101,7 @@ Think of site testing as two layers:
 
 1. **Stable checks (merge-blocking on PRs)**
    `make ci` runs `make site-test`, which runs `bun run test:ci`. That includes
-   link checking against the **temporary local build** we serve for linting, but
+   offline link checking against a **temporary local build**, but
    it does **not** crawl arbitrary third-party websites. This is what you want
    to be strict about: broken docs routes, missing local assets, bad internal
    links, etc.
@@ -140,14 +140,14 @@ This is an important note for the reader.
 
 The project uses GitHub Actions and Netlify for continuous integration:
 
-| Trigger                                 | Action                                                                                                                         |
-|-----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
-| Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl                   |
-| Pull request                            | Netlify deploy preview (when configured)                                                                                       |
-| Stable GitHub release (`vX.Y.Z`)        | `.github/workflows/site-publish-release.yml` builds, deploys to [sq.io](https://sq.io), and runs post-deploy smoke checks      |
-| Manual `workflow_dispatch`              | `.github/workflows/site-publish-dispatch.yml` — publish doc or dependency changes before the next release                      |
-| Daily schedule / manual                 | `.github/workflows/site-links-nightly.yml` runs a full external link crawl                                                     |
-| Daily schedule / manual                 | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml`; push triggers Site CI only (no production deploy)      |
+| Trigger                                 | Action                                                                                                                    |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Push to `master` or `develop` (and PRs) | `.github/workflows/site-ci.yml` runs `make ci` when `site/**` changes, plus an informational full link crawl              |
+| Pull request                            | Netlify deploy preview (when configured)                                                                                  |
+| Stable GitHub release (`vX.Y.Z`)        | `.github/workflows/site-publish-release.yml` builds, deploys to [sq.io](https://sq.io), and runs post-deploy smoke checks |
+| Manual `workflow_dispatch`              | `.github/workflows/site-publish-dispatch.yml` — publish doc or dependency changes before the next release                 |
+| Daily schedule / manual                 | `.github/workflows/site-links-nightly.yml` runs a full external link crawl                                                |
+| Daily schedule / manual                 | `.github/workflows/site-data-nightly.yml` refreshes `data/github.toml`; push triggers Site CI only (no production deploy) |
 
 Merging to `master` with changes under `site/**` runs Site CI (lint, build, artifact
 validation) but does **not** update production. Netlify's git integration remains
@@ -166,6 +166,25 @@ performance, accessibility, best practices, and SEO. Before merging, click
 through to the deploy preview (e.g.,
 the deploy-preview URL from the PR checks) to verify your changes look
 correct.
+
+### Repository setup (maintainers)
+
+The `site/` tree was imported from the former
+[`sq-web`](https://github.com/neilotoole/sq-web) repository as a flat add; prior
+history remains in the archived `sq-web` repo.
+
+**Netlify:** the production site uses repository **`neilotoole/sq`**, **base
+directory** `site`, and the committed [`netlify.toml`](netlify.toml). Re-link the
+repo in Netlify if needed, and confirm deploy previews and the
+[`/version`](https://sq.io/version) endpoint (redirect to `version.json`) still
+resolve.
+
+**Branch protection:** configure [repository rulesets][rulesets] so that PRs
+touching **`site/**`** require the **Site CI** check (`site-ci.yml`) without
+requiring it on Go-only PRs (path-scoped rules). Plain "required status" lists
+interact badly with workflows that use `paths` filters and do not run on every PR.
+
+[rulesets]: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets
 
 ### Build-time data & nightly refresh
 
@@ -193,23 +212,24 @@ Prefer **`make`** from this directory for install, test, and production build (s
 In **Common.make**, `make build` builds the **Docker** image, not the Hugo site;
 use **`make site-build`** for a normal production build to `public/`.
 
-| Make target                     | Bun equivalent              | Description                                           |
-|---------------------------------|-----------------------------|-------------------------------------------------------|
-| `make check`                    | —                           | Verify Bun, Hugo, Netlify CLI, jq, curl               |
-| `make check-netlify`            | —                           | `make check` + `checkenv` on `.env`                   |
-| `make deps`                     | `bun install`               | Install dependencies                                  |
-| `make site-local`               | `bun scripts/dev-server.js` | Hugo dev server                                       |
-| `make smoke-test`               | (script)                    | Docker smoke checks (`validate-build.sh --start`)     |
-| `make site-test`                | `bun run test:ci`           | Stable linters + internal link check                  |
-| `make site-test-full`           | `bun run test:full`         | Full linters + external link crawl                    |
-| `make site-build`               | `bun run build`             | Production site → `public/`                           |
-| `make ci`                       | (sequence below)            | `deps`, then `site-test`, then `site-build` (CI)      |
-| `make site-netlify-validate`    | —                           | Netlify deploy-preview build + API poll (`NETLIFY_*`) |
+| Make target                  | Bun equivalent              | Description                                           |
+| ---------------------------- | --------------------------- | ----------------------------------------------------- |
+| `make check`                 | —                           | Verify Bun, Hugo, Netlify CLI, jq, curl               |
+| `make check-netlify`         | —                           | `make check` + `checkenv` on `.env`                   |
+| `make deps`                  | `bun install`               | Install dependencies and pinned Hugo/lychee binaries  |
+| `make deps-links`            | (sequence)                  | Install only dependencies needed by link checks       |
+| `make site-local`            | `bun scripts/dev-server.js` | Hugo dev server                                       |
+| `make smoke-test`            | (script)                    | Docker smoke checks (`validate-build.sh --start`)     |
+| `make site-test`             | `bun run test:ci`           | Stable linters + internal link check                  |
+| `make site-test-full`        | `bun run test:full`         | Full linters + external link crawl                    |
+| `make site-build`            | `bun run build`             | Production site → `public/`                           |
+| `make ci`                    | (sequence below)            | `deps`, then `site-test`, then `site-build` (CI)      |
+| `make site-netlify-validate` | —                           | Netlify deploy-preview build + API poll (`NETLIFY_*`) |
 
 Other **package.json** scripts (call with `bun run …`):
 
 | Command                  | Description                                             |
-|--------------------------|---------------------------------------------------------|
+| ------------------------ | ------------------------------------------------------- |
 | `bun run preview`        | Build and serve locally at http://localhost:1313        |
 | `bun run gen:cmd-help`   | Regenerate command help files in `content/en/docs/cmd/` |
 | `bun run gen:syntax-css` | Regenerate syntax highlighting CSS                      |
@@ -222,25 +242,31 @@ included in the documentation pages.
 
 ### Link Checking
 
-Link checking uses [linkinator](https://github.com/JustinBeckwith/linkinator).
+Link checking uses [lychee](https://github.com/lycheeverse/lychee). `bun install`
+downloads the version pinned in `package.json` as a checksummed release binary;
+Rust and Cargo are not required.
 
-- **Stable / PR-blocking (`test:ci`)** uses `lint:links:internal`, which checks the
-  locally served build without following arbitrary third-party `http(s)` links.
+- **Stable / PR-blocking (`test:ci`)** uses `lint:links:internal`, which checks a
+  generated Hugo build in lychee's offline mode.
 - **Full crawl (`lint:links`)** follows third-party links too. This is useful,
   but inherently more flaky.
 
 Some sites (e.g., StackOverflow) block automated crawlers, returning 403 errors
-in CI. Those domains are excluded in `linkinator.config.json`.
+in CI. Host exclusions and the external status policy live in `lychee.toml`.
+External 403, 429, and 5xx responses are tolerated; dead links such as 404 and
+410 remain fatal.
 
-Note: `linkinator` timeouts are configured in **milliseconds** in
-`linkinator.config.json` (see linkinator CLI help).
+`check-links.sh` builds into `.serve-lint`, maps generated `https://sq.io` URLs
+back to that directory, and invokes lychee with either `internal` or `full`
+scope. The nightly workflow uses `make deps-links` so unrelated package
+lifecycle scripts cannot prevent the link crawl from starting.
 
 ## Redirects
 
 - You can use the Hugo [alias](https://gohugo.io/content-management/urls/#aliases) mechanism to
   maintain an old path that will redirect to the new path.
 - If you need a redirect that's not associated with Hugo content, add an entry to
-  the [`static/_redirects`](/static/_redirects) file. This is what the site uses to
+  the [`static/_redirects`](./static/_redirects) file. This is what the site uses to
   serve the [sq.io/install.sh](https://sq.io/install.sh) script.
 
 ## Misc

@@ -9,6 +9,7 @@ package proj
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,6 +30,12 @@ const (
 	DefaultPassw = "p_ssW0rd"
 
 	EnvLogFile = "SQ_LOGFILE"
+
+	// EnvTestConfigFile, when set, overrides the path of the test source
+	// config file the harness loads (default: the in-repo test.sq.yml).
+	// The override file is loaded and its ${scheme:path} placeholders are
+	// resolved exactly like the default file.
+	EnvTestConfigFile = "SQ_TEST_CONFIG_FILE"
 )
 
 var projDir string
@@ -42,52 +49,79 @@ func init() { //nolint:gochecknoinits
 		}
 	}
 
-	var path string
-	envar, ok = os.LookupEnv(EnvRoot)
-	if !ok || envar == "" {
-		dir, err := os.Getwd()
-		if err != nil {
-			panic(err)
-		}
+	// Capture any externally-set SQ_ROOT before we overwrite it below, so we
+	// can warn that it is being ignored.
+	externalRoot, _ := os.LookupEnv(EnvRoot)
 
-		for {
-			if isProjDir(dir) {
-				path = dir
-				break
-			}
+	cwd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
 
-			if os.IsPathSeparator(dir[len(dir)-1]) {
-				// per filepath.Dir contract, we're at the root
-				break
-			}
+	path, ok := findProjDir(cwd)
+	if !ok {
+		panic("unable to determine sq project dir from cwd: " + cwd)
+	}
 
-			dir = filepath.Dir(dir)
-		}
+	if msg, warn := externalRootWarning(externalRoot, path); warn {
+		fmt.Fprintln(os.Stderr, msg)
+	}
 
-		if path == "" {
-			panic("unable to determine sq project dir")
-		}
-
-		// If we get here, we've found the proj dir.
-
-		// Set the env so that os.ExpandEnv etc can use the envar
-		err = os.Setenv(EnvRoot, path)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		var err error
-		path, err = filepath.Abs(envar)
-		if err != nil {
-			panic(err)
-		}
-
-		if !isProjDir(path) {
-			panic("envar " + EnvRoot + " does not appear to be sq project dir: " + envar)
-		}
+	// SQ_ROOT is synthetic: it is always derived in-process from cwd, never
+	// read from the caller's environment. Any externally-set SQ_ROOT is
+	// intentionally ignored, so a stale value exported for a sibling worktree
+	// cannot hijack this run. We set the envar here so os.ExpandEnv (and the
+	// ${env:SQ_ROOT} secret resolver) can read the derived value.
+	if err = os.Setenv(EnvRoot, path); err != nil {
+		panic(err)
 	}
 
 	projDir = path
+}
+
+// findProjDir walks up from startDir to locate the sq project root: the
+// nearest ancestor directory (inclusive) whose go.mod declares the sq module.
+// It returns the project root and true, or ("", false) if no ancestor is the
+// project root (e.g. startDir is outside any sq checkout).
+//
+// startDir must be a non-empty absolute path (the only caller passes
+// os.Getwd()). An empty startDir would panic at the dir[len(dir)-1] check, and
+// a relative startDir would loop forever because filepath.Dir never reaches a
+// path separator for a relative path.
+func findProjDir(startDir string) (dir string, ok bool) {
+	dir = startDir
+	for {
+		if isProjDir(dir) {
+			return dir, true
+		}
+
+		if os.IsPathSeparator(dir[len(dir)-1]) {
+			// per filepath.Dir contract, we're at the root
+			return "", false
+		}
+
+		dir = filepath.Dir(dir)
+	}
+}
+
+// externalRootWarning returns a warning message and true when an external
+// SQ_ROOT envar is set. The test harness ignores SQ_ROOT: the project root is
+// always derived in-process from the working directory, so a lingering value
+// (e.g. exported for a sibling worktree) silently does nothing and can confuse
+// a later run. The message advises unsetting it and names derived, the root
+// actually in use, so the developer can see the effective value. It returns
+// ("", false) when external is unset or whitespace-only.
+func externalRootWarning(external, derived string) (msg string, warn bool) {
+	if strings.TrimSpace(external) == "" {
+		return "", false
+	}
+
+	return fmt.Sprintf(
+		"[sq/testh] warning: SQ_ROOT=%s is set but ignored; the test harness "+
+			"derives the project root from the working directory (%s). Unset "+
+			"SQ_ROOT to avoid confusion, especially across git worktrees.",
+		external, derived,
+	), true
 }
 
 // isProjDir returns true if dir contains a go.mod file
@@ -114,6 +148,11 @@ func isProjDir(dir string) bool {
 	if err != nil {
 		panic(err)
 	}
+	defer func() {
+		if cerr := f.Close(); cerr != nil {
+			panic(cerr)
+		}
+	}()
 
 	gotMatch = false // reuse var
 	scanner := bufio.NewScanner(f)
@@ -124,15 +163,16 @@ func isProjDir(dir string) bool {
 		}
 	}
 
-	err = f.Close()
-	if err != nil {
+	if err := scanner.Err(); err != nil {
 		panic(err)
 	}
+
 	return gotMatch
 }
 
 // Dir returns the absolute path to the root of the sq project,
-// as set in envar EnvRoot or determined programmatically.
+// determined in-process by walking up from the working directory at
+// package-init time. An externally-set SQ_ROOT is ignored.
 func Dir() string {
 	return projDir
 }

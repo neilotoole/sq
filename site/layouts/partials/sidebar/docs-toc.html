@@ -1,4 +1,7 @@
-{{ if and (ne .Params.toc false) (ne .TableOfContents "<nav id=\"TableOfContents\"></nav>") -}}
+{{ $start := .Params.tocStartLevel | default 2 -}}
+{{ $end := .Params.tocEndLevel | default 3 -}}
+{{ $toc := .Fragments.ToHTML $start $end false -}}
+{{ if and (ne .Params.toc false) (ne $toc "<nav id=\"TableOfContents\"></nav>") -}}
 <div class="d-xl-none">
   <button class="btn btn-outline-primary btn-sm doks-toc-toggle collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#onThisPage" aria-controls="doks-docs-nav" aria-expanded="false" aria-label="Toggle On this page navigation">
     <span>{{ i18n "on-this-page" }}</span>
@@ -10,7 +13,7 @@
   <div class="collapse" id="onThisPage">
     <div class="card card-body mt-3 py-1">
       <div class="page-links">
-        {{ .TableOfContents }}
+        {{ $toc }}
       </div>
     </div>
   </div>
@@ -18,9 +21,9 @@
 <div class="page-links d-none d-xl-block">
   <h3>{{ i18n "on-this-page" }}</h3>
   {{ if eq .Site.Params.options.scrollSpy true -}}
-    {{ .TableOfContents | replaceRE "<nav id=\"TableOfContents\">" "<nav id=\"toc\">" | safeHTML }}
+    {{ $toc | replaceRE "<nav id=\"TableOfContents\">" "<nav id=\"toc\">" | safeHTML }}
   {{ else -}}
-    {{ .TableOfContents }}
+    {{ $toc }}
   {{ end -}}
 </div>
 {{ end -}}

@@ -1,1 +1,1 @@
-import 'lazysizes';
+import "lazysizes";

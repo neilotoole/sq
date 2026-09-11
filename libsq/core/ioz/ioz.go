@@ -119,7 +119,8 @@ type delayReader struct {
 // Read implements io.Reader.
 func (d delayReader) Read(p []byte) (n int, err error) {
 	delay := d.delay
-	if d.jitter {
+	// Guard d.delay > 0: mrand.Int63n panics for n <= 0.
+	if d.jitter && d.delay > 0 {
 		delay += time.Duration(mrand.Int63n(int64(d.delay))) / 3 //nolint:gosec
 	}
 
@@ -217,53 +218,29 @@ func (w *notifyWriter) Write(p []byte) (n int, err error) {
 // If r is an [io.ReadCloser], the returned reader will also
 // implement [io.ReadCloser].
 //
-// See also: [NotifyOnErrorReader], which is a generalization of
-// [NotifyOnEOFReader].
+// NotifyOnEOFReader is a specialization of [NotifyOnErrorReader], implemented
+// in terms of it: it forwards to fn only when the error is [io.EOF], and passes
+// any other error through unchanged.
 func NotifyOnEOFReader(r io.Reader, fn func(error) error) io.Reader {
 	if r == nil || fn == nil {
 		return r
 	}
 
-	if rc, ok := r.(io.ReadCloser); ok {
-		return &notifyOnEOFReadCloser{notifyOnEOFReader{r: rc, fn: fn}}
-	}
-
-	return &notifyOnEOFReader{r: r}
-}
-
-type notifyOnEOFReader struct {
-	r  io.Reader
-	fn func(error) error
-}
-
-// Read implements io.Reader.
-func (r *notifyOnEOFReader) Read(p []byte) (n int, err error) {
-	n, err = r.r.Read(p)
-	if err != nil && errors.Is(err, io.EOF) {
-		err = r.fn(err)
-	}
-
-	return n, err
-}
-
-var _ io.ReadCloser = (*notifyOnEOFReadCloser)(nil)
-
-type notifyOnEOFReadCloser struct {
-	notifyOnEOFReader
-}
-
-// Close implements io.Closer.
-func (r *notifyOnEOFReadCloser) Close() error {
-	if c, ok := r.r.(io.Closer); ok {
-		return c.Close()
-	}
-	return nil
+	return NotifyOnErrorReader(r, func(err error) error {
+		if errors.Is(err, io.EOF) {
+			return fn(err)
+		}
+		return err
+	})
 }
 
 // NotifyOnErrorReader returns an [io.Reader] that invokes fn
 // when r.Read returns an error. The error that fn returns is
 // what's returned to the r caller: fn can transform the error
 // or return it unchanged. If r or fn is nil, r is returned.
+//
+// If r is an [io.ReadCloser], the returned reader will also
+// implement [io.ReadCloser].
 //
 // See also: [NotifyOnEOFReader], which is a specialization of
 // [NotifyOnErrorReader].
@@ -272,7 +249,11 @@ func NotifyOnErrorReader(r io.Reader, fn func(error) error) io.Reader {
 		return r
 	}
 
-	return &notifyOnErrorReader{r: r}
+	if rc, ok := r.(io.ReadCloser); ok {
+		return &notifyOnErrorReadCloser{notifyOnErrorReader{r: rc, fn: fn}}
+	}
+
+	return &notifyOnErrorReader{r: r, fn: fn}
 }
 
 type notifyOnErrorReader struct {
@@ -288,6 +269,20 @@ func (r *notifyOnErrorReader) Read(p []byte) (n int, err error) {
 	}
 
 	return n, err
+}
+
+var _ io.ReadCloser = (*notifyOnErrorReadCloser)(nil)
+
+type notifyOnErrorReadCloser struct {
+	notifyOnErrorReader
+}
+
+// Close implements io.Closer.
+func (r *notifyOnErrorReadCloser) Close() error {
+	if c, ok := r.r.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
 }
 
 var _ io.Writer = (*WrittenWriter)(nil)
@@ -484,10 +479,16 @@ type errorAfterBytesReader struct {
 
 	// count is the number of bytes read so far.
 	count int
+
+	// mu guards count for concurrent Read calls, matching errorAfterRandNReader.
+	mu sync.Mutex
 }
 
 // Read implements io.Reader.
 func (e *errorAfterBytesReader) Read(p []byte) (n int, err error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
 	if e.count >= e.errorAtCount {
 		return 0, e.err
 	}

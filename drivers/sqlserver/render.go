@@ -10,6 +10,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/schema"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 func renderRange(_ *render.Context, rr *ast.RowRangeNode) (string, error) {
@@ -31,10 +32,10 @@ func renderRange(_ *render.Context, rr *ast.RowRangeNode) (string, error) {
 	offset := max(rr.Offset, 0)
 
 	var buf strings.Builder
-	buf.WriteString(fmt.Sprintf("OFFSET %d ROWS", offset))
+	fmt.Fprintf(&buf, "OFFSET %d ROWS", offset)
 
 	if rr.Limit > -1 {
-		buf.WriteString(fmt.Sprintf(" FETCH NEXT %d ROWS ONLY", rr.Limit))
+		fmt.Fprintf(&buf, " FETCH NEXT %d ROWS ONLY", rr.Limit)
 	}
 
 	sql := buf.String()
@@ -102,23 +103,30 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 }
 
 // buildCreateTableStmt builds a CREATE TABLE statement from tblDef.
-// The implementation is minimal: it does not honor PK, FK, etc.
+// The implementation is minimal: it honors PKColName (as an inline
+// PRIMARY KEY, which implies NOT NULL) but not FK, etc. The PRIMARY KEY
+// clause is emitted after the DEFAULT / NOT NULL block, mirroring the
+// postgres and oracle builders (#1029).
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	sb := strings.Builder{}
-	sb.WriteString(`CREATE TABLE "`)
-	sb.WriteString(tblDef.Name)
-	sb.WriteString("\" (")
+	sb.WriteString(`CREATE TABLE `)
+	sb.WriteString(stringz.DoubleQuote(tblDef.Name))
+	sb.WriteString(" (")
 
 	for i, colDef := range tblDef.Cols {
-		sb.WriteString("\n\"")
-		sb.WriteString(colDef.Name)
-		sb.WriteString("\" ")
+		sb.WriteRune('\n')
+		sb.WriteString(stringz.DoubleQuote(colDef.Name))
+		sb.WriteRune(' ')
 		sb.WriteString(dbTypeNameFromKind(colDef.Kind))
 
 		if colDef.NotNull {
 			sb.WriteRune(' ')
 			sb.WriteString(createTblKindDefaults[colDef.Kind])
 			sb.WriteString(" NOT NULL")
+		}
+
+		if colDef.Name == tblDef.PKColName {
+			sb.WriteString(" PRIMARY KEY")
 		}
 
 		if i < len(tblDef.Cols)-1 {
@@ -137,11 +145,16 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	sb := strings.Builder{}
-	sb.WriteString(`UPDATE "`)
-	sb.WriteString(tbl)
-	sb.WriteString(`" SET "`)
-	sb.WriteString(strings.Join(cols, `" = ?, "`))
-	sb.WriteString(`" = ?`)
+	sb.WriteString(`UPDATE `)
+	sb.WriteString(stringz.DoubleQuote(tbl))
+	sb.WriteString(` SET `)
+	for i, col := range cols {
+		if i > 0 {
+			sb.WriteString(`, `)
+		}
+		sb.WriteString(stringz.DoubleQuote(col))
+		sb.WriteString(` = ?`)
+	}
 	if where != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(where)

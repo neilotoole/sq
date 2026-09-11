@@ -156,10 +156,12 @@ func TestRefineBareNumberKind(t *testing.T) {
 		ok               bool
 		want             kind.Kind
 	}{
-		// COUNT(*), SUM, integer literals — Oracle reports (38, 255).
-		{"floating_38_255", 38, oracleScaleFloating, true, kind.Int},
-		// Same shape, different precision — still floating.
-		{"floating_0_255", 0, oracleScaleFloating, true, kind.Int},
+		// The floating-scale form (scale 255) is ambiguous: COUNT(*), SUM, AVG,
+		// integer literals, and division all report it. It maps to kind.Decimal
+		// so fractional values (e.g. division) don't crash an int64 scan (#844).
+		{"floating_38_255", 38, oracleScaleFloating, true, kind.Decimal},
+		// Same shape, different precision — still floating, still decimal.
+		{"floating_0_255", 0, oracleScaleFloating, true, kind.Decimal},
 		// NUMBER(p,0) with p in [1..19] is int range.
 		{"int_5_0", 5, 0, true, kind.Int},
 		{"int_19_0", 19, 0, true, kind.Int},
@@ -303,6 +305,32 @@ func TestKindFromDBTypeName(t *testing.T) {
 			t.Parallel()
 			got := kindFromDBTypeName(nil, "col", dbTypeName)
 			require.Equal(t, want, got, "%q should map to %s, got %s", dbTypeName, want, got)
+		})
+	}
+}
+
+func TestParseSemver(t *testing.T) {
+	testCases := []struct {
+		raw     string
+		want    string
+		wantErr bool
+	}{
+		{raw: "23.26.1.0.0", want: "v23.26.1"}, // five-part; regex caps at three
+		{raw: "19.0.0.0.0", want: "v19.0.0"},
+		{raw: "23.5.0.24.07", want: "v23.5.0"},
+		{raw: "not-a-version", wantErr: true},
+		{raw: "", wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.raw, func(t *testing.T) {
+			got, err := parseSemver(tc.raw)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

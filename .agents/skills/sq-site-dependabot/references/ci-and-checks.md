@@ -22,7 +22,7 @@ or edge functions.
 | Stable lint + internal links | `make site-test` / test:ci | **Yes**       |
 | External link crawl          | `bun run lint:links`       | **No**        |
 
-False positives: third-party sites returning 403/timeout to linkinator. If
+False positives: third-party sites returning errors or timing out in lychee. If
 **only** the external crawl step failed, re-check `make site-test` locally before
 holding a T0/T1 PR.
 

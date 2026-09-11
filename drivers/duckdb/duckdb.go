@@ -92,31 +92,51 @@ func (d *driveri) LocationShape() driver.LocationShape {
 // DriverMetadata implements driver.Driver.
 func (d *driveri) DriverMetadata() driver.Metadata {
 	return driver.Metadata{
-		Type:        drivertype.DuckDB,
-		Description: "DuckDB",
-		Doc:         "https://duckdb.org",
-		IsSQL:       true,
+		Type:          drivertype.DuckDB,
+		Description:   "DuckDB",
+		Doc:           "https://duckdb.org",
+		IsSQL:         true,
+		IsEmbeddedSQL: true,
 	}
 }
 
 // Open implements driver.Driver.
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source, mode driver.AccessMode) (driver.Grip, error) {
 	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
-	db, err := d.doOpen(ctx, src)
+	db, err := d.doOpen(ctx, src, mode)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
-func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
+func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.AccessMode) (*sql.DB, error) {
 	loc := src.Location
-	if driver.IsReadOnly(ctx) {
+	if mode.IsReadOnly() {
+		// Defense-in-depth: an explicit read-only request against a
+		// location that explicitly demands write access (access_mode=
+		// READ_WRITE) is a hard conflict. ApplyReadOnlyToLocation would
+		// silently let READ_WRITE win, so refuse here rather than open
+		// read-write under a read-only request. The CLI (cmd_sql) also
+		// surfaces this preemptively before any open; this guard covers
+		// every ModeReadOnlyExplicit caller (Open and Ping) regardless
+		// of entry point. Only explicit RO conflicts: implicit RO lets
+		// the location win (see ApplyReadOnlyToLocation).
+		if mode == driver.ModeReadOnlyExplicit {
+			if conflict, ok := d.DetectReadOnlyConflict(loc); ok {
+				return nil, errz.Errorf(
+					"duckdb: cannot open %s read-only: its location sets %s", src.Handle, conflict,
+				)
+			}
+		}
 		var changed bool
-		loc, changed = ApplyReadOnlyToLocation(loc, driver.IsReadOnlyExplicit(ctx))
+		loc, changed = ApplyReadOnlyToLocation(loc, mode == driver.ModeReadOnlyExplicit)
 		if changed {
 			lg.FromContext(ctx).Debug("DuckDB source opened READ_ONLY",
 				lga.Src, src)
@@ -219,9 +239,14 @@ func MungeLocation(loc string) (string, error) {
 	return location.MungeTemplateForDriver(drivertype.DuckDB, loc)
 }
 
-// Ping implements driver.Driver.
-func (d *driveri) Ping(ctx context.Context, src *source.Source) error {
-	db, err := d.doOpen(ctx, src)
+// Ping implements driver.Driver. DuckDB honors mode: the ping opens the
+// connection via doOpen in the requested mode, so ModeReadOnly takes no
+// write lock and fails on a missing file (DuckDB READ_ONLY requires an
+// existing file), while ModeReadWrite creates a missing file. This is why
+// "sq add" of a new .duckdb file (which pings ModeReadWrite) creates it,
+// while "sq ping" (ModeReadOnly) does not. See driver.Driver.Ping.
+func (d *driveri) Ping(ctx context.Context, src *source.Source, mode driver.AccessMode) error {
+	db, err := d.doOpen(ctx, src, mode)
 	if err != nil {
 		return err
 	}
@@ -327,7 +352,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 // are represented as nil in the driver.Value slice. The munge function
 // converts duckdb-specific types (Decimal, Interval, *big.Int, composites)
 // to sq's canonical record types.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, kindHints map[int]kind.Kind) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	ctData := make([]*record.ColumnTypeData, len(colTypes))
@@ -335,6 +360,14 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (
 	for i, ct := range colTypes {
 		dbTypeName := ct.DatabaseTypeName()
 		knd := kindFromDBTypeName(dbTypeName)
+		if hint, ok := kindHints[i]; ok {
+			// A renderer-pinned kind (e.g. sum() forced to decimal; see #853)
+			// overrides the kind derived from the DB type name. The munge
+			// coerces the scanned value to match the pinned kind. Setting the
+			// kind here also takes it out of the Unknown state, so the later
+			// SetKindIfUnknown calls in the munge leave it alone.
+			knd = hint
+		}
 		colTypeData := record.NewColumnTypeData(ct, knd)
 		// Always use *any as the scan target. go-duckdb delivers native Go
 		// values (int32, float32, string, time.Time, duckdb.Decimal, etc.)
@@ -435,11 +468,9 @@ func newRecordFuncForDuckDB(log *slog.Logger, recMeta record.Meta) driver.NewRec
 
 			// ---- floats ----
 			case float32:
-				record.SetKindIfUnknown(recMeta, i, kind.Float)
-				rec[i] = float64(v)
+				rec[i] = coerceDuckDBFloat(recMeta, i, float64(v))
 			case float64:
-				record.SetKindIfUnknown(recMeta, i, kind.Float)
-				rec[i] = v
+				rec[i] = coerceDuckDBFloat(recMeta, i, v)
 
 			// ---- DECIMAL (duckdb.Decimal → shopspring decimal.Decimal) ----
 			case duckdbdriver.Decimal:
@@ -517,6 +548,21 @@ func newRecordFuncForDuckDB(log *slog.Logger, recMeta record.Meta) driver.NewRec
 	}
 }
 
+// coerceDuckDBFloat normalizes a float value scanned from DuckDB for column i.
+// If that column's kind has been pinned to decimal (e.g. sum() over a DOUBLE
+// column; see #853), the float is promoted to a decimal.Decimal so the surfaced
+// value matches the surfaced kind, mirroring sum()'s decimal harmonization on
+// the other drivers. DuckDB still computed the value in float, so it can carry
+// float drift; this is the same tradeoff accepted for sqlite3/rqlite. Otherwise
+// the column defaults to float and the value is returned unchanged.
+func coerceDuckDBFloat(recMeta record.Meta, i int, v float64) any {
+	if recMeta[i].Kind() == kind.Decimal {
+		return decimal.NewFromFloat(v)
+	}
+	record.SetKindIfUnknown(recMeta, i, kind.Float)
+	return v
+}
+
 // CreateTable implements driver.SQLDriver.
 func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Table) error {
 	stmt := buildCreateTableStmt(tblDef)
@@ -526,14 +572,14 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Ta
 
 // CreateSchema implements driver.SQLDriver.
 func (d *driveri) CreateSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
-	stmt := fmt.Sprintf(`CREATE SCHEMA %q`, schemaName)
+	stmt := "CREATE SCHEMA " + stringz.DoubleQuote(schemaName)
 	_, err := db.ExecContext(ctx, stmt)
 	return errz.Wrapf(errw(err), "duckdb: create schema {%s}", schemaName)
 }
 
 // DropSchema implements driver.SQLDriver.
 func (d *driveri) DropSchema(ctx context.Context, db sqlz.DB, schemaName string) error {
-	stmt := fmt.Sprintf(`DROP SCHEMA %q CASCADE`, schemaName)
+	stmt := "DROP SCHEMA " + stringz.DoubleQuote(schemaName) + " CASCADE"
 	_, err := db.ExecContext(ctx, stmt)
 	return errz.Wrapf(errw(err), "duckdb: drop schema {%s}", schemaName)
 }
@@ -562,13 +608,13 @@ func (d *driveri) SchemaExists(ctx context.Context, db sqlz.DB, schma string) (b
 // independently of the data and there is no direct analogue to SQLite's
 // sqlite_sequence.
 func (d *driveri) Truncate(ctx context.Context, src *source.Source, tbl string, _ bool) (int64, error) {
-	db, err := d.doOpen(ctx, src)
+	db, err := d.doOpen(ctx, src, driver.ModeReadWrite)
 	if err != nil {
 		return 0, errw(err)
 	}
 	defer lg.WarnIfFuncError(d.log, lgm.CloseDB, db.Close)
 
-	affected, err := sqlz.ExecAffected(ctx, db, fmt.Sprintf("DELETE FROM %q", tbl))
+	affected, err := sqlz.ExecAffected(ctx, db, "DELETE FROM "+stringz.DoubleQuote(tbl))
 	if err != nil {
 		return 0, errw(err)
 	}
@@ -691,6 +737,7 @@ type grip struct {
 	db       *sql.DB
 	src      *source.Source
 	drvr     *driveri
+	semver   driver.SemverCache
 
 	// closeOnce guards Close so that subsequent calls are no-op and return
 	// the same error. DuckDB takes a process-exclusive lock on the database
@@ -719,6 +766,11 @@ func (g *grip) Source() *source.Source {
 // SourceMetadata implements driver.Grip.
 func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Source, error) {
 	return getSourceMetadata(ctx, g.src, g.db, noSchema)
+}
+
+// DBSemver implements driver.Grip.
+func (g *grip) DBSemver(ctx context.Context) (string, error) {
+	return g.semver.Get(func() (string, error) { return g.drvr.DBSemver(ctx, g.db) })
 }
 
 // TableMetadata implements driver.Grip.

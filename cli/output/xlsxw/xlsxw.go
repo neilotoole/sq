@@ -116,7 +116,16 @@ func (w *recordWriter) getDecimalStyle(dec decimal.Decimal) (int, error) {
 		builtinNumFmtTwoPlaces  = 2 // e.g. "77.00"
 	)
 
-	places := int(stringz.DecimalPlaces(dec))
+	// Derive the displayed scale from the trimmed rendering (FormatDecimal),
+	// not the decimal's raw exponent, so xlsx matches the trailing-zero
+	// trimming that every text format applies. Otherwise a fixed-scale cast
+	// (e.g. sum() -> DECIMAL(38,6)) would show trailing zeros in xlsx that
+	// the other formats drop. See issue #839.
+	places := 0
+	s := stringz.FormatDecimal(dec)
+	if i := strings.IndexByte(s, '.'); i >= 0 {
+		places = len(s) - i - 1
+	}
 	if styleID, ok := w.mDecimalPlacesStyles[places]; ok {
 		return styleID, nil
 	}
@@ -201,9 +210,11 @@ func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 
 // setColWidth takes the zero-indexed col, and sets its width.
 func (w *recordWriter) setColWidth(col, width int) error {
-	colName := string(rune('A' + col))
-	err := w.xfile.SetColWidth(SheetName, colName, colName, float64(width))
-	return errw(err)
+	colName, err := excelize.ColumnNumberToName(col + 1)
+	if err != nil {
+		return errw(err)
+	}
+	return errw(w.xfile.SetColWidth(SheetName, colName, colName, float64(width)))
 }
 
 // Flush implements output.RecordWriter.

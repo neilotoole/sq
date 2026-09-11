@@ -34,15 +34,13 @@ func FormatFloat(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
 
-// FormatDecimal formats d with the appropriate number of decimal
-// places as defined by d's exponent.
+// FormatDecimal formats d with trailing fractional zeros trimmed, so the
+// same value renders identically regardless of the scale it was computed
+// with. This keeps aggregate output (e.g. sum()) consistent across SQL
+// drivers, whose casts produce differing scales for the same result. See
+// issue #839. Use DecimalPlaces if the scale (from d's exponent) is needed.
 func FormatDecimal(d decimal.Decimal) string {
-	exp := d.Exponent()
-	var places int32
-	if exp < 0 {
-		places = -exp
-	}
-	return d.StringFixed(places)
+	return d.String()
 }
 
 // DecimalPlaces returns the count of decimal places in d. That is to

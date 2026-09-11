@@ -17,21 +17,23 @@ import (
 
 // AlterTableRename implements driver.SQLDriver.
 func (d *driveri) AlterTableRename(ctx context.Context, db sqlz.DB, tbl, newName string) error {
-	q := fmt.Sprintf(`ALTER TABLE %q RENAME TO %q`, tbl, newName)
+	q := fmt.Sprintf(`ALTER TABLE %s RENAME TO %s`, stringz.DoubleQuote(tbl), stringz.DoubleQuote(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename table {%s} to {%s}", tbl, newName)
 }
 
 // AlterTableRenameColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableRenameColumn(ctx context.Context, db sqlz.DB, tbl, col, newName string) error {
-	q := fmt.Sprintf("ALTER TABLE %q RENAME COLUMN %q TO %q", tbl, col, newName)
+	q := fmt.Sprintf("ALTER TABLE %s RENAME COLUMN %s TO %s",
+		stringz.DoubleQuote(tbl), stringz.DoubleQuote(col), stringz.DoubleQuote(newName))
 	_, err := db.ExecContext(ctx, q)
 	return errz.Wrapf(errw(err), "alter table: failed to rename column {%s.%s} to {%s}", tbl, col, newName)
 }
 
 // AlterTableAddColumn implements driver.SQLDriver.
 func (d *driveri) AlterTableAddColumn(ctx context.Context, db sqlz.DB, tbl, col string, knd kind.Kind) error {
-	q := fmt.Sprintf("ALTER TABLE %q ADD COLUMN %q ", tbl, col) + DBTypeForKind(knd)
+	q := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s ",
+		stringz.DoubleQuote(tbl), stringz.DoubleQuote(col)) + DBTypeForKind(knd)
 
 	_, err := db.ExecContext(ctx, q)
 	if err != nil {
@@ -197,7 +199,8 @@ func readSqliteSequence(ctx context.Context, db sqlz.DB, tbl string) (sql.NullIn
 	// sqlite_sequence only exists once an AUTOINCREMENT table has been
 	// created in the DB; querying it blindly would error.
 	var n int
-	if err := db.QueryRowContext(ctx,
+	if err := db.QueryRowContext(
+		ctx,
 		"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'",
 	).Scan(&n); err != nil {
 		return seq, errz.Wrap(errw(err),
@@ -207,7 +210,8 @@ func readSqliteSequence(ctx context.Context, db sqlz.DB, tbl string) (sql.NullIn
 		return seq, nil
 	}
 
-	if err := db.QueryRowContext(ctx,
+	if err := db.QueryRowContext(
+		ctx,
 		"SELECT seq FROM sqlite_sequence WHERE name=?", tbl,
 	).Scan(&seq); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return seq, errz.Wrapf(errw(err),
@@ -220,6 +224,14 @@ func readSqliteSequence(ctx context.Context, db sqlz.DB, tbl string) (sql.NullIn
 // pragmaDisableForeignKeys disables foreign keys, returning a function that
 // restores the original state of the foreign_keys pragma. If an error occurs,
 // the returned restore function will be nil.
+//
+// Caveat: "PRAGMA foreign_keys" is a no-op inside an open transaction. SQLite
+// silently ignores both the disable and the restore (no error is returned), so
+// a caller that runs this within a transaction does NOT actually disable
+// enforcement. Callers that depend on foreign keys really being off must invoke
+// this in autocommit context. This is currently safe for the JSON/JSONL ingest
+// path (gh866), whose cache tables have no foreign keys, but it is a trap for
+// any future caller of AlterTableColumnKinds inside a transaction.
 func pragmaDisableForeignKeys(ctx context.Context, db sqlz.DB) (restore func(), err error) {
 	pragmaFkExisting, err := readPragma(ctx, db, "foreign_keys")
 	if err != nil {

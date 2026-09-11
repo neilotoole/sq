@@ -212,7 +212,7 @@ Exit status is 0 if inputs are the same, 1 if different, 2 on any error.`,
 
 	panicOn(cmd.RegisterFlagCompletionFunc(
 		OptDiffDataFormat.Flag().Name,
-		completeStrings(-1, stringz.Strings(diffFormats)...),
+		completeStrings(stringz.Strings(diffFormats)...),
 	))
 
 	addOptionFlag(cmd.Flags(), driver.OptIngestCache)
@@ -221,8 +221,7 @@ Exit status is 0 if inputs are the same, 1 if different, 2 on any error.`,
 
 // execDiff compares sources or tables.
 func execDiff(cmd *cobra.Command, args []string) (err error) {
-	ctx := driver.WithReadOnly(cmd.Context())
-	cmd.SetContext(ctx)
+	ctx := cmd.Context()
 	ru := run.FromContext(ctx)
 
 	var foundDiffs bool
