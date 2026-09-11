@@ -37,7 +37,7 @@ full list.
 list install and load automatically on first use (needs network once per DuckDB version; cached
 in `~/.duckdb`). You can query remote or local files directly, e.g. `read_parquet('file.parquet')`
 or `read_csv_auto('https://example.com/data.csv')`. Extensions outside that list (`spatial`,
-community extensions) need explicit `INSTALL`/`LOAD` and are not usable via `sq sql`.
+community extensions) need explicit `INSTALL`/`LOAD`, which is not supported via `sq sql`.
 `COPY ... TO 'x.xlsx'` is not autoloaded either; use `sq --xlsx` output to write Excel files.
 `enable_external_access=false` disables autoload of all non-static extensions.
 

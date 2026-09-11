@@ -60,8 +60,8 @@ automatically the first time a query uses them. The first use downloads the
 extension into DuckDB's extension directory (`~/.duckdb` by default), so it
 needs network access once per DuckDB version; after that it is cached.
 Extensions outside that list (for example `spatial`, and community
-extensions) need an explicit `INSTALL` and `LOAD`, and are not usable through
-`sq sql`, which accepts a single statement.
+extensions) need an explicit `INSTALL` and `LOAD`, which is not supported
+through `sq sql` (it is designed for a single statement).
 
 ```sql
 -- Query a Parquet file directly (statically linked)
@@ -75,7 +75,7 @@ SELECT * FROM read_parquet('s3://bucket/key.parquet');
 ```
 
 DuckDB does not autoload `excel` for `COPY ... TO 'file.xlsx'`, so that
-statement is not available through `sq sql`. To write Excel files, use `sq`'s
+statement is not supported through `sq sql`. To write Excel files, use `sq`'s
 own [`--xlsx`](/docs/output#xlsx) output instead:
 
 ```shell
