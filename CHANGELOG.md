@@ -12,6 +12,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## [Unreleased]
+
+### Changed
+
+- [#1013]: Querying a remote source now makes one fewer server round-trip per `sq`
+  invocation. The server version, needed for version-aware SQL rendering, is read
+  during the connectivity check when the source is opened, instead of in a
+  separate query.
+
 ## [v0.55.0] - 2026-09-09
 
 ### Added
@@ -1773,6 +1782,7 @@ make working with lots of sources much easier.
 [#976]: https://github.com/neilotoole/sq/pull/976
 [#986]: https://github.com/neilotoole/sq/issues/986
 [#994]: https://github.com/neilotoole/sq/pull/994
+[#1013]: https://github.com/neilotoole/sq/issues/1013
 [#1017]: https://github.com/neilotoole/sq/issues/1017
 [#1136]: https://github.com/neilotoole/sq/issues/1136
 [#1151]: https://github.com/neilotoole/sq/issues/1151

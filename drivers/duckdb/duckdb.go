@@ -107,10 +107,13 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, mode driver.Acce
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.AccessMode) (*sql.DB, error) {
