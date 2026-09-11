@@ -12,6 +12,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -311,12 +312,15 @@ func TestDBExecContext_DDL_CREATE(t *testing.T) {
 			db, err := grip.DB(th.Context)
 			require.NoError(t, err)
 
+			// Register the drop before creating the table: if an assertion
+			// below fails, the table must still be reaped from the shared
+			// container. Helper.DropTable uses ifExists semantics, so it's
+			// a no-op if the table was never created.
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tableName)) })
+
 			result, err := db.ExecContext(th.Context, tc.createSQL)
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			t.Cleanup(func() {
-				_, _ = db.ExecContext(th.Context, `DROP TABLE IF EXISTS `+tableName)
-			})
 
 			// Verify table was created by querying it.
 			var count int
@@ -674,6 +678,13 @@ func TestExecSQL_DDL_DML(t *testing.T) {
 		t.Run(tc.handle, func(t *testing.T) {
 			th := testh.New(t)
 			src := th.Source(tc.handle)
+
+			// Register the drop before creating the table: if any of the
+			// DML steps below fails, the final DROP TABLE statement never
+			// executes, and the table must still be reaped from the shared
+			// container. Helper.DropTable uses ifExists semantics, so it's
+			// a no-op when the inline drop already ran.
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tableName)) })
 
 			// Test CREATE TABLE
 			affected := th.ExecSQL(src, tc.createSQL)

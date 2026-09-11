@@ -24,19 +24,23 @@ func TestCmdTblCopy(t *testing.T) { //nolint:tparallel
 			srcTblHandle := src.Handle + "." + sakila.TblActor
 			destTbl1 := stringz.UniqTableName(sakila.TblActor)
 
+			// Register the drop before executing the copy: if the command or
+			// an assertion below fails, the table must still be reaped from
+			// the shared container. Helper.DropTable uses ifExists semantics,
+			// so it's a no-op if the table was never created.
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(destTbl1)) })
 			tr1 := testrun.New(th.Context, t, nil).Add(*src)
 			err := tr1.Exec("tbl", "copy", "--data=false", srcTblHandle, src.Handle+"."+destTbl1)
 			require.NoError(t, err)
-			defer th.DropTable(src, tablefq.From(destTbl1))
 			require.Equal(t, int64(0), th.RowCount(src, destTbl1),
 				"should not have copied any rows because --data=false")
 
 			// --data=true
-			tr2 := testrun.New(th.Context, t, nil).Add(*src)
 			destTbl2 := stringz.UniqTableName(sakila.TblActor)
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(destTbl2)) })
+			tr2 := testrun.New(th.Context, t, nil).Add(*src)
 			err = tr2.Exec("tbl", "copy", "--data=true", srcTblHandle, src.Handle+"."+destTbl2)
 			require.NoError(t, err)
-			defer th.DropTable(src, tablefq.From(destTbl2))
 			require.Equal(t, int64(sakila.TblActorCount), th.RowCount(src, destTbl2),
 				"should have copied rows because --data=true")
 		})
@@ -50,14 +54,10 @@ func TestCmdTblDrop(t *testing.T) { //nolint:tparallel
 
 			th := testh.New(t)
 			src := th.Source(handle)
-			destTblName := th.CopyTable(false, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
-			needsDrop := true
-
-			defer func() {
-				if needsDrop {
-					th.DropTable(src, tablefq.From(destTblName))
-				}
-			}()
+			// dropAfter=true registers an ifExists drop at creation time, so
+			// the table is reaped even if an assertion below fails; it's a
+			// no-op after the "tbl drop" command drops the table.
+			destTblName := th.CopyTable(true, src, tablefq.From(sakila.TblActor), tablefq.T{}, true)
 
 			tblMeta, err := th.Open(src).TableMetadata(th.Context, destTblName)
 			require.NoError(t, err) // verify that the table exists
@@ -73,7 +73,6 @@ func TestCmdTblDrop(t *testing.T) { //nolint:tparallel
 
 			err = testrun.New(th.Context, t, nil).Add(*src).Exec("tbl", "drop", src.Handle+"."+destTblName)
 			require.NoError(t, err)
-			needsDrop = false
 
 			tblMeta, err = th.Open(src).TableMetadata(th.Context, destTblName)
 			require.Error(t, err, "should get an error because the table was dropped")
