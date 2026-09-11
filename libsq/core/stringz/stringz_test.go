@@ -3,6 +3,7 @@ package stringz_test
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"unicode"
@@ -586,4 +587,91 @@ func TestUniqTableName_Sanitize(t *testing.T) {
 	require.NotContains(t, got, "@")
 	require.NotContains(t, got, "/")
 	require.Equal(t, got, strings.ToLower(got))
+}
+
+func TestHasUniqTableNameSuffix(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		in   string
+		want bool
+	}{
+		// The name from the gh1160 flake report.
+		{"vdef_view__bhx8wuhv", true},
+		{"tbl__a1234567", true},
+		// UniqTableName falls back to "tbl" for an empty input.
+		{"tbl__abcdefgh", true},
+		// Sakila's permanent views and tables must never match.
+		{"actor_info", false},
+		{"customer_list", false},
+		{"film_list", false},
+		{"nicer_but_slower_film_list", false},
+		{"sales_by_film_category", false},
+		{"sales_by_store", false},
+		{"staff_list", false},
+		{"actor", false},
+		{"", false},
+		// Single underscore, not the double that UniqTableName appends.
+		{"vdef_view_bhx8wuhv", false},
+		// Uniq8's first rune is a letter, so a leading digit is not a match.
+		{"vdef_view__1bx8wuhv", false},
+		// Suffix must be exactly 8 runes.
+		{"vdef_view__bhx8wuh", false},
+		{"vdef_view__bhx8wuhvv", false},
+		// Uniq8 is lower-case only.
+		{"vdef_view__BHX8WUHV", false},
+		// Must be a suffix, not a substring.
+		{"vdef_view__bhx8wuhv_x", false},
+	}
+
+	for _, tc := range testCases {
+		require.Equal(t, tc.want, stringz.HasUniqTableNameSuffix(tc.in), tc.in)
+	}
+}
+
+// TestHasUniqTableNameSuffix_gh1160 replays the exact ListTableNames result
+// from the gh1160 flake, where a concurrently-created view from another test
+// package pushed the count from 7 to 8. This is the filter that
+// TestSQLDriver_ListTableNames_ArgSchemaNotEmpty applies; that test needs live
+// Sakila databases, so the filtering logic is covered here instead.
+func TestHasUniqTableNameSuffix_gh1160(t *testing.T) {
+	t.Parallel()
+
+	// Verbatim from the failure: "should have 7 item(s), but has 8".
+	got := []string{
+		"actor_info",
+		"customer_list",
+		"film_list",
+		"nicer_but_slower_film_list",
+		"sales_by_film_category",
+		"sales_by_store",
+		"staff_list",
+		"vdef_view__bhx8wuhv",
+	}
+
+	gotViews := slices.DeleteFunc(slices.Clone(got), stringz.HasUniqTableNameSuffix)
+
+	require.Len(t, gotViews, 7)
+	require.Equal(t, []string{
+		"actor_info",
+		"customer_list",
+		"film_list",
+		"nicer_but_slower_film_list",
+		"sales_by_film_category",
+		"sales_by_store",
+		"staff_list",
+	}, gotViews, "the seven permanent Sakila views must survive filtering")
+}
+
+// TestHasUniqTableNameSuffix_MatchesGenerator guards the coupling between
+// UniqTableName and HasUniqTableNameSuffix: if the suffix format changes,
+// the predicate must change with it.
+func TestHasUniqTableNameSuffix_MatchesGenerator(t *testing.T) {
+	t.Parallel()
+
+	for _, tbl := range []string{"", "a", "vdef_view", "My@Tbl/Name", strings.Repeat("a", 88)} {
+		got := stringz.UniqTableName(tbl)
+		require.True(t, stringz.HasUniqTableNameSuffix(got),
+			"UniqTableName(%q) = %q, which HasUniqTableNameSuffix does not match", tbl, got)
+	}
 }
