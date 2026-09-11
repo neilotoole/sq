@@ -8,7 +8,7 @@ all shared rules.
 
 > [!IMPORTANT]
 > Before making a significant change, review [`docs/README.md`](./docs/README.md)
-> and the contributor docs it links to (architecture, drivers, grammar, workflows,
+> and the contributor docs it links to (architecture, drivers, grammar, development, CI,
 > Sakila, releasing). Read the ones relevant to your task before you start, and
 > if your change makes any of them inaccurate, update them in the same change.
 
@@ -37,8 +37,10 @@ task:
   structure, type mapping, the driver ship checklist).
 - [`docs/GRAMMAR.md`](./docs/GRAMMAR.md): SLQ query language grammar guide
   (companion to [`grammar/SLQ.g4`](./grammar/SLQ.g4)).
-- [`docs/WORKFLOW.md`](./docs/WORKFLOW.md): development and CI workflows (local
-  `Makefile` loop and the GitHub Actions pipelines).
+- [`docs/DEVELOPER.md`](./docs/DEVELOPER.md): the local development loop
+  (`Makefile` targets, inner loop, git hooks).
+- [`docs/CI.md`](./docs/CI.md): how CI works (what runs on a PR, nightly, and
+  on a release tag; the DB integration matrix; the release path).
 - [`docs/SAKILA.md`](./docs/SAKILA.md): the Sakila test dataset (`sakiladb`
   images, embedded vs external sources, engine matrix, repo-wide usage).
 - [sq.io](https://sq.io): end-user documentation for commands and query

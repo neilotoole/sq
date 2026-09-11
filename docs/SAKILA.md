@@ -82,18 +82,18 @@ handle to a location:
 
 [`.github/sakila-db.json`](../.github/sakila-db.json) is the **single source of
 truth** for the external engines: for each engine it records the container
-port, the DSN, the `SQ_TEST_SRC__SAKILA_*` envar name, the test packages, and
+port, the DSN, the `SQ_TEST_SRC__SAKILA_*` envar name, and
 the image `tags` (versions) to exercise. It is shared by both CI and the local
 scripts, so they never drift.
 
-| Engine     | Envar                    | Port | Image tags     |
-| ---------- | ------------------------ | ---- | -------------- |
-| postgres   | `SQ_TEST_SRC__SAKILA_PG` | 5432 | latest, 17, 12 |
-| mysql      | `SQ_TEST_SRC__SAKILA_MY` | 3306 | latest, 9, 8   |
-| sqlserver  | `SQ_TEST_SRC__SAKILA_MS` | 1433 | latest, 2019   |
-| clickhouse | `SQ_TEST_SRC__SAKILA_CH` | 9000 | latest         |
-| oracle     | `SQ_TEST_SRC__SAKILA_OR` | 1521 | latest         |
-| rqlite     | `SQ_TEST_SRC__SAKILA_RQ` | 4001 | latest         |
+| Engine     | Envar                    | Port | Image tags                                    |
+| ---------- | ------------------------ | ---- | --------------------------------------------- |
+| postgres   | `SQ_TEST_SRC__SAKILA_PG` | 5432 | latest, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9 |
+| mysql      | `SQ_TEST_SRC__SAKILA_MY` | 3306 | latest, 9, 8, 5.7, 5.6                        |
+| sqlserver  | `SQ_TEST_SRC__SAKILA_MS` | 1433 | latest, 2022, 2019                            |
+| clickhouse | `SQ_TEST_SRC__SAKILA_CH` | 9000 | latest, 25                                    |
+| oracle     | `SQ_TEST_SRC__SAKILA_OR` | 1521 | latest, 23                                    |
+| rqlite     | `SQ_TEST_SRC__SAKILA_RQ` | 4001 | latest, 10                                    |
 
 ## Running external engines locally
 
@@ -115,10 +115,12 @@ make test                           # external-engine tests now run
 ## CI
 
 In CI, the same matrix drives the reusable **DB integration** workflow
-(nightly at `:latest`, a weekly full version sweep, or on demand). See
-[`docs/WORKFLOW.md`](./WORKFLOW.md#database-integration-tests) for how
-[`db-integration.yml`](../.github/workflows/db-integration.yml) and
-[`db-scheduled.yml`](../.github/workflows/db-scheduled.yml) consume
+(nightly at the version bookends, weekly at every version, on driver PRs, on release tags,
+or on demand). See
+[`docs/CI.md`](./CI.md#db-integration) for how
+[`db-integration.yml`](../.github/workflows/db-integration.yml),
+[`db-scheduled.yml`](../.github/workflows/db-scheduled.yml),
+[`db-pr.yml`](../.github/workflows/db-pr.yml), and `main.yml`'s `db-release` job consume
 [`.github/sakila-db.json`](../.github/sakila-db.json).
 
 ## Regenerating embedded fixtures
@@ -150,5 +152,4 @@ follow along.
   matrix.
 - [`docs/DRIVERS.md`](./DRIVERS.md): driver development, including the
   `sakiladb/{driver}` image requirement for new SQL drivers.
-- [`docs/WORKFLOW.md`](./WORKFLOW.md): CI workflows that run the integration
-  suites.
+- [`docs/CI.md`](./CI.md): the CI workflows that run the integration suites.

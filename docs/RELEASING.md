@@ -80,7 +80,8 @@ Releases are cut by pushing a `v*` tag. A maintainer:
 2. **Tags and pushes** `vX.Y.Z` on `master`.
 
 Pushing the tag triggers the release path of the **Main Pipeline**
-([`main.yml`](../.github/workflows/main.yml)): the full test suites run, then
+([`main.yml`](../.github/workflows/main.yml)): the full test suites run, every SQL engine is
+tested at every supported version (`db-release`), then
 per-platform [GoReleaser](https://goreleaser.com) builds
 (`.goreleaser-*.yml`) produce the binaries, `publish` cuts the GitHub release,
 `docker-publish` pushes the `ghcr.io` image, and `test-install` smoke-tests the
@@ -89,4 +90,4 @@ published, [`site-publish-release.yml`](../.github/workflows/site-publish-releas
 auto-deploys [sq.io](https://sq.io).
 
 For the job-by-job detail of that pipeline (fast loop vs. full suites, what
-gates `publish`), see [`docs/WORKFLOW.md`](./WORKFLOW.md#main-pipeline-go-build--test--release).
+gates `publish`), see [`docs/CI.md`](./CI.md#on-a-release-tag).
