@@ -289,6 +289,26 @@ func UniqTableName(tbl string) string {
 	return tbl
 }
 
+// uniqTableNameSuffixRegex matches the suffix that [UniqTableName] appends:
+// a double underscore followed by a [Uniq8] value, i.e. a lower-case letter
+// and seven lower-case alphanumerics. Keep in sync with [UniqTableName].
+var uniqTableNameSuffixRegex = regexp.MustCompile(`__[a-z][a-z0-9]{7}$`)
+
+// HasUniqTableNameSuffix reports whether s ends with the unique suffix
+// appended by [UniqTableName].
+//
+// It exists for tests that count objects in a shared database: test binaries
+// for different packages run concurrently, so a test that asserts an exact
+// count can observe another package's transient table or view before its
+// cleanup runs. Filtering with this func keeps the exact-count assertion,
+// rather than weakening it to a lower bound.
+//
+// Note that it matches on shape alone: a real table whose name happens to end
+// in that pattern would also match.
+func HasUniqTableNameSuffix(s string) bool {
+	return uniqTableNameSuffixRegex.MatchString(s)
+}
+
 // SanitizeAlphaNumeric replaces any non-alphanumeric
 // runes of s with r (which is typically underscore).
 //

@@ -868,17 +868,27 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 			// other packages (e.g. cli's TestCmdSQL_ExecMode) transiently
 			// create scratch tables in these shared sakila schemas, which would
 			// make an exact table count flaky. A missing expected table still
-			// fails (len < wantTables). The views-only count stays exact: those
-			// tests create tables, not views.
+			// fails (len < wantTables).
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, false)
 			require.NoError(t, err)
 			require.NotNil(t, got)
 			require.GreaterOrEqual(t, len(got), wantTables)
 
+			// Views are counted exactly, but transient views must be excluded
+			// first. TestMySQL_ViewDefinition, and its Postgres and ClickHouse
+			// counterparts, create a view named by stringz.UniqTableName in
+			// these same shared schemas. Those tests live in other packages, so
+			// their binaries run concurrently with this one and the view can be
+			// live when this count runs: an unfiltered count intermittently saw
+			// 8 views instead of 7 (gh1160). Filtering keeps the assertion
+			// exact, so a missing or extra permanent view is still caught.
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, false, true)
 			require.NoError(t, err)
 			require.NotNil(t, got)
-			require.Len(t, got, tc.wantViews)
+			gotViews := slices.DeleteFunc(slices.Clone(got), stringz.HasUniqTableNameSuffix)
+			require.Len(t, gotViews, tc.wantViews,
+				"expected exactly %d permanent views; got %v (unfiltered: %v)",
+				tc.wantViews, gotViews, got)
 
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, true, true)
 			require.NoError(t, err)
