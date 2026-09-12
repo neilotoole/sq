@@ -191,6 +191,21 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 		cfg.Collection = &source.Collection{}
 	}
 
+	// Process each source's options, the same as the base config options
+	// above. Without this a source option loaded from YAML keeps its raw
+	// (e.g. string) form, so consumers such as options.Duration.Get fail
+	// the type assertion and silently fall back to the option's default.
+	// Save does this via canonicalizeConfig; the load path must match.
+	if err = cfg.Collection.Visit(func(src *source.Source) error {
+		var pErr error
+		if src.Options, pErr = fs.OptionsRegistry.Process(src.Options); pErr != nil {
+			return errz.Wrapf(pErr, "processing source options for %s", src.Handle)
+		}
+		return nil
+	}); err != nil {
+		return nil, errz.Wrapf(err, "config: %s", fs.Path)
+	}
+
 	repaired, err := source.VerifyIntegrity(cfg.Collection)
 	if err != nil {
 		if repaired {
