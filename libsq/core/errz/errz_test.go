@@ -262,6 +262,15 @@ func TestWithExitCode(t *testing.T) {
 	require.True(t, errors.Is(err, errz.ErrNoMsg))
 }
 
+func TestIsUsageError(t *testing.T) {
+	require.False(t, errz.IsUsageError(nil))
+	require.True(t, errz.IsUsageError(errz.ErrNoQuery))
+	require.True(t, errz.IsUsageError(errz.Wrapf(errz.ErrNoQuery, "maybe check flag --args usage")))
+	require.True(t, errz.IsUsageError(errors.New("accepts 1 arg(s), received 0")))
+	require.True(t, errz.IsUsageError(errors.New("accepts between 1 and 2 arg(s), received 0")))
+	require.False(t, errz.IsUsageError(errz.New("connection refused")))
+}
+
 func TestWithHuman(t *testing.T) {
 	require.Nil(t, errz.WithHuman(nil, "msg"))
 
