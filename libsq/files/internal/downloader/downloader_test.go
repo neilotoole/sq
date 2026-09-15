@@ -98,6 +98,12 @@ func TestState_String(t *testing.T) {
 //
 // This test requires network access to download the sakila actor CSV file.
 func TestDownloader(t *testing.T) {
+	tu.SkipIf(
+		t,
+		os.Getenv("GITHUB_ACTIONS") == "true",
+		"Flaky on GitHub Actions: depends on raw.githubusercontent.com response latency",
+	)
+
 	const dlURL = sakila.ActorCSVURL
 	log := lgt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
