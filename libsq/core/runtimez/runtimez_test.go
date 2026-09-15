@@ -101,7 +101,7 @@ func TestStartMemStatsTracker(t *testing.T) {
 	resetMemStatsState(t)
 
 	// Seed the cache with a sample the runtime can't produce, and a refresh
-	// window that never elapses, so the sampling loop records exactly this
+	// window that outlasts the test, so the sampling loop records exactly this
 	// sample and only the exit pass can replace it. The test doesn't force a
 	// GC and expect PauseTotalNs > 0: on Windows the runtime times GC pauses
 	// with a clock that advances in ticks of up to 15.6ms, so a short pause is
