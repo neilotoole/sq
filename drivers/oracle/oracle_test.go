@@ -182,6 +182,7 @@ func TestListTables(t *testing.T) {
 // container, so the test exercises the Oracle write path in an Oracle-only
 // environment, which is what the per-engine CI model provides. See gh #1143.
 func TestSakilaCrossDatabase(t *testing.T) {
+	tu.SkipWindows(t, "Flaky on Windows CI: DuckDB fixture copy can fail with transient file lock")
 	tu.SkipShort(t, true)
 	th := testh.New(t)
 	srcDB := th.OpenDB(th.Source(sakila.Duck))
