@@ -1,7 +1,6 @@
 # sq data wrangler
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/neilotoole/sq.svg)](https://pkg.go.dev/github.com/neilotoole/sq)
-[![Go Report Card](https://goreportcard.com/badge/neilotoole/sq)](https://goreportcard.com/report/neilotoole/sq)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/neilotoole/sq/blob/master/LICENSE)
 ![Main pipeline](https://github.com/neilotoole/sq/actions/workflows/main.yml/badge.svg)
 [![codecov](https://codecov.io/gh/neilotoole/sq/graph/badge.svg)](https://codecov.io/gh/neilotoole/sq)
