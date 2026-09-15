@@ -26,6 +26,7 @@ func TestType_String(t *testing.T) {
 		{drivertype.JSONA, "jsona"},
 		{drivertype.JSONL, "jsonl"},
 		{drivertype.XLSX, "xlsx"},
+		{drivertype.Parquet, "parquet"},
 	}
 
 	for _, tc := range testCases {
@@ -52,6 +53,7 @@ func TestType_Constants(t *testing.T) {
 	require.Equal(t, drivertype.Type("jsona"), drivertype.JSONA)
 	require.Equal(t, drivertype.Type("jsonl"), drivertype.JSONL)
 	require.Equal(t, drivertype.Type("xlsx"), drivertype.XLSX)
+	require.Equal(t, drivertype.Type("parquet"), drivertype.Parquet)
 }
 
 func TestType_Equality(t *testing.T) {
