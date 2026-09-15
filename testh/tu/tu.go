@@ -413,9 +413,10 @@ var (
 // calling test when debugging. The dir is created with perms 0777.
 //
 // If the test passes, the dir (including any subs) is removed via tb.Cleanup.
-// If the test fails, the dir is kept for inspection, and its parent dir is
-// logged. All of tb's temp dirs are removed by a single cleanup, registered
-// by tb's first call to TempDir, or earlier via RegisterTempDirCleanup.
+// If the test fails, the dir is kept for inspection, and the <pid> dir
+// containing it is logged. All of tb's temp dirs are removed by a single
+// cleanup, registered by tb's first call to TempDir, or earlier via
+// RegisterTempDirCleanup.
 // Cleanups run in reverse registration order, so a cleanup that closes files
 // inside the dir must be registered after that point: on Windows, an open
 // file blocks removal, which fails the test.
@@ -466,7 +467,8 @@ func TempDir(tb testing.TB, subs ...string) string {
 // order, so call RegisterTempDirCleanup first when a cleanup that closes files
 // inside tb's temp dirs is registered before tb's first TempDir call. For
 // example, testh.New calls it before registering Helper.Close. Subsequent
-// calls are no-ops.
+// calls are no-ops until that cleanup runs; a call made after it has run
+// registers a new one.
 func RegisterTempDirCleanup(tb testing.TB) {
 	tb.Helper()
 	tempDirsMu.Lock()

@@ -15,13 +15,18 @@ import (
 // testrun.New is removed when the test passes (gh #1162).
 func TestNew_ConfigDirRemoved(t *testing.T) {
 	var cfgDir string
-	t.Run("run", func(t *testing.T) {
+	// If the inner subtest fails, stop here instead of falling through to the
+	// NoDirExists assertion below, which would add a second, misleading
+	// failure: the inner subtest's dir is kept on failure, by design.
+	if !t.Run("run", func(t *testing.T) {
 		tr := testrun.New(context.Background(), t, nil)
 		store, ok := tr.Run.ConfigStore.(*yamlstore.Store)
 		require.True(t, ok, "config store is %T", tr.Run.ConfigStore)
 		cfgDir = filepath.Dir(store.Path)
 		require.DirExists(t, cfgDir)
-	})
+	}) {
+		t.FailNow()
+	}
 
 	require.NotEmpty(t, cfgDir)
 	require.NoDirExists(t, cfgDir)
