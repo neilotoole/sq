@@ -379,11 +379,12 @@ never a gate and never runs on PRs: the Codecov checks are informational.
 ### What the figure does not see
 
 - **Version-specific code between the bookends.** The nightly `db-scheduled.yml` legs test each
-  engine's oldest and latest tag only. A single "added in version X" check is still covered on both sides,
-  because the oldest tag is below X and latest is above it (see `supportsCastAsDouble` in
-  `drivers/mysql/metadata.go`). Code taken only by a middle version is measured by the Monday
-  all-versions run, then drops out again when the next nightly DB run uploads its `db-<engine>` flags to
-  a newer commit, because carryforward only fills in flags a commit did not receive.
+  engine's oldest and latest tag only. A single "added in version X" check is still covered on
+  both sides, because the oldest tag is below X and latest is above it (see
+  `supportsCastAsDouble` in `drivers/mysql/metadata.go`). Code taken only by a middle version is
+  measured by the Monday all-versions run, then drops out again when the next nightly DB run
+  uploads its `db-<engine>` flags to a newer commit, because carryforward only fills in flags a
+  commit did not receive.
 - **Engines and forks with no image in `sakila-db.json`.** The MySQL driver also serves MariaDB,
   but no MariaDB image is tested, so the MariaDB branches of the `supportsXxx` helpers in
   `drivers/mysql/metadata.go` never run.
