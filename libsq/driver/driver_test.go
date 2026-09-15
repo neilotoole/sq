@@ -877,11 +877,14 @@ func TestSQLDriver_ListTableNames_ArgSchemaNotEmpty(t *testing.T) { //nolint:tpa
 			// Views are counted exactly, but transient views must be excluded
 			// first. TestMySQL_ViewDefinition, and its Postgres and ClickHouse
 			// counterparts, create a view named by stringz.UniqTableName in
-			// these same shared schemas. Those tests live in other packages, so
-			// their binaries run concurrently with this one and the view can be
-			// live when this count runs: an unfiltered count intermittently saw
-			// 8 views instead of 7 (gh1160). Filtering keeps the assertion
-			// exact, so a missing or extra permanent view is still caught.
+			// these same shared schemas. The Oracle metadata tests create
+			// upper-cased forms of such names, one with a "_V" suffix, which
+			// HasUniqTableNameSuffix matches too. Those tests live in other
+			// packages, so their binaries run concurrently with this one and
+			// the view can be live when this count runs: an unfiltered count
+			// intermittently saw 8 views instead of 7 (gh1160). Filtering keeps
+			// the assertion exact, so a missing or extra permanent view is
+			// still caught.
 			got, err = drvr.ListTableNames(th.Context, db, tc.schema, false, true)
 			require.NoError(t, err)
 			require.NotNil(t, got)
