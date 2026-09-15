@@ -11,8 +11,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -385,6 +387,14 @@ func randString() string {
 
 var dirCount = &atomic.Int64{}
 
+// tempDirs maps each test to the dirs that TempDir created for it. A key is
+// present from when the test's removal cleanup is registered until that
+// cleanup runs. Guarded by tempDirsMu.
+var (
+	tempDirsMu sync.Mutex
+	tempDirs   = map[testing.TB][]string{}
+)
+
 // TempDir is the standard means for obtaining a temp dir for tests.
 // A new, unique temp dir is returned on each call. If arg subs is
 // non-empty, that sub-directory structure is created within the
@@ -402,8 +412,13 @@ var dirCount = &atomic.Int64{}
 // and random value. We use this structure to make it easier to identify the
 // calling test when debugging. The dir is created with perms 0777.
 //
-// The caller is responsible for removing the dir if desired - it is NOT
-// automatically deleted via t.Cleanup.
+// If the test passes, the dir (including any subs) is removed via tb.Cleanup.
+// If the test fails, the dir is kept for inspection, and its parent dir is
+// logged. All of tb's temp dirs are removed by a single cleanup, registered
+// by tb's first call to TempDir, or earlier via RegisterTempDirCleanup.
+// Cleanups run in reverse registration order, so a cleanup that closes files
+// inside the dir must be registered after that point: on Windows, an open
+// file blocks removal, which fails the test.
 func TempDir(tb testing.TB, subs ...string) string {
 	tb.Helper()
 
@@ -411,7 +426,7 @@ func TempDir(tb testing.TB, subs ...string) string {
 	require.NoError(tb, err)
 	dir = sanitizeCwdSegment(dir, proj.Dir())
 
-	fp := filepath.Join(
+	callDir := filepath.Join(
 		os.TempDir(),
 		"sq",
 		"test",
@@ -426,13 +441,101 @@ func TempDir(tb testing.TB, subs ...string) string {
 		),
 	)
 
+	// Track the dir before creating it, so that a partially created dir is
+	// still removed.
+	trackTempDir(tb, callDir)
+
+	fp := callDir
 	for _, sub := range subs {
 		fp = filepath.Join(fp, sub)
 	}
 
-	err = os.MkdirAll(fp, 0o777)
+	if err = os.MkdirAll(fp, 0o777); err != nil {
+		// A test whose sanitized name collides with tb's shares the <pid>
+		// parent dir, and its cleanup removes that dir when empty (see
+		// removeTempDirs). One retry covers that race.
+		err = os.MkdirAll(fp, 0o777)
+	}
 	require.NoError(tb, err)
 	return fp
+}
+
+// RegisterTempDirCleanup registers, via tb.Cleanup, the removal of the dirs
+// that TempDir creates for tb, if that isn't already registered. TempDir
+// registers it on tb's first call. But cleanups run in reverse registration
+// order, so call RegisterTempDirCleanup first when a cleanup that closes files
+// inside tb's temp dirs is registered before tb's first TempDir call. For
+// example, testh.New calls it before registering Helper.Close. Subsequent
+// calls are no-ops.
+func RegisterTempDirCleanup(tb testing.TB) {
+	tb.Helper()
+	tempDirsMu.Lock()
+	defer tempDirsMu.Unlock()
+	registerTempDirCleanupLocked(tb)
+}
+
+// registerTempDirCleanupLocked is RegisterTempDirCleanup for a caller that
+// holds tempDirsMu.
+func registerTempDirCleanupLocked(tb testing.TB) {
+	tb.Helper()
+	if _, ok := tempDirs[tb]; ok {
+		return
+	}
+	tempDirs[tb] = nil
+	tb.Cleanup(func() { removeTempDirs(tb) })
+}
+
+// trackTempDir records dir as one of tb's temp dirs, registering tb's
+// removal cleanup if needed.
+func trackTempDir(tb testing.TB, dir string) {
+	tb.Helper()
+	tempDirsMu.Lock()
+	defer tempDirsMu.Unlock()
+	registerTempDirCleanupLocked(tb)
+	tempDirs[tb] = append(tempDirs[tb], dir)
+}
+
+// removeTempDirs is tb's temp dir removal cleanup. If tb failed, the dirs
+// are kept, and their parent dirs are logged. Otherwise the dirs are removed,
+// failing tb on error, and each parent dir is removed if empty.
+func removeTempDirs(tb testing.TB) {
+	tb.Helper()
+	tempDirsMu.Lock()
+	dirs := tempDirs[tb]
+	delete(tempDirs, tb)
+	tempDirsMu.Unlock()
+
+	// A parent is a <pid> dir. There's usually one, but a test that changes
+	// its working dir between TempDir calls has more.
+	var parents []string
+	for _, dir := range dirs {
+		if parent := filepath.Dir(dir); !slices.Contains(parents, parent) {
+			parents = append(parents, parent)
+		}
+	}
+
+	if tb.Failed() {
+		for _, parent := range parents {
+			tb.Logf("temp dirs kept for failed test: %s", parent)
+		}
+		return
+	}
+
+	var keepParents []string
+	for _, dir := range dirs {
+		if err := os.RemoveAll(dir); err != nil {
+			tb.Errorf("remove temp dir %s: %v", dir, err)
+			keepParents = append(keepParents, filepath.Dir(dir))
+		}
+	}
+
+	for _, parent := range parents {
+		if !slices.Contains(keepParents, parent) {
+			// Fails harmlessly if the dir isn't empty, for example when it's
+			// shared with a test whose sanitized name collides with tb's.
+			_ = os.Remove(parent)
+		}
+	}
 }
 
 // sanitizeCwdSegment reduces dir (a working directory) to a path segment safe to
@@ -455,7 +558,8 @@ func sanitizeCwdSegment(dir, projDir string) string {
 }
 
 // TempFile returns the path to a temp file with the given name, in a unique
-// temp dir. The file is not created.
+// temp dir obtained from TempDir, which also governs the dir's removal. The
+// file is not created.
 func TempFile(tb testing.TB, name string) string {
 	tb.Helper()
 	fp := filepath.Join(TempDir(tb), name)
