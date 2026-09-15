@@ -19,14 +19,14 @@ type SLQParser struct {
 }
 
 var SLQParserStaticData struct {
-	PredictionContextCache *antlr.PredictionContextCache
-	atn                    *antlr.ATN
+	once                   sync.Once
 	serializedATN          []int32
 	LiteralNames           []string
 	SymbolicNames          []string
 	RuleNames              []string
+	PredictionContextCache *antlr.PredictionContextCache
+	atn                    *antlr.ATN
 	decisionToDFA          []*antlr.DFA
-	once                   sync.Once
 }
 
 func slqParserInit() {
