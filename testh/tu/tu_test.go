@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -353,4 +354,29 @@ func TestTempDir_RemoveError(t *testing.T) {
 	require.Len(t, fake.errs, 1)
 	require.Contains(t, fake.errs[0], "remove temp dir")
 	require.DirExists(t, pidDir)
+}
+
+// TestTempDir_OpenFile_Windows verifies that on Windows, where an open file
+// blocks deletion, the cleanup retries removal and then fails the test,
+// rather than silently leaving the dir behind (gh #1162).
+func TestTempDir_OpenFile_Windows(t *testing.T) {
+	if !isWindows {
+		t.Skip("Windows only: POSIX can delete open files")
+	}
+
+	fake := newFakeTB(t)
+	d := TempDir(fake)
+	f, err := os.Create(filepath.Join(d, "open.db"))
+	require.NoError(t, err)
+	// The real t's cleanups run in reverse: close the file, then remove the dir.
+	t.Cleanup(func() { _ = os.RemoveAll(filepath.Dir(d)) })
+	t.Cleanup(func() { _ = f.Close() })
+
+	start := time.Now()
+	fake.runCleanups()
+
+	require.Len(t, fake.errs, 1)
+	require.Contains(t, fake.errs[0], "remove temp dir")
+	require.GreaterOrEqual(t, time.Since(start), time.Second,
+		"removal should retry before failing")
 }

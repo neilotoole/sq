@@ -523,7 +523,7 @@ func removeTempDirs(tb testing.TB) {
 
 	var keepParents []string
 	for _, dir := range dirs {
-		if err := os.RemoveAll(dir); err != nil {
+		if err := removeAll(dir); err != nil {
 			tb.Errorf("remove temp dir %s: %v", dir, err)
 			keepParents = append(keepParents, filepath.Dir(dir))
 		}
@@ -536,6 +536,32 @@ func removeTempDirs(tb testing.TB) {
 			_ = os.Remove(parent)
 		}
 	}
+}
+
+// removeAll is os.RemoveAll, except that on Windows it retries a failure for
+// up to about two seconds before returning the last error. Windows can't
+// delete an open file, and a handle can stay open briefly after a test closes
+// it, or while antivirus or indexing software scans the file. This is modeled
+// on the removeAll func in Go's testing package, but retries any error rather
+// than only specific error codes.
+func removeAll(path string) error {
+	err := os.RemoveAll(path)
+	if err == nil || !isWindows {
+		return err
+	}
+
+	const (
+		timeout  = 2 * time.Second
+		maxSleep = 250 * time.Millisecond
+	)
+	start := time.Now()
+	for sleep := time.Millisecond; time.Since(start)+sleep < timeout; sleep = min(sleep*2, maxSleep) {
+		time.Sleep(sleep)
+		if err = os.RemoveAll(path); err == nil {
+			return nil
+		}
+	}
+	return err
 }
 
 // sanitizeCwdSegment reduces dir (a working directory) to a path segment safe to
