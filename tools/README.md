@@ -121,6 +121,10 @@ See the project [`Makefile`](../Makefile) for real-world usage examples.
 
 5. Add a Makefile target if needed (see existing targets for examples).
 
+6. Add the tool's module path to the `allow` list of the `/tools/*` entry in
+   [`.github/dependabot.yml`](../.github/dependabot.yml). Dependabot skips
+   tool modules unless they're listed there.
+
 ## References
 
 - [golangci-lint installation advice](https://golangci-lint.run/docs/welcome/install/local/)
