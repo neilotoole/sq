@@ -23,8 +23,7 @@ const (
 // go-ora exposes the code as the exported field network.OracleError.ErrCode
 // (no Code() accessor), so a method-set type assertion does not match.
 func errCode(err error) int {
-	var oraErr *goora.OracleError
-	if errors.As(err, &oraErr) {
+	if oraErr, ok := errors.AsType[*goora.OracleError](err); ok {
 		return oraErr.ErrCode
 	}
 	return 0

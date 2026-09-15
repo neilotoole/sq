@@ -1,6 +1,6 @@
 module github.com/neilotoole/sq/tools/goimports-reviser
 
-go 1.26.0
+go 1.27.1
 
 tool github.com/incu6us/goimports-reviser/v3
 
