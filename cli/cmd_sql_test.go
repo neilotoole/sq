@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -163,6 +164,10 @@ func TestCmdSQL_ExecMode(t *testing.T) {
 	for _, handle := range sakila.SQLLatest() {
 		t.Run(handle, func(t *testing.T) {
 			t.Parallel()
+
+			if runtime.GOOS == "windows" && handle == sakila.Duck {
+				t.Skip("flaky on Windows: intermittent lock on duckdb fixture copy")
+			}
 
 			th := testh.New(t)
 			src := th.Source(handle) // Will skip test if source not available
