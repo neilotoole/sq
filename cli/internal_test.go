@@ -7,8 +7,6 @@ var (
 	IsDefiniteFilePath        = isDefiniteFilePath
 	PreprocessFlagArgVars     = preprocessFlagArgVars
 	LastHandlePart            = lastHandlePart
-	GetVersionFromBrewFormula = getVersionFromBrewFormula
-	FetchBrewVersion          = fetchBrewVersion
 	RenderSQLSupportsFormat   = renderSQLSupportsFormat
 	ErrBinaryFormatToTerminal = errBinaryFormatToTerminal
 	FilterToAdvertisedParams  = filterToAdvertisedParams
