@@ -2,6 +2,7 @@ package runtimez
 
 import (
 	"context"
+	"math"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -98,7 +99,19 @@ func TestMemStats_Concurrent(t *testing.T) {
 
 func TestStartMemStatsTracker(t *testing.T) {
 	resetMemStatsState(t)
-	MemStatsRefresh = time.Millisecond
+
+	// Seed the cache with a sample the runtime can't produce, and a refresh
+	// window that never elapses, so the sampling loop records exactly this
+	// sample and only the exit pass can replace it. The test doesn't force a
+	// GC and expect PauseTotalNs > 0: on Windows the runtime times GC pauses
+	// with a clock that advances in ticks of up to 15.6ms, so a short pause is
+	// often recorded as 0.
+	MemStatsRefresh = time.Hour
+	seed := &runtime.MemStats{Sys: 1, Alloc: 1, TotalAlloc: 1, PauseTotalNs: math.MaxUint64}
+	memStatsMu.Lock()
+	memStats = seed
+	memStatsNextRefresh = time.Now().Add(time.Hour)
+	memStatsMu.Unlock()
 
 	// Snapshot pre-existing goroutines so goleak only flags the tracker if it
 	// fails to exit after cancel.
@@ -111,29 +124,23 @@ func TestStartMemStatsTracker(t *testing.T) {
 	require.NotNil(t, totalAllocs)
 	require.NotNil(t, gcPauseNs)
 
-	// Allocate live heap so the tracker observes non-trivial Alloc/Sys, and
-	// force a GC so PauseTotalNs becomes non-zero.
-	sink := make([][]byte, 0, 128)
-	for range 128 {
-		sink = append(sink, make([]byte, 1<<16))
-	}
-	runtime.GC() //nolint:revive // explicit GC populates PauseTotalNs for the gcPauseNs assertion
-	runtime.KeepAlive(sink)
-
-	// All four peaks must be populated, including curAllocs and gcPauseNs,
-	// which are the values the exit-branch refresh fix targets.
 	require.Eventually(t, func() bool {
-		return sys.Load() > 0 && curAllocs.Load() > 0 &&
-			totalAllocs.Load() > 0 && gcPauseNs.Load() > 0
-	}, 2*time.Second, time.Millisecond, "tracker should populate all four peak values")
+		return sys.Load() == seed.Sys && curAllocs.Load() == seed.Alloc &&
+			totalAllocs.Load() == seed.TotalAlloc && gcPauseNs.Load() == seed.PauseTotalNs
+	}, 2*time.Second, time.Millisecond, "sampling loop should record the cached sample")
 
 	// Cancel and confirm the tracker goroutine exits (no leak). goleak retries
 	// with backoff, so it absorbs the goroutine's shutdown latency.
 	cancel()
 	goleak.VerifyNone(t, ignoreExisting)
 
-	require.Positive(t, sys.Load())
-	require.Positive(t, curAllocs.Load())
-	require.Positive(t, totalAllocs.Load())
-	require.Positive(t, gcPauseNs.Load())
+	// The exit pass reads fresh stats from the runtime, which must replace the
+	// seeded values. PauseTotalNs never decreases, so a fresh exit reading is
+	// at most a later reading, even when both are 0.
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+	require.Greater(t, sys.Load(), seed.Sys, "exit pass should record fresh Sys")
+	require.Greater(t, curAllocs.Load(), seed.Alloc, "exit pass should record fresh Alloc")
+	require.Greater(t, totalAllocs.Load(), seed.TotalAlloc, "exit pass should record fresh TotalAlloc")
+	require.LessOrEqual(t, gcPauseNs.Load(), after.PauseTotalNs, "exit pass should record fresh PauseTotalNs")
 }
