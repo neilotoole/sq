@@ -122,8 +122,14 @@ type Helper struct {
 }
 
 // New returns a new Helper. The helper's Close func will be
-// automatically invoked via t.Cleanup.
+// automatically invoked via t.Cleanup. The Helper's temp dirs, such as
+// its per-test fixture copies, are removed after Close runs, unless the
+// test failed: see tu.TempDir.
 func New(tb testing.TB, opts ...Option) *Helper { //nolint:thelper
+	// Register temp dir removal before h.Close, so that removal runs after
+	// h.Close has closed the grips and files that use those dirs.
+	tu.RegisterTempDirCleanup(tb)
+
 	h := &Helper{
 		T:       tb,
 		Cleanup: cleanup.New(),
@@ -1040,14 +1046,13 @@ func ExtractHandlesFromQuery(tb testing.TB, query string, failOnErr bool) []stri
 }
 
 // NewActorSource returns a new *source.Source for a copy of the Sakila
-// actor.csv datafile, using the given handle. If clean is true, the copy
-// is deleted by t.Cleanup.
-func NewActorSource(tb testing.TB, handle string, clean bool) *source.Source {
+// actor.csv datafile, using the given handle. The copy is in a tu.TempDir,
+// which governs its removal.
+func NewActorSource(tb testing.TB, handle string) *source.Source {
 	tb.Helper()
 
 	require.NoError(tb, source.ValidHandle(handle))
-	tmpDir := tu.TempDir(tb)
-	loc := filepath.Join(tmpDir, "actor.csv")
+	loc := filepath.Join(tu.TempDir(tb), "actor.csv")
 	err := ioz.CopyFile(
 		loc,
 		proj.Abs("drivers/csv/testdata/sakila-csv/actor.csv"),
@@ -1055,11 +1060,6 @@ func NewActorSource(tb testing.TB, handle string, clean bool) *source.Source {
 	)
 	require.NoError(tb, err)
 
-	if clean {
-		tb.Cleanup(func() {
-			assert.NoError(tb, os.RemoveAll(tmpDir))
-		})
-	}
 	return &source.Source{
 		Handle:   handle,
 		Type:     drivertype.CSV,
@@ -1068,13 +1068,12 @@ func NewActorSource(tb testing.TB, handle string, clean bool) *source.Source {
 }
 
 // NewSakilaSource returns a new *source.Source for a copy of the Sakila
-// SQLite database, using the given handle. If clean is true, the copy
-// is deleted by t.Cleanup.
-func NewSakilaSource(tb testing.TB, handle string, clean bool) *source.Source {
+// SQLite database, using the given handle. The copy is in a tu.TempDir,
+// which governs its removal.
+func NewSakilaSource(tb testing.TB, handle string) *source.Source {
 	tb.Helper()
 	require.NoError(tb, source.ValidHandle(handle))
-	tmpDir := tu.TempDir(tb)
-	loc := filepath.Join(tmpDir, "sakila.db")
+	loc := filepath.Join(tu.TempDir(tb), "sakila.db")
 	err := ioz.CopyFile(
 		loc,
 		proj.Abs("drivers/sqlite3/testdata/sakila.db"),
@@ -1082,11 +1081,6 @@ func NewSakilaSource(tb testing.TB, handle string, clean bool) *source.Source {
 	)
 	require.NoError(tb, err)
 
-	if clean {
-		tb.Cleanup(func() {
-			assert.NoError(tb, os.RemoveAll(tmpDir))
-		})
-	}
 	return &source.Source{
 		Handle:   handle,
 		Type:     drivertype.SQLite,

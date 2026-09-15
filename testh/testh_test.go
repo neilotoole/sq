@@ -2,6 +2,9 @@ package testh_test
 
 import (
 	"io"
+	"path/filepath"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -9,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/neilotoole/sq/drivers/duckdb"
+	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source"
@@ -174,4 +179,83 @@ func TestTName(t *testing.T) {
 		got := tu.Name(tc.a...)
 		require.Equal(t, tc.want, got)
 	}
+}
+
+// cleanupTB is a testing.TB that records cleanups instead of registering
+// them, so that a test can run them one at a time.
+type cleanupTB struct {
+	testing.TB
+
+	mu       sync.Mutex
+	cleanups []func()
+}
+
+func (c *cleanupTB) Cleanup(fn func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cleanups = append(c.cleanups, fn)
+}
+
+// TestHelper_TempDirCleanup verifies that a Helper's temp dirs (fixture
+// copies, and the Files temp and cache dirs) are removed when the test
+// passes, and that removal runs only after Helper.Close, which closes the
+// files inside those dirs (gh #1162).
+func TestHelper_TempDirCleanup(t *testing.T) {
+	t.Run("removed_on_pass", func(t *testing.T) {
+		var dirs []string
+		t.Run("helper", func(t *testing.T) {
+			th := testh.New(t)
+
+			sl3 := th.Source(sakila.SL3)
+			th.Open(sl3)
+			sl3Path, err := sqlite3.PathFromLocation(sl3)
+			require.NoError(t, err)
+
+			duck := th.Source(sakila.Duck)
+			th.Open(duck)
+			duckPath, err := duckdb.PathFromLocation(duck)
+			require.NoError(t, err)
+
+			fs := th.Files()
+			dirs = []string{
+				filepath.Dir(sl3Path),
+				filepath.Dir(duckPath),
+				filepath.Dir(fs.TempDir()),
+				filepath.Dir(fs.CacheDir()),
+			}
+			for _, dir := range dirs {
+				require.DirExists(t, dir)
+			}
+		})
+
+		require.Len(t, dirs, 4)
+		for _, dir := range dirs {
+			require.NoDirExists(t, dir)
+		}
+	})
+
+	t.Run("removed_after_close", func(t *testing.T) {
+		ctb := &cleanupTB{TB: t}
+		th := testh.New(ctb)
+		src := th.Source(sakila.SL3)
+		th.Open(src)
+		path, err := sqlite3.PathFromLocation(src)
+		require.NoError(t, err)
+
+		ctb.mu.Lock()
+		cleanups := slices.Clone(ctb.cleanups)
+		ctb.mu.Unlock()
+		require.GreaterOrEqual(t, len(cleanups), 2)
+
+		// Run every cleanup except the first registered, in reverse order as
+		// testing does. These include Helper.Close.
+		for i := len(cleanups) - 1; i > 0; i-- {
+			cleanups[i]()
+		}
+		require.FileExists(t, path, "fixture copy removed before Helper.Close ran")
+
+		// The first registered cleanup is the temp dir removal.
+		cleanups[0]()
+		require.NoFileExists(t, path)
+	})
 }
