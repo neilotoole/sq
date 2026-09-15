@@ -63,3 +63,10 @@ a color-capable JSON encoder forked from
 [`segmentio/encoding`](https://github.com/segmentio/encoding). `jsoncolor`
 was extracted from sq's own in-tree fork (`jsonw/internal/jcolorenc`, now
 removed) and is now maintained as a standalone library.
+
+The mapping from sq's `output.Printing` colors to a `*jsoncolor.Colors` palette
+lives in [`internal.Colors.JSONPalette`](./internal/jsonpalette.go), reached from
+these writers via `newJSONColorPalette` in [`palette.go`](./palette.go). Keeping it
+in one place means the writers and the internal package's encode tests configure
+the encoder identically. A nil palette disables colorization at the encoder level,
+which is what a nil or monochrome `Printing` yields.
