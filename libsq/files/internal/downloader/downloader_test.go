@@ -98,6 +98,12 @@ func TestState_String(t *testing.T) {
 //
 // This test requires network access to download the sakila actor CSV file.
 func TestDownloader(t *testing.T) {
+	tu.SkipIf(
+		t,
+		strings.EqualFold(os.Getenv("CI"), "true"),
+		"Skip network-dependent test in CI due to flaky external connectivity",
+	)
+
 	const dlURL = sakila.ActorCSVURL
 	log := lgt.New(t)
 	ctx := lg.NewContext(context.Background(), log)

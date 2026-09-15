@@ -49,37 +49,39 @@ $ sq add 'duckdb://:memory:'
 $ sq add 'duckdb:///path/sakila.duckdb?memory_limit=4GB&threads=4'
 ```
 
-## Bundled extensions
+## Extensions
 
-The driver statically links the standard set of in-tree DuckDB extensions.
-They are available immediately — no `INSTALL` or `LOAD` required:
+The driver statically links the `json`, `parquet`, `icu` and `autocomplete`
+extensions (plus DuckDB's core functions). These work offline with no setup.
 
-| Extension      | Purpose                               |
-| -------------- | ------------------------------------- |
-| `json`         | JSON read/write functions             |
-| `parquet`      | Parquet read/write (`read_parquet()`) |
-| `icu`          | ICU collations and Unicode functions  |
-| `fts`          | Full-text search                      |
-| `httpfs`       | HTTP(S) and S3 file access            |
-| `excel`        | Excel read (`excel_open()`)           |
-| `inet`         | IP address types and functions        |
-| `autocomplete` | SQL auto-completion helpers           |
-| `tpch`         | TPC-H benchmark tables                |
-| `tpcds`        | TPC-DS benchmark tables               |
-
-Because the extensions are statically bundled, queries like the following
-work without any setup:
+Any other [DuckDB extension](https://duckdb.org/docs/stable/extensions/overview)
+(for example `httpfs`, `excel`, `fts`, `inet`, `tpch`, `tpcds`) is installed and
+loaded automatically the first time a query uses it. The first use downloads the
+extension into DuckDB's extension directory (`~/.duckdb` by default), so it
+needs network access once; after that it is cached.
 
 ```sql
--- Query a Parquet file directly
+-- Query a Parquet file directly (statically linked)
 SELECT * FROM read_parquet('file.parquet');
 
--- Query a remote CSV via HTTPS
+-- Query a remote CSV via HTTPS (autoloads httpfs)
 SELECT * FROM read_csv_auto('https://example.com/data.csv');
 
 -- Query an S3 object (set AWS credentials first)
 SELECT * FROM read_parquet('s3://bucket/key.parquet');
 ```
+
+DuckDB does not autoload `excel` for `COPY ... TO 'file.xlsx'`. Install and
+load it explicitly in the same statement (an explicit `LOAD` on its own does
+not install):
+
+```shell
+$ sq sql --src @sakila_duck "INSTALL excel; LOAD excel; COPY (SELECT * FROM actor) TO 'actor.xlsx' (FORMAT xlsx)"
+```
+
+Setting the `enable_external_access=false` connection parameter disables
+automatic install and load of every non-static extension, even one that is
+already cached; only the statically linked extensions remain usable.
 
 ## Connection parameters
 
