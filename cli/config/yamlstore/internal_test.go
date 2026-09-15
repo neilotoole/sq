@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -698,6 +699,41 @@ func Test_Store_doLoad_EmptyVersionStampsBuildVersion(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "v0.55.0", cfg.Version,
 		"an empty version stamps the build version when no registry is configured")
+}
+
+// Test_Store_doLoad_ProcessesSourceOptions verifies that per-source options are
+// run through the registry on load, the same as the base config options.
+// Without this a source option loaded from YAML keeps its raw string form, so
+// options.Duration.Get's type assertion fails and every consumer silently falls
+// back to the option's default.
+func Test_Store_doLoad_ProcessesSourceOptions(t *testing.T) {
+	opt := options.NewDuration("conn.max-idle-time", nil, 2*time.Second, "", "")
+	reg := &options.Registry{}
+	reg.Add(opt)
+
+	const cfgYAML = `config.version: v0.55.0
+collection:
+  active.source: '@src'
+  sources:
+    - handle: '@src'
+      driver: sqlite3
+      location: 'sqlite3://test.db'
+      options:
+        conn.max-idle-time: 100s
+`
+	_, cfgPath := writeTestConfig(t, cfgYAML)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath, OptionsRegistry: reg}
+
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+
+	src, err := cfg.Collection.Get("@src")
+	require.NoError(t, err)
+	// On unmodified main src.Options holds the string "100s", so Get returns the
+	// 2s default instead of the configured value.
+	require.Equal(t, 100*time.Second, opt.Get(src.Options),
+		"a source option must be processed into its typed form on load")
 }
 
 // Test_Store_writeConfigBackupOnce_DirError verifies that an unusable
