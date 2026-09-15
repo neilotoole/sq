@@ -302,11 +302,12 @@ func TestHelper_TempDirCleanup(t *testing.T) {
 func TestHelper_QuerySLQ_UsesFixtureCopy(t *testing.T) {
 	testCases := []struct {
 		handle   string
+		prefix   string
 		origPath string
 		pathFn   func(src *source.Source) (string, error)
 	}{
-		{handle: sakila.SL3, origPath: proj.Abs(sakila.PathSL3), pathFn: sqlite3.PathFromLocation},
-		{handle: sakila.Duck, origPath: proj.Abs(sakila.PathDuck), pathFn: duckdb.PathFromLocation},
+		{handle: sakila.SL3, prefix: sqlite3.Prefix, origPath: proj.Abs(sakila.PathSL3), pathFn: sqlite3.PathFromLocation},
+		{handle: sakila.Duck, prefix: duckdb.Prefix, origPath: proj.Abs(sakila.PathDuck), pathFn: duckdb.PathFromLocation},
 	}
 
 	for _, tc := range testCases {
@@ -320,9 +321,15 @@ func TestHelper_QuerySLQ_UsesFixtureCopy(t *testing.T) {
 			_, err = th.QuerySLQ(tc.handle+` | .actor | .[0:1]`, nil)
 			require.NoError(t, err)
 
-			// The grip cache is keyed by (mode, handle), so this returns the
-			// grip the query opened.
-			grip, err := th.Grips().Open(th.Context, src, driver.ModeReadWrite)
+			// Probe the cache with a source that points at the ORIGINAL
+			// fixture, not the copy. The cache is keyed by (mode, handle), so
+			// a hit returns the grip the query opened and the probe's
+			// location is ignored; a miss would open the original named by
+			// the probe, and the assertions below then fail rather than
+			// passing vacuously.
+			probe := src.Clone()
+			probe.Location = tc.prefix + tc.origPath
+			grip, err := th.Grips().Open(th.Context, probe, driver.ModeReadWrite)
 			require.NoError(t, err)
 			gotPath, err := tc.pathFn(grip.Source())
 			require.NoError(t, err)

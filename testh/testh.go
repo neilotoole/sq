@@ -399,6 +399,13 @@ func (h *Helper) Source(handle string) *source.Source {
 		// (Helper.QuerySLQ -> libsq.ExecSLQ) must see the copy, or they open
 		// the original read-write, which blocks other packages' copies on
 		// Windows.
+		//
+		// This mutates collSrc without holding Collection.mu, but that's
+		// safe here: this method holds h.mu for its duration; the
+		// h.srcCache check above means each handle's entry reaches this
+		// point at most once; and Helper.QuerySLQ pre-loads every handle in
+		// the query via h.Source before handing the collection to
+		// libsq.ExecSLQ, so no reader can observe a torn write.
 		collSrc.Location = src.Location
 		collSrc.SecretsResolved = src.SecretsResolved
 	}
@@ -417,6 +424,9 @@ func (h *Helper) Source(handle string) *source.Source {
 			dstPath := filepath.Join(tu.TempDir(t), filepath.Base(srcPath))
 			require.NoError(t, ioz.CopyFile(dstPath, srcPath, true))
 			src.Location = duckdb.Prefix + dstPath
+
+			// Write back to the collection entry, as in the SQLite branch
+			// above.
 			collSrc.Location = src.Location
 			collSrc.SecretsResolved = src.SecretsResolved
 		}
