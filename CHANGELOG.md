@@ -20,8 +20,19 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   invocation. The server version, needed for version-aware SQL rendering, is read
   during the connectivity check when the source is opened, instead of in a
   separate query.
+- [#1151]: DuckDB extensions that are not built into `sq` now load on first use
+  instead of on every open. DuckDB does not autoload `excel` for
+  `COPY ... TO 'file.xlsx'`, so that statement no longer works via
+  [`sq sql`](https://sq.io/docs/cmd/sql); use `sq`'s
+  [`--xlsx`](https://sq.io/docs/output#xlsx) output to write Excel files. See the
+  [driver docs](https://sq.io/docs/drivers/duckdb#extensions).
 - ☢️ `sq` is now built with Go 1.27, which requires macOS 13 Ventura or later. macOS 12 Monterey
   is no longer supported.
+
+### Fixed
+
+- [#1151]: Opening a DuckDB source is much faster, and no longer needs network
+  access on a machine with an empty extension cache.
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1779,6 +1790,7 @@ make working with lots of sources much easier.
 [#1013]: https://github.com/neilotoole/sq/issues/1013
 [#1017]: https://github.com/neilotoole/sq/issues/1017
 [#1136]: https://github.com/neilotoole/sq/issues/1136
+[#1151]: https://github.com/neilotoole/sq/issues/1151
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
