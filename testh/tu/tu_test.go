@@ -1,10 +1,13 @@
 package tu
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -169,4 +172,211 @@ func TestGenerateBinaryFile(t *testing.T) {
 	gotSize, err = ioz.Filesize(fp)
 	require.NoError(t, err)
 	require.Equal(t, int64(1024*1024), gotSize)
+}
+
+// fakeTB is a testing.TB for exercising TempDir's cleanup. It records
+// cleanups instead of registering them, reports a settable Failed, and
+// records Logf and Errorf calls. Everything else goes to the embedded
+// testing.TB.
+type fakeTB struct {
+	testing.TB
+
+	mu       sync.Mutex
+	failed   bool
+	cleanups []func()
+	logs     []string
+	errs     []string
+}
+
+func newFakeTB(t *testing.T) *fakeTB {
+	t.Helper()
+	return &fakeTB{TB: t}
+}
+
+func (f *fakeTB) Cleanup(fn func()) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.cleanups = append(f.cleanups, fn)
+}
+
+func (f *fakeTB) Failed() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.failed
+}
+
+func (f *fakeTB) Logf(format string, args ...any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.logs = append(f.logs, fmt.Sprintf(format, args...))
+}
+
+func (f *fakeTB) Errorf(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	f.TB.Logf("fakeTB.Errorf: %s", msg)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.errs = append(f.errs, msg)
+}
+
+// runCleanups runs the recorded cleanups in reverse order, as testing does.
+// Also like testing, it runs cleanups that are registered while it runs.
+func (f *fakeTB) runCleanups() {
+	for {
+		f.mu.Lock()
+		if len(f.cleanups) == 0 {
+			f.mu.Unlock()
+			return
+		}
+		last := len(f.cleanups) - 1
+		fn := f.cleanups[last]
+		f.cleanups = f.cleanups[:last]
+		f.mu.Unlock()
+
+		fn()
+	}
+}
+
+// TestTempDir_RemovedOnPass verifies that a passing test's temp dirs, and
+// their empty <pid> parent dir, are removed by the cleanup.
+func TestTempDir_RemovedOnPass(t *testing.T) {
+	fake := newFakeTB(t)
+	d1 := TempDir(fake)
+	d2 := TempDir(fake)
+	d3 := TempDir(fake, "foo", "bar")
+	require.NoError(t, os.WriteFile(filepath.Join(d3, "data.txt"), []byte("hello"), 0o600))
+	pidDir := filepath.Dir(d1)
+
+	fake.runCleanups()
+
+	require.Empty(t, fake.errs)
+	require.NoDirExists(t, d1)
+	require.NoDirExists(t, d2)
+	require.NoDirExists(t, filepath.Dir(filepath.Dir(d3)))
+	require.NoDirExists(t, pidDir)
+
+	tempDirsMu.Lock()
+	_, ok := tempDirs[fake]
+	tempDirsMu.Unlock()
+	require.False(t, ok, "tempDirs entry should be deleted by the cleanup")
+}
+
+// TestTempDir_KeptOnFail verifies that a failed test's temp dirs are kept,
+// and that the <pid> parent dir is logged.
+func TestTempDir_KeptOnFail(t *testing.T) {
+	fake := newFakeTB(t)
+	d1 := TempDir(fake)
+	pidDir := filepath.Dir(d1)
+	t.Cleanup(func() { _ = os.RemoveAll(pidDir) })
+
+	fake.failed = true
+	fake.runCleanups()
+
+	require.DirExists(t, d1)
+	require.Empty(t, fake.errs)
+	require.Len(t, fake.logs, 1)
+	require.Equal(t, "temp dirs kept for failed test: "+pidDir, fake.logs[0])
+}
+
+// TestTempDir_OneCleanupPerTB verifies that RegisterTempDirCleanup and
+// TempDir together register exactly one cleanup per test.
+func TestTempDir_OneCleanupPerTB(t *testing.T) {
+	fake := newFakeTB(t)
+	RegisterTempDirCleanup(fake)
+	RegisterTempDirCleanup(fake)
+	for range 3 {
+		TempDir(fake)
+	}
+
+	require.Len(t, fake.cleanups, 1)
+	fake.runCleanups()
+	require.Empty(t, fake.errs)
+}
+
+// TestRegisterTempDirCleanup_Order verifies that a cleanup registered after
+// RegisterTempDirCleanup, but before the dir is created, runs while the dir
+// still exists. This is how testh.New keeps fixture copies until
+// Helper.Close has closed them.
+func TestRegisterTempDirCleanup_Order(t *testing.T) {
+	fake := newFakeTB(t)
+	RegisterTempDirCleanup(fake)
+
+	var dir string
+	var existedAtClose bool
+	fake.Cleanup(func() { existedAtClose = ioz.DirExists(dir) })
+
+	dir = TempDir(fake)
+	fake.runCleanups()
+
+	require.True(t, existedAtClose, "dir removed before the later-registered cleanup ran")
+	require.NoDirExists(t, dir)
+}
+
+// TestTempDir_AfterCleanupRan verifies that a TempDir call made by a cleanup
+// that runs after tb's removal cleanup gets a new removal cleanup.
+func TestTempDir_AfterCleanupRan(t *testing.T) {
+	fake := newFakeTB(t)
+
+	var late string
+	fake.Cleanup(func() { late = TempDir(fake) }) // Registered first, so runs last.
+	early := TempDir(fake)
+
+	fake.runCleanups()
+
+	require.Empty(t, fake.errs)
+	require.NoDirExists(t, early)
+	require.NotEmpty(t, late)
+	require.NoDirExists(t, late)
+}
+
+// TestTempDir_RemoveError verifies that a removal failure fails the test,
+// and that the <pid> parent dir is then left alone.
+func TestTempDir_RemoveError(t *testing.T) {
+	if isWindows {
+		t.Skip("Windows dir permissions don't block removal this way")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores dir permissions")
+	}
+
+	fake := newFakeTB(t)
+	d := TempDir(fake, "locked")
+	require.NoError(t, os.WriteFile(filepath.Join(d, "f.txt"), []byte("x"), 0o600))
+	require.NoError(t, os.Chmod(d, 0o500))
+	pidDir := filepath.Dir(filepath.Dir(d))
+	t.Cleanup(func() {
+		_ = os.Chmod(d, 0o700)
+		_ = os.RemoveAll(pidDir)
+	})
+
+	fake.runCleanups()
+
+	require.Len(t, fake.errs, 1)
+	require.Contains(t, fake.errs[0], "remove temp dir")
+	require.DirExists(t, pidDir)
+}
+
+// TestTempDir_OpenFile_Windows verifies that on Windows, where an open file
+// blocks deletion, the cleanup retries removal and then fails the test,
+// rather than silently leaving the dir behind (gh #1162).
+func TestTempDir_OpenFile_Windows(t *testing.T) {
+	if !isWindows {
+		t.Skip("Windows only: POSIX can delete open files")
+	}
+
+	fake := newFakeTB(t)
+	d := TempDir(fake)
+	f, err := os.Create(filepath.Join(d, "open.db"))
+	require.NoError(t, err)
+	// The real t's cleanups run in reverse: close the file, then remove the dir.
+	t.Cleanup(func() { _ = os.RemoveAll(filepath.Dir(d)) })
+	t.Cleanup(func() { _ = f.Close() })
+
+	start := time.Now()
+	fake.runCleanups()
+
+	require.Len(t, fake.errs, 1)
+	require.Contains(t, fake.errs[0], "remove temp dir")
+	require.GreaterOrEqual(t, time.Since(start), time.Second,
+		"removal should retry before failing")
 }
