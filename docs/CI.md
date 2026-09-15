@@ -20,24 +20,24 @@ The local development loop (Makefile targets, hooks, the inner loop) is in
 
 All workflows live in [`.github/workflows/`](../.github/workflows).
 
-| Workflow                   | File                        | Trigger                                                     | Purpose                                                              | Gates                         |
-| -------------------------- | --------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------- |
-| Main Pipeline              | `main.yml`                  | PR, push `master`, tag `v*`, nightly 09:17 UTC, dispatch    | Build, test, lint; on tags build, publish and canary the release     | `publish`, `docker-publish`   |
-| Format                     | `format.yml`                | push `master`/`develop` or PR touching formatted file types | `dprint check` and Biome                                             | nothing (advisory)            |
-| Dependency Review          | `dependency-review.yml`     | PR, ignoring `**.md`, `sq.json` and `.github/**`            | Flags risky dependency changes                                       | nothing (advisory)            |
-| DB integration             | `db-integration.yml`        | `workflow_call`, dispatch                                   | One job per engine:version, `go test ./...` against a live container | callers decide                |
-| DB integration (scheduled) | `db-scheduled.yml`          | 04:00 UTC daily except Monday, Mon 05:00 UTC, dispatch      | Every engine at bookends nightly, every version weekly               | nothing                       |
-| DB integration (PR)        | `db-pr.yml`                 | PR touching `drivers/**` or the DB machinery                | That engine's bookends, or every engine's for machinery changes      | nothing (advisory)            |
-| Coverage                   | `coverage.yml`              | nightly 09:37 UTC, dispatch                                 | Full suite with coverage, uploaded to Codecov                        | nothing                       |
-| CodeQL                     | `codeql.yml`                | tag `v*`, nightly 10:36 UTC, dispatch                       | Go security analysis                                                 | nothing                       |
-| CodeQL site                | `codeql-site.yml`           | push/PR on `site/**`, Fri 11:00 UTC                         | JavaScript security analysis for the site                            | nothing                       |
-| Test Install               | `test-install.yml`          | `workflow_call`, dispatch                                   | Installs the published release on nine platforms                     | nothing (post-publish canary) |
-| Site CI                    | `site-ci.yml`               | push/PR on `site/**`                                        | Lint and build the site (`make ci`)                                  | nothing                       |
-| Site Publish (dispatch)    | `site-publish-dispatch.yml` | dispatch, type `DEPLOY`                                     | Manual production publish                                            | n/a                           |
-| Site Publish (release)     | `site-publish-release.yml`  | stable release published                                    | Auto-publish sq.io                                                   | n/a                           |
-| Site Publish to Netlify    | `site-publish-netlify.yml`  | `workflow_call`                                             | Shared build, upload, post-deploy smoke                              | n/a                           |
-| Site data (nightly)        | `site-data-nightly.yml`     | daily 07:00 UTC, dispatch                                   | Refresh `site/data/github.toml`                                      | n/a                           |
-| Site Links (nightly)       | `site-links-nightly.yml`    | daily 07:15 UTC, dispatch                                   | External link crawl                                                  | n/a                           |
+| Workflow                   | File                        | Trigger                                                     | Purpose                                                               | Gates                         |
+| -------------------------- | --------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------- |
+| Main Pipeline              | `main.yml`                  | PR, push `master`, tag `v*`, nightly 09:17 UTC, dispatch    | Build, test, lint; on tags build, publish and canary the release      | `publish`, `docker-publish`   |
+| Format                     | `format.yml`                | push `master`/`develop` or PR touching formatted file types | `dprint check` and Biome                                              | nothing (advisory)            |
+| Dependency Review          | `dependency-review.yml`     | PR, ignoring `**.md`, `sq.json` and `.github/**`            | Flags risky dependency changes                                        | nothing (advisory)            |
+| DB integration             | `db-integration.yml`        | `workflow_call`, dispatch                                   | One job per engine:version, `go test ./...` against a live container  | callers decide                |
+| DB integration (scheduled) | `db-scheduled.yml`          | 04:00 UTC daily except Monday, Mon 05:00 UTC, dispatch      | Every engine at bookends nightly, every version weekly, with coverage | nothing                       |
+| DB integration (PR)        | `db-pr.yml`                 | PR touching `drivers/**` or the DB machinery                | That engine's bookends, or every engine's for machinery changes       | nothing (advisory)            |
+| Coverage                   | `coverage.yml`              | nightly 09:37 UTC, dispatch                                 | Full suite with coverage, uploaded to Codecov                         | nothing                       |
+| CodeQL                     | `codeql.yml`                | tag `v*`, nightly 10:36 UTC, dispatch                       | Go security analysis                                                  | nothing                       |
+| CodeQL site                | `codeql-site.yml`           | push/PR on `site/**`, Fri 11:00 UTC                         | JavaScript security analysis for the site                             | nothing                       |
+| Test Install               | `test-install.yml`          | `workflow_call`, dispatch                                   | Installs the published release on nine platforms                      | nothing (post-publish canary) |
+| Site CI                    | `site-ci.yml`               | push/PR on `site/**`                                        | Lint and build the site (`make ci`)                                   | nothing                       |
+| Site Publish (dispatch)    | `site-publish-dispatch.yml` | dispatch, type `DEPLOY`                                     | Manual production publish                                             | n/a                           |
+| Site Publish (release)     | `site-publish-release.yml`  | stable release published                                    | Auto-publish sq.io                                                    | n/a                           |
+| Site Publish to Netlify    | `site-publish-netlify.yml`  | `workflow_call`                                             | Shared build, upload, post-deploy smoke                               | n/a                           |
+| Site data (nightly)        | `site-data-nightly.yml`     | daily 07:00 UTC, dispatch                                   | Refresh `site/data/github.toml`                                       | n/a                           |
+| Site Links (nightly)       | `site-links-nightly.yml`    | daily 07:15 UTC, dispatch                                   | External link crawl                                                   | n/a                           |
 
 "Gates" means a `needs:` edge that stops a later job. Master has no required status checks (see
 [What gates what](#what-gates-what)), so on a PR every workflow is advisory in the strict sense;
@@ -97,8 +97,8 @@ All times UTC.
 
 | Time                      | Workflow                   | What                                               |
 | ------------------------- | -------------------------- | -------------------------------------------------- |
-| 04:00 daily except Monday | DB integration (scheduled) | every engine at bookends, `go test ./...`          |
-| 05:00 Monday              | DB integration (scheduled) | every engine at every supported version            |
+| 04:00 daily except Monday | DB integration (scheduled) | every engine at bookends, with coverage to Codecov |
+| 05:00 Monday              | DB integration (scheduled) | every engine at every version, with coverage       |
 | 07:00 daily               | Site data (nightly)        | refresh `site/data/github.toml`, commit if changed |
 | 07:15 daily               | Site Links (nightly)       | lychee external link crawl                         |
 | 09:17 daily               | Main Pipeline              | full suite (no `-short`) on Linux, macOS, Windows  |
@@ -283,7 +283,10 @@ After checkout and Go setup:
    outputs, where GitHub's secret masking would drop it) and runs
    `go test -timeout 25m ./...`. Every other engine's envar is unset, so their tests skip via
    `testh.Helper.Source`. The embedded sources need no envar, so the whole SQLite and DuckDB
-   suite runs in every leg.
+   suite runs in every leg. When the caller sets the `coverage` input, the run adds
+   `-coverpkg=./... -coverprofile=coverage.out`.
+4. `Upload coverage to Codecov`: only with the `coverage` input, which only `db-scheduled.yml`
+   sets. Uploads the leg's profile with flag `db-<engine>` (see [Coverage](#coverage)).
 
 ## Release
 
@@ -350,8 +353,48 @@ incident, not a blocked release.
   Bun packages, and GitHub Actions pins. Triage with the maintainer skills under
   [`.agents/skills/`](../.agents/skills) (`sq-gomod-dependabot`, `sq-site-dependabot`,
   `sq-actions-dependabot`).
-- **Coverage** (`coverage.yml`): nightly full suite with `-coverpkg=./...` uploaded to Codecov
-  (`CODECOV_TOKEN`). Not on PRs, and never a gate: the Codecov checks are informational.
+- **Coverage**: see [Coverage](#coverage).
+
+## Coverage
+
+The Codecov figure (the README badge) merges two sets of uploads, both with
+`-coverpkg=./...`:
+
+| Source                                                  | Flag          | Measures                                                    |
+| ------------------------------------------------------- | ------------- | ----------------------------------------------------------- |
+| `coverage.yml`, 09:37 UTC                               | `nightly`     | the full suite with no external engine, so their tests skip |
+| `db-integration.yml` legs, called by `db-scheduled.yml` | `db-<engine>` | the full suite against one live engine, per leg             |
+
+Neither alone is the real number: most server-driver code (`drivers/postgres`, `drivers/mysql`
+and so on) is exercised only by tests that skip without their engine. The DB uploads run
+at 04:00 and the `nightly` upload at 09:37, so they often land on different master commits (the
+07:00 site data refresh commits in between). `carryforward` in [`codecov.yml`](../codecov.yml)
+fills in each flag a commit did not receive from the nearest ancestor that did. The PR and
+release calls of `db-integration.yml` do not upload.
+
+`codecov.yml` ignores the generated ANTLR parsers (`drivers/sqlite3/sqlparser/sqlite`,
+`libsq/ast/internal/slq`), which would otherwise be a third of all measured lines. Coverage is
+never a gate and never runs on PRs: the Codecov checks are informational.
+
+### What the figure does not see
+
+- **Version-specific code between the bookends.** The nightly `db-scheduled.yml` legs test each
+  engine's oldest and latest tag only. A single "added in version X" check is still covered on
+  both sides, because the oldest tag is below X and latest is above it (see
+  `supportsCastAsDouble` in `drivers/mysql/metadata.go`). Code taken only by a middle version is
+  measured by the Monday all-versions run, then drops out again when the next nightly DB run
+  uploads its `db-<engine>` flags to a newer commit, because carryforward only fills in flags a
+  commit did not receive.
+- **Engines and forks with no image in `sakila-db.json`.** The MySQL driver also serves MariaDB,
+  but no MariaDB image is tested, so the MariaDB branches of the `supportsXxx` helpers in
+  `drivers/mysql/metadata.go` never run.
+- **Which way a condition went.** Go coverage counts statements, so
+  `return semver.Compare(v, "v8.0.17") >= 0` is covered whichever way it evaluates, and version
+  differences in what the server returns do not show up at all. Cross-version correctness comes
+  from the weekly and release all-versions runs, not from the coverage figure.
+- **Code built only for other platforms.** Coverage runs on Linux, where files such as
+  `libsq/core/termz/termz_windows.go` are not compiled. They are absent from the report rather
+  than counted as missed.
 
 ## Site CI
 
@@ -392,6 +435,9 @@ Actions and the Netlify CLI only; Netlify's own git integration is disabled. Man
 - `db-integration.yml`'s `setup` fails on an empty selection rather than skipping, so a caller
   that might select nothing (`db-pr.yml`) must guard the call with an `if`.
 - A `uses:` job can carry `if:` and `needs:` but not `steps:`; put logic in a preceding job.
+- A called workflow sees no repository secrets unless the caller passes them, so
+  `secrets.CODECOV_TOKEN` is empty in `db-integration.yml` unless the `uses:` job has a
+  `secrets:` block, as `db-scheduled.yml` does.
 - `github.event.inputs.<name>` is empty on a cron trigger, so a workflow with two schedules
   tells them apart by matching `github.event.schedule` against the cron string, as
   `db-scheduled.yml` does for its weekly run.
@@ -405,7 +451,7 @@ Actions and the Netlify CLI only; Netlify's own git integration is disabled. Man
 | `FURY_TOKEN`                            | `publish`                                                                 | Gemfury upload                                  |
 | `AUR_PRIVATE_KEY`                       | `publish`                                                                 | AUR package push                                |
 | `GITHUB_TOKEN` (built in)               | `docker-publish`; as `github.token` in `db-pr.yml` and the site workflows | ghcr.io login; PR file listing; site data fetch |
-| `CODECOV_TOKEN`                         | `coverage`                                                                | Codecov upload                                  |
+| `CODECOV_TOKEN`                         | `coverage`; `db-integration.yml`, passed in by `db-scheduled.yml`         | Codecov upload                                  |
 | `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | `site-publish-netlify.yml`                                                | production deploy                               |
 | `SITE_DATA_PUSH_TOKEN`                  | `site-data-nightly.yml`                                                   | push the data commit to master                  |
 

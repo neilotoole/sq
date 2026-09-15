@@ -31,3 +31,8 @@ jobs:
         ${{ (github.event.schedule == '0 5 * * 1' || github.event.inputs.mode == 'all')
             && '{"*":["all"]}'
             || '{"*":["bookends"]}' }}
+      # Each leg uploads coverage as flag db-<engine> (see codecov.yml).
+      coverage: true
+    # Reusable workflows get no secrets unless the caller passes them.
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
