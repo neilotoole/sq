@@ -2,7 +2,6 @@ package csvw
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"slices"
 
@@ -99,7 +98,7 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 	recs := make([]record.Record, 1)
 	var line []byte
 
-	var i, j, k int
+	var i int
 	for i = 0; i < len(pairs) && ctx.Err() == nil; i++ {
 		if pairs[i].Equal() {
 			// The record pair is equal, so we just need to print the record once.
@@ -114,17 +113,27 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 			continue
 		}
 
-		// We've found a difference. We need to print all consecutive "deletion"
-		// lines; and when those are done, we do the consecutive "insertion" lines.
+		// We've found a difference: a contiguous run of differing pairs. We print
+		// all the run's "deletion" lines first, then all its "insertion" lines. A
+		// pair may be single-sided (added: Rec1()==nil; removed: Rec2()==nil) or
+		// two-sided (changed). We make TWO FULL passes over the run, SKIPPING (not
+		// breaking on) the nil side, so a changed pair adjacent to an added/removed
+		// pair still gets both its lines rendered (issue #947).
 
-		for j = i; j < len(pairs) && !pairs[j].Equal(); j++ {
-			// Print deletion lines:
-			//
-			// -38,TOM,MCKELLEN,2006-02-15T04:34:33Z
-			// -39,GOLDIE,BRODY,2006-02-15T04:34:33Z
-			recs[0] = pairs[j].Rec1()
+		// Find the end of this contiguous run of differing pairs.
+		end := i
+		for end < len(pairs) && !pairs[end].Equal() {
+			end++
+		}
+
+		// Deletion pass: every pair with a left side (removed + changed).
+		//
+		// -38,TOM,MCKELLEN,2006-02-15T04:34:33Z
+		// -39,GOLDIE,BRODY,2006-02-15T04:34:33Z
+		for p := i; ctx.Err() == nil && p < end; p++ {
+			recs[0] = pairs[p].Rec1()
 			if recs[0] == nil {
-				break
+				continue
 			}
 			_ = csv1.WriteRecords(ctx, recs)
 			_ = csv1.Flush(ctx)
@@ -135,14 +144,14 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 			buf1.Reset()
 		}
 
-		for k = i; k < len(pairs) && !pairs[k].Equal(); k++ {
-			// Print insertion lines:
-			//
-			// +38,THOMAS,MCKELLEN,2006-02-15T04:34:33Z
-			// +39,GOLDIE,LOCKS,2006-02-15T04:34:33Z
-			recs[0] = pairs[k].Rec2()
+		// Insertion pass: every pair with a right side (added + changed).
+		//
+		// +38,THOMAS,MCKELLEN,2006-02-15T04:34:33Z
+		// +39,GOLDIE,LOCKS,2006-02-15T04:34:33Z
+		for p := i; ctx.Err() == nil && p < end; p++ {
+			recs[0] = pairs[p].Rec2()
 			if recs[0] == nil {
-				break
+				continue
 			}
 			_ = csv2.WriteRecords(ctx, recs)
 			_ = csv2.Flush(ctx)
@@ -155,7 +164,7 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 
 		// Adjust the main loop index to skip over the differing
 		// records that we've just processed.
-		i = max(j, k) - 1
+		i = end - 1
 	}
 
 	if ctx.Err() != nil {
@@ -163,14 +172,17 @@ func (dw *diffWriter) WriteHunk(ctx context.Context, dest *diffdoc.Hunk, rm1, rm
 		return
 	}
 
-	offset := dest.Offset() + 1
-	var headerText string
-	if len(pairs) == 1 {
-		// Short hunk header format for single-line diffs.
-		headerText = fmt.Sprintf("@@ -%d +%d @@", offset, offset)
-	} else {
-		headerText = fmt.Sprintf("@@ -%d,%d +%d,%d @@", offset, len(pairs), offset, len(pairs))
+	leftCount, rightCount := 0, 0
+	for i := range pairs {
+		if pairs[i].Rec1() != nil {
+			leftCount++
+		}
+		if pairs[i].Rec2() != nil {
+			rightCount++
+		}
 	}
+	offset := dest.Offset() + 1
+	headerText := "@@ -" + diffdoc.HunkRange(offset, leftCount) + " +" + diffdoc.HunkRange(offset, rightCount) + " @@"
 
 	seq := colorz.ExtractSeqs(dw.pr.Diff.Section)
 	hunkHeader = seq.Appendln(hunkHeader, []byte(headerText))
