@@ -372,6 +372,10 @@ func (h *Helper) Source(handle string) *source.Source {
 	require.NoError(t, err,
 		"source %s was not found in %s", handle, testsrc.PathTestConfig)
 
+	// collSrc is the collection's own entry, kept so the copy made below can
+	// be written back to it.
+	collSrc := src
+
 	// Resolve ${scheme:path} placeholders (e.g. ${env:SQ_ROOT},
 	// ${env:SQ_TEST_SRC__*}) before the file-copy logic and caching, so every
 	// downstream path (file copy, openNew, RowCount) sees a concrete location.
@@ -388,6 +392,15 @@ func (h *Helper) Source(handle string) *source.Source {
 		dstPath := filepath.Join(tu.TempDir(t), filepath.Base(srcPath))
 		require.NoError(t, ioz.CopyFile(dstPath, srcPath, true))
 		src.Location = sqlite3.Prefix + dstPath
+
+		// Write the copy's location back to the Helper's own collection
+		// entry. The collection is loaded per Helper, so this stays
+		// test-local. Consumers that resolve handles through the collection
+		// (Helper.QuerySLQ -> libsq.ExecSLQ) must see the copy, or they open
+		// the original read-write, which blocks other packages' copies on
+		// Windows.
+		collSrc.Location = src.Location
+		collSrc.SecretsResolved = src.SecretsResolved
 	}
 
 	if src.Type == drivertype.DuckDB {
@@ -404,6 +417,8 @@ func (h *Helper) Source(handle string) *source.Source {
 			dstPath := filepath.Join(tu.TempDir(t), filepath.Base(srcPath))
 			require.NoError(t, ioz.CopyFile(dstPath, srcPath, true))
 			src.Location = duckdb.Prefix + dstPath
+			collSrc.Location = src.Location
+			collSrc.SecretsResolved = src.SecretsResolved
 		}
 	}
 

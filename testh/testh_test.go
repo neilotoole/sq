@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh"
@@ -291,4 +292,43 @@ func TestHelper_TempDirCleanup(t *testing.T) {
 		ctb.runCleanup(0)
 		require.NoFileExists(t, path)
 	})
+}
+
+// TestHelper_QuerySLQ_UsesFixtureCopy verifies that a Helper query runs
+// against the per-test fixture copy, not the version-controlled original.
+// Helper.Source copies the fixture, but the Helper's collection used to keep
+// the original location, so libsq opened the original read-write. On Windows
+// that exclusive open blocks other packages copying the fixture (gh #1162).
+func TestHelper_QuerySLQ_UsesFixtureCopy(t *testing.T) {
+	testCases := []struct {
+		handle   string
+		origPath string
+		pathFn   func(src *source.Source) (string, error)
+	}{
+		{handle: sakila.SL3, origPath: proj.Abs(sakila.PathSL3), pathFn: sqlite3.PathFromLocation},
+		{handle: sakila.Duck, origPath: proj.Abs(sakila.PathDuck), pathFn: duckdb.PathFromLocation},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.handle, func(t *testing.T) {
+			th := testh.New(t)
+			src := th.Source(tc.handle)
+			copyPath, err := tc.pathFn(src)
+			require.NoError(t, err)
+			require.NotEqual(t, tc.origPath, copyPath, "Helper.Source must return a copy")
+
+			_, err = th.QuerySLQ(tc.handle+` | .actor | .[0:1]`, nil)
+			require.NoError(t, err)
+
+			// The grip cache is keyed by (mode, handle), so this returns the
+			// grip the query opened.
+			grip, err := th.Grips().Open(th.Context, src, driver.ModeReadWrite)
+			require.NoError(t, err)
+			gotPath, err := tc.pathFn(grip.Source())
+			require.NoError(t, err)
+
+			require.Equal(t, copyPath, gotPath, "query must use the per-test copy")
+			require.NotEqual(t, tc.origPath, gotPath, "query must not open the original fixture")
+		})
+	}
 }
