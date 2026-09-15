@@ -376,6 +376,25 @@ release calls of `db-integration.yml` do not upload.
 `libsq/ast/internal/slq`), which would otherwise be a third of all measured lines. Coverage is
 never a gate and never runs on PRs: the Codecov checks are informational.
 
+### What the figure does not see
+
+- **Version-specific code between the bookends.** The nightly legs test each engine's oldest
+  and latest tag only. A single "added in version X" check is still covered on both sides,
+  because the oldest tag is below X and latest is above it (see `supportsCastAsDouble` in
+  `drivers/mysql/metadata.go`). Code taken only by a middle version is measured by the Monday
+  all-versions run, then drops out again when the next nightly uploads its `db-<engine>` flags to
+  a newer commit, because carryforward only fills in flags a commit did not receive.
+- **Engines and forks with no image in `sakila-db.json`.** The MySQL driver also serves MariaDB,
+  but no MariaDB image is tested, so the MariaDB branches of the `supportsXxx` helpers in
+  `drivers/mysql/metadata.go` never run.
+- **Which way a condition went.** Go coverage counts statements, so
+  `return semver.Compare(v, "v8.0.17") >= 0` is covered whichever way it evaluates, and version
+  differences in what the server returns do not show up at all. Cross-version correctness comes
+  from the weekly and release all-versions runs, not from the coverage figure.
+- **Code built only for other platforms.** Coverage runs on Linux, where files such as
+  `libsq/core/termz/termz_windows.go` are not compiled. They are absent from the report rather
+  than counted as missed.
+
 ## Site CI
 
 The sq.io site under `site/` has its own build (Hugo, Bun) and its own workflows. Site CI lints
