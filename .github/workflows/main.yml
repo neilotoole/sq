@@ -43,6 +43,13 @@ jobs:
       # here; it runs in the dedicated coverage workflow (see coverage.yml, #871).
       FULL_RUN: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
 
+      # Opt in to the live-network test (gh #1158) on the nightly schedule
+      # only. Fixtures are otherwise served from a local test server, so PRs,
+      # master merges, release tags and the DB matrix never fetch from an
+      # external host. Deliberately narrower than FULL_RUN: a flaky fetch must
+      # not be able to block a release.
+      SQ_TEST_NETWORK: ${{ github.event_name == 'schedule' }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
