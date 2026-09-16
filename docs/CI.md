@@ -164,6 +164,13 @@ it against a release tag; against a branch it starts and skips every job.
   external engines are gated separately: `testh.Helper.Source` skips them whenever the engine's
   `SQ_TEST_SRC__*` envar is unset, regardless of `-short`.
   Output goes through `tparse` for a sorted summary.
+- `SQ_TEST_NETWORK` is set on the nightly `test-nix` leg only. HTTP test
+  fixtures are served from a local test server (`testh/fixtsrv`) rather than
+  a live host, so the suite makes no external fixture fetches. The one test
+  that deliberately uses a real remote host, `TestDownloader_liveNetwork`,
+  skips via `tu.SkipNoNetwork` unless that envar is true. It is deliberately
+  narrower than `FULL_RUN`: release tags run the full suite, and a flaky
+  external fetch must not be able to block a release.
 - `test-windows-smoke`: PRs and master merges only. Builds everything (catching CGO/SQLite
   breakage) and runs `./test/smoke/...`. Compiling everything is half the point: it catches
   CGO/SQLite breakage cheaply, while the focused smoke suite keeps the dev loop fast.
