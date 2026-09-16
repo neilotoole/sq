@@ -61,6 +61,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/mdcache"
 	"github.com/neilotoole/sq/libsq/source/metadata"
+	"github.com/neilotoole/sq/testh/fixtsrv"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
@@ -967,6 +968,13 @@ func (h *Helper) DiffDB(src *source.Source) {
 }
 
 func mustLoadCollection(ctx context.Context, tb testing.TB) *source.Collection { //nolint:thelper
+	// Start the fixture server before any handle is resolved, so that
+	// test.sq.yml's ${env:SQ_TEST_FIXTURE_URL} placeholder has a value by the
+	// time it is expanded. This is guaranteed: mustLoadCollection is the only
+	// producer of h.coll, and h.Source is its only caller, so no handle can be
+	// resolved before this call returns.
+	fixtsrv.BaseURL()
+
 	path := proj.Abs(testsrc.PathTestConfig)
 	if override := strings.TrimSpace(os.Getenv(proj.EnvTestConfigFile)); override != "" {
 		// A relative SQ_TEST_CONFIG_FILE is resolved against the test

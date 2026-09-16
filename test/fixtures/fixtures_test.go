@@ -23,18 +23,18 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/test/fixtures/internal/fixtdata"
 	"github.com/neilotoole/sq/testh/proj"
+	"github.com/neilotoole/sq/testh/pubfixt"
 )
 
 // TestPublishedFilesMatchCanonical verifies that every published Sakila
 // fixture is byte-identical to the in-repo fixture it is copied from.
 func TestPublishedFilesMatchCanonical(t *testing.T) {
-	for _, name := range slices.Sorted(maps.Keys(fixtdata.Files)) {
-		canonical := fixtdata.Files[name]
+	for _, name := range slices.Sorted(maps.Keys(pubfixt.Files)) {
+		canonical := pubfixt.Files[name]
 
 		t.Run(name, func(t *testing.T) {
-			gotPublished, err := os.ReadFile(proj.Abs(filepath.Join(fixtdata.PublishedDir, name)))
+			gotPublished, err := os.ReadFile(proj.Abs(filepath.Join(pubfixt.PublishedDir, name)))
 			require.NoError(t, err)
 
 			wantCanonical, err := os.ReadFile(proj.Abs(canonical))
@@ -42,7 +42,7 @@ func TestPublishedFilesMatchCanonical(t *testing.T) {
 
 			require.True(t, bytes.Equal(wantCanonical, gotPublished),
 				"%s/%s has drifted from %s: run %s",
-				fixtdata.PublishedDir, name, canonical, fixtdata.GenCmd)
+				pubfixt.PublishedDir, name, canonical, pubfixt.GenCmd)
 		})
 	}
 }
@@ -52,21 +52,21 @@ func TestPublishedFilesMatchCanonical(t *testing.T) {
 // compares the archive members rather than the tarball bytes, so that a gzip
 // or tar encoding change is not reported as fixture drift.
 func TestPublishedTarballsMatchCanonical(t *testing.T) {
-	for _, name := range slices.Sorted(maps.Keys(fixtdata.Tarballs)) {
-		canonicalDir := fixtdata.Tarballs[name]
+	for _, name := range slices.Sorted(maps.Keys(pubfixt.Tarballs)) {
+		canonicalDir := pubfixt.Tarballs[name]
 
 		t.Run(name, func(t *testing.T) {
-			gotMembers := readTarball(t, proj.Abs(filepath.Join(fixtdata.PublishedDir, name)))
+			gotMembers := readTarball(t, proj.Abs(filepath.Join(pubfixt.PublishedDir, name)))
 			wantMembers := readDir(t, proj.Abs(canonicalDir), filepath.Base(canonicalDir))
 
 			require.Equal(t, slices.Sorted(maps.Keys(wantMembers)), slices.Sorted(maps.Keys(gotMembers)),
 				"%s packs a different set of files than %s: run %s",
-				name, canonicalDir, fixtdata.GenCmd)
+				name, canonicalDir, pubfixt.GenCmd)
 
 			for member, want := range wantMembers {
 				require.True(t, bytes.Equal(want, gotMembers[member]),
 					"%s: member %s has drifted from %s: run %s",
-					name, member, canonicalDir, fixtdata.GenCmd)
+					name, member, canonicalDir, pubfixt.GenCmd)
 			}
 		})
 	}
