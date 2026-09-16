@@ -189,7 +189,8 @@ checksums in `scripts/install-lychee.sh` together. Rust and Cargo are not requir
 - Build command: `bun run build` (deploy previews only; production is skipped via `ignore`)
 - Publish directory: `public`
 - Plugins: Lighthouse audits, sitemap submission
-- Deploy previews include full Lighthouse reports
+- Deploy previews run Lighthouse against the deployed URL. Scores appear in the build log and
+  Netlify's deploy summary; no report page is published to the site.
 - Netlify automatically detects `bun.lock` and uses `bun install`
 - `BUN_FLAGS = "--force"` makes that install reinstall every dependency. Netlify restores a
   per-branch `node_modules` cache, and installing a newer `bun.lock` over a stale tree can leave

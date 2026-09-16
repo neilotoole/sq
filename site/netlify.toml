@@ -47,18 +47,11 @@ providers = [
 
 [[plugins]]
 package = "@netlify/plugin-lighthouse"
-
-# optional, fails build when a category is below a threshold
-[plugins.inputs.thresholds]
-#    performance = 0.9
-#    accessibility = 0.9
-#    best-practices = 0.9
-#    seo = 0.9
-#    pwa = 0.9
-
-# optional, deploy the lighthouse report to a path under your site
-[plugins.inputs]
-output_path = "reports/lighthouse.html"
+# No inputs. Without fail_deploy_on_score_thresholds the plugin registers
+# onSuccess, which audits the deployed URL; that path discards output_path and
+# cannot write a report, so scores land in the build log and Netlify's deploy
+# summary only. Declaring [plugins.inputs.thresholds] (which was empty) before
+# [plugins.inputs] also tripped Netlify's post-processing TOML parser (#1218).
 
 [dev]
 framework = "#custom"
