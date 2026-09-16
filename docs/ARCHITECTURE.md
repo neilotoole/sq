@@ -985,7 +985,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Ta
 
 **Location:** `libsq/ast/ast.go`
 
-SQ parses queries into an AST structure:
+`sq` parses queries into an AST structure:
 
 ```text
 SelectNode (root)
