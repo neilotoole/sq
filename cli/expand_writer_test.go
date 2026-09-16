@@ -140,7 +140,7 @@ func TestExpandSourceWriter_Source_FlagSet_Expands(t *testing.T) {
 	})
 
 	rec := &recordingSourceWriter{}
-	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
+	ew := &expandSourceWriter{w: rec, cmd: cmd, ru: ru}
 
 	src := &source.Source{
 		Handle:   "@a",
@@ -157,7 +157,7 @@ func TestExpandSourceWriter_Source_FlagUnset_PassThrough(t *testing.T) {
 	cmd, ru := newExpanderCmd(t, false, nil)
 
 	rec := &recordingSourceWriter{}
-	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
+	ew := &expandSourceWriter{w: rec, cmd: cmd, ru: ru}
 
 	src := &source.Source{
 		Handle:   "@a",
@@ -174,7 +174,7 @@ func TestExpandSourceWriter_ParseErrorPropagates(t *testing.T) {
 	cmd, ru := newExpanderCmd(t, true, nil)
 
 	rec := &recordingSourceWriter{}
-	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
+	ew := &expandSourceWriter{w: rec, cmd: cmd, ru: ru}
 
 	src := &source.Source{
 		Handle:   "@bad",
@@ -193,7 +193,7 @@ func TestExpandSourceWriter_Collection_Expands(t *testing.T) {
 	})
 
 	rec := &recordingSourceWriter{}
-	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
+	ew := &expandSourceWriter{w: rec, cmd: cmd, ru: ru}
 
 	coll := &source.Collection{}
 	require.NoError(t, coll.Add(&source.Source{
@@ -218,7 +218,7 @@ func TestExpandSourceWriter_Group_ExpandsNestedSources(t *testing.T) {
 	})
 
 	rec := &recordingSourceWriter{}
-	ew := &expandSourceWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
+	ew := &expandSourceWriter{w: rec, cmd: cmd, ru: ru}
 
 	group := &source.Group{
 		Name: "/",
@@ -264,7 +264,7 @@ func TestExpandPingWriter_OpenCachesForResult(t *testing.T) {
 	cmd.SetContext(context.Background())
 
 	rec := &recordingPingWriter{}
-	ew := &expandPingWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
+	ew := &expandPingWriter{w: rec, cmd: cmd, ru: ru}
 
 	src := &source.Source{
 		Handle:   "@a",
@@ -290,7 +290,7 @@ func TestExpandMetadataWriter_SourceMetadata_Expands(t *testing.T) {
 	})
 
 	rec := &recordingMetadataWriter{}
-	ew := &expandMetadataWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
+	ew := &expandMetadataWriter{w: rec, cmd: cmd, ru: ru}
 
 	srcMeta := &metadata.Source{
 		Handle:   "@a",
@@ -311,7 +311,7 @@ func TestExpandMetadataWriter_SecretsResolved_Skipped(t *testing.T) {
 	cmd, ru := newExpanderCmd(t, true, nil)
 
 	rec := &recordingMetadataWriter{}
-	ew := &expandMetadataWriter{w: rec, expander: expander{cmd: cmd, ru: ru}}
+	ew := &expandMetadataWriter{w: rec, cmd: cmd, ru: ru}
 
 	srcMeta := &metadata.Source{
 		Handle:          "@a",

@@ -29,8 +29,7 @@ func hasErrCode(err error, code int32) bool {
 		return false
 	}
 
-	var msErr mssql.Error
-	if errors.As(err, &msErr) {
+	if msErr, ok := errors.AsType[mssql.Error](err); ok {
 		return msErr.Number == code
 	}
 
@@ -75,8 +74,7 @@ func errw(err error) error {
 	case hasErrCode(err, errCodeBadObject):
 		return driver.NewNotExistError(err)
 	default:
-		var mssqlErr mssql.Error
-		if errors.As(err, &mssqlErr) {
+		if mssqlErr, ok := errors.AsType[mssql.Error](err); ok {
 			return errz.Wrapf(err, "ERROR %d", mssqlErr.Number)
 		}
 

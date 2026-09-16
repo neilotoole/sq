@@ -15,8 +15,9 @@ all shared rules.
 ## About `sq`
 
 `sq` is a command-line data wrangler providing jq-style access to structured
-data sources (SQL databases like Postgres, MySQL, SQLite, SQL Server,
-ClickHouse, Oracle, DuckDB; and document formats like CSV, JSON, Excel). User
+data sources (eight SQL databases: SQLite, rqlite, DuckDB, Postgres, SQL
+Server, MySQL, ClickHouse and Oracle; and document formats like CSV, JSON and
+Excel). User
 docs live at
 [sq.io](https://sq.io).
 
@@ -73,9 +74,11 @@ repo's git hooks (`.githooks`), including a `pre-commit` hook that runs
 of failing the `Format` CI job. Bypass the hook for one commit with
 `git commit --no-verify`.
 
-Driver integration tests for Postgres, MySQL, SQL Server, and ClickHouse
-require the `sakiladb/*` Docker images to be reachable. Use `make test-short`
-or `go test -short ./...` to skip them.
+Driver integration tests for the six client/server engines (Postgres, MySQL,
+SQL Server, ClickHouse, Oracle and rqlite) require the `sakiladb/*` Docker
+images to be reachable. Use `make test-short` or `go test -short ./...` to skip
+them. The embedded engines, SQLite and DuckDB, use in-repo fixtures and always
+run.
 
 ## Conventions
 

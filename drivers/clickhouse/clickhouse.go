@@ -250,10 +250,10 @@ func placeholders(numCols, numRows int) string {
 	rows := make([]string, numRows)
 
 	var sb strings.Builder
-	for i := 0; i < numRows; i++ {
+	for i := range numRows {
 		sb.Reset()
 		sb.WriteRune('(')
-		for j := 0; j < numCols; j++ {
+		for j := range numCols {
 			sb.WriteRune('?')
 			if j < numCols-1 {
 				sb.WriteString(driver.Comma)
@@ -354,11 +354,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessM
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 // doOpen creates the underlying sql.DB connection to ClickHouse.

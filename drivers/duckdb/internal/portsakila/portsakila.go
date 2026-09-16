@@ -520,8 +520,8 @@ func reorderDropTables(s string, order []string) (string, error) {
 	// every output line ends with "\n".
 	var b strings.Builder
 	b.WriteString(prologueText)
-	for i := len(order) - 1; i >= 0; i-- {
-		b.WriteString(drops[order[i]])
+	for _, o := range slices.Backward(order) {
+		b.WriteString(drops[o])
 	}
 	b.WriteString(epilogueText)
 	out := b.String()
