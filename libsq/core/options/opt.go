@@ -283,9 +283,10 @@ func (op String) convert(v any) (string, error) {
 	}
 }
 
-// Process implements options.Opt. If the String was constructed
-// with validator function, it is invoked on the value of the Opt,
-// if it is set. Otherwise the method is no-op.
+// Process implements options.Opt. A value that is not already a string is
+// coerced into its string form, and the Options is cloned and updated. If the
+// String was constructed with a validator function, it is invoked on the
+// value. If no value is set, the input arg is returned unchanged.
 func (op String) Process(o Options) (Options, error) {
 	v, ok := o[op.key]
 	if !ok || v == nil {
