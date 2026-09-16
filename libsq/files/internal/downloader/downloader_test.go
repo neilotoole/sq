@@ -72,7 +72,7 @@ func TestState_String(t *testing.T) {
 }
 
 // TestDownloader is an integration test that exercises the complete download
-// and caching lifecycle using a real HTTP resource (sakila.ActorCSVURL).
+// and caching lifecycle using the local fixture server.
 //
 // The test verifies the following behaviors:
 //
@@ -96,9 +96,11 @@ func TestState_String(t *testing.T) {
 //  6. Cache clearing: Calling Clear() resets the Downloader to Uncached state
 //     and removes the cached checksum.
 //
-// This test requires network access to download the sakila actor CSV file.
+// This test runs against the local fixture server (testh/fixtsrv), so it
+// needs no network access. TestDownloader_liveNetwork covers the real-remote
+// path.
 func TestDownloader(t *testing.T) {
-	const dlURL = sakila.ActorCSVURL
+	dlURL := sakila.ActorCSVURL()
 	log := lgt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
 
@@ -137,10 +139,10 @@ func TestDownloader(t *testing.T) {
 	var gotN int
 	gotN, gotErr = ioz.DrainClose(r)
 	require.NoError(t, gotErr)
-	require.Equal(t, sakila.ActorCSVSize, gotN)
+	require.Equal(t, sakila.ActorCSVSize(), gotN)
 	tu.RequireTake(t, gotStream.Filled())
 	tu.RequireTake(t, gotStream.Done())
-	require.Equal(t, sakila.ActorCSVSize, gotStream.Size())
+	require.Equal(t, sakila.ActorCSVSize(), gotStream.Size())
 	require.Equal(t, downloader.Fresh, dl.State(ctx))
 
 	// Now we should be able to access the cache.
@@ -152,7 +154,7 @@ func TestDownloader(t *testing.T) {
 	require.NotEmpty(t, gotFile)
 	gotSize, gotErr := ioz.Filesize(gotFile)
 	require.NoError(t, gotErr)
-	require.Equal(t, sakila.ActorCSVSize, int(gotSize))
+	require.Equal(t, sakila.ActorCSVSize(), int(gotSize))
 
 	// Let's download again, and verify that the cache is used.
 	gotFile, gotStream, gotErr = dl.Get(ctx)
@@ -162,7 +164,7 @@ func TestDownloader(t *testing.T) {
 
 	gotFileBytes, gotErr := os.ReadFile(gotFile)
 	require.NoError(t, gotErr)
-	require.Equal(t, sakila.ActorCSVSize, len(gotFileBytes))
+	require.Equal(t, sakila.ActorCSVSize(), len(gotFileBytes))
 	require.Equal(t, downloader.Fresh, dl.State(ctx))
 	sum, ok = dl.Checksum(ctx)
 	require.True(t, ok)
