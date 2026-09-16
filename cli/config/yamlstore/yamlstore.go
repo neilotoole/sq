@@ -191,20 +191,14 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 		cfg.Collection = &source.Collection{}
 	}
 
-	// Process each source's options, the same as the base config options
-	// above. Without this a source option loaded from YAML keeps its raw
-	// (e.g. string) form, so consumers such as options.Duration.Get fail
-	// the type assertion and silently fall back to the option's default.
-	// Save does this via canonicalizeConfig; the load path must match.
-	if err = cfg.Collection.Visit(func(src *source.Source) error {
-		var pErr error
-		if src.Options, pErr = fs.OptionsRegistry.Process(src.Options); pErr != nil {
-			return errz.Wrapf(pErr, "processing source options for %s", src.Handle)
-		}
+	// Process each source's options into their typed form. Without this, a
+	// source option loaded from YAML keeps its raw (e.g. string) form, so
+	// consumers such as options.Duration.Get fail the type assertion and
+	// silently fall back to the option's default. See #1165.
+	_ = cfg.Collection.Visit(func(src *source.Source) error {
+		src.Options = processOptionsLenient(fs.OptionsRegistry, src.Options)
 		return nil
-	}); err != nil {
-		return nil, errz.Wrapf(err, "config: %s", fs.Path)
-	}
+	})
 
 	repaired, err := source.VerifyIntegrity(cfg.Collection)
 	if err != nil {
@@ -220,6 +214,50 @@ func (fs *Store) doLoad(ctx context.Context) (*config.Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// processOptionsLenient returns a copy of o in which each registered option's
+// value has been processed into its typed form, e.g. the string "1m30s"
+// becomes a time.Duration. It is the load-path counterpart to
+// options.Registry.Process, which canonicalizeConfig applies on save.
+//
+// It differs from Registry.Process in two deliberate ways: a value that
+// cannot be processed is kept verbatim instead of returning an error, and a
+// key that is not registered is kept instead of being discarded. Load is not
+// the place to reject a config, because a config that will not load cannot be
+// repaired using sq's own config commands, and an unrecognized key is easier
+// to correct when the user can still see it. Save remains the gate that
+// rejects invalid values and drops unknown keys.
+func processOptionsLenient(reg *options.Registry, o options.Options) options.Options {
+	if o == nil {
+		return nil
+	}
+
+	o2 := o.Clone()
+	for _, opt := range reg.Opts() {
+		key := opt.Key()
+		v, ok := o2[key]
+		if !ok {
+			continue
+		}
+
+		processed, err := opt.Process(options.Options{key: v})
+		if err != nil {
+			// Keep the raw value. Save is where an invalid value is rejected.
+			continue
+		}
+
+		if pv, ok := processed[key]; ok {
+			o2[key] = pv
+			continue
+		}
+
+		// Process dropped the key, meaning it considers the value unset,
+		// e.g. an empty string for an options.Bool. Match that.
+		delete(o2, key)
+	}
+
+	return o2
 }
 
 // Save writes config to disk. It implements Store.

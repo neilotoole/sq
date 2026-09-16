@@ -12,6 +12,21 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 > `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
 > those gaps.
 
+## Unreleased
+
+### Changed
+
+- [#1165]: A duration option set on a source is now displayed in its canonical
+  form. A source configured with `conn.max-idle-time: 100s` shows as `1m40s` in
+  [`sq ls`](https://sq.io/docs/cmd/ls) `-v` and `sq config ls --src`.
+
+### Fixed
+
+- [#1165]: A source-level option was ignored once `sq` reloaded its config,
+  silently falling back to the option's default. This affected the duration
+  options that can be set per source, such as `conn.max-idle-time`,
+  `conn.max-lifetime` and `http.request.timeout`.
+
 ## [v0.55.0] - 2026-09-09
 
 ### Added
@@ -1767,6 +1782,7 @@ make working with lots of sources much easier.
 [#994]: https://github.com/neilotoole/sq/pull/994
 [#1017]: https://github.com/neilotoole/sq/issues/1017
 [#1136]: https://github.com/neilotoole/sq/issues/1136
+[#1165]: https://github.com/neilotoole/sq/issues/1165
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
