@@ -125,6 +125,40 @@ so they're skipped under `go test -short`. See
 [`docs/DRIVERS.md`](./docs/DRIVERS.md#test-handles) for driver test handle
 conventions.
 
+### Flaky tests
+
+Do not skip a flaky test. Find the root cause and fix that.
+
+A `t.Skip` on an intermittent failure removes the signal and leaves the cause in
+place, so it resurfaces against whatever test loses the race next. One Windows
+fixture-locking bug surfaced as failures in `TestCmdSLQ_Insert`,
+`TestSakilaCrossDatabase` and `TestCmdSQL_ExecMode` on different runs, and two
+separate PRs proposed skipping two of those tests. Neither test was the culprit,
+and each skip would have silenced one symptom while leaving the bug to surface
+elsewhere. The cause was other tests opening the shared DuckDB fixture
+read-write, fixed in
+[#1199](https://github.com/neilotoole/sq/pull/1199) and
+[#1196](https://github.com/neilotoole/sq/pull/1196).
+
+When a test flakes:
+
+1. Read the failure output. The error text names the mechanism, which is often
+   unrelated to what the test name suggests.
+2. Compare the failing runs. Look for what they share: one OS, one driver, one
+   CI leg, a particular pair of tests running concurrently.
+3. Trace back to the cause. A test that fails is often the victim rather than
+   the culprit.
+4. Fix the cause, and add a test that would have caught it.
+
+Gating on a real precondition is not skipping. `tu.SkipShort(t, true)` for tests
+that need a live database, and the envar checks behind the driver test handles,
+state what the test requires. A skip added because a test sometimes fails states
+nothing.
+
+If you cannot fix it in the same change, open an issue with the failure output
+and the runs it appeared in. That keeps the test running, so the next failure
+adds evidence instead of being silenced.
+
 ### Error handling
 
 Use [`libsq/core/errz`](./libsq/core/errz) for every error produced inside
