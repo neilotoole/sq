@@ -730,7 +730,7 @@ collection:
 
 	src, err := cfg.Collection.Get("@src")
 	require.NoError(t, err)
-	// On unmodified main src.Options holds the string "100s", so Get returns the
+	// On unmodified master src.Options holds the string "100s", so Get returns the
 	// 2s default instead of the configured value.
 	require.Equal(t, 100*time.Second, opt.Get(src.Options),
 		"a source option must be processed into its typed form on load")
