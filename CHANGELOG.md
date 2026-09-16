@@ -52,6 +52,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   stores it, instead of silently falling back to the option's default when the
   value had not been normalized first. As part of this, `log.level` set to an
   integer works, where previously it was rejected.
+- [#1220]: A source location's inline password could be written to the debug log
+  in cleartext. This affected ClickHouse sources whose location omitted the port,
+  and SQLite and DuckDB sources carrying an `_auth_pass` query param when added
+  via [`sq add`](https://sq.io/docs/cmd/add).
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1813,6 +1817,7 @@ make working with lots of sources much easier.
 [#1151]: https://github.com/neilotoole/sq/issues/1151
 [#1165]: https://github.com/neilotoole/sq/issues/1165
 [#1209]: https://github.com/neilotoole/sq/issues/1209
+[#1220]: https://github.com/neilotoole/sq/issues/1220
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

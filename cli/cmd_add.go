@@ -497,7 +497,8 @@ func mungeLocationForType(ctx context.Context, typ drivertype.Type, loc string) 
 		return "", err
 	}
 	if munged != loc {
-		lg.FromContext(ctx).Debug("Munged location", lga.Before, loc, lga.After, munged)
+		lg.FromContext(ctx).Debug("Munged location",
+			lga.Before, location.Redact(loc), lga.After, location.Redact(munged))
 	}
 	return munged, nil
 }
