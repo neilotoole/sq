@@ -44,12 +44,12 @@ $ sq driver ls
 DRIVER      DESCRIPTION
 sqlite3     SQLite
 rqlite      rqlite
+duckdb      DuckDB
 postgres    PostgreSQL
 sqlserver   Microsoft SQL Server
 mysql       MySQL
 clickhouse  ClickHouse
 oracle      Oracle
-duckdb      DuckDB
 csv         Comma-Separated Values
 tsv         Tab-Separated Values
 json        JSON
