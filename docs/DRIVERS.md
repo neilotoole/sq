@@ -67,7 +67,10 @@ documentation as incomplete work. This is what keeps [sq.io](https://sq.io),
 1. **Driver package**: `drivers/{driver}/` (and registration in
    [`cli/run.go`](../cli/run.go); see [ARCHITECTURE.md](./ARCHITECTURE.md#extension-guide)).
 2. **Driver type**: constant in
-   [`libsq/source/drivertype/drivertype.go`](../libsq/source/drivertype/drivertype.go).
+   [`libsq/source/drivertype/drivertype.go`](../libsq/source/drivertype/drivertype.go),
+   plus a matching `typeCases` entry in
+   [`drivertype_test.go`](../libsq/source/drivertype/drivertype_test.go);
+   `TestType_Coverage` fails until you add it.
 3. **Tests**: integration tests; for SQL drivers, a `sakiladb/{driver}` image
    and handle in [`testh/sakila/sakila.go`](../testh/sakila/sakila.go) when
    applicable.
