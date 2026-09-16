@@ -33,8 +33,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/neilotoole/sq/test/fixtures/internal/fixtdata"
 	"github.com/neilotoole/sq/testh/proj"
+	"github.com/neilotoole/sq/testh/pubfixt"
 )
 
 // fixedModTime is the mtime stamped on every tarball member. Its value is not
@@ -50,28 +50,28 @@ func main() {
 }
 
 func run() error {
-	publishedDir := proj.Abs(fixtdata.PublishedDir)
+	publishedDir := proj.Abs(pubfixt.PublishedDir)
 	if _, err := os.Stat(publishedDir); err != nil {
 		return fmt.Errorf("published dir: %w", err)
 	}
 
-	for _, name := range slices.Sorted(maps.Keys(fixtdata.Files)) {
-		canonical := fixtdata.Files[name]
+	for _, name := range slices.Sorted(maps.Keys(pubfixt.Files)) {
+		canonical := pubfixt.Files[name]
 
 		b, err := os.ReadFile(proj.Abs(canonical))
 		if err != nil {
 			return fmt.Errorf("%s: %w", name, err)
 		}
-		//nolint:gosec // G703: name comes from fixtdata.Files, an in-repo constant map.
+		//nolint:gosec // G703: name comes from pubfixt.Files, an in-repo constant map.
 		if err = os.WriteFile(filepath.Join(publishedDir, name), b, 0o600); err != nil {
 			return fmt.Errorf("%s: %w", name, err)
 		}
 
-		fmt.Fprintf(os.Stdout, "wrote %s from %s\n", filepath.Join(fixtdata.PublishedDir, name), canonical)
+		fmt.Fprintf(os.Stdout, "wrote %s from %s\n", filepath.Join(pubfixt.PublishedDir, name), canonical)
 	}
 
-	for _, name := range slices.Sorted(maps.Keys(fixtdata.Tarballs)) {
-		canonicalDir := fixtdata.Tarballs[name]
+	for _, name := range slices.Sorted(maps.Keys(pubfixt.Tarballs)) {
+		canonicalDir := pubfixt.Tarballs[name]
 
 		b, err := buildTarball(proj.Abs(canonicalDir))
 		if err != nil {
@@ -81,7 +81,7 @@ func run() error {
 			return fmt.Errorf("%s: %w", name, err)
 		}
 
-		fmt.Fprintf(os.Stdout, "wrote %s from %s\n", filepath.Join(fixtdata.PublishedDir, name), canonicalDir)
+		fmt.Fprintf(os.Stdout, "wrote %s from %s\n", filepath.Join(pubfixt.PublishedDir, name), canonicalDir)
 	}
 
 	return nil
