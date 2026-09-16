@@ -5,6 +5,11 @@
 //
 // The server starts on first use and is never closed: it lives for the life of
 // the test binary, the same way testh/proj derives and holds SQ_ROOT.
+//
+// Do not add staleness, ETag or error-injection behavior here. A test that
+// needs that kind of control should stand up its own httptest server, as the
+// downloader package's tests already do. This server is deliberately a dumb
+// mirror of the real host.
 package fixtsrv
 
 import (

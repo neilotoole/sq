@@ -968,10 +968,11 @@ func (h *Helper) DiffDB(src *source.Source) {
 }
 
 func mustLoadCollection(ctx context.Context, tb testing.TB) *source.Collection { //nolint:thelper
-	// Start the fixture server before the config is read, so that
-	// test.sq.yml's ${env:SQ_TEST_FIXTURE_URL} placeholder resolves. This is
-	// the single place test.sq.yml is loaded, so it covers every handle that
-	// references the fixture server.
+	// Start the fixture server before any handle is resolved, so that
+	// test.sq.yml's ${env:SQ_TEST_FIXTURE_URL} placeholder has a value by the
+	// time it is expanded. This is guaranteed: mustLoadCollection is the only
+	// producer of h.coll, and h.Source is its only caller, so no handle can be
+	// resolved before this call returns.
 	fixtsrv.BaseURL()
 
 	path := proj.Abs(testsrc.PathTestConfig)

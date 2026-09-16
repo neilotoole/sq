@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/cli/buildinfo"
 	"github.com/neilotoole/sq/cli/testrun"
 	"github.com/neilotoole/sq/libsq/core/ioz"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestGetVersionFromBrewFormula(t *testing.T) {
@@ -120,6 +121,7 @@ func TestGetVersionFromBrewFormula_URLBased(t *testing.T) {
 }
 
 func TestFetchBrewVersion(t *testing.T) {
+	tu.SkipNoNetwork(t)
 	latest, err := cli.FetchBrewVersion(context.Background())
 	require.NoError(t, err)
 	require.True(t, semver.IsValid("v"+latest))
