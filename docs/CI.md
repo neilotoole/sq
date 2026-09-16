@@ -308,8 +308,8 @@ config that does nothing but build the CGO binary with sq's SQLite tags and emit
 `builder: prebuilt` picks those binaries up rather than rebuilding them, then produces the
 archives, checksums, packages and channel pushes. `docker-publish` runs
 `.goreleaser-docker.yml` against the two linux artifact sets. GoReleaser Pro is used
-(`GORELEASER_KEY`). `make goreleaser-verify-config` validates the umbrella config and the four
-per-platform configs locally (not the docker config).
+(`GORELEASER_KEY`). `make goreleaser-verify-config` validates the umbrella config, the four
+per-platform configs and the docker config locally.
 
 GoReleaser's own changelog generation is disabled (`changelog: disable: true`);
 [`CHANGELOG.md`](../CHANGELOG.md) is written by hand before the tag, per
@@ -318,19 +318,26 @@ tag such as `v0.50.0-rc.1` publishes as a prerelease and does not trigger the si
 
 ### Channels
 
-| Channel                                                                    | Config                       | Job              | Secret            |
-| -------------------------------------------------------------------------- | ---------------------------- | ---------------- | ----------------- |
-| GitHub release with archives and checksums                                 | `.goreleaser.yml` `release:` | `publish`        | `GH_PAT`          |
-| Homebrew tap (`neilotoole/homebrew-sq`)                                    | `.goreleaser.yml` `brews:`   | `publish`        | `GH_PAT`          |
-| Scoop bucket (`neilotoole/sq`)                                             | `.goreleaser.yml` `scoops:`  | `publish`        | `GH_PAT`          |
-| apk, deb, rpm, termux.deb, archlinux packages                              | `.goreleaser.yml` `nfpms:`   | `publish`        |                   |
-| Gemfury (deb and rpm)                                                      | `.goreleaser.yml` `furies:`  | `publish`        | `FURY_TOKEN`      |
-| AUR (`sq-bin`)                                                             | `.goreleaser.yml` `aurs:`    | `publish`        | `AUR_PRIVATE_KEY` |
-| `ghcr.io/neilotoole/sq` (amd64, arm64, multi-arch manifest, cosign-signed) | `.goreleaser-docker.yml`     | `docker-publish` | `GITHUB_TOKEN`    |
+| Channel                                                                                                                               | Config                       | Job              | Secret                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ---------------- | ---------------------------------------------------- |
+| GitHub release with archives and checksums                                                                                            | `.goreleaser.yml` `release:` | `publish`        | `GH_PAT`                                             |
+| Homebrew tap (`neilotoole/homebrew-sq`)                                                                                               | `.goreleaser.yml` `brews:`   | `publish`        | `GH_PAT`                                             |
+| Scoop bucket (`neilotoole/sq`)                                                                                                        | `.goreleaser.yml` `scoops:`  | `publish`        | `GH_PAT`                                             |
+| apk, deb, rpm, termux.deb, archlinux packages                                                                                         | `.goreleaser.yml` `nfpms:`   | `publish`        |                                                      |
+| Gemfury (deb and rpm)                                                                                                                 | `.goreleaser.yml` `furies:`  | `publish`        | `FURY_TOKEN`                                         |
+| AUR (`sq-bin`)                                                                                                                        | `.goreleaser.yml` `aurs:`    | `publish`        | `AUR_PRIVATE_KEY`                                    |
+| `ghcr.io/neilotoole/sq` and `docker.io/neilotoole/sq` (amd64, arm64, multi-arch manifest, cosign-signed, SLSA provenance + SPDX SBOM) | `.goreleaser-docker.yml`     | `docker-publish` | `GITHUB_TOKEN`, `DOCKER_USERNAME`, `DOCKER_PASSWORD` |
 
-The Docker job pushes per-arch tags (`:<tag>-amd64`, `:<tag>-arm64`), stitches them into the
-`:<tag>` and `:latest` manifests, and signs the manifests with keyless cosign, which is why it
-needs `id-token: write`.
+The Docker job pushes per-arch tags (`:<tag>-amd64`, `:<tag>-arm64`) to both registries, stitches
+them into the `:<tag>` and `:latest` manifests, and signs the manifests with keyless cosign, which
+is why it needs `id-token: write`.
+
+It then attests SLSA build provenance and an SPDX SBOM against the stitched manifest digest. That
+digest is content-addressed, so it is identical on both registries: one digest, attested once per
+registry subject name. Each attestation is pushed to the registry as an OCI referrer and recorded
+in this repo's GitHub attestation store, which is why the job needs `attestations: write`. A final
+step re-reads them with `gh attestation verify` against both registries and both sources, so a
+release fails if an attestation was uploaded but is not actually verifiable.
 
 ### `test-install`, the post-publish canary
 
@@ -359,6 +366,9 @@ incident, not a blocked release.
   Bun packages, and GitHub Actions pins. Triage with the maintainer skills under
   [`.agents/skills/`](../.agents/skills) (`sq-gomod-dependabot`, `sq-site-dependabot`,
   `sq-actions-dependabot`).
+- **Release image provenance**: the published image is cosign-signed and carries SLSA build
+  provenance and an SPDX SBOM on both registries, verified in the same job that pushes them.
+  See [Channels](#channels).
 - **Coverage**: see [Coverage](#coverage).
 
 ## Coverage
@@ -450,16 +460,17 @@ Actions and the Netlify CLI only; Netlify's own git integration is disabled. Man
 
 ### Secrets inventory
 
-| Secret                                  | Used by                                                                   | For                                             |
-| --------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
-| `GH_PAT`                                | `binaries-*`, `publish`                                                   | GoReleaser: release, tap and bucket pushes      |
-| `GORELEASER_KEY`                        | `binaries-*`, `publish`, `docker-publish`                                 | GoReleaser Pro                                  |
-| `FURY_TOKEN`                            | `publish`                                                                 | Gemfury upload                                  |
-| `AUR_PRIVATE_KEY`                       | `publish`                                                                 | AUR package push                                |
-| `GITHUB_TOKEN` (built in)               | `docker-publish`; as `github.token` in `db-pr.yml` and the site workflows | ghcr.io login; PR file listing; site data fetch |
-| `CODECOV_TOKEN`                         | `coverage`; `db-integration.yml`, passed in by `db-scheduled.yml`         | Codecov upload                                  |
-| `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | `site-publish-netlify.yml`                                                | production deploy                               |
-| `SITE_DATA_PUSH_TOKEN`                  | `site-data-nightly.yml`                                                   | push the data commit to master                  |
+| Secret                                  | Used by                                                                   | For                                                    |
+| --------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `GH_PAT`                                | `binaries-*`, `publish`                                                   | GoReleaser: release, tap and bucket pushes             |
+| `GORELEASER_KEY`                        | `binaries-*`, `publish`, `docker-publish`                                 | GoReleaser Pro                                         |
+| `FURY_TOKEN`                            | `publish`                                                                 | Gemfury upload                                         |
+| `AUR_PRIVATE_KEY`                       | `publish`                                                                 | AUR package push                                       |
+| `GITHUB_TOKEN` (built in)               | `docker-publish`; as `github.token` in `db-pr.yml` and the site workflows | ghcr.io login; PR file listing; site data fetch        |
+| `CODECOV_TOKEN`                         | `coverage`; `db-integration.yml`, passed in by `db-scheduled.yml`         | Codecov upload                                         |
+| `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | `site-publish-netlify.yml`                                                | production deploy                                      |
+| `SITE_DATA_PUSH_TOKEN`                  | `site-data-nightly.yml`                                                   | push the data commit to master                         |
+| `DOCKER_USERNAME`, `DOCKER_PASSWORD`    | `docker-publish`                                                          | Docker Hub login: image push and attestation referrers |
 
 ### Adding a release channel
 

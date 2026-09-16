@@ -14,6 +14,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## [Unreleased]
 
+### Added
+
+- [#1007]: The `sq` container image is now published to Docker Hub as
+  [`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq), alongside the
+  existing `ghcr.io/neilotoole/sq`. Both registries carry the same image. The
+  image also now ships with SLSA build provenance and an SPDX SBOM, in addition
+  to the existing cosign signature.
+
 ### Changed
 
 - [#1013]: Querying a remote source now makes one fewer server round-trip per `sq`
@@ -1798,6 +1806,7 @@ make working with lots of sources much easier.
 [#976]: https://github.com/neilotoole/sq/pull/976
 [#986]: https://github.com/neilotoole/sq/issues/986
 [#994]: https://github.com/neilotoole/sq/pull/994
+[#1007]: https://github.com/neilotoole/sq/issues/1007
 [#1013]: https://github.com/neilotoole/sq/issues/1013
 [#1017]: https://github.com/neilotoole/sq/issues/1017
 [#1136]: https://github.com/neilotoole/sq/issues/1136
