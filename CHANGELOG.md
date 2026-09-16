@@ -40,6 +40,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   silently falling back to the option's default. This affected the duration
   options that can be set per source, such as `conn.max-idle-time`,
   `conn.max-lifetime` and `http.request.timeout`.
+- [#1209]: Reading an option now accepts the value in the form the config file
+  stores it, instead of silently falling back to the option's default when the
+  value had not been normalized first. As part of this, `log.level` set to an
+  integer works, where previously it was rejected.
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1799,6 +1803,7 @@ make working with lots of sources much easier.
 [#1136]: https://github.com/neilotoole/sq/issues/1136
 [#1151]: https://github.com/neilotoole/sq/issues/1151
 [#1165]: https://github.com/neilotoole/sq/issues/1165
+[#1209]: https://github.com/neilotoole/sq/issues/1209
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
