@@ -147,6 +147,23 @@ served from the site ([`site/static/testdata/`](../site/static/testdata), e.g.
 [`sq.io/testdata/sakila.db`](https://sq.io/testdata/sakila.db)) so readers can
 follow along.
 
+Those published files are copies of the canonical fixtures, not a separate
+dataset. Generate them with:
+
+```shell
+go run ./test/fixtures/internal/gentestdata
+```
+
+It copies the plain files and rebuilds `sakila-csv.tar.gz` and
+`sakila-tsv.tar.gz` deterministically, so re-running on an unchanged tree
+produces identical bytes. [`test/fixtures`](../test/fixtures) guards the result:
+if a published copy drifts from its canonical source, the test fails and names
+the command. Don't edit `site/static/testdata/` by hand.
+
+Because the docs show query output from these files, restoring them changes
+documented output too. Sweep `site/content` for the affected values in the same
+change.
+
 ## See also
 
 - [`testh/sakila`](../testh/sakila): the Go test-constants package.
