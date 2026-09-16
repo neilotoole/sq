@@ -139,6 +139,7 @@ goreleaser-verify-config: ## Validate the goreleaser config files (no build/publ
 	goreleaser check -f .goreleaser-linux-amd64.yml
 	goreleaser check -f .goreleaser-linux-arm64.yml
 	goreleaser check -f .goreleaser-windows.yml
+	goreleaser check -f .goreleaser-docker.yml
 
 .PHONY: goreleaser-build-local-arch
 goreleaser-build-local-arch: ## Build via goreleaser for the local arch (snapshot; no publish).

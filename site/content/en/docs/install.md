@@ -100,7 +100,10 @@ consult the [install.sh source code](https://raw.githubusercontent.com/neilotool
 ## Docker
 
 The [`ghcr.io/neilotoole/sq`](https://github.com/neilotoole/sq/pkgs/container/sq)
-image is preloaded with `sq` and a handful of related tools like `jq`.
+image is preloaded with `sq` and a handful of related tools like `jq`. The same
+image is published to Docker Hub as
+[`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq). Both are cosign-signed
+and carry SLSA build provenance and an SPDX SBOM.
 
 ### Local
 
