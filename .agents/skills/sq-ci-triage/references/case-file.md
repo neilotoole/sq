@@ -11,13 +11,13 @@ landed elsewhere. Seven carried commits belonging to another branch.
 | PR                                                  | Opened     | Proposed                                    | Closed as                              | Fixed instead by |
 | --------------------------------------------------- | ---------- | ------------------------------------------- | -------------------------------------- | ---------------- |
 | [#921](https://github.com/neilotoole/sq/pull/921)   | 2026-06-21 | OS-independent file placeholder handles     | Superseded, part out of scope          | #926             |
-| [#922](https://github.com/neilotoole/sq/pull/922)   | 2026-06-21 | Skip a macOS completion timeout test        | "Skipping the test is not the answer." | #1144            |
+| [#922](https://github.com/neilotoole/sq/pull/922)   | 2026-06-21 | Skip a macOS completion timeout test        | "Skipping the test is not the answer." | n/a              |
 | [#925](https://github.com/neilotoole/sq/pull/925)   | 2026-06-21 | Windows file and source test fixes          | Superseded                             | #926, #932       |
 | [#1061](https://github.com/neilotoole/sq/pull/1061) | 2026-07-23 | "Fix lint and format regressions", 21 files | Not a CI fix                           | n/a              |
 | [#1073](https://github.com/neilotoole/sq/pull/1073) | 2026-07-25 | Fix a dead `/config` link via the lockfile  | Unrelated to the link                  | n/a              |
 | [#1110](https://github.com/neilotoole/sq/pull/1110) | 2026-08-22 | Redirect the dead `cj.rs` vanity import     | Superseded, worse fix                  | #1111            |
 | [#1145](https://github.com/neilotoole/sq/pull/1145) | 2026-09-09 | Repin completion cases off DuckDB           | Superseded, reverses #1143             | #1144, #1153     |
-| [#1154](https://github.com/neilotoole/sq/pull/1154) | 2026-09-10 | Skip `TestStartMemStatsTracker` on Windows  | Root cause was elsewhere               | #1195            |
+| [#1154](https://github.com/neilotoole/sq/pull/1154) | 2026-09-10 | Skip `TestStartMemStatsTracker` on Windows  | Root-caused as #1181 instead           | #1195            |
 | [#1156](https://github.com/neilotoole/sq/pull/1156) | 2026-09-10 | Skip the downloader live-network test       | Superseded                             | #1158            |
 | [#1159](https://github.com/neilotoole/sq/pull/1159) | 2026-09-10 | The same test, 43 minutes later             | Superseded                             | #1158            |
 | [#1180](https://github.com/neilotoole/sq/pull/1180) | 2026-09-15 | That test again plus the memstats skip      | Superseded                             | #1158, #1195     |
