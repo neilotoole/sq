@@ -7,6 +7,12 @@ functions = "functions"
 NODE_VERSION = "22.13.1"
 BUN_VERSION = "1.3.13"
 HUGO_VERSION = "0.139.2"
+# Netlify restores a per-branch node_modules cache. Installing a newer bun.lock
+# over a stale tree can leave nested dependencies missing, which crashes the
+# install stage (#1210, #1184). --force reinstalls every dependency rather than
+# patching the restored tree. Despite the flag's description, it still resolves
+# from bun.lock and does not float to newer in-range versions.
+BUN_FLAGS = "--force"
 
 [context.production]
 command = "bun run build"
