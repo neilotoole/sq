@@ -43,6 +43,13 @@ jobs:
       # here; it runs in the dedicated coverage workflow (see coverage.yml, #871).
       FULL_RUN: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
 
+      # Opt in to the live-network test (gh #1158) on the nightly schedule
+      # only. Fixtures are otherwise served from a local test server, so PRs,
+      # master merges, release tags and the DB matrix never fetch from an
+      # external host. Deliberately narrower than FULL_RUN: a flaky fetch must
+      # not be able to block a release.
+      SQ_TEST_NETWORK: ${{ github.event_name == 'schedule' }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -53,6 +60,24 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+
+      # DuckDB downloads non-static extensions into ~/.duckdb on first use
+      # (see TestExtensions_AutoloadOnDemand). Cache them so the run does not
+      # depend on extensions.duckdb.org being reachable. The key carries the
+      # DuckDB engine version (encoded in the duckdb-go module version), so a
+      # bump fetches a fresh set instead of carrying old versions forward.
+      - name: Resolve DuckDB engine version
+        id: duckdb
+        shell: bash
+        run: echo "engine=$(go list -m -f '{{.Version}}' github.com/duckdb/duckdb-go/v2)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache DuckDB extensions
+        uses: actions/cache@v6
+        with:
+          path: ~/.duckdb/extensions
+          key: duckdb-ext-${{ runner.os }}-${{ steps.duckdb.outputs.engine }}-${{ hashFiles('drivers/duckdb/**/*_test.go') }}
+          restore-keys: |
+            duckdb-ext-${{ runner.os }}-${{ steps.duckdb.outputs.engine }}-
 
       - name: Build
         run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
@@ -130,6 +155,24 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+
+      # DuckDB downloads non-static extensions into ~/.duckdb on first use
+      # (see TestExtensions_AutoloadOnDemand). Cache them so the run does not
+      # depend on extensions.duckdb.org being reachable. The key carries the
+      # DuckDB engine version (encoded in the duckdb-go module version), so a
+      # bump fetches a fresh set instead of carrying old versions forward.
+      - name: Resolve DuckDB engine version
+        id: duckdb
+        shell: bash
+        run: echo "engine=$(go list -m -f '{{.Version}}' github.com/duckdb/duckdb-go/v2)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache DuckDB extensions
+        uses: actions/cache@v6
+        with:
+          path: ~/.duckdb/extensions
+          key: duckdb-ext-${{ runner.os }}-${{ steps.duckdb.outputs.engine }}-${{ hashFiles('drivers/duckdb/**/*_test.go') }}
+          restore-keys: |
+            duckdb-ext-${{ runner.os }}-${{ steps.duckdb.outputs.engine }}-
 
       - name: Build
         run: go build -tags '${{ env.BUILD_TAGS }}' -v ./...
@@ -415,12 +458,12 @@ jobs:
           AUR_PRIVATE_KEY: ${{ secrets.AUR_PRIVATE_KEY }}
 
   docker-publish:
-    # Build and push the Docker image to ghcr.io. Runs as a sibling of
-    # `publish` (gated by the same lint/test jobs, plus the linux binary builds
-    # it consumes), not behind test-install — so the image ships alongside
-    # every other release artifact and is never withheld by an unrelated
-    # install-test failure on some other platform. GoReleaser builds the image
-    # from the linux release binaries (.goreleaser-docker.yml +
+    # Build and push the Docker image to ghcr.io and Docker Hub. Runs as a
+    # sibling of `publish` (gated by the same lint/test jobs, plus the linux
+    # binary builds it consumes), not behind test-install, so the image ships
+    # alongside every other release artifact and is never withheld by an
+    # unrelated install-test failure on some other platform. GoReleaser builds
+    # the image from the linux release binaries (.goreleaser-docker.yml +
     # packages/docker/alpine.Dockerfile), so the image always matches this
     # exact release. test-install smoke-tests the published image afterward.
     runs-on: ubuntu-24.04
@@ -436,6 +479,7 @@ jobs:
       contents: read
       packages: write
       id-token: write # cosign keyless signing via sigstore/fulcio.
+      attestations: write # SLSA provenance + SBOM attestations.
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -472,6 +516,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Docker Hub is the second publish target. This login also supplies the
+      # auth that the attestation steps below need to push OCI referrers.
+      - name: Log into registry docker.io
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: GoReleaser (docker publish)
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
@@ -481,6 +534,122 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+
+      # GoReleaser pushed identical manifest lists to both registries, so they
+      # share a single content-addressed digest. Capture it once here; the steps
+      # below attest that one digest under each registry's subject name.
+      - name: Capture image digest
+        id: digest
+        env:
+          IMAGE: ghcr.io/neilotoole/sq:${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          digest=$(docker buildx imagetools inspect "$IMAGE" --format '{{.Manifest.Digest}}')
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Image digest: $digest"
+
+      # SLSA build provenance, attached to each image as an OCI referrer and
+      # recorded in this repo's GitHub attestation store. Attesting the final
+      # stitched digest, rather than enabling buildx `--provenance` on the
+      # per-arch builds, avoids the wrapper-index problem that arises when
+      # already-attested per-arch images are merged into a manifest list.
+      - name: Attest provenance (ghcr.io)
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ghcr.io/neilotoole/sq
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest provenance (docker.io)
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: docker.io/neilotoole/sq
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+
+      # Software Bill of Materials. syft scans the linux/amd64 image (the
+      # runner's arch); both arches carry the same Alpine packages, so one SBOM
+      # is attested against the multi-arch index digest.
+      - name: Generate SBOM
+        # Strip per-file metadata. Syft's default file cataloging records
+        # metadata for every file in the image, which on a large image pushes
+        # the SPDX past actions/attest's 16 MiB predicate limit. This keeps the
+        # package inventory, which is what vulnerability scanners consume, and
+        # drops the heavy per-file data. sq's Alpine image is small enough to
+        # fit either way; it is set for correctness and headroom.
+        env:
+          SYFT_FILE_METADATA_SELECTION: none
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          image: ghcr.io/neilotoole/sq@${{ steps.digest.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      # Uses the unified actions/attest; actions/attest-sbom is deprecated, and
+      # its bundle did not verify as an OCI referrer.
+      - name: Attest SBOM (ghcr.io)
+        uses: actions/attest@v4
+        with:
+          subject-name: ghcr.io/neilotoole/sq
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          predicate-type: https://spdx.dev/Document
+          predicate-path: sbom.spdx.json
+          push-to-registry: true
+
+      - name: Attest SBOM (docker.io)
+        uses: actions/attest@v4
+        with:
+          subject-name: docker.io/neilotoole/sq
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          predicate-type: https://spdx.dev/Document
+          predicate-path: sbom.spdx.json
+          push-to-registry: true
+
+      # Independently verify what was just pushed. A green attest step means
+      # "uploaded", not "verifiable", so gate the release on real verification.
+      # GitHub's attestation store is written synchronously and is the hard
+      # gate. The registry referrer, which is what Docker Scout reads, can lag
+      # briefly after push, so those reads are retried.
+      - name: Verify attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+        run: |
+          set -euo pipefail
+          SPDX=https://spdx.dev/Document
+          retry() {
+            local n=0
+            until "$@"; do
+              n=$((n + 1))
+              [ "$n" -ge 5 ] && return 1
+              echo "not ready (attempt $n), retrying..."
+              sleep 6
+            done
+          }
+          for reg in ghcr.io docker.io; do
+            ref="oci://$reg/neilotoole/sq@${DIGEST}"
+            echo "::group::verify $ref"
+            gh attestation verify "$ref" --repo neilotoole/sq
+            gh attestation verify "$ref" --repo neilotoole/sq --predicate-type "$SPDX"
+            retry gh attestation verify "$ref" --repo neilotoole/sq --bundle-from-oci
+            retry gh attestation verify "$ref" --repo neilotoole/sq --bundle-from-oci --predicate-type "$SPDX"
+            echo "::endgroup::"
+          done
+          echo "Verified provenance + SBOM, store + referrer, on both registries."
+
+      # Sync the image's README to the Docker Hub repository description. This
+      # is cosmetic and runs after the image is already published, so a failure
+      # here must never fail the release: the description API needs the account
+      # password or a token with description-write scope, which a push-only
+      # token does not have. Check the run log to confirm the sync happened.
+      - name: Sync README to Docker Hub description
+        continue-on-error: true
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          repository: neilotoole/sq
+          readme-filepath: ./packages/docker/README.md
 
   test-install:
     # Verify that install mechanisms work across the supported platforms,

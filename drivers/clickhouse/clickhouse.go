@@ -77,6 +77,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -386,8 +387,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		log.Debug(
 			"Applied default ClickHouse port at connection time",
 			lga.Src, src.Handle,
-			lga.Before, src.Location,
-			lga.After, loc,
+			lga.Before, location.Redact(src.Location),
+			lga.After, location.Redact(loc),
 			lga.Default, defaultPort,
 		)
 	}
@@ -437,8 +438,8 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 		d.log.Debug(
 			"Applied default ClickHouse port to source location",
 			lga.Src, src.Handle,
-			lga.Before, src.Location,
-			lga.After, loc,
+			lga.Before, location.Redact(src.Location),
+			lga.After, location.Redact(loc),
 			lga.Default, defaultPort,
 		)
 		src = src.Clone()

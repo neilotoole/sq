@@ -14,14 +14,48 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ## [Unreleased]
 
+### Added
+
+- [#1007]: The `sq` container image is now published to Docker Hub as
+  [`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq), alongside the
+  existing `ghcr.io/neilotoole/sq`. Both registries carry the same image. The
+  image also now ships with SLSA build provenance and an SPDX SBOM, in addition
+  to the existing cosign signature.
+
 ### Changed
 
 - [#1013]: Querying a remote source now makes one fewer server round-trip per `sq`
   invocation. The server version, needed for version-aware SQL rendering, is read
   during the connectivity check when the source is opened, instead of in a
   separate query.
+- [#1151]: DuckDB extensions that are not built into `sq` now load on first use
+  instead of on every open. DuckDB does not autoload `excel` for
+  `COPY ... TO 'file.xlsx'`, so that statement no longer works via
+  [`sq sql`](https://sq.io/docs/cmd/sql); use `sq`'s
+  [`--xlsx`](https://sq.io/docs/output#xlsx) output to write Excel files. See the
+  [driver docs](https://sq.io/docs/drivers/duckdb#extensions).
 - ☢️ `sq` is now built with Go 1.27, which requires macOS 13 Ventura or later. macOS 12 Monterey
   is no longer supported.
+- [#1165]: A duration option set on a source is now displayed in its canonical
+  form. A source configured with `conn.max-idle-time: 100s` shows as `1m40s` in
+  [`sq ls`](https://sq.io/docs/cmd/ls) `-v` and `sq config ls --src`.
+
+### Fixed
+
+- [#1151]: Opening a DuckDB source is much faster, and no longer needs network
+  access on a machine with an empty extension cache.
+- [#1165]: A source-level option was ignored once `sq` reloaded its config,
+  silently falling back to the option's default. This affected the duration
+  options that can be set per source, such as `conn.max-idle-time`,
+  `conn.max-lifetime` and `http.request.timeout`.
+- [#1209]: Reading an option now accepts the value in the form the config file
+  stores it, instead of silently falling back to the option's default when the
+  value had not been normalized first. As part of this, `log.level` set to an
+  integer works, where previously it was rejected.
+- [#1220]: A source location's inline password could be written to the debug log
+  in cleartext. This affected ClickHouse sources whose location omitted the port,
+  and SQLite and DuckDB sources carrying an `_auth_pass` query param when added
+  via [`sq add`](https://sq.io/docs/cmd/add).
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1776,9 +1810,14 @@ make working with lots of sources much easier.
 [#976]: https://github.com/neilotoole/sq/pull/976
 [#986]: https://github.com/neilotoole/sq/issues/986
 [#994]: https://github.com/neilotoole/sq/pull/994
+[#1007]: https://github.com/neilotoole/sq/issues/1007
 [#1013]: https://github.com/neilotoole/sq/issues/1013
 [#1017]: https://github.com/neilotoole/sq/issues/1017
 [#1136]: https://github.com/neilotoole/sq/issues/1136
+[#1151]: https://github.com/neilotoole/sq/issues/1151
+[#1165]: https://github.com/neilotoole/sq/issues/1165
+[#1209]: https://github.com/neilotoole/sq/issues/1209
+[#1220]: https://github.com/neilotoole/sq/issues/1220
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

@@ -15,8 +15,9 @@ all shared rules.
 ## About `sq`
 
 `sq` is a command-line data wrangler providing jq-style access to structured
-data sources (SQL databases like Postgres, MySQL, SQLite, SQL Server,
-ClickHouse, Oracle, DuckDB; and document formats like CSV, JSON, Excel). User
+data sources (eight SQL databases: SQLite, rqlite, DuckDB, Postgres, SQL
+Server, MySQL, ClickHouse and Oracle; and document formats like CSV, JSON and
+Excel). User
 docs live at
 [sq.io](https://sq.io).
 
@@ -73,9 +74,11 @@ repo's git hooks (`.githooks`), including a `pre-commit` hook that runs
 of failing the `Format` CI job. Bypass the hook for one commit with
 `git commit --no-verify`.
 
-Driver integration tests for Postgres, MySQL, SQL Server, and ClickHouse
-require the `sakiladb/*` Docker images to be reachable. Use `make test-short`
-or `go test -short ./...` to skip them.
+Driver integration tests for the six client/server engines (Postgres, MySQL,
+SQL Server, ClickHouse, Oracle and rqlite) require the `sakiladb/*` Docker
+images to be reachable. Use `make test-short` or `go test -short ./...` to skip
+them. The embedded engines, SQLite and DuckDB, use in-repo fixtures and always
+run.
 
 ## Conventions
 
@@ -121,6 +124,40 @@ Integration tests that need a real database should call [`tu.SkipShort(t, true)`
 so they're skipped under `go test -short`. See
 [`docs/DRIVERS.md`](./docs/DRIVERS.md#test-handles) for driver test handle
 conventions.
+
+### Flaky tests
+
+Do not skip a flaky test. Find the root cause and fix that.
+
+A `t.Skip` on an intermittent failure removes the signal and leaves the cause in
+place, so it resurfaces against whatever test loses the race next. One Windows
+fixture-locking bug surfaced as failures in `TestCmdSLQ_Insert`,
+`TestSakilaCrossDatabase` and `TestCmdSQL_ExecMode` on different runs, and two
+separate PRs proposed skipping two of those tests. Neither test was the culprit,
+and each skip would have silenced one symptom while leaving the bug to surface
+elsewhere. The cause was other tests opening the shared DuckDB fixture
+read-write, fixed in
+[#1199](https://github.com/neilotoole/sq/pull/1199) and
+[#1196](https://github.com/neilotoole/sq/pull/1196).
+
+When a test flakes:
+
+1. Read the failure output. The error text names the mechanism, which is often
+   unrelated to what the test name suggests.
+2. Compare the failing runs. Look for what they share: one OS, one driver, one
+   CI leg, a particular pair of tests running concurrently.
+3. Trace back to the cause. A test that fails is often the victim rather than
+   the culprit.
+4. Fix the cause, and add a test that would have caught it.
+
+Gating on a real precondition is not skipping. `tu.SkipShort(t, true)` for tests
+that need a live database, and the envar checks behind the driver test handles,
+state what the test requires. A skip added because a test sometimes fails states
+nothing.
+
+If you cannot fix it in the same change, open an issue with the failure output
+and the runs it appeared in. That keeps the test running, so the next failure
+adds evidence instead of being silenced.
 
 ### Error handling
 
@@ -313,13 +350,14 @@ tree as documented in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ### Skills in this repo
 
-| Skill                                                            | Use when                                                              |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------- |
-| [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/)       | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo). |
-| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/)     | Dependabot PRs for Go modules (`go.mod`/`go.sum`) at repo root.       |
-| [`sq-actions-dependabot`](.agents/skills/sq-actions-dependabot/) | Dependabot PRs for GitHub Actions pins under `.github/workflows/`.    |
+| Skill                                                            | Use when                                                                                |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/)       | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo).                   |
+| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/)     | Dependabot PRs for Go modules (`go.mod`/`go.sum`) at repo root.                         |
+| [`sq-actions-dependabot`](.agents/skills/sq-actions-dependabot/) | Dependabot PRs for GitHub Actions pins under `.github/workflows/`.                      |
+| [`code-review`](.agents/skills/code-review/)                     | Reviewing a PR or diff; carries repo conventions a reviewer cannot infer from the diff. |
 
-These cover all four Dependabot ecosystems in [`.github/dependabot.yml`](.github/dependabot.yml):
+The three Dependabot skills cover all four ecosystems in [`.github/dependabot.yml`](.github/dependabot.yml):
 `gomod`, both `bun` manifests (`/` dev tooling and `/site`), and `github-actions`.
 
 Invoke explicitly when your agent supports it (e.g. `/sq-site-dependabot` in
