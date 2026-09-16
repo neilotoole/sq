@@ -28,11 +28,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [driver docs](https://sq.io/docs/drivers/duckdb#extensions).
 - ☢️ `sq` is now built with Go 1.27, which requires macOS 13 Ventura or later. macOS 12 Monterey
   is no longer supported.
+- [#1165]: A duration option set on a source is now displayed in its canonical
+  form. A source configured with `conn.max-idle-time: 100s` shows as `1m40s` in
+  [`sq ls`](https://sq.io/docs/cmd/ls) `-v` and `sq config ls --src`.
 
 ### Fixed
 
 - [#1151]: Opening a DuckDB source is much faster, and no longer needs network
   access on a machine with an empty extension cache.
+- [#1165]: A source-level option was ignored once `sq` reloaded its config,
+  silently falling back to the option's default. This affected the duration
+  options that can be set per source, such as `conn.max-idle-time`,
+  `conn.max-lifetime` and `http.request.timeout`.
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1791,6 +1798,7 @@ make working with lots of sources much easier.
 [#1017]: https://github.com/neilotoole/sq/issues/1017
 [#1136]: https://github.com/neilotoole/sq/issues/1136
 [#1151]: https://github.com/neilotoole/sq/issues/1151
+[#1165]: https://github.com/neilotoole/sq/issues/1165
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
