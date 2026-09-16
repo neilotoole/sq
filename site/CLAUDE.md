@@ -191,6 +191,11 @@ checksums in `scripts/install-lychee.sh` together. Rust and Cargo are not requir
 - Plugins: Lighthouse audits, sitemap submission
 - Deploy previews include full Lighthouse reports
 - Netlify automatically detects `bun.lock` and uses `bun install`
+- `BUN_FLAGS = "--force"` makes that install reinstall every dependency. Netlify restores a
+  per-branch `node_modules` cache, and installing a newer `bun.lock` over a stale tree can leave
+  nested dependencies missing, which crashes the install stage (#1210). Despite the flag's
+  description, `--force` still resolves from `bun.lock` and does not float to newer in-range
+  versions.
 
 ## Content Style Guide
 
