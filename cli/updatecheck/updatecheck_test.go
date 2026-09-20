@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -211,8 +213,6 @@ func TestWriteCache_roundTrip(t *testing.T) {
 }
 
 func TestFetchLatestWithWait_fallsBackToCacheOnFetchError(t *testing.T) {
-	t.Parallel()
-
 	cacheDir := t.TempDir()
 	require.NoError(t, writeCache(cacheDir, Cache{
 		LatestVersion: "v9.9.9",
@@ -230,6 +230,31 @@ func TestFetchLatestWithWait_fallsBackToCacheOnFetchError(t *testing.T) {
 	got, err := FetchLatestWithWait(context.Background(), cacheDir, time.Second)
 	require.NoError(t, err)
 	require.Equal(t, "v9.9.9", got)
+}
+
+func TestFetchLatestWithWait_fallsBackToCacheOnNormalizeError(t *testing.T) {
+	cacheDir := t.TempDir()
+	require.NoError(t, writeCache(cacheDir, Cache{
+		LatestVersion: "v9.9.8",
+		CheckedAt:     time.Now().UTC(),
+	}))
+
+	origTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = origTransport
+	})
+	http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Status:     "200 OK",
+			Body:       io.NopCloser(strings.NewReader(`version "not-a-version"`)),
+			Header:     make(http.Header),
+		}, nil
+	})
+
+	got, err := FetchLatestWithWait(context.Background(), cacheDir, time.Second)
+	require.NoError(t, err)
+	require.Equal(t, "v9.9.8", got)
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

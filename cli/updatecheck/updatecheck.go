@@ -125,6 +125,9 @@ func FetchLatestWithWait(ctx context.Context, cacheDir string, timeout time.Dura
 
 		latest, err := NormalizeVersion(raw)
 		if err != nil {
+			if c, ok := readCache(cacheDir); ok {
+				return c.LatestVersion, nil
+			}
 			return "", err
 		}
 		if latest != "" && cacheDir != "" {
