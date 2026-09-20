@@ -96,31 +96,42 @@ func FetchLatestWithWait(ctx context.Context, cacheDir string, timeout time.Dura
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	resultCh := make(chan string, 1)
+	type fetchResult struct {
+		raw string
+		err error
+	}
+
+	resultCh := make(chan fetchResult, 1)
 	go func() {
 		raw, err := fetchBrewVersion(ctx)
-		lg.WarnIfError(lg.FromContext(ctx), "Get brew version", err)
-		resultCh <- raw
+		resultCh <- fetchResult{raw: raw, err: err}
 	}()
 
-	var raw string
 	select {
 	case <-ctx.Done():
 		if c, ok := readCache(cacheDir); ok {
 			return c.LatestVersion, nil
 		}
 		return "", nil
-	case raw = <-resultCh:
-	}
+	case result := <-resultCh:
+		if result.err != nil {
+			lg.WarnIfError(lg.FromContext(ctx), "Get brew version", result.err)
+			if c, ok := readCache(cacheDir); ok {
+				return c.LatestVersion, nil
+			}
+			return "", nil
+		}
+		raw := result.raw
 
-	latest, err := NormalizeVersion(raw)
-	if err != nil {
-		return "", err
+		latest, err := NormalizeVersion(raw)
+		if err != nil {
+			return "", err
+		}
+		if latest != "" && cacheDir != "" {
+			_ = writeCache(cacheDir, Cache{LatestVersion: latest, CheckedAt: time.Now().UTC()})
+		}
+		return latest, nil
 	}
-	if latest != "" && cacheDir != "" {
-		_ = writeCache(cacheDir, Cache{LatestVersion: latest, CheckedAt: time.Now().UTC()})
-	}
-	return latest, nil
 }
 
 // CachedLatest returns the cached latest version string (with "v" prefix) if present.

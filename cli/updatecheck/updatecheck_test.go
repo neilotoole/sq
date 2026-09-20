@@ -3,6 +3,8 @@ package updatecheck
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -206,4 +208,32 @@ func TestWriteCache_roundTrip(t *testing.T) {
 	require.NoError(t, json.Unmarshal(b, &got))
 	require.Equal(t, "v0.54.0", got.LatestVersion)
 	require.Equal(t, time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC), got.CheckedAt)
+}
+
+func TestFetchLatestWithWait_fallsBackToCacheOnFetchError(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := t.TempDir()
+	require.NoError(t, writeCache(cacheDir, Cache{
+		LatestVersion: "v9.9.9",
+		CheckedAt:     time.Now().UTC(),
+	}))
+
+	origTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = origTransport
+	})
+	http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("boom")
+	})
+
+	got, err := FetchLatestWithWait(context.Background(), cacheDir, time.Second)
+	require.NoError(t, err)
+	require.Equal(t, "v9.9.9", got)
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
