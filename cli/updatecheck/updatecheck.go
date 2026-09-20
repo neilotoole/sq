@@ -89,6 +89,12 @@ func StartBackgroundCheck(ctx context.Context, cacheDir string) {
 // FetchLatestWithWait fetches the latest version, waiting up to timeout.
 // Used by sq version where a fresh result is preferred over cache-only.
 func FetchLatestWithWait(ctx context.Context, cacheDir string, timeout time.Duration) (string, error) {
+	return fetchLatestWithWait(ctx, cacheDir, timeout, fetchBrewVersion)
+}
+
+func fetchLatestWithWait(
+	ctx context.Context, cacheDir string, timeout time.Duration, fetch func(context.Context) (string, error),
+) (string, error) {
 	if timeout <= 0 {
 		timeout = fetchTimeout
 	}
@@ -103,7 +109,7 @@ func FetchLatestWithWait(ctx context.Context, cacheDir string, timeout time.Dura
 
 	resultCh := make(chan fetchResult, 1)
 	go func() {
-		raw, err := fetchBrewVersion(ctx)
+		raw, err := fetch(ctx)
 		resultCh <- fetchResult{raw: raw, err: err}
 	}()
 

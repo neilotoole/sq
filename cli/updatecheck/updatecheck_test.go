@@ -4,11 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -219,15 +216,12 @@ func TestFetchLatestWithWait_fallsBackToCacheOnFetchError(t *testing.T) {
 		CheckedAt:     time.Now().UTC(),
 	}))
 
-	origTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = origTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
-		return nil, errors.New("boom")
-	})
-
-	got, err := FetchLatestWithWait(context.Background(), cacheDir, time.Second)
+	got, err := fetchLatestWithWait(
+		context.Background(),
+		cacheDir,
+		time.Second,
+		func(context.Context) (string, error) { return "", errors.New("boom") },
+	)
 	require.NoError(t, err)
 	require.Equal(t, "v9.9.9", got)
 }
@@ -239,26 +233,12 @@ func TestFetchLatestWithWait_fallsBackToCacheOnNormalizeError(t *testing.T) {
 		CheckedAt:     time.Now().UTC(),
 	}))
 
-	origTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = origTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Status:     "200 OK",
-			Body:       io.NopCloser(strings.NewReader(`version "not-a-version"`)),
-			Header:     make(http.Header),
-		}, nil
-	})
-
-	got, err := FetchLatestWithWait(context.Background(), cacheDir, time.Second)
+	got, err := fetchLatestWithWait(
+		context.Background(),
+		cacheDir,
+		time.Second,
+		func(context.Context) (string, error) { return "not-a-version", nil },
+	)
 	require.NoError(t, err)
 	require.Equal(t, "v9.9.8", got)
-}
-
-type roundTripFunc func(*http.Request) (*http.Response, error)
-
-func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return fn(req)
 }
