@@ -97,8 +97,8 @@ func FetchLatestWithWait(ctx context.Context, cacheDir string, timeout time.Dura
 	defer cancel()
 
 	type fetchResult struct {
-		raw string
 		err error
+		raw string
 	}
 
 	resultCh := make(chan fetchResult, 1)

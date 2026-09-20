@@ -63,6 +63,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 ## [v0.55.0] - 2026-09-09
 
 ### Added
+
 - [#986]: [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) with `-j` / `-y` now
   reports an `is_embedded_sql` field for each driver, `true` for the in-process SQL
   drivers (SQLite, DuckDB) and `false` for the networked engines (including rqlite,
