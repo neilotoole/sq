@@ -211,8 +211,7 @@ gh workflow run main.yml --ref <your-branch>
 gh run list --workflow main.yml --branch <your-branch> --limit 5
 ```
 
-Then link the run. For an intermittent failure one green run proves nothing: dispatch at least
-three times, five if the failure rate looked below half, and link them all.
+Then link each completed run. For an intermittent failure, wait for each run to finish before dispatching the next because Main Pipeline cancels in-progress runs on non-`master` branches. Dispatch at least three times, five if the failure rate looked below half, and link them all.
 
 Dispatch needs `actions: write`. If your token does not have it, or the workflow refuses, the fix is
 unproven: say so in your report, and prefer an issue with a proposed fix over a PR whose only
