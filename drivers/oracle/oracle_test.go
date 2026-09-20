@@ -176,12 +176,15 @@ func TestListTables(t *testing.T) {
 	assert.NotNil(t, tables)
 }
 
-// TestSakilaCrossDatabase tests reading data from Postgres and writing to Oracle.
-// This is a real-world integration test demonstrating cross-database data migration.
+// TestSakilaCrossDatabase tests reading data from DuckDB and writing to Oracle.
+// This is a real-world integration test demonstrating cross-database data
+// migration. The read side is deliberately an embedded source: it needs no
+// container, so the test exercises the Oracle write path in an Oracle-only
+// environment, which is what the per-engine CI model provides. See gh #1143.
 func TestSakilaCrossDatabase(t *testing.T) {
 	tu.SkipShort(t, true)
 	th := testh.New(t)
-	pgDB := th.OpenDB(th.Source(sakila.Pg))
+	srcDB := th.OpenDB(th.Source(sakila.Duck))
 	oraGrip := th.Open(th.Source(sakila.Ora))
 	oraDrvr := oraGrip.SQLDriver()
 	ctx := th.Context
@@ -192,9 +195,9 @@ func TestSakilaCrossDatabase(t *testing.T) {
 	t.Run("CopyActorTable", func(t *testing.T) {
 		testTableName := stringz.UniqSuffix("ACTOR")
 
-		// Read actor data from Postgres
-		rows, err := pgDB.QueryContext(ctx, "SELECT actor_id, first_name, last_name FROM actor ORDER BY actor_id")
-		require.NoError(t, err, "Failed to query Postgres actor table")
+		// Read actor data from DuckDB
+		rows, err := srcDB.QueryContext(ctx, "SELECT actor_id, first_name, last_name FROM actor ORDER BY actor_id")
+		require.NoError(t, err, "Failed to query DuckDB actor table")
 		defer rows.Close()
 
 		// Collect rows
@@ -212,9 +215,9 @@ func TestSakilaCrossDatabase(t *testing.T) {
 			actors = append(actors, a)
 		}
 		require.NoError(t, rows.Err())
-		require.NotEmpty(t, actors, "Expected actor data in Postgres")
+		require.NotEmpty(t, actors, "Expected actor data in DuckDB")
 
-		pgRowCount := len(actors)
+		srcRowCount := len(actors)
 
 		// Create table in Oracle
 		tblDef := &schema.Table{
@@ -249,7 +252,7 @@ func TestSakilaCrossDatabase(t *testing.T) {
 		err = oraDB.QueryRowContext(ctx, countQuery).Scan(&oracleRowCount)
 		require.NoError(t, err, "Failed to count Oracle rows")
 
-		assert.Equal(t, pgRowCount, oracleRowCount, "Row count mismatch between Postgres and Oracle")
+		assert.Equal(t, srcRowCount, oracleRowCount, "Row count mismatch between DuckDB and Oracle")
 
 		// Verify data integrity - spot check first and last rows
 		if len(actors) > 0 {

@@ -141,7 +141,7 @@ func placeholders(numCols, numRows int) string {
 
 	n := 1
 	var sb strings.Builder
-	for i := 0; i < numRows; i++ {
+	for i := range numRows {
 		sb.Reset()
 		sb.WriteRune('(')
 		for j := 1; j <= numCols; j++ {
@@ -212,11 +212,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessM
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 // doOpen opens a connection to the Oracle database.

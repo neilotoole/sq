@@ -22,7 +22,7 @@ or edge functions.
 | Stable lint + internal links | `make site-test` / test:ci | **Yes**       |
 | External link crawl          | `bun run lint:links`       | **No**        |
 
-False positives: third-party sites returning 403/timeout to linkinator. If
+False positives: third-party sites returning errors or timing out in lychee. If
 **only** the external crawl step failed, re-check `make site-test` locally before
 holding a T0/T1 PR.
 
@@ -34,8 +34,8 @@ See [site/README.md](../../../../site/README.md#site-testing).
   [`site/netlify.toml`](../../../../site/netlify.toml):
   `bun run build -- -b $DEPLOY_PRIME_URL`
 - GitHub shows a Netlify check; use `gh pr checks <n>` and open the preview URL.
-- `@netlify/plugin-lighthouse` may attach scores under `reports/lighthouse.html`
-  on the preview deploy.
+- `@netlify/plugin-lighthouse` audits the deployed preview URL and reports scores
+  in the build log and Netlify's deploy summary. It publishes no report page.
 
 **Pending check:** poll ~5 minutes; do not merge on assumptions.
 

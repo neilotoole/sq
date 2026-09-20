@@ -19,38 +19,75 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - Interactive commands may show a right-aligned update-available notice on
   stderr when a newer release is cached. Set `SQ_NO_UPDATE_NOTIFIER=1` to
   disable. See [install docs](https://sq.io/docs/install#update-notices).
+- [#1007]: The `sq` container image is now published to Docker Hub as
+  [`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq), alongside the
+  existing `ghcr.io/neilotoole/sq`. Both registries carry the same image. The
+  image also now ships with SLSA build provenance and an SPDX SBOM, in addition
+  to the existing cosign signature.
+
+### Changed
+
+- [#1013]: Querying a remote source now makes one fewer server round-trip per `sq`
+  invocation. The server version, needed for version-aware SQL rendering, is read
+  during the connectivity check when the source is opened, instead of in a
+  separate query.
+- [#1151]: DuckDB extensions that are not built into `sq` now load on first use
+  instead of on every open. DuckDB does not autoload `excel` for
+  `COPY ... TO 'file.xlsx'`, so that statement no longer works via
+  [`sq sql`](https://sq.io/docs/cmd/sql); use `sq`'s
+  [`--xlsx`](https://sq.io/docs/output#xlsx) output to write Excel files. See the
+  [driver docs](https://sq.io/docs/drivers/duckdb#extensions).
+- ☢️ `sq` is now built with Go 1.27, which requires macOS 13 Ventura or later. macOS 12 Monterey
+  is no longer supported.
+- [#1165]: A duration option set on a source is now displayed in its canonical
+  form. A source configured with `conn.max-idle-time: 100s` shows as `1m40s` in
+  [`sq ls`](https://sq.io/docs/cmd/ls) `-v` and `sq config ls --src`.
+
+### Fixed
+
+- [#1151]: Opening a DuckDB source is much faster, and no longer needs network
+  access on a machine with an empty extension cache.
+- [#1165]: A source-level option was ignored once `sq` reloaded its config,
+  silently falling back to the option's default. This affected the duration
+  options that can be set per source, such as `conn.max-idle-time`,
+  `conn.max-lifetime` and `http.request.timeout`.
+- [#1209]: Reading an option now accepts the value in the form the config file
+  stores it, instead of silently falling back to the option's default when the
+  value had not been normalized first. As part of this, `log.level` set to an
+  integer works, where previously it was rejected.
+- [#1220]: A source location's inline password could be written to the debug log
+  in cleartext. This affected ClickHouse sources whose location omitted the port,
+  and SQLite and DuckDB sources carrying an `_auth_pass` query param when added
+  via [`sq add`](https://sq.io/docs/cmd/add).
+
+## [v0.55.0] - 2026-09-09
+
+### Added
 - [#986]: [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) with `-j` / `-y` now
   reports an `is_embedded_sql` field for each driver, `true` for the in-process SQL
   drivers (SQLite, DuckDB) and `false` for the networked engines (including rqlite,
   which is SQLite-backed but reached over HTTP) and non-SQL drivers.
 
+### Changed
+
+- ☢️ [#1136]: In JSON output, a backspace or form feed inside a string value is now written using
+  its two-character short escape instead of the six-character numeric escape. This aligns `sq` with
+  the behavior of `encoding/json` since [Go 1.22](https://go.dev/doc/go1.22#encoding/json). Both
+  spellings decode to the same string, so anything that parses `sq`'s JSON is unaffected, and only
+  output containing one of those two characters changes at all. Stored fixtures, golden files or
+  checksums that compare `sq`'s JSON byte-for-byte may need regenerating.
+
 ### Fixed
 
 - [#975]: A join across two sources could fail with `database is locked` when
-  the participating tables were copied into the temporary SQLite join database.
-  The copies ran concurrently, but SQLite permits only one writer at a time, so a
-  large table holding the write lock could starve the others past their timeout.
-  The copies into a single-writer join database now funnel through a single
-  writer while their source reads still run concurrently ([#995]), so they no
-  longer contend on the write lock and the reads are not serialized.
-- [#1017]: When a table copy or ingest was canceled or its source read failed
-  partway, the destination write could occasionally commit a partially-written
-  table instead of rolling back, due to a race between the read's cancellation
-  and the close of its record stream. The write is now rolled back whenever the
-  context is canceled.
-- [#994]: The DuckDB driver now SQL-quotes schema names that contain a double
-  quote in `CreateSchema` and `DropSchema`, completing the `%q` → `stringz.DoubleQuote`
-  identifier-quoting fix that [#976] applied to the table paths.
-- [#976]: The DuckDB driver now SQL-quotes table and column names that contain a
-  double quote (e.g. a `we"ird` table created from a CSV header) in the alter, truncate, and
-  row-count paths. These paths used Go's `%q` verb, which emits backslash escaping (`"we\"ird"`)
-  that DuckDB rejects; they now use `stringz.DoubleQuote` (`"we""ird"`), completing for DuckDB
-  the identifier-quoting fix [#821] applied to SQLite and rqlite.
+  large tables were copied into the temporary join database.
+- [#1017]: A canceled or failed table copy or ingest could commit a partially-written
+  table instead of rolling back.
+- [#976], [#994]: The DuckDB driver now correctly quotes table, column, and schema
+  names that contain a double quote (e.g. a `we"ird` table created from a CSV
+  header), completing the identifier-quoting fix [#821] applied to SQLite and rqlite.
 - [#968]: Aligned the SQLite and DuckDB Sakila test fixtures with the canonical
-  schema used by the other drivers: the `sales_by_store` view no longer carries a
-  stray leading `store_id` column (it is now `store, manager, total_sales`), and
-  the `customer_list` / `staff_list` views use the canonical `zip code` alias
-  instead of `zip_code`.
+  schema used by the other drivers.
 
 ## [v0.54.1] - 2026-06-23
 
@@ -1775,8 +1812,14 @@ make working with lots of sources much easier.
 [#976]: https://github.com/neilotoole/sq/pull/976
 [#986]: https://github.com/neilotoole/sq/issues/986
 [#994]: https://github.com/neilotoole/sq/pull/994
-[#995]: https://github.com/neilotoole/sq/issues/995
+[#1007]: https://github.com/neilotoole/sq/issues/1007
+[#1013]: https://github.com/neilotoole/sq/issues/1013
 [#1017]: https://github.com/neilotoole/sq/issues/1017
+[#1136]: https://github.com/neilotoole/sq/issues/1136
+[#1151]: https://github.com/neilotoole/sq/issues/1151
+[#1165]: https://github.com/neilotoole/sq/issues/1165
+[#1209]: https://github.com/neilotoole/sq/issues/1209
+[#1220]: https://github.com/neilotoole/sq/issues/1220
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
@@ -1849,3 +1892,4 @@ make working with lots of sources much easier.
 [v0.53.0]: https://github.com/neilotoole/sq/compare/v0.52.0...v0.53.0
 [v0.54.0]: https://github.com/neilotoole/sq/compare/v0.53.0...v0.54.0
 [v0.54.1]: https://github.com/neilotoole/sq/compare/v0.54.0...v0.54.1
+[v0.55.0]: https://github.com/neilotoole/sq/compare/v0.54.1...v0.55.0

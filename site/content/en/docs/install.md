@@ -9,7 +9,7 @@ toc: true
 url: /docs/install
 ---
 
-`sq` can be installed from source, via an install script, or via package managers for various platforms.
+`sq` can be installed via an install script, via package managers for various platforms, or from source.
 
 ## Quick install
 
@@ -59,11 +59,17 @@ sq completion --help
 
 ## Source
 
-Requires [Go](https://go.dev/dl/).
+Requires [Go](https://go.dev/dl/). The build tags enable the SQLite features that `sq` needs.
+Without them, FTS5 tables cannot be read, and the SQLite math functions are missing.
 
 ```shell
-go install github.com/neilotoole/sq@latest
+go install -tags "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions" \
+  github.com/neilotoole/sq@latest
 ```
+
+A binary installed this way reports its version as `v0.0.0-dev`, so `sq version` always shows that
+an update is available. To get a stamped version, build from a clone with `make install`, which sets
+the build tags and the version ldflags.
 
 ## Binaries
 
@@ -105,7 +111,10 @@ consult the [install.sh source code](https://raw.githubusercontent.com/neilotool
 ## Docker
 
 The [`ghcr.io/neilotoole/sq`](https://github.com/neilotoole/sq/pkgs/container/sq)
-image is preloaded with `sq` and a handful of related tools like `jq`.
+image is preloaded with `sq` and a handful of related tools like `jq`. The same
+image is published to Docker Hub as
+[`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq). Both are cosign-signed
+and carry SLSA build provenance and an SPDX SBOM.
 
 ### Local
 

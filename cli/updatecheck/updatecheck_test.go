@@ -15,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/ioz/checksum"
 	"github.com/neilotoole/sq/libsq/files"
+	"github.com/neilotoole/sq/testh/tu"
 )
 
 func TestCacheDirForRun_withoutFiles(t *testing.T) {
@@ -130,6 +131,7 @@ func TestVersionFromBrewFormula_URLBased(t *testing.T) {
 }
 
 func TestFetchBrewVersion(t *testing.T) {
+	tu.SkipNoNetwork(t)
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

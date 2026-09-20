@@ -6,7 +6,7 @@ version: 2
 # This is run by the `docker-publish` job in main.yml, which is a sibling of
 # `publish` (gated by the same lint/test jobs and the linux binary builds).
 # The split from .goreleaser.yml is deliberate: it keeps Docker's failure
-# domain (ghcr push, sigstore/fulcio) and elevated permissions
+# domain (ghcr + Docker Hub push, sigstore/fulcio) and elevated permissions
 # (`packages: write`, `id-token: write`) out of the main `publish` GoReleaser
 # run, and lets the two ship in parallel. The image is built from the linux
 # release binaries, so it always matches this exact release.
@@ -44,6 +44,7 @@ dockers:
     use: buildx
     image_templates:
       - "ghcr.io/neilotoole/sq:{{ .Tag }}-amd64"
+      - "docker.io/neilotoole/sq:{{ .Tag }}-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       # OCI metadata for traceability (version / commit / build time / title).
@@ -67,6 +68,7 @@ dockers:
     use: buildx
     image_templates:
       - "ghcr.io/neilotoole/sq:{{ .Tag }}-arm64"
+      - "docker.io/neilotoole/sq:{{ .Tag }}-arm64"
     build_flag_templates:
       - "--platform=linux/arm64"
       # OCI metadata for traceability (version / commit / build time / title).
@@ -83,9 +85,12 @@ dockers:
       - packages/docker/sq.zsh-theme
       - packages/docker/entrypoint.sh
 
-# Stitch the per-arch images into multi-arch manifest tags. The per-arch
-# `:{{ .Tag }}-{amd64,arm64}` images must be pushed first (done above) so
-# the manifests can reference them.
+# Stitch the per-arch images into multi-arch manifest tags, on both registries.
+# The per-arch `:{{ .Tag }}-{amd64,arm64}` images must be pushed first (done
+# above) so the manifests can reference them. The manifest content is identical
+# across registries, so both resolve to the same digest. That single digest is
+# what the attestation steps in the `docker-publish` job attest, once per
+# registry subject name.
 docker_manifests:
   - name_template: "ghcr.io/neilotoole/sq:{{ .Tag }}"
     image_templates:
@@ -95,9 +100,18 @@ docker_manifests:
     image_templates:
       - "ghcr.io/neilotoole/sq:{{ .Tag }}-amd64"
       - "ghcr.io/neilotoole/sq:{{ .Tag }}-arm64"
+  - name_template: "docker.io/neilotoole/sq:{{ .Tag }}"
+    image_templates:
+      - "docker.io/neilotoole/sq:{{ .Tag }}-amd64"
+      - "docker.io/neilotoole/sq:{{ .Tag }}-arm64"
+  - name_template: "docker.io/neilotoole/sq:latest"
+    image_templates:
+      - "docker.io/neilotoole/sq:{{ .Tag }}-amd64"
+      - "docker.io/neilotoole/sq:{{ .Tag }}-arm64"
 
 # Keyless cosign signing of the published manifests, matching the prior
-# docker-publish workflow.
+# docker-publish workflow. `artifacts: manifests` covers every manifest
+# built above, so the Docker Hub tags are signed along with the GHCR ones.
 docker_signs:
   - cmd: cosign
     artifacts: manifests

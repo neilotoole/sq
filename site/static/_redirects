@@ -10,6 +10,6 @@
 # The former "Develop" docs moved into the repo (contributor docs live in the
 # repo, not on sq.io). Redirect the old URLs to the relevant repo pages.
 /docs/develop/sakila https://github.com/neilotoole/sq/blob/master/docs/SAKILA.md 301
-/docs/develop/test https://github.com/neilotoole/sq/blob/master/docs/WORKFLOW.md 301
+/docs/develop/test https://github.com/neilotoole/sq/blob/master/docs/DEVELOPER.md 301
 /docs/develop https://github.com/neilotoole/sq/blob/master/CONTRIBUTING.md 301
 

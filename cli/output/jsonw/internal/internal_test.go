@@ -25,31 +25,6 @@ type Encoder interface {
 // jsoncolor.Encoder satisfies the Encoder interface.
 var _ Encoder = (*jsoncolor.Encoder)(nil)
 
-// toJSONColorPalette converts an internal.Colors (prefix+suffix per token)
-// to a *jsoncolor.Colors (prefix-only; jsoncolor emits its own fixed reset).
-// Returns nil when c is the zero value (i.e., no colorization active).
-//
-// This mirrors jsonw.newJSONColorPalette, which cannot be imported here
-// without creating an import cycle through the internal package.
-func toJSONColorPalette(c internal.Colors) *jsoncolor.Colors {
-	if len(c.Null.Prefix) == 0 && len(c.Bool.Prefix) == 0 &&
-		len(c.Number.Prefix) == 0 && len(c.String.Prefix) == 0 &&
-		len(c.Key.Prefix) == 0 && len(c.Bytes.Prefix) == 0 &&
-		len(c.Time.Prefix) == 0 && len(c.Punc.Prefix) == 0 {
-		return nil
-	}
-	return &jsoncolor.Colors{
-		Null:   jsoncolor.Color(c.Null.Prefix),
-		Bool:   jsoncolor.Color(c.Bool.Prefix),
-		Number: jsoncolor.Color(c.Number.Prefix),
-		String: jsoncolor.Color(c.String.Prefix),
-		Key:    jsoncolor.Color(c.Key.Prefix),
-		Bytes:  jsoncolor.Color(c.Bytes.Prefix),
-		Time:   jsoncolor.Color(c.Time.Prefix),
-		Punc:   jsoncolor.Color(c.Punc.Prefix),
-	}
-}
-
 func TestEncode(t *testing.T) {
 	testCases := []struct {
 		name    string
@@ -156,7 +131,7 @@ func TestEncode(t *testing.T) {
 			enc := jsoncolor.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(tc.sortMap)
-			enc.SetColors(toJSONColorPalette(internal.NewColors(pr)))
+			enc.SetColors(internal.NewColors(pr).JSONPalette())
 
 			if !pr.Compact {
 				enc.SetIndent("", pr.Indent)
@@ -218,7 +193,7 @@ func TestEncode_Slice(t *testing.T) {
 			buf := &bytes.Buffer{}
 			enc := jsoncolor.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
-			enc.SetColors(toJSONColorPalette(internal.NewColors(pr)))
+			enc.SetColors(internal.NewColors(pr).JSONPalette())
 			if !pr.Compact {
 				enc.SetIndent("", "  ")
 			}
@@ -269,7 +244,7 @@ func TestEncode_SmallStruct(t *testing.T) {
 			enc := jsoncolor.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(true)
-			enc.SetColors(toJSONColorPalette(internal.NewColors(pr)))
+			enc.SetColors(internal.NewColors(pr).JSONPalette())
 
 			if !pr.Compact {
 				enc.SetIndent("", "  ")
@@ -322,7 +297,7 @@ func TestEncode_Map_Nested(t *testing.T) {
 			enc := jsoncolor.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(true)
-			enc.SetColors(toJSONColorPalette(internal.NewColors(pr)))
+			enc.SetColors(internal.NewColors(pr).JSONPalette())
 
 			if !pr.Compact {
 				enc.SetIndent("", "  ")
@@ -407,7 +382,7 @@ func TestEncode_Map_StringNotInterface(t *testing.T) {
 			enc := jsoncolor.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(tc.sortMap)
-			enc.SetColors(toJSONColorPalette(internal.NewColors(pr)))
+			enc.SetColors(internal.NewColors(pr).JSONPalette())
 			if !pr.Compact {
 				enc.SetIndent("", pr.Indent)
 			}
@@ -470,7 +445,7 @@ func TestEncode_RawMessage(t *testing.T) {
 			enc := jsoncolor.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(true)
-			enc.SetColors(toJSONColorPalette(internal.NewColors(pr)))
+			enc.SetColors(internal.NewColors(pr).JSONPalette())
 			if !pr.Compact {
 				enc.SetIndent("", pr.Indent)
 			}
@@ -551,7 +526,7 @@ func TestEncode_Map_StringRawMessage(t *testing.T) {
 			enc := jsoncolor.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(tc.sortMap)
-			enc.SetColors(toJSONColorPalette(internal.NewColors(pr)))
+			enc.SetColors(internal.NewColors(pr).JSONPalette())
 			if !pr.Compact {
 				enc.SetIndent("", pr.Indent)
 			}
@@ -591,7 +566,7 @@ func TestEncode_BigStruct(t *testing.T) {
 			enc := jsoncolor.NewEncoder(buf)
 			enc.SetEscapeHTML(false)
 			enc.SetSortMapKeys(true)
-			enc.SetColors(toJSONColorPalette(internal.NewColors(pr)))
+			enc.SetColors(internal.NewColors(pr).JSONPalette())
 
 			if !pr.Compact {
 				enc.SetIndent("", "  ")
@@ -620,7 +595,7 @@ func TestEncode_Map_Not_StringInterface(t *testing.T) {
 	enc := jsoncolor.NewEncoder(buf)
 	enc.SetEscapeHTML(false)
 	enc.SetSortMapKeys(true)
-	enc.SetColors(toJSONColorPalette(internal.NewColors(pr)))
+	enc.SetColors(internal.NewColors(pr).JSONPalette())
 	if !pr.Compact {
 		enc.SetIndent("", "  ")
 	}

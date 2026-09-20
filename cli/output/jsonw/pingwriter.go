@@ -15,12 +15,17 @@ var _ output.PingWriter = (*pingWriter)(nil)
 
 // NewPingWriter returns JSON impl of output.PingWriter.
 func NewPingWriter(out io.Writer, pr *output.Printing) output.PingWriter {
-	return &pingWriter{out: out, pr: pr}
+	return &pingWriter{out: out, pr: pr, pal: newJSONColorPalette(pr)}
 }
 
 type pingWriter struct {
 	out io.Writer
 	pr  *output.Printing
+
+	// pal is built once at construction. Result is called once per source,
+	// and pr's colors are fixed for the writer's lifetime, so rebuilding the
+	// palette per source would repeat the same work for every source pinged.
+	pal *jsoncolor.Colors
 }
 
 // Open implements output.PingWriter.
@@ -61,7 +66,7 @@ func (p pingWriter) Result(src *source.Source, d time.Duration, err error) error
 	}
 
 	enc := jsoncolor.NewEncoder(p.out)
-	enc.SetColors(newJSONColorPalette(p.pr))
+	enc.SetColors(p.pal)
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 

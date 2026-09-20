@@ -39,7 +39,7 @@ func TestSmoke(t *testing.T) {
 			t.Parallel()
 
 			th := testh.New(t)
-			src := th.Source(sakila.CSVActor)
+			src := th.Source(handle)
 
 			sink, err := th.QuerySQL(src, nil, "SELECT * FROM data")
 			require.NoError(t, err)
@@ -51,7 +51,6 @@ func TestSmoke(t *testing.T) {
 
 func TestSakila_query(t *testing.T) {
 	t.Parallel()
-	tu.SkipIssueWindows(t, tu.GH355SQLiteDecimalWin)
 
 	testCases := []struct {
 		file      string

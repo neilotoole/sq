@@ -5,12 +5,13 @@
 #
 # For day-to-day and CI-style work without Docker, prefer:
 #   make deps        — bun install
+#   make deps-links  — install only dependencies needed by link checks
 #   make smoke-test  — docker smoke checks (./scripts/validate-build.sh --start)
 #   make site-test   — stable lint suite (bun run test:ci; internal link check)
 #   make site-test-full — full lint suite (bun run test:full; includes external link crawl)
 #   make site-build  — bun run build (Hugo → public/)
 #   make site-local  — local dev server (bun scripts/dev-server.js)
-#   make check       — Bun, Hugo, Netlify CLI, jq, curl (Site CI / Dependabot)
+#   make check       — Bun, Hugo, lychee, Netlify CLI, jq, curl (Site CI / Dependabot)
 #   make check-netlify — make check + checkenv on .env (see .env.example)
 #   make ci          — deps, site-test, site-build, validate-artifact (matches GitHub Site CI)
 #   make site-netlify-validate — Netlify deploy-preview CLI check (needs NETLIFY_*)
@@ -59,6 +60,14 @@ deps:
 	@$(LOGGER) log_info "Installing site dependencies (bun install)"
 	bun install
 	@$(LOGGER) log_success "Dependencies installed"
+
+.PHONY: deps-links ## Install link-check dependencies without unrelated package lifecycle scripts
+deps-links:
+	@$(LOGGER) log_separator
+	@$(LOGGER) log_info "Installing link-check dependencies"
+	bun install --frozen-lockfile --ignore-scripts
+	bun run install:tools
+	@$(LOGGER) log_success "Link-check dependencies installed"
 
 .PHONY: smoke-test ## Docker-based smoke tests (./scripts/validate-build.sh --start)
 smoke-test:
@@ -154,8 +163,8 @@ site-lighthouse:
 	log_indent log_dim "→ lighthouse-reports/mobile.report.html"; \
 	log_indent log_dim "→ lighthouse-reports/desktop.report.html"
 
-.PHONY: check ## Verify Site CI / Dependabot tools (Bun, Hugo, Netlify CLI, jq, curl)
-check: check_header check_bun check_hugo check_netlify_cli check_jq check_curl
+.PHONY: check ## Verify Site CI / Dependabot tools (Bun, Hugo, lychee, Netlify CLI, jq, curl)
+check: check_header check_bun check_hugo check_lychee check_netlify_cli check_jq check_curl
 	@echo ""
 	@$(LOGGER) log_success "Tooling check passed"
 

@@ -95,7 +95,7 @@ func (w *recordWriter) Close(ctx context.Context) error {
 	return errz.Err(err)
 }
 
-func (w *recordWriter) writeRecord(rec record.Record) error { //nolint:unparam
+func (w *recordWriter) writeRecord(rec record.Record) error {
 	w.buf.WriteString("    <tr>\n")
 
 	var s string

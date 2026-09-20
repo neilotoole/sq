@@ -11,7 +11,7 @@ url: /docs/secrets
 
 `sq` treats credentials with two independent mechanisms: **redaction** keeps
 secrets out of display output, and **placeholders** keep secrets out of the
-[config](../config) file itself. The two stack rather than compete. This page
+[config](/docs/config) file itself. The two stack rather than compete. This page
 explains both, plus the `--reveal` and `--expand` flags that opt out.
 
 ## Overview
