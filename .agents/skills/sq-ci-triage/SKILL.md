@@ -64,15 +64,18 @@ gh run view --job <job-id> --log-failed    # the failing step's output
 
 Write down three things before going further:
 
-- The failing job name, exactly (`test-windows-full`, `test-nix (macos-15)`, `run / test oracle:latest`).
+- The failing job name, exactly (`test-windows-full`, `test-nix (macos-15)`,
+  `run / test oracle:latest`).
 - The failing test's full name including subtest path, or the workflow step name when no test is
   involved.
 - The verbatim error line. The mechanism is usually named in it, and it is usually unrelated to
   what the test name suggests. `The process cannot access the file because it is being used by
   another process` is a Windows sharing violation, whatever test it lands on.
 
-One symptom per pass. If several tests failed, take the first alphabetically and leave the rest.
-Multiple symptoms in one PR cannot be reviewed or reverted independently.
+One symptom per pass. If several tests failed, group them by verbatim error first: failures that
+share an error usually share a mechanism, and they are one symptom, not several. #1197 and #1200
+were two tests failing from one DuckDB fixture lock. Take one group and leave the rest. Multiple
+symptoms in one PR cannot be reviewed or reverted independently.
 
 ## 2. Prior art
 
@@ -123,19 +126,23 @@ gh run view <run-id> --json headBranch,headSha,event,createdAt
 
 - **Failure on `master` or a nightly or dispatch run of `master`.** The base for any fix is
   `master`.
-- **Failure on a pull request's branch.** The problem belongs to that PR. Push to that branch if
-  you can, or comment on the PR with your findings. Do not open a competing PR against `master`.
+- **Failure on a pull request's branch.** The problem belongs to that PR. If the PR is yours, push
+  the fix to its branch. Otherwise comment on the PR with your findings, and do not push to
+  someone else's branch. Do not open a competing PR against `master`.
   That was the single largest source of unmergeable diffs here: PR #1197 was 517 added lines
   against `master` when the change it intended was one line, because it branched from the head of
   another open PR and carried that PR's work along with it.
 - **Failure on a commit that is no longer the head.** Re-check on current head before doing
-  anything.
+  anything. If it no longer reproduces there, stop.
 
-Branch from the exact tested commit, never from another feature branch:
+For a `master` failure, branch from current `origin/master` once the failure reproduces there,
+never from another feature branch:
 
 ```bash
-git fetch origin <headSha> && git checkout -b fix/gh<issue>-<short-desc> <headSha>
+git fetch origin master && git checkout -b fix/gh<issue>-<short-desc> origin/master
 ```
+
+For a failure on your own PR, work on that PR's branch; there is no new branch to create.
 
 ## 4. Classify
 
@@ -158,7 +165,9 @@ These are not fixes, and a PR containing one will be closed:
 - `t.Skip`, `t.Skipf`, `tu.SkipWindows`, `tu.SkipIf` or any conditional skip added because a test
   sometimes fails.
 - Deleting or commenting out a test, a subtest, or an assertion.
-- Raising a timeout, loosening a threshold, or adding retries so a flake surfaces less often.
+- Raising a timeout, loosening a threshold, or adding retries so a flake surfaces less often,
+  without an established mechanism. A timeout that is itself the mechanism is a fix, like the
+  completion timeout #1144 added for the #595 flake; say so and show it.
 - Moving a test behind an envar that no CI leg sets, which is a skip with extra steps.
 - Excluding a job or a package from a workflow.
 
@@ -211,7 +220,9 @@ gh workflow run main.yml --ref <your-branch>
 gh run list --workflow main.yml --branch <your-branch> --limit 5
 ```
 
-Then link each completed run. For an intermittent failure, wait for each run to finish before dispatching the next because Main Pipeline cancels in-progress runs on non-`master` branches. Dispatch at least three times, five if the failure rate looked below half, and link them all.
+Link each completed run. For an intermittent failure, dispatch at least three times, five if the
+failure rate looked below half, and link them all. Wait for each run to finish before dispatching
+the next: Main Pipeline cancels in-progress runs on non-`master` branches.
 
 Dispatch needs `actions: write`. If your token does not have it, or the workflow refuses, the fix is
 unproven: say so in your report, and prefer an issue with a proposed fix over a PR whose only
@@ -261,7 +272,8 @@ Every one of these is a hard requirement.
   and the dispatch runs that demonstrate it. If a related issue exists, link it rather than
   restating it.
 - **Re-check prior art immediately before opening.** Minutes matter here: PR #1145 was opened ten
-  minutes after the PR that superseded it merged.
+  minutes after the PR that superseded it, while that PR was still open, and that PR merged
+  nine minutes later.
 
 ## 7. Clean up
 

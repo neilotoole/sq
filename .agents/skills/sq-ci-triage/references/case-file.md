@@ -5,7 +5,7 @@ with the reason it was closed and what fixed the problem instead. The reasons ar
 quoted or paraphrased from the closing comment. This is the evidence behind
 [`SKILL.md`](../SKILL.md); read it when you want to know why a rule is there.
 
-Thirteen PRs, none merged. Eight proposed silencing a test. Ten were superseded by a fix that
+Thirteen PRs, none merged. Seven proposed silencing a test. Ten were superseded by a fix that
 landed elsewhere. Seven carried commits belonging to another branch.
 
 | PR                                                  | Opened     | Proposed                                    | Closed as                              | Fixed instead by |
@@ -37,9 +37,9 @@ pseudo-version, kept the `cj.rs` hashes in `site/go.sum`, and explained why the 
 needed; #1110 dropped all three and swept in a stale `netlify-cli` bump that was still being cited
 when it was closed a month later.
 
-**#1145** opened ten minutes after #1144 merged. Its Oracle and join changes were byte-identical to
-what had already landed, and repinning the completion cases to Postgres reversed the goal of #1143,
-since no CI leg is guaranteed to have Postgres live.
+**#1145** opened ten minutes after #1144, while #1144 was still open, and #1144 merged nine minutes
+later. Its Oracle and join changes were byte-identical to #1144's, and repinning the completion
+cases to Postgres reversed the goal of #1143, since no CI leg is guaranteed to have Postgres live.
 
 **#1154** proposed a Windows skip inside a 10-file diff of unrelated DuckDB work. The flake was
 Windows clock granularity: on windows/amd64 `nanotime` reads `InterruptTime`, which advances only on
