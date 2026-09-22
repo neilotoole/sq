@@ -34,6 +34,9 @@
       },
     },
   },
+  "overrides": {
+    "lighthouse": "9.6.8",
+  },
   "packages": {
     "@babel/cli": ["@babel/cli@8.0.5", "", { "dependencies": { "@jridgewell/trace-mapping": "^0.3.31", "chokidar": "^5.0.0", "commander": "^14.0.2", "convert-source-map": "^2.0.0", "glob": "^13.0.0", "slash": "^5.1.0" }, "peerDependencies": { "@babel/core": "^8.0.0" }, "bin": { "babel": "./bin/babel.js" } }, "sha512-LEEejQQmSSdLqPJ67poExeYNDO53hraPtn4dyF96W0m452Zys4BEI2kc8kJHLlIy/djUE0gbJ4J7UlIOIB/i9Q=="],
 
