@@ -148,7 +148,7 @@ For a failure on your own PR, work on that PR's branch; there is no new branch t
 
 | Evidence                                                                                                              | Outcome                                                           |
 | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Fails every time on the tested commit, passes on its parent                                                           | Regression. Fix it, on the branch that introduced it.             |
+| Fails every time on the tested commit, passes on its parent                                                           | Regression. Fix it on the base [Provenance](#3-provenance) gives. |
 | Intermittent, and you can state the mechanism and show it (what raced, what held the lock, what was nondeterministic) | Fix the mechanism.                                                |
 | Intermittent, mechanism not established                                                                               | No code PR. File an issue, or add a run link to the existing one. |
 | Runner outage, registry 5xx, expired credential, dead external host, container image unavailable                      | No code PR. Report, and say which of those it is.                 |
@@ -223,6 +223,19 @@ gh run list --workflow main.yml --branch <your-branch> --limit 5
 Link each completed run. For an intermittent failure, dispatch at least three times, five if the
 failure rate looked below half, and link them all. Wait for each run to finish before dispatching
 the next: Main Pipeline cancels in-progress runs on non-`master` branches.
+
+Main Pipeline dispatch only proves failures in Main Pipeline. Two others need a different run:
+
+- **A DB matrix leg** (`run / test <engine>:<tag>`). Dispatch DB integration with the failing
+  engine and tag. Each engine input takes tags or `latest`, `oldest`, `bookends` or `all`. For a
+  change that could affect every engine, dispatch `db-scheduled.yml` with `-f mode=bookends`.
+
+  ```bash
+  gh workflow run db-integration.yml --ref <your-branch> -f oracle=latest
+  ```
+- **The live-network test.** `SQ_TEST_NETWORK` is set on the nightly schedule only, not on
+  dispatch, so no run you can start will exercise it. A fix for it cannot be proven before merge.
+  File an issue with the proposed fix rather than opening a PR.
 
 Dispatch needs `actions: write`. If your token does not have it, or the workflow refuses, the fix is
 unproven: say so in your report, and prefer an issue with a proposed fix over a PR whose only
