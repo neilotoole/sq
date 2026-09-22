@@ -159,6 +159,10 @@ If you cannot fix it in the same change, open an issue with the failure output
 and the runs it appeared in. That keeps the test running, so the next failure
 adds evidence instead of being silenced.
 
+The [`sq-ci-triage`](.agents/skills/sq-ci-triage/) skill is the procedure for
+acting on a red run: what to check before proposing anything, what counts as
+proof that a fix works, and where a fix belongs.
+
 ### Error handling
 
 Use [`libsq/core/errz`](./libsq/core/errz) for every error produced inside
@@ -356,6 +360,7 @@ tree as documented in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 | [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/)     | Dependabot PRs for Go modules (`go.mod`/`go.sum`) at repo root.                         |
 | [`sq-actions-dependabot`](.agents/skills/sq-actions-dependabot/) | Dependabot PRs for GitHub Actions pins under `.github/workflows/`.                      |
 | [`code-review`](.agents/skills/code-review/)                     | Reviewing a PR or diff; carries repo conventions a reviewer cannot infer from the diff. |
+| [`sq-ci-triage`](.agents/skills/sq-ci-triage/)                   | CI is red and you intend to act on it: triage order, proof, and where a fix belongs.    |
 
 The three Dependabot skills cover all four ecosystems in [`.github/dependabot.yml`](.github/dependabot.yml):
 `gomod`, both `bun` manifests (`/` dev tooling and `/site`), and `github-actions`.
