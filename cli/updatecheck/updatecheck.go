@@ -23,9 +23,10 @@ import (
 )
 
 const (
-	cacheFileName  = "update-check.json"
-	fetchTimeout   = 500 * time.Millisecond
-	brewFormulaURL = `https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/s/sq.rb`
+	cacheFileName   = "update-check.json"
+	defaultCacheTTL = 24 * time.Hour
+	fetchTimeout    = 500 * time.Millisecond
+	brewFormulaURL  = `https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/s/sq.rb`
 )
 
 // Cache holds a cached latest-version lookup.
@@ -71,15 +72,15 @@ func fetchLatestWithWait(
 
 	select {
 	case <-ctx.Done():
-		if c, ok := readCache(cacheDir); ok {
-			return c.LatestVersion, nil
+		if latest, ok := readFreshCache(cacheDir); ok {
+			return latest, nil
 		}
 		return "", nil
 	case result := <-resultCh:
 		if result.err != nil {
 			lg.WarnIfError(lg.FromContext(ctx), "Get brew version", result.err)
-			if c, ok := readCache(cacheDir); ok {
-				return c.LatestVersion, nil
+			if latest, ok := readFreshCache(cacheDir); ok {
+				return latest, nil
 			}
 			return "", nil
 		}
@@ -87,8 +88,8 @@ func fetchLatestWithWait(
 
 		latest, err := NormalizeVersion(raw)
 		if err != nil {
-			if c, ok := readCache(cacheDir); ok {
-				return c.LatestVersion, nil
+			if cached, ok := readFreshCache(cacheDir); ok {
+				return cached, nil
 			}
 			return "", err
 		}
@@ -118,6 +119,10 @@ func cachePath(cacheDir string) string {
 }
 
 func readCache(cacheDir string) (Cache, bool) {
+	if cacheDir == "" {
+		return Cache{}, false
+	}
+
 	b, err := os.ReadFile(cachePath(cacheDir))
 	if err != nil {
 		return Cache{}, false
@@ -130,6 +135,17 @@ func readCache(cacheDir string) (Cache, bool) {
 	return c, true
 }
 
+func readFreshCache(cacheDir string) (string, bool) {
+	c, ok := readCache(cacheDir)
+	if !ok || c.LatestVersion == "" {
+		return "", false
+	}
+	if time.Since(c.CheckedAt) >= defaultCacheTTL {
+		return "", false
+	}
+	return c.LatestVersion, true
+}
+
 func writeCache(cacheDir string, c Cache) error {
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		return errz.Err(err)
@@ -140,11 +156,26 @@ func writeCache(cacheDir string, c Cache) error {
 		return errz.Err(err)
 	}
 
-	tmp := cachePath(cacheDir) + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+	f, err := os.CreateTemp(cacheDir, cacheFileName+".*.tmp")
+	if err != nil {
 		return errz.Err(err)
 	}
-	return errz.Err(os.Rename(tmp, cachePath(cacheDir)))
+	tmp := f.Name()
+
+	if _, err := f.Write(b); err != nil {
+		_ = f.Close()
+		_ = os.Remove(tmp)
+		return errz.Err(err)
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(tmp)
+		return errz.Err(err)
+	}
+	if err := os.Rename(tmp, cachePath(cacheDir)); err != nil {
+		_ = os.Remove(tmp)
+		return errz.Err(err)
+	}
+	return nil
 }
 
 func fetchBrewVersion(ctx context.Context) (string, error) {

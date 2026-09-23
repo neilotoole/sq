@@ -22,7 +22,7 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- Extract Homebrew version lookup into `cli/updatecheck` (used by [`sq version`](https://sq.io/docs/reference/version)).
+- Extract Homebrew version lookup into `cli/updatecheck` (used by [`sq version`](https://sq.io/docs/cmd/version)).
   Verbose output highlights a newer release with dedicated styling.
 - [#1013]: Querying a remote source now makes one fewer server round-trip per `sq` invocation. The server version,
   needed for version-aware SQL rendering, is read during the connectivity check when the source is opened, instead of in

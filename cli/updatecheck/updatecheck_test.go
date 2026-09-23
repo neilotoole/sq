@@ -144,6 +144,47 @@ func TestNormalizeVersion(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestReadCache_emptyDir(t *testing.T) {
+	t.Parallel()
+
+	_, ok := readCache("")
+	require.False(t, ok)
+}
+
+func TestReadFreshCache_stale(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := t.TempDir()
+	require.NoError(t, writeCache(cacheDir, Cache{
+		LatestVersion: "v9.9.9",
+		CheckedAt:     time.Now().UTC().Add(-defaultCacheTTL - time.Minute),
+	}))
+
+	latest, ok := readFreshCache(cacheDir)
+	require.False(t, ok)
+	require.Empty(t, latest)
+}
+
+func TestFetchLatestWithWait_ignoresStaleCacheOnTimeout(t *testing.T) {
+	cacheDir := t.TempDir()
+	require.NoError(t, writeCache(cacheDir, Cache{
+		LatestVersion: "v9.9.9",
+		CheckedAt:     time.Now().UTC().Add(-defaultCacheTTL - time.Minute),
+	}))
+
+	got, err := fetchLatestWithWait(
+		context.Background(),
+		cacheDir,
+		time.Nanosecond,
+		func(ctx context.Context) (string, error) {
+			<-ctx.Done()
+			return "", ctx.Err()
+		},
+	)
+	require.NoError(t, err)
+	require.Empty(t, got)
+}
+
 func TestWriteCache_roundTrip(t *testing.T) {
 	t.Parallel()
 
