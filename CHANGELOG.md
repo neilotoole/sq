@@ -2,301 +2,249 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 > [!NOTE]
-> Sometimes this `CHANGELOG.md` has gaps between versions, e.g. `v0.18.0` to
-> `v0.18.2`. This typically means that there was some CI/tooling mishap. Ignore
-> those gaps.
+> Sometimes this `CHANGELOG.md` has gaps between versions, e.g. `v0.18.0` to `v0.18.2`. This typically means that there
+> was some CI/tooling mishap. Ignore those gaps.
 
 ## [Unreleased]
 
 ### Added
 
 - [#1007]: The `sq` container image is now published to Docker Hub as
-  [`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq), alongside the
-  existing `ghcr.io/neilotoole/sq`. Both registries carry the same image. The
-  image also now ships with SLSA build provenance and an SPDX SBOM, in addition
-  to the existing cosign signature.
+  [`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq), alongside the existing `ghcr.io/neilotoole/sq`. Both
+  registries carry the same image. The image also now ships with SLSA build provenance and an SPDX SBOM, in addition to
+  the existing cosign signature.
 
 ### Changed
 
-- [#1013]: Querying a remote source now makes one fewer server round-trip per `sq`
-  invocation. The server version, needed for version-aware SQL rendering, is read
-  during the connectivity check when the source is opened, instead of in a
-  separate query.
-- [#1151]: DuckDB extensions that are not built into `sq` now load on first use
-  instead of on every open. DuckDB does not autoload `excel` for
-  `COPY ... TO 'file.xlsx'`, so that statement no longer works via
-  [`sq sql`](https://sq.io/docs/cmd/sql); use `sq`'s
-  [`--xlsx`](https://sq.io/docs/output#xlsx) output to write Excel files. See the
-  [driver docs](https://sq.io/docs/drivers/duckdb#extensions).
-- ☢️ `sq` is now built with Go 1.27, which requires macOS 13 Ventura or later. macOS 12 Monterey
-  is no longer supported.
-- [#1165]: A duration option set on a source is now displayed in its canonical
-  form. A source configured with `conn.max-idle-time: 100s` shows as `1m40s` in
-  [`sq ls`](https://sq.io/docs/cmd/ls) `-v` and `sq config ls --src`.
+- Extract Homebrew version lookup into `cli/updatecheck` (used by [`sq version`](https://sq.io/docs/reference/version)).
+  Verbose output highlights a newer release with dedicated styling.
+- [#1013]: Querying a remote source now makes one fewer server round-trip per `sq` invocation. The server version,
+  needed for version-aware SQL rendering, is read during the connectivity check when the source is opened, instead of in
+  a separate query.
+- [#1151]: DuckDB extensions that are not built into `sq` now load on first use instead of on every open. DuckDB does
+  not autoload `excel` for `COPY ... TO 'file.xlsx'`, so that statement no longer works via
+  [`sq sql`](https://sq.io/docs/cmd/sql); use `sq`'s [`--xlsx`](https://sq.io/docs/output#xlsx) output to write Excel
+  files. See the [driver docs](https://sq.io/docs/drivers/duckdb#extensions).
+- ☢️ `sq` is now built with Go 1.27, which requires macOS 13 Ventura or later. macOS 12 Monterey is no longer supported.
+- [#1165]: A duration option set on a source is now displayed in its canonical form. A source configured with
+  `conn.max-idle-time: 100s` shows as `1m40s` in [`sq ls`](https://sq.io/docs/cmd/ls) `-v` and `sq config ls --src`.
 
 ### Fixed
 
-- [#1151]: Opening a DuckDB source is much faster, and no longer needs network
-  access on a machine with an empty extension cache.
-- [#1165]: A source-level option was ignored once `sq` reloaded its config,
-  silently falling back to the option's default. This affected the duration
-  options that can be set per source, such as `conn.max-idle-time`,
+- [#1151]: Opening a DuckDB source is much faster, and no longer needs network access on a machine with an empty
+  extension cache.
+- [#1165]: A source-level option was ignored once `sq` reloaded its config, silently falling back to the option's
+  default. This affected the duration options that can be set per source, such as `conn.max-idle-time`,
   `conn.max-lifetime` and `http.request.timeout`.
-- [#1209]: Reading an option now accepts the value in the form the config file
-  stores it, instead of silently falling back to the option's default when the
-  value had not been normalized first. As part of this, `log.level` set to an
+- [#1209]: Reading an option now accepts the value in the form the config file stores it, instead of silently falling
+  back to the option's default when the value had not been normalized first. As part of this, `log.level` set to an
   integer works, where previously it was rejected.
-- [#1220]: A source location's inline password could be written to the debug log
-  in cleartext. This affected ClickHouse sources whose location omitted the port,
-  and SQLite and DuckDB sources carrying an `_auth_pass` query param when added
+- [#1220]: A source location's inline password could be written to the debug log in cleartext. This affected ClickHouse
+  sources whose location omitted the port, and SQLite and DuckDB sources carrying an `_auth_pass` query param when added
   via [`sq add`](https://sq.io/docs/cmd/add).
 
 ## [v0.55.0] - 2026-09-09
 
 ### Added
 
-- [#986]: [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) with `-j` / `-y` now
-  reports an `is_embedded_sql` field for each driver, `true` for the in-process SQL
-  drivers (SQLite, DuckDB) and `false` for the networked engines (including rqlite,
-  which is SQLite-backed but reached over HTTP) and non-SQL drivers.
+- [#986]: [`sq driver ls`](https://sq.io/docs/cmd/driver-ls) with `-j` / `-y` now reports an `is_embedded_sql` field for
+  each driver, `true` for the in-process SQL drivers (SQLite, DuckDB) and `false` for the networked engines (including
+  rqlite, which is SQLite-backed but reached over HTTP) and non-SQL drivers.
 
 ### Changed
 
-- ☢️ [#1136]: In JSON output, a backspace or form feed inside a string value is now written using
-  its two-character short escape instead of the six-character numeric escape. This aligns `sq` with
-  the behavior of `encoding/json` since [Go 1.22](https://go.dev/doc/go1.22#encoding/json). Both
-  spellings decode to the same string, so anything that parses `sq`'s JSON is unaffected, and only
-  output containing one of those two characters changes at all. Stored fixtures, golden files or
-  checksums that compare `sq`'s JSON byte-for-byte may need regenerating.
+- ☢️ [#1136]: In JSON output, a backspace or form feed inside a string value is now written using its two-character
+  short escape instead of the six-character numeric escape. This aligns `sq` with the behavior of `encoding/json` since
+  [Go 1.22](https://go.dev/doc/go1.22#encoding/json). Both spellings decode to the same string, so anything that parses
+  `sq`'s JSON is unaffected, and only output containing one of those two characters changes at all. Stored fixtures,
+  golden files or checksums that compare `sq`'s JSON byte-for-byte may need regenerating.
 
 ### Fixed
 
-- [#975]: A join across two sources could fail with `database is locked` when
-  large tables were copied into the temporary join database.
-- [#1017]: A canceled or failed table copy or ingest could commit a partially-written
-  table instead of rolling back.
-- [#976], [#994]: The DuckDB driver now correctly quotes table, column, and schema
-  names that contain a double quote (e.g. a `we"ird` table created from a CSV
-  header), completing the identifier-quoting fix [#821] applied to SQLite and rqlite.
-- [#968]: Aligned the SQLite and DuckDB Sakila test fixtures with the canonical
-  schema used by the other drivers.
+- [#975]: A join across two sources could fail with `database is locked` when large tables were copied into the
+  temporary join database.
+- [#1017]: A canceled or failed table copy or ingest could commit a partially-written table instead of rolling back.
+- [#976], [#994]: The DuckDB driver now correctly quotes table, column, and schema names that contain a double quote
+  (e.g. a `we"ird` table created from a CSV header), completing the identifier-quoting fix [#821] applied to SQLite and
+  rqlite.
+- [#968]: Aligned the SQLite and DuckDB Sakila test fixtures with the canonical schema used by the other drivers.
 
 ## [v0.54.1] - 2026-06-23
 
 ### Fixed
 
-- [#866], [#868]: Ingesting document sources (CSV, JSON, Excel, etc.) is now much
-  faster, especially on Windows and other slow filesystems.
+- [#866], [#868]: Ingesting document sources (CSV, JSON, Excel, etc.) is now much faster, especially on Windows and
+  other slow filesystems.
 - [#865]: Fixed shell-completion regressions.
-- [#863]: `FORCE_COLOR` handling now follows the [force-color.org](https://force-color.org/)
-  conventions.
-- [#919]: [`sq inspect`](https://sq.io/docs/inspect) on an Oracle source now handles
-  materialized views correctly.
+- [#863]: `FORCE_COLOR` handling now follows the [force-color.org](https://force-color.org/) conventions.
+- [#919]: [`sq inspect`](https://sq.io/docs/inspect) on an Oracle source now handles materialized views correctly.
 - Various other bug fixes: [#859], [#902], [#911], [#915], [#916], [#918], [#920], [#923], [#926].
 
 ## [v0.54.0] - 2026-06-19
 
 ### Added
 
-- 🐥 [#444]: New [driver](https://sq.io/docs/drivers/rqlite) for
-  [rqlite](https://rqlite.io), the lightweight distributed database built on SQLite.
-- [#441]: Revamped [secrets handling](https://sq.io/docs/secrets). Source credentials no
-  longer need to live as plaintext in `sq.yml`: source locations accept `${scheme:path}`
-  placeholders that are resolved at connect time, and secrets are consistently redacted
-  in output unless you opt in to disclosure.
+- 🐥 [#444]: New [driver](https://sq.io/docs/drivers/rqlite) for [rqlite](https://rqlite.io), the lightweight
+  distributed database built on SQLite.
+- [#441]: Revamped [secrets handling](https://sq.io/docs/secrets). Source credentials no longer need to live as
+  plaintext in `sq.yml`: source locations accept `${scheme:path}` placeholders that are resolved at connect time, and
+  secrets are consistently redacted in output unless you opt in to disclosure.
   - [#714]: Supported placeholder resolvers:
     - OS keychain: `${keyring:3d28xd3jcr}`
     - Environment variables: `${env:DB_PASSWORD}`
     - File contents: `${file:/run/secrets/db_pw}`
     - 1Password: `${op://Private/sakila/dsn}`
   - [#717], [#729]: New global flags:
-    - [`--reveal`](https://sq.io/docs/secrets#redaction): show secret values in output; supersedes
-      the now-deprecated `--no-redact`.
-    - [`--expand`](https://sq.io/docs/secrets#expanding-placeholders): print resolved
-      placeholder values instead of the verbatim `${scheme:path}` text.
-  - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export) dumps the active
-    config to YAML, primarily for backups. With `--expand`, placeholders are resolved
-    in-line, making the export a self-contained (but plaintext) snapshot.
-- [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained
-  [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
-  [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the schema
-  ERD directly to `.svg` or `.png` image files.
+    - [`--reveal`](https://sq.io/docs/secrets#redaction): show secret values in output; supersedes the now-deprecated
+      `--no-redact`.
+    - [`--expand`](https://sq.io/docs/secrets#expanding-placeholders): print resolved placeholder values instead of the
+      verbatim `${scheme:path}` text.
+  - [#716]: [`sq config export`](https://sq.io/docs/cmd/config-export) dumps the active config to YAML, primarily for
+    backups. With `--expand`, placeholders are resolved in-line, making the export a self-contained (but plaintext)
+    snapshot.
+- [#660]: [`sq inspect`](https://sq.io/docs/inspect) gained [`svg-erd`](https://sq.io/docs/inspect#svg-erd) and
+  [`png-erd`](https://sq.io/docs/inspect#png-erd) output formats that render the schema ERD directly to `.svg` or `.png`
+  image files.
   - Uses an embedded [Graphviz](https://graphviz.org) engine (via
-    [goccy/go-graphviz](https://github.com/goccy/go-graphviz)): the generated images are
-    not the prettiest, but it's a start.
-- [#846]: New [`format.decimal`](https://sq.io/docs/output#decimal) option
-  and `--format.decimal` flag (`string` | `number`) controlling whether decimal
-  values render as quoted strings or bare numbers in JSON and YAML output.
+    [goccy/go-graphviz](https://github.com/goccy/go-graphviz)): the generated images are not the prettiest, but it's a
+    start.
+- [#846]: New [`format.decimal`](https://sq.io/docs/output#decimal) option and `--format.decimal` flag (`string` |
+  `number`) controlling whether decimal values render as quoted strings or bare numbers in JSON and YAML output.
 
 ### Changed
 
-- [#900]: HTTPS requests (used when downloading remote sources) now require a minimum of
-  TLS 1.2, matching the Go standard library default. TLS 1.0 and 1.1, deprecated by
-  RFC 8996, are no longer accepted.
-- [#851]: In colored output, structural punctuation is now rendered muted rather than bold,
-  so values stand out.
+- [#900]: HTTPS requests (used when downloading remote sources) now require a minimum of TLS 1.2, matching the Go
+  standard library default. TLS 1.0 and 1.1, deprecated by RFC 8996, are no longer accepted.
+- [#851]: In colored output, structural punctuation is now rendered muted rather than bold, so values stand out.
 - [#846]: YAML now renders decimal values as quoted strings by default, matching JSON. Set
   [`format.decimal=number`](https://sq.io/docs/output#decimal) to restore bare numbers.
-- ☢️ [#594]: [`avg()`](https://sq.io/docs/query/#aggregate-functions) now returns a consistent `float` on
-  every SQL driver. Breaking for [Postgres](https://sq.io/docs/drivers/postgres) and
-  [MySQL](https://sq.io/docs/drivers/mysql), which previously returned a lossless decimal.
-- ☢️ [#839], [#853]: [`sum()`](https://sq.io/docs/query/#aggregate-functions) over an integer or decimal
-  column now returns a consistent `decimal` on every SQL driver, rendered in JSON as a
-  quoted string (e.g. `"20100"`).
-- [#610]: The DuckDB driver now
-  [opens sources read-only](https://sq.io/docs/drivers/duckdb#read-only-access-by-default)
-  for non-writing commands, and [`sq sql`](https://sq.io/docs/cmd/sql) gained a `--readonly`
-  (alias `--ro`) flag.
+- ☢️ [#594]: [`avg()`](https://sq.io/docs/query/#aggregate-functions) now returns a consistent `float` on every SQL
+  driver. Breaking for [Postgres](https://sq.io/docs/drivers/postgres) and [MySQL](https://sq.io/docs/drivers/mysql),
+  which previously returned a lossless decimal.
+- ☢️ [#839], [#853]: [`sum()`](https://sq.io/docs/query/#aggregate-functions) over an integer or decimal column now
+  returns a consistent `decimal` on every SQL driver, rendered in JSON as a quoted string (e.g. `"20100"`).
+- [#610]: The DuckDB driver now [opens sources read-only](https://sq.io/docs/drivers/duckdb#read-only-access-by-default)
+  for non-writing commands, and [`sq sql`](https://sq.io/docs/cmd/sql) gained a `--readonly` (alias `--ro`) flag.
 - ☢️ [#728], [#782]: The `redact` config option is renamed to
-  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity; existing
-  configs are migrated automatically (after a [backup](https://sq.io/docs/config#upgrades)).
-- [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd) now
-  syntax-colors its `erDiagram` source when writing to a terminal.
-- [#758]: For SQLite (and rqlite) sources,
-  [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) now copies the source table's indexes and
-  triggers to the destination.
+  [`secrets.reveal`](https://sq.io/docs/config#secretsreveal) with inverted polarity; existing configs are migrated
+  automatically (after a [backup](https://sq.io/docs/config#upgrades)).
+- [#692]: [`sq inspect -f mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd) now syntax-colors its `erDiagram` source
+  when writing to a terminal.
+- [#758]: For SQLite (and rqlite) sources, [`sq tbl copy`](https://sq.io/docs/cmd/tbl-copy) now copies the source
+  table's indexes and triggers to the destination.
 
 ### Fixed
 
-- [#851]: Two fixes to [`yaml`](https://sq.io/docs/output#yaml) output: a numeric value from
-  an untyped column is now colorized, and a `BLOB` value is now encoded as base64.
-- [#844]: On [Oracle](https://sq.io/docs/drivers/oracle), a query whose result is a computed
-  `NUMBER` with a fractional value no longer fails with a scan error; such numbers are now
-  typed as `decimal`.
-- [#594]: On [SQL Server](https://sq.io/docs/drivers/sqlserver), `avg()` over an integer
-  column no longer performs integer division and truncates the result.
+- [#851]: Two fixes to [`yaml`](https://sq.io/docs/output#yaml) output: a numeric value from an untyped column is now
+  colorized, and a `BLOB` value is now encoded as base64.
+- [#844]: On [Oracle](https://sq.io/docs/drivers/oracle), a query whose result is a computed `NUMBER` with a fractional
+  value no longer fails with a scan error; such numbers are now typed as `decimal`.
+- [#594]: On [SQL Server](https://sq.io/docs/drivers/sqlserver), `avg()` over an integer column no longer performs
+  integer division and truncates the result.
 - [#741], [#743]: [`sq add`](https://sq.io/docs/cmd/add) shell completion now supports
-  [ClickHouse](https://sq.io/docs/drivers/clickhouse) and
-  [Oracle](https://sq.io/docs/drivers/oracle).
-- [#699]: [`sq inspect`](https://sq.io/docs/inspect) on
-  [SQLite](https://sq.io/docs/drivers/sqlite) sources no longer executes pragmas that write
-  to the database or scan the whole file, which could make each inspect painfully slow.
-- [#720]: Fixed [SQLite driver](https://sq.io/docs/drivers/sqlite) path handling for source
-  locations with connection params (e.g. `sqlite3:///path/to/db?mode=ro`).
-- [#750], [#752], [#757], [#759]: A batch of fixes to the `CREATE TABLE` DDL rewriting that
-  backs table copy and column-kind alteration on the
-  [sqlite3](https://sq.io/docs/drivers/sqlite) driver.
+  [ClickHouse](https://sq.io/docs/drivers/clickhouse) and [Oracle](https://sq.io/docs/drivers/oracle).
+- [#699]: [`sq inspect`](https://sq.io/docs/inspect) on [SQLite](https://sq.io/docs/drivers/sqlite) sources no longer
+  executes pragmas that write to the database or scan the whole file, which could make each inspect painfully slow.
+- [#720]: Fixed [SQLite driver](https://sq.io/docs/drivers/sqlite) path handling for source locations with connection
+  params (e.g. `sqlite3:///path/to/db?mode=ro`).
+- [#750], [#752], [#757], [#759]: A batch of fixes to the `CREATE TABLE` DDL rewriting that backs table copy and
+  column-kind alteration on the [sqlite3](https://sq.io/docs/drivers/sqlite) driver.
 - [#783]: `sq db dump cluster` no longer writes the database password to the sq log file.
-- [#783]: [`sq cache clear @src`](https://sq.io/docs/cmd/cache-clear) now clears every cache
-  dir belonging to the source, including stale dirs left over from a changed location, schema,
-  or ingest options.
-- [#783]: [`sq add`](https://sq.io/docs/cmd/add) and [`sq mv`](https://sq.io/docs/cmd/mv) no
-  longer permit a source handle nested below an existing source's handle.
-- [#821]: On the [SQLite](https://sq.io/docs/drivers/sqlite) and
-  [rqlite](https://sq.io/docs/drivers/rqlite) drivers, renaming a table, adding a column, or
-  truncating it no longer fails when a table or column name contains a double quote.
-- [#834]: On the [ClickHouse](https://sq.io/docs/drivers/clickhouse) driver, a result-column
-  name containing a dot is no longer truncated to the segment after the last dot.
+- [#783]: [`sq cache clear @src`](https://sq.io/docs/cmd/cache-clear) now clears every cache dir belonging to the
+  source, including stale dirs left over from a changed location, schema, or ingest options.
+- [#783]: [`sq add`](https://sq.io/docs/cmd/add) and [`sq mv`](https://sq.io/docs/cmd/mv) no longer permit a source
+  handle nested below an existing source's handle.
+- [#821]: On the [SQLite](https://sq.io/docs/drivers/sqlite) and [rqlite](https://sq.io/docs/drivers/rqlite) drivers,
+  renaming a table, adding a column, or truncating it no longer fails when a table or column name contains a double
+  quote.
+- [#834]: On the [ClickHouse](https://sq.io/docs/drivers/clickhouse) driver, a result-column name containing a dot is no
+  longer truncated to the segment after the last dot.
 
 ## [v0.53.0] - 2026-05-25
 
 ### Added
 
-- [#601], [#615], [#628], [#629], [#640]: New `SLQ` string-matching functions.
-  See [Query Guide](https://sq.io/docs/query) for per-driver behavior and
-  SQLite ASCII-CI quirks.
-  - Case-sensitive literal substring matchers
-    [`contains`](https://sq.io/docs/query#contains),
-    [`startswith`](https://sq.io/docs/query#startswith), and
-    [`endswith`](https://sq.io/docs/query#endswith).
-  - Case-insensitive variants
-    [`icontains`](https://sq.io/docs/query#icontains),
-    [`istartswith`](https://sq.io/docs/query#istartswith), and
-    [`iendswith`](https://sq.io/docs/query#iendswith).
-  - User-controlled wildcard matchers [`like`](https://sq.io/docs/query#like)
-    and [`ilike`](https://sq.io/docs/query#ilike): `%` and `_` are wildcards.
-- [#648]: [`sq inspect`](https://sq.io/docs/inspect) now has [`--markdown`](https://sq.io/docs/inspect#--markdown)
-  and [`--html`](https://sq.io/docs/inspect#--html) output formats that generate
-  schema documents with embedded entity relationship diagrams.
-  - [#658]: `sq inspect` also gained a
-    [`mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd) output format
-    (`--format=mermaid-erd`) that emits the bare
-    [Mermaid](https://mermaid.js.org) entity-relationship diagram source for
-    source and table schema inspection, with no surrounding document.
+- [#601], [#615], [#628], [#629], [#640]: New `SLQ` string-matching functions. See
+  [Query Guide](https://sq.io/docs/query) for per-driver behavior and SQLite ASCII-CI quirks.
+  - Case-sensitive literal substring matchers [`contains`](https://sq.io/docs/query#contains),
+    [`startswith`](https://sq.io/docs/query#startswith), and [`endswith`](https://sq.io/docs/query#endswith).
+  - Case-insensitive variants [`icontains`](https://sq.io/docs/query#icontains),
+    [`istartswith`](https://sq.io/docs/query#istartswith), and [`iendswith`](https://sq.io/docs/query#iendswith).
+  - User-controlled wildcard matchers [`like`](https://sq.io/docs/query#like) and
+    [`ilike`](https://sq.io/docs/query#ilike): `%` and `_` are wildcards.
+- [#648]: [`sq inspect`](https://sq.io/docs/inspect) now has [`--markdown`](https://sq.io/docs/inspect#--markdown) and
+  [`--html`](https://sq.io/docs/inspect#--html) output formats that generate schema documents with embedded entity
+  relationship diagrams.
+  - [#658]: `sq inspect` also gained a [`mermaid-erd`](https://sq.io/docs/inspect#mermaid-erd) output format
+    (`--format=mermaid-erd`) that emits the bare [Mermaid](https://mermaid.js.org) entity-relationship diagram source
+    for source and table schema inspection, with no surrounding document.
 
 ### Changed
 
-- [#637]: Richer `SLQ` syntax-error reporting in both text and
-  JSON [error formats](https://sq.io/docs/config#errorformat).
-  You can set the new config option [`error.format.text.verbose`](https://sq.io/docs/config#errorformattextverbose)
-  to `false` if you prefer the previous (less-verbose) `text` error format.
+- [#637]: Richer `SLQ` syntax-error reporting in both text and JSON
+  [error formats](https://sq.io/docs/config#errorformat). You can set the new config option
+  [`error.format.text.verbose`](https://sq.io/docs/config#errorformattextverbose) to `false` if you prefer the previous
+  (less-verbose) `text` error format.
   ![sq text error reporting: verbose vs. summary](site/static/images/repo/sq_error_reporting_options.png)
-- [#617], [#618]: `sq inspect` now omits an index whose key positions are
-  _all_ expressions (previously MySQL and SQLite reported such an index
-  with an empty `columns` list).
+- [#617], [#618]: `sq inspect` now omits an index whose key positions are _all_ expressions (previously MySQL and SQLite
+  reported such an index with an empty `columns` list).
 
 ### Fixed
 
-- [#617], [#618]: `sq inspect` now preserves the true key arity and
-  position of indexes that contain functional/expression keys. A key
-  like `lower(b)` in `CREATE INDEX ix ON t (a, lower(b), c)` is reported
-  as an empty-string entry in the index's `columns`, so it is no longer
-  indistinguishable from a real two-column `(a, c)`. Applies to SQLite,
-  DuckDB, MySQL, and Postgres.
-- [#612]: DuckDB [`INTERVAL`](https://sq.io/docs/drivers/duckdb) values now
-  render in DuckDB's native, round-trippable text form (e.g.
-  `1 year 2 months 3 days 04:05:06.789`) instead of the previous ad-hoc
-  Go-style `μs` string.
-- [#613]: [`sq inspect`](https://sq.io/docs/inspect) of a SQL Server source no
-  longer returns tables from schemas other than the source's current schema.
-- [#471]: The SQLite driver no longer fails with `unsupported Scan, storing
-  driver.Value type string into type *time.Time` when a `DATETIME`/`DATE`
-  column stores text that `mattn/go-sqlite3` doesn't natively convert — most
-  commonly Rails' microsecond-precision `datetime(6)` columns. `sq` now
-  re-runs the same timestamp parse and falls back to the raw text only when
-  the value is genuinely unparseable.
-- [#658]: `sq <command> --format=FORMAT` (e.g. `sq inspect --format=xlsx`) no longer
-  fails with a spurious "diff does not support output format" error. The
-  format check for [`sq diff`](https://sq.io/docs/diff) was being applied to
-  every command's `--format` flag; it's now scoped to `sq diff` itself.
-- [#652]: The [ClickHouse driver](https://sq.io/docs/drivers/clickhouse) now
-  creates a copied table in its target schema (ClickHouse database) when the
-  copy specifies one, rather than always in the connection's current database.
-- [#484]:
-  [`--insert`](https://sq.io/docs/tutorial#insert--modify) into a MySQL or
-  Postgres table no longer fails when a same-named table exists in another
-  schema.
-- [#633]: A [query](https://sq.io/docs/query) using the single-segment
-  `@handle.table:alias` form on the left of a pipeline (e.g.
-  `@sakila.actor:a | .a.first_name`) no longer silently collapses to
-  `SELECT * FROM <table>`.
-- [#646]: A [query](https://sq.io/docs/query) whose alias is a reserved word
-  (e.g. `.actor | .first_name:count`, `@sakila.actor:count`, or
-  `join(.film_actor:count, ...)`) now applies that alias instead of silently
-  dropping it. An alias that is an argument reference (e.g. `:$x`) is now
-  rejected with a clear error rather than silently discarded.
-- [#445]: Cross-source [`join`](https://sq.io/docs/query#join) no longer
-  fails when the participating sources contain tables with the same
-  name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`).
+- [#617], [#618]: `sq inspect` now preserves the true key arity and position of indexes that contain
+  functional/expression keys. A key like `lower(b)` in `CREATE INDEX ix ON t (a, lower(b), c)` is reported as an
+  empty-string entry in the index's `columns`, so it is no longer indistinguishable from a real two-column `(a, c)`.
+  Applies to SQLite, DuckDB, MySQL, and Postgres.
+- [#612]: DuckDB [`INTERVAL`](https://sq.io/docs/drivers/duckdb) values now render in DuckDB's native, round-trippable
+  text form (e.g. `1 year 2 months 3 days 04:05:06.789`) instead of the previous ad-hoc Go-style `μs` string.
+- [#613]: [`sq inspect`](https://sq.io/docs/inspect) of a SQL Server source no longer returns tables from schemas other
+  than the source's current schema.
+- [#471]: The SQLite driver no longer fails with
+  `unsupported Scan, storing
+  driver.Value type string into type *time.Time` when a `DATETIME`/`DATE` column stores
+  text that `mattn/go-sqlite3` doesn't natively convert — most commonly Rails' microsecond-precision `datetime(6)`
+  columns. `sq` now re-runs the same timestamp parse and falls back to the raw text only when the value is genuinely
+  unparseable.
+- [#658]: `sq <command> --format=FORMAT` (e.g. `sq inspect --format=xlsx`) no longer fails with a spurious "diff does
+  not support output format" error. The format check for [`sq diff`](https://sq.io/docs/diff) was being applied to every
+  command's `--format` flag; it's now scoped to `sq diff` itself.
+- [#652]: The [ClickHouse driver](https://sq.io/docs/drivers/clickhouse) now creates a copied table in its target schema
+  (ClickHouse database) when the copy specifies one, rather than always in the connection's current database.
+- [#484]: [`--insert`](https://sq.io/docs/tutorial#insert--modify) into a MySQL or Postgres table no longer fails when a
+  same-named table exists in another schema.
+- [#633]: A [query](https://sq.io/docs/query) using the single-segment `@handle.table:alias` form on the left of a
+  pipeline (e.g. `@sakila.actor:a | .a.first_name`) no longer silently collapses to `SELECT * FROM <table>`.
+- [#646]: A [query](https://sq.io/docs/query) whose alias is a reserved word (e.g. `.actor | .first_name:count`,
+  `@sakila.actor:count`, or `join(.film_actor:count, ...)`) now applies that alias instead of silently dropping it. An
+  alias that is an argument reference (e.g. `:$x`) is now rejected with a clear error rather than silently discarded.
+- [#445]: Cross-source [`join`](https://sq.io/docs/query#join) no longer fails when the participating sources contain
+  tables with the same name (e.g. `@src1.actor | join(@src2.actor, .actor_id)`).
 
 ## [v0.52.0] - 2026-05-15
 
 ### Added
 
 - 🐥🦆 [#437]: Beta [DuckDB](https://duckdb.org) support. The `duck` [driver](https://sq.io/docs/drivers/duckdb)
-  supports most of the DuckDB type system; and includes a standard set of in-tree
-  extensions (`json`, `parquet`, `icu`, `fts`, `httpfs`, `excel`, `inet`,
-  `autocomplete`, `tpch`, `tpcds`).
-  See the [driver docs](https://sq.io/docs/drivers/duckdb).
-- [#498]: [`sq inspect`](https://sq.io/docs/cmd/inspect) now reports
-  foreign keys (`fk.outgoing` / `fk.incoming` per table), unique
-  constraints, and indexes for every SQL driver (ClickHouse skipped —
-  no foreign-key concept). Composite and cross-schema references are
-  supported; see the driver-specific caveats in the
+  supports most of the DuckDB type system; and includes a standard set of in-tree extensions (`json`, `parquet`, `icu`,
+  `fts`, `httpfs`, `excel`, `inet`, `autocomplete`, `tpch`, `tpcds`). See the
+  [driver docs](https://sq.io/docs/drivers/duckdb).
+- [#498]: [`sq inspect`](https://sq.io/docs/cmd/inspect) now reports foreign keys (`fk.outgoing` / `fk.incoming` per
+  table), unique constraints, and indexes for every SQL driver (ClickHouse skipped — no foreign-key concept). Composite
+  and cross-schema references are supported; see the driver-specific caveats in the
   [inspect docs](https://sq.io/docs/cmd/inspect).
-- [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a [`--render-sql`](https://sq.io/docs/cmd/sq/#render-sql)
-  flag, which prints the SQL (derived from `SLQ` input) that would be
-  executed against the target database, _instead_ of running it. Honors `--format` with:
+- [#602]: [`sq`](https://sq.io/docs/cmd/sq) now features a [`--render-sql`](https://sq.io/docs/cmd/sq/#render-sql) flag,
+  which prints the SQL (derived from `SLQ` input) that would be executed against the target database, _instead_ of
+  running it. Honors `--format` with:
   - `text` or `raw`: the rendered SQL is printed.
-  - `json` or `yaml`: a structured payload is printed containing the
-    original SLQ, the rendered SQL, any [`--arg`](https://sq.io/docs/cmd/sq/#predefined-variables),
-    the dialect and information about the sources that the query touches.
+  - `json` or `yaml`: a structured payload is printed containing the original SLQ, the rendered SQL, any
+    [`--arg`](https://sq.io/docs/cmd/sq/#predefined-variables), the dialect and information about the sources that the
+    query touches.
 
     ```yaml
     # $ sq --render-sql --yaml '@sakila/pg.actor | join(@sakila/my.film_actor, .actor_id) | .first_name, .last_name, .film_id | .[0:5]'
@@ -312,30 +260,28 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- ☢️ [#499]: `libsq.SLQ2SQL` now returns a structured `*libsq.RenderResult` type
-  instead of `string`. Any `libsq` library consumers must update call sites; the
-  `sq` CLI is unaffected.
+- ☢️ [#499]: `libsq.SLQ2SQL` now returns a structured `*libsq.RenderResult` type instead of `string`. Any `libsq`
+  library consumers must update call sites; the `sq` CLI is unaffected.
 
 ## [v0.51.0] - 2026-05-10
 
 ### Added
 
-- 🐥 [#501]: Beta [Oracle](https://sq.io/docs/drivers/oracle) support, built on the pure-Go [go-ora](https://github.com/sijms/go-ora)
-  driver. No [Instant Client](https://www.oracle.com/database/technologies/instant-client.html) required.
-  Kudos to [@drluckyspin](https://github.com/drluckyspin) for indulging enterprise Larry habits.
+- 🐥 [#501]: Beta [Oracle](https://sq.io/docs/drivers/oracle) support, built on the pure-Go
+  [go-ora](https://github.com/sijms/go-ora) driver. No
+  [Instant Client](https://www.oracle.com/database/technologies/instant-client.html) required. Kudos to
+  [@drluckyspin](https://github.com/drluckyspin) for indulging enterprise Larry habits.
 
 ## [v0.50.2] - 2026-04-24
 
 ### Added
 
-- [#552]: Agent-focused skill content under `skills/sq/` (prompts and
-  references) to help AI assistants use `sq`, plus related nfpm/AUR packaging
-  metadata. Kudos to [@drluckyspin](https://github.com/drluckyspin).
+- [#552]: Agent-focused skill content under `skills/sq/` (prompts and references) to help AI assistants use `sq`, plus
+  related nfpm/AUR packaging metadata. Kudos to [@drluckyspin](https://github.com/drluckyspin).
 
 ### Changed
 
-- The [sq.io](https://sq.io) website is now hosted in the `./site/` dir instead
-  of in a separate repo.
+- The [sq.io](https://sq.io) website is now hosted in the `./site/` dir instead of in a separate repo.
 
 ### Fixed
 
@@ -345,14 +291,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- 🐥 [#503]: Initial [ClickHouse](https://clickhouse.com) support. This is a beta release of the
-  ClickHouse functionality; please [open an issue](https://github.com/neilotoole/sq/issues/new/choose)
-  if you find problems.
+- 🐥 [#503]: Initial [ClickHouse](https://clickhouse.com) support. This is a beta release of the ClickHouse
+  functionality; please [open an issue](https://github.com/neilotoole/sq/issues/new/choose) if you find problems.
   - See [docs](https://sq.io/docs/drivers/clickhouse/) for usage.
-  - Note that the docs are still WIP, see the
-    [ClickHouse README.md](drivers/clickhouse/README.md) for additional info.
-  - Kudos to [@drluckyspin](https://github.com/drluckyspin) for the ClickHouse
-    work.
+  - Note that the docs are still WIP, see the [ClickHouse README.md](drivers/clickhouse/README.md) for additional info.
+  - Kudos to [@drluckyspin](https://github.com/drluckyspin) for the ClickHouse work.
 
 [#503]: https://github.com/neilotoole/sq/pull/503
 [v0.50.0]: https://github.com/neilotoole/sq/compare/v0.49.0...v0.50.0
@@ -361,9 +304,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
-- [#470]: Previously, the `--src.schema=[CATALOG.]SCHEMA` flag did not allow
-  the schema or catalog name to begin with a digit. This is now permitted.
-  Kudos to [@majiayu000](https://github.com/majiayu000).
+- [#470]: Previously, the `--src.schema=[CATALOG.]SCHEMA` flag did not allow the schema or catalog name to begin with a
+  digit. This is now permitted. Kudos to [@majiayu000](https://github.com/majiayu000).
 
   ```shell
   # Inspect schema "123schema" via the @pg1 source
@@ -381,28 +323,22 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
-- [#532]: [`sq sql`](https://sq.io/docs/cmd/sql) now uses the
-  [`usql`](https://github.com/xo/usql) lib for SQL input mode determination
-  (does the SQL input execute a query or a statement?) replacing the custom
-  implementation introduced in `v0.48.11`. The `usql` impl is battle-tested:
-  there's no point reinventing that wheel.
+- [#532]: [`sq sql`](https://sq.io/docs/cmd/sql) now uses the [`usql`](https://github.com/xo/usql) lib for SQL input
+  mode determination (does the SQL input execute a query or a statement?) replacing the custom implementation introduced
+  in `v0.48.11`. The `usql` impl is battle-tested: there's no point reinventing that wheel.
 
 ### Changed
 
 - [#531]: Several changes to `sq` version handling.
-  - [`sq version`](https://sq.io/docs/cmd/version) now returns faster by
-    reducing the update-check timeout from 2s to 500ms. Additionally, the
-    version check now uses the official
-    [homebrew-core formula][homebrew-core-formula] instead of the
-    [legacy tap][legacy-tap-formula]. There's still future work to be done here
-    to make it possible to configure or disable this update-check behavior.
-  - Relatedly, `sq` now warns instead of erroring when the config file's
-    `config.version` is newer than the `sq` build version. This allows users to
-    downgrade to older `sq` versions for testing or debugging, at the small risk
-    of config schema incompatibilities (which will likely error out). There's
-    future work to be done to improve how `sq` stamps the config schema version
-    in `sq.yml` (currently it uses the build version rather than tracking actual
-    config schema changes).
+  - [`sq version`](https://sq.io/docs/cmd/version) now returns faster by reducing the update-check timeout from 2s to
+    500ms. Additionally, the version check now uses the official [homebrew-core formula][homebrew-core-formula] instead
+    of the [legacy tap][legacy-tap-formula]. There's still future work to be done here to make it possible to configure
+    or disable this update-check behavior.
+  - Relatedly, `sq` now warns instead of erroring when the config file's `config.version` is newer than the `sq` build
+    version. This allows users to downgrade to older `sq` versions for testing or debugging, at the small risk of config
+    schema incompatibilities (which will likely error out). There's future work to be done to improve how `sq` stamps
+    the config schema version in `sq.yml` (currently it uses the build version rather than tracking actual config schema
+    changes).
 
 [homebrew-core-formula]: https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/s/sq.rb
 [legacy-tap-formula]: https://raw.githubusercontent.com/neilotoole/homebrew-sq/master/sq.rb
@@ -411,72 +347,64 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
-- [#502]: [`sq sql`](https://sq.io/docs/cmd/sql) now properly executes single
-  SQL statements (`INSERT`, `UPDATE`, `DROP`, etc.) instead of incorrectly
-  running them as queries.
-  - This fixes broken behavior with strict database drivers and ensures affected
-    row counts are correctly reported. Note that `sq sql` is designed to accept
-    only a single SQL statement/query in the SQL input string; behavior is
-    undefined for multiple statements in the input.
+- [#502]: [`sq sql`](https://sq.io/docs/cmd/sql) now properly executes single SQL statements (`INSERT`, `UPDATE`,
+  `DROP`, etc.) instead of incorrectly running them as queries.
+  - This fixes broken behavior with strict database drivers and ensures affected row counts are correctly reported. Note
+    that `sq sql` is designed to accept only a single SQL statement/query in the SQL input string; behavior is undefined
+    for multiple statements in the input.
   - Thanks to [@drluckyspin](https://github.com/drluckyspin) for the fix.
 
-- [#520]: [`sq add`](https://sq.io/docs/cmd/add) and
-  [`sq ls`](https://sq.io/docs/cmd/ls) erroneously printed source password for
-  SQL Server URLs in some circumstances.
+- [#520]: [`sq add`](https://sq.io/docs/cmd/add) and [`sq ls`](https://sq.io/docs/cmd/ls) erroneously printed source
+  password for SQL Server URLs in some circumstances.
 
-- [#469]: Column widths were too wide when using `--no-header` flag. Header text
-  is now excluded from column width calculation when headers are disabled.
-  Thanks to [@majiayu000](https://github.com/majiayu000) for the fix.
+- [#469]: Column widths were too wide when using `--no-header` flag. Header text is now excluded from column width
+  calculation when headers are disabled. Thanks to [@majiayu000](https://github.com/majiayu000) for the fix.
 
 ## [v0.48.10] - 2025-12-28
 
 ### Fixed
 
 - [#506]: Fixed two XLSX-related issues (sadly, both are regression fixes):
-  - **Stdin detection**: Fixed type detection failing for XLSX files created by
-    various tools (e.g., the [`excelize`](https://github.com/qax-os/excelize)
-    library). These files have varying internal ZIP structures that the previous
-    detection couldn't handle. Detection now scans ZIP local file headers
-    instead of relying on fragile magic number heuristics.
-  - **Output colorization**: Fixed XLSX binary output
-    ([`--xlsx`](https://sq.io/docs/output#xlsx)) being corrupted
-    when written to `stdout`. The colorization decorator was modifying the binary
-    data. XLSX format now bypasses colorization, like
-    [`--raw`](https://sq.io/docs/output#raw) output already does.
+  - **Stdin detection**: Fixed type detection failing for XLSX files created by various tools (e.g., the
+    [`excelize`](https://github.com/qax-os/excelize) library). These files have varying internal ZIP structures that the
+    previous detection couldn't handle. Detection now scans ZIP local file headers instead of relying on fragile magic
+    number heuristics.
+  - **Output colorization**: Fixed XLSX binary output ([`--xlsx`](https://sq.io/docs/output#xlsx)) being corrupted when
+    written to `stdout`. The colorization decorator was modifying the binary data. XLSX format now bypasses
+    colorization, like [`--raw`](https://sq.io/docs/output#raw) output already does.
 
 ### Changed
 
-- [#504]: Updated `golangci-lint` to `v2.7.2`, along with Go dependencies
-  and GitHub Actions workflow versions. Other tool versions have been updated too.
+- [#504]: Updated `golangci-lint` to `v2.7.2`, along with Go dependencies and GitHub Actions workflow versions. Other
+  tool versions have been updated too.
 
-  Note that Go tool dependencies are now located in the [`tools/`](./tools)
-  directory, each with its own `go.mod`. Tools are invoked via
-  `go tool -modfile`, e.g. `go tool -modfile=tools/golangci-lint/go.mod golangci-lint`.
-  See the [Makefile](Makefile) and [`tools/README.md`](./tools/README.md) for more detail.
+  Note that Go tool dependencies are now located in the [`tools/`](./tools) directory, each with its own `go.mod`. Tools
+  are invoked via `go tool -modfile`, e.g. `go tool -modfile=tools/golangci-lint/go.mod golangci-lint`. See the
+  [Makefile](Makefile) and [`tools/README.md`](./tools/README.md) for more detail.
 
 ## [v0.48.5] - 2025-01-19
 
 ### Fixed
 
-- [#446]: A [`bufio.ErrTooLong`](https://pkg.go.dev/bufio#ErrTooLong) was being returned
-  by [`bufio.Scanner`](https://pkg.go.dev/bufio#Scanner), when splitting
-  lines from input that was too long (larger than
-  [`bufio.MaxScanTokenSize`](https://pkg.go.dev/bufio#MaxScanTokenSize), i.e. `64KB`). This meant that
-  `sq` wasn't able to parse large JSON files, amongst other problems. The maximum buffer size is
-  now configurable via the new [`tuning.scan-buffer-limit`](https://sq.io/docs/config/#tuningscan-buffer-limit)
-  option. Note that the buffer will start small and grow as needed, up to the limit.
+- [#446]: A [`bufio.ErrTooLong`](https://pkg.go.dev/bufio#ErrTooLong) was being returned by
+  [`bufio.Scanner`](https://pkg.go.dev/bufio#Scanner), when splitting lines from input that was too long (larger than
+  [`bufio.MaxScanTokenSize`](https://pkg.go.dev/bufio#MaxScanTokenSize), i.e. `64KB`). This meant that `sq` wasn't able
+  to parse large JSON files, amongst other problems. The maximum buffer size is now configurable via the new
+  [`tuning.scan-buffer-limit`](https://sq.io/docs/config/#tuningscan-buffer-limit) option. Note that the buffer will
+  start small and grow as needed, up to the limit.
 
   ```plaintext
   $ sq config set tuning.scan-buffer-limit 64MB   # or 1024B, 64KB, 1GB, etc.
   ```
 
-  A more useful error message is also now returned when the buffer limit is exceeded
-  (the error suggests adjusting `tuning.scan-buffer-limit`).
+  A more useful error message is also now returned when the buffer limit is exceeded (the error suggests adjusting
+  `tuning.scan-buffer-limit`).
 
 ### Changed
 
-- Renamed config option `tuning.buffer-mem-limit` to [`tuning.buffer-spill-limit`](https://sq.io/docs/config/#tuningbuffer-spill-limit).
-  The new name better reflects the purpose of the option.
+- Renamed config option `tuning.buffer-mem-limit` to
+  [`tuning.buffer-spill-limit`](https://sq.io/docs/config/#tuningbuffer-spill-limit). The new name better reflects the
+  purpose of the option.
 
 ## [v0.48.4] - 2024-11-24
 
@@ -490,15 +418,13 @@ Small bugfix release.
 
 ### Fixed
 
-- [#415]: The JSON ingester could fail due to a bug when a JSON blob landed on the edge
-  of a buffer.
+- [#415]: The JSON ingester could fail due to a bug when a JSON blob landed on the edge of a buffer.
 - The JSON ingester wasn't able to handle the case where a post-[sampling](https://sq.io/docs/config#ingestsample-size)
-  JSON field had a different kind from the kind determined by the sampling process. For example, let's say
-  the sample size was 1000, and the field `zip` was determined to be of kind `int`, because
-  values 0-1000 were all parseable as integers. But then the 1001st value was `BX123`, which
-  obviously is not an integer. `sq` will now see the non-integer value, and alter the ingest DB schema
-  to a compatible kind, e.g. `text`. This flexibility is powerful, but it does come at the cost of slower
-  ingest speed. But that's a topic for another release.
+  JSON field had a different kind from the kind determined by the sampling process. For example, let's say the sample
+  size was 1000, and the field `zip` was determined to be of kind `int`, because values 0-1000 were all parseable as
+  integers. But then the 1001st value was `BX123`, which obviously is not an integer. `sq` will now see the non-integer
+  value, and alter the ingest DB schema to a compatible kind, e.g. `text`. This flexibility is powerful, but it does
+  come at the cost of slower ingest speed. But that's a topic for another release.
 
 ## [v0.48.1] - 2024-03-07
 
@@ -506,10 +432,10 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
 
 ### Added
 
-- Previously `sq diff --data` diffed every row, which could get crazy
-  with a large table. Now the command stops after N differences, where N is controlled by
-  the `--stop` (`-n`) flag, or the new config option [`diff.stop`](https://sq.io/docs/config#diffstop).
-  The default stop-after value is `3`; set to `0` to show all differences.
+- Previously `sq diff --data` diffed every row, which could get crazy with a large table. Now the command stops after N
+  differences, where N is controlled by the `--stop` (`-n`) flag, or the new config option
+  [`diff.stop`](https://sq.io/docs/config#diffstop). The default stop-after value is `3`; set to `0` to show all
+  differences.
 
   ```shell
   # Stop on first difference
@@ -521,20 +447,19 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
 
 - [#353]: The performance of `sq diff` has been significantly improved. There's still more to do.
 
-- Previously, `sq diff --data` compared the rendered (text) representation of each value. This could
-  lead to inaccurate results, for example with two timestamp values in different time zones, but the text
-  rendering omitted the time zone. Now, `sq diff --data` compares the raw values, not the rendered text.
-  Note in particular with time values that both time and location components are compared.
+- Previously, `sq diff --data` compared the rendered (text) representation of each value. This could lead to inaccurate
+  results, for example with two timestamp values in different time zones, but the text rendering omitted the time zone.
+  Now, `sq diff --data` compares the raw values, not the rendered text. Note in particular with time values that both
+  time and location components are compared.
 
-- `sq` can now handle a SQLite DB on `stdin`. This is useful for testing, or for
-  working with SQLite DBs in a pipeline.
+- `sq` can now handle a SQLite DB on `stdin`. This is useful for testing, or for working with SQLite DBs in a pipeline.
 
   ```shell
   $ cat sakila.db | sq '.actor | .first_name, .last_name'
   ```
 
-  It's also surprisingly handy in daily life, because there are sneaky SQLite DBs
-  all around us. Let's see how many text messages I've sent and received over the years:
+  It's also surprisingly handy in daily life, because there are sneaky SQLite DBs all around us. Let's see how many text
+  messages I've sent and received over the years:
 
   ```shell
   $ cat ~/Library/Messages/chat.db | sq '.message | count'
@@ -544,10 +469,11 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
 
   I'm sure that number makes me an amateur with these millenials 👴🏻.
 
-  > Note that you'll need to enable macOS [Full Disk Access](https://spin.atomicobject.com/search-imessage-sql/) to read the `chat.db` file.
+  > Note that you'll need to enable macOS [Full Disk Access](https://spin.atomicobject.com/search-imessage-sql/) to read
+  > the `chat.db` file.
 
-- `sq` now allows you to use `true` and `false` literals in queries. Which, in hindsight, does seem like a bit of
-  an oversight 😳. (Although previously you could usually get away with using `1` and `0`).
+- `sq` now allows you to use `true` and `false` literals in queries. Which, in hindsight, does seem like a bit of an
+  oversight 😳. (Although previously you could usually get away with using `1` and `0`).
 
   ```shell
   $ sq '.people | where(.is_alive == false)'
@@ -561,9 +487,9 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
 
 ### Changed
 
-- ☢️ Previously, `sq diff` only exited non-zero on an error. Now, `sq diff` exits `0` when no differences,
-  exits `1` if differences are found, and exits `2` on any error.
-  This aligns with the behavior of [GNU diff](https://www.gnu.org/software/diffutils/manual/):
+- ☢️ Previously, `sq diff` only exited non-zero on an error. Now, `sq diff` exits `0` when no differences, exits `1` if
+  differences are found, and exits `2` on any error. This aligns with the behavior of
+  [GNU diff](https://www.gnu.org/software/diffutils/manual/):
 
   ```text
   Exit status is 0 if inputs are the same, 1 if different, 2 if trouble.
@@ -573,15 +499,14 @@ This release features significant improvements to [`sq diff`](https://sq.io/docs
 
 ## [v0.47.4] - 2024-02-09
 
-Patch release with changes to flags.
-See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0)
+Patch release with changes to flags. See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0)
 release for recent headline features.
 
 ### Added
 
-- By default, `sq` prints source locations with the password redacted. This is a sensible default, but
-  there are legitimate reasons to access the unredacted connection string. Thus a new
-  global flag `--no-redact` (and a corresponding [`redact`](https://sq.io/docs/config#redact) config option).
+- By default, `sq` prints source locations with the password redacted. This is a sensible default, but there are
+  legitimate reasons to access the unredacted connection string. Thus a new global flag `--no-redact` (and a
+  corresponding [`redact`](https://sq.io/docs/config#redact) config option).
 
   ```shell
   # Default behavior: password is redacted
@@ -593,135 +518,126 @@ release for recent headline features.
   @sakila/pg12  postgres  postgres://sakila:p_ssW0rd@192.168.50.132/sakila
   ```
 
-- Previously, if an error occurred when [`verbose`](https://sq.io/docs/config#verbose) was true,
-  and [`error.format`](https://sq.io/docs/config#errorformat) was `text`, `sq` would print a stack trace
-  to `stderr`. This was poor default behavior, flooding the user terminal, so the default is now no stack trace.
-  To restore the previous behavior, use the new `-E` (`--error.stack`) flag, or set the [`error.stack`](https://sq.io/docs/config#errorstack) config option.
+- Previously, if an error occurred when [`verbose`](https://sq.io/docs/config#verbose) was true, and
+  [`error.format`](https://sq.io/docs/config#errorformat) was `text`, `sq` would print a stack trace to `stderr`. This
+  was poor default behavior, flooding the user terminal, so the default is now no stack trace. To restore the previous
+  behavior, use the new `-E` (`--error.stack`) flag, or set the [`error.stack`](https://sq.io/docs/config#errorstack)
+  config option.
 
 ### Changed
 
-- The [`--src.schema`](https://sq.io/docs/source#source-override) flag (as used in [`sq inspect`](https://sq.io/docs/cmd/inspect),
-  [`sq sql`](https://sq.io/docs/cmd/sql), and the root [`sq`](https://sq.io/docs/cmd/sq#override-active-schema) cmd)
-  now accepts `--src.schema=CATALOG.`. Note the `.` suffix on `CATALOG.`. This is in addition to the existing allowed forms `SCHEMA`
-  and `CATALOG.SCHEMA`. This new `CATALOG.` form is effectively equivalent to `CATALOG.CURRENT_SCHEMA`.
+- The [`--src.schema`](https://sq.io/docs/source#source-override) flag (as used in
+  [`sq inspect`](https://sq.io/docs/cmd/inspect), [`sq sql`](https://sq.io/docs/cmd/sql), and the root
+  [`sq`](https://sq.io/docs/cmd/sq#override-active-schema) cmd) now accepts `--src.schema=CATALOG.`. Note the `.` suffix
+  on `CATALOG.`. This is in addition to the existing allowed forms `SCHEMA` and `CATALOG.SCHEMA`. This new `CATALOG.`
+  form is effectively equivalent to `CATALOG.CURRENT_SCHEMA`.
 
   ```shell
   # Inspect using the default schema in the "sales" catalog
   $ sq inspect --src.schema=sales.
   ```
 
-- The [`--src.schema`](https://sq.io/docs/source#source-override) flag is now validated. Previously, if you provided a non-existing catalog or schema
-  value, `sq` would silently ignore it and use the defaults. This could mislead the user into thinking that
-  they were getting valid results from the non-existent catalog or schema. Now an error is returned.
+- The [`--src.schema`](https://sq.io/docs/source#source-override) flag is now validated. Previously, if you provided a
+  non-existing catalog or schema value, `sq` would silently ignore it and use the defaults. This could mislead the user
+  into thinking that they were getting valid results from the non-existent catalog or schema. Now an error is returned.
 
 ## [v0.47.3] - 2024-02-03
 
-Minor bug fix release. See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0)
-release for recent headline features.
+Minor bug fix release. See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0) release for
+recent headline features.
 
 ### Fixed
 
-- Shell completion for `bash` only worked for top-level commands, not for subcommands, flags,
-  args, etc. This bug was due to an unnoticed behavior change in an imported library 🤦‍♂️. It's now fixed,
-  and tests have been added.
+- Shell completion for `bash` only worked for top-level commands, not for subcommands, flags, args, etc. This bug was
+  due to an unnoticed behavior change in an imported library 🤦‍♂️. It's now fixed, and tests have been added.
 
 ### Changed
 
-- Shell completion now initially suggests only sources within the
-  [active group](https://sq.io/docs/source#groups). Previously, all sources were suggested,
-  potentially flooding the user with irrelevant suggestions. However, if the user
-  continues to input a source handle that is outside the active group, completion will
-  suggest all matching sources. This behavior is controlled
-  via the new config option [`shell-completion.group-filter`](https://sq.io/docs/config#shell-completiongroup-filter).
+- Shell completion now initially suggests only sources within the [active group](https://sq.io/docs/source#groups).
+  Previously, all sources were suggested, potentially flooding the user with irrelevant suggestions. However, if the
+  user continues to input a source handle that is outside the active group, completion will suggest all matching
+  sources. This behavior is controlled via the new config option
+  [`shell-completion.group-filter`](https://sq.io/docs/config#shell-completiongroup-filter).
 
 ## [v0.47.2] - 2024-01-29
 
-Yet another morning-after-the-big-release issue, a nasty little one this time.
-See the earlier [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0) release
-for recent headline features.
+Yet another morning-after-the-big-release issue, a nasty little one this time. See the earlier
+[`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0) release for recent headline features.
 
 ### Fixed
 
-- `sq` was failing to write config when there was no pre-existing config file. This was due to
-  a bug in the newly-introduced (as of `v0.47.0`) config locking mechanism. Fixed.
+- `sq` was failing to write config when there was no pre-existing config file. This was due to a bug in the
+  newly-introduced (as of `v0.47.0`) config locking mechanism. Fixed.
 
 ## [v0.47.1] - 2024-01-29
 
-This is a tiny bugfix release for a runtime issue on some Linux distros. See
-the previous [`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0) release
-for recent headline features.
+This is a tiny bugfix release for a runtime issue on some Linux distros. See the previous
+[`v0.47.0`](https://github.com/neilotoole/sq/releases/tag/v0.47.0) release for recent headline features.
 
 ### Fixed
 
-- `sq` [panicked](https://github.com/neilotoole/sq/actions/runs/7701355729/job/20987599862#step:3:383) on some Linux distros that don't include timezone data (`tzdata`). It's now
-  explicitly [imported](https://wawand.co/blog/posts/go-timezonedata-go115/).
+- `sq` [panicked](https://github.com/neilotoole/sq/actions/runs/7701355729/job/20987599862#step:3:383) on some Linux
+  distros that don't include timezone data (`tzdata`). It's now explicitly
+  [imported](https://wawand.co/blog/posts/go-timezonedata-go115/).
 
 ## [v0.47.0] - 2024-01-29
 
-This is a significant release, focused on improving i/o, responsiveness,
-and performance. The headline features are [caching](https://sq.io/docs/source#cache)
-of [ingested](https://sq.io/docs/source#ingest) data for [document sources](https://sq.io/docs/source#document-source)
-such as CSV or Excel, and [download](https://sq.io/docs/source#download) caching for remote document sources.
-There are a lot of under-the-hood changes, so please [open an issue](https://github.com/neilotoole/sq/issues/new/choose) if
-you encounter any weirdness.
+This is a significant release, focused on improving i/o, responsiveness, and performance. The headline features are
+[caching](https://sq.io/docs/source#cache) of [ingested](https://sq.io/docs/source#ingest) data for
+[document sources](https://sq.io/docs/source#document-source) such as CSV or Excel, and
+[download](https://sq.io/docs/source#download) caching for remote document sources. There are a lot of under-the-hood
+changes, so please [open an issue](https://github.com/neilotoole/sq/issues/new/choose) if you encounter any weirdness.
 
 ### Added
 
-- Long-running operations (such as data [ingestion](https://sq.io/docs/source#ingest),
-  or file [download](https://sq.io/docs/source#download)) now result
-  in a progress bar being displayed. Display of the progress bar is controlled
-  by the new config options [`progress`](https://sq.io/docs/config#progress)
-  and [`progress.delay`](https://sq.io/docs/config#progressdelay). You can also use
-  the `--no-progress` flag to disable the progress bar.
-  - 👉 The progress bar is rendered on `stderr` and is always zapped from the terminal when command output begins.
-    It won't corrupt the output.
+- Long-running operations (such as data [ingestion](https://sq.io/docs/source#ingest), or file
+  [download](https://sq.io/docs/source#download)) now result in a progress bar being displayed. Display of the progress
+  bar is controlled by the new config options [`progress`](https://sq.io/docs/config#progress) and
+  [`progress.delay`](https://sq.io/docs/config#progressdelay). You can also use the `--no-progress` flag to disable the
+  progress bar.
+  - 👉 The progress bar is rendered on `stderr` and is always zapped from the terminal when command output begins. It
+    won't corrupt the output.
 - [#307]: Ingested [document sources](https://sq.io/docs/source#document-source) (such as
-  [CSV](https://sq.io/docs/drivers/csv) or [Excel](https://sq.io/docs/drivers/xlsx))
-  now make use of an [ingest](https://sq.io/docs/source#ingest) cache DB. Previously, ingestion
-  of document source data occurred on each `sq` command. It is now a one-time cost; subsequent
-  use of the document source utilizes
-  the cache DB. Until, that is, the source document changes: then the ingest cache DB is invalidated and
-  ingested again. This is a significantly improved experience for large document sources.
+  [CSV](https://sq.io/docs/drivers/csv) or [Excel](https://sq.io/docs/drivers/xlsx)) now make use of an
+  [ingest](https://sq.io/docs/source#ingest) cache DB. Previously, ingestion of document source data occurred on each
+  `sq` command. It is now a one-time cost; subsequent use of the document source utilizes the cache DB. Until, that is,
+  the source document changes: then the ingest cache DB is invalidated and ingested again. This is a significantly
+  improved experience for large document sources.
 - There are several new commands to interact with the cache (although you shouldn't need to):
   - [`sq cache enable`](https://sq.io/docs/cmd/cache-enable) and
-    [`sq cache disable`](https://sq.io/docs/cmd/cache-disable) control cache usage.
-    You can also instead use the new [`ingest.cache`](https://sq.io/docs/config#ingestcache)
-    config option.
+    [`sq cache disable`](https://sq.io/docs/cmd/cache-disable) control cache usage. You can also instead use the new
+    [`ingest.cache`](https://sq.io/docs/config#ingestcache) config option.
   - [`sq cache clear`](https://sq.io/docs/cmd/cache-clear) clears the cache.
   - [`sq cache location`](https://sq.io/docs/cmd/cache-location) prints the cache location on disk.
   - [`sq cache stat`](https://sq.io/docs/cmd/cache-stat) shows stats about the cache.
   - [`sq cache tree`](https://sq.io/docs/cmd/cache-location) shows a tree view of the cache.
 - [#24]: The [download](https://sq.io/docs/source#download) mechanism for remote document sources (e.g. a CSV file at
-  [`https://sq.io/testdata/actor.csv`](https://sq.io/testdata/actor.csv)) has been completely
-  overhauled. Previously, `sq` would re-download the remote file on every command. Now, the
-  remote file is downloaded and [cached](https://sq.io/docs/source#cache) locally.
-  Subsequent `sq` invocations check for staleness of the cached download, and re-download if necessary.
+  [`https://sq.io/testdata/actor.csv`](https://sq.io/testdata/actor.csv)) has been completely overhauled. Previously,
+  `sq` would re-download the remote file on every command. Now, the remote file is downloaded and
+  [cached](https://sq.io/docs/source#cache) locally. Subsequent `sq` invocations check for staleness of the cached
+  download, and re-download if necessary.
 - As part of the download revamp, new config options have been introduced:
-  - [`http.request.timeout`](https://sq.io/docs/config#httprequesttimeout) is the timeout for the initial response from the server, and
-    [`http.response.timeout`](https://sq.io/docs/config#httpresponsetimeout) is the timeout for reading the entire response body. We separate
-    these two timeouts because it's possible that the server responds quickly, but then
-    for a large file, the download takes too long.
-  - [`https.insecure-skip-verify`](https://sq.io/docs/config#httpsinsecure-skip-verify) controls
-    whether HTTPS connections verify the server's certificate. This is useful for remote files served
-    with a self-signed certificate.
-  - [`download.cache`](https://sq.io/docs/config#downloadcache) controls whether remote files are
-    cached locally.
-  - [`download.refresh.ok-on-err`](https://sq.io/docs/config#downloadrefreshok-on-err)
-    controls whether `sq` should continue with a stale cached download if an error
-    occurred while trying to refresh the download. This is a sort
-    of "Airplane Mode" for remote document sources: `sq` continues with the cached download when
-    the network is unavailable.
+  - [`http.request.timeout`](https://sq.io/docs/config#httprequesttimeout) is the timeout for the initial response from
+    the server, and [`http.response.timeout`](https://sq.io/docs/config#httpresponsetimeout) is the timeout for reading
+    the entire response body. We separate these two timeouts because it's possible that the server responds quickly, but
+    then for a large file, the download takes too long.
+  - [`https.insecure-skip-verify`](https://sq.io/docs/config#httpsinsecure-skip-verify) controls whether HTTPS
+    connections verify the server's certificate. This is useful for remote files served with a self-signed certificate.
+  - [`download.cache`](https://sq.io/docs/config#downloadcache) controls whether remote files are cached locally.
+  - [`download.refresh.ok-on-err`](https://sq.io/docs/config#downloadrefreshok-on-err) controls whether `sq` should
+    continue with a stale cached download if an error occurred while trying to refresh the download. This is a sort of
+    "Airplane Mode" for remote document sources: `sq` continues with the cached download when the network is
+    unavailable.
 - There are two more new config options introduced as part of the above work.
-  - [`cache.lock.timeout`](https://sq.io/docs/config#cachelocktimeout) controls the time that
-    `sq` will wait for a lock on the cache DB. The cache lock is introduced for when you have
-    multiple `sq` commands running concurrently, and you want to avoid them stepping on each other.
-  - Similarly, [`config.lock.timeout`](https://sq.io/docs/config#configlocktimeout) controls the
-    timeout for acquiring the (newly-introduced) lock on `sq`'s config file. This helps prevent
-    issues with multiple `sq` processes mutating the config concurrently.
-- `sq`'s own [logs](https://sq.io/docs/config#logging) previously outputted in JSON
-  format. Now there's a new [`log.format`](https://sq.io/docs/config#logformat) config option
-  that permits setting the log format to `json` or `text`. The `text` format is more human-friendly, and
-  is now the default.
+  - [`cache.lock.timeout`](https://sq.io/docs/config#cachelocktimeout) controls the time that `sq` will wait for a lock
+    on the cache DB. The cache lock is introduced for when you have multiple `sq` commands running concurrently, and you
+    want to avoid them stepping on each other.
+  - Similarly, [`config.lock.timeout`](https://sq.io/docs/config#configlocktimeout) controls the timeout for acquiring
+    the (newly-introduced) lock on `sq`'s config file. This helps prevent issues with multiple `sq` processes mutating
+    the config concurrently.
+- `sq`'s own [logs](https://sq.io/docs/config#logging) previously outputted in JSON format. Now there's a new
+  [`log.format`](https://sq.io/docs/config#logformat) config option that permits setting the log format to `json` or
+  `text`. The `text` format is more human-friendly, and is now the default.
 
 ### Changed
 
@@ -736,15 +652,14 @@ you encounter any weirdness.
 
 ### Fixed
 
-- `sq` sometimes failed to read from stdin if piped input was slow
-  to arrive. This is now fixed.
+- `sq` sometimes failed to read from stdin if piped input was slow to arrive. This is now fixed.
 
 ## [v0.46.0] - 2023-11-22
 
 ### Added
 
-- [#338]: While `sq` has had [`group_by`](https://sq.io/docs/query#group_by) for some time,
-  somehow the [`having`](https://sq.io/docs/query#having) mechanism was never implemented. That's fixed.
+- [#338]: While `sq` has had [`group_by`](https://sq.io/docs/query#group_by) for some time, somehow the
+  [`having`](https://sq.io/docs/query#having) mechanism was never implemented. That's fixed.
 
   ```shell
   $ sq '.payment | .customer_id, sum(.amount) | group_by(.customer_id) | having(sum(.amount) > 200)'
@@ -753,11 +668,10 @@ you encounter any weirdness.
   148          216.54
   ```
 
-- [#340]: The [`group_by`](https://sq.io/docs/query#group_by) function
-  now has a synonym `gb`, and [`order_by`](https://sq.io/docs/query#order_by) now has synonym `ob`.
-  These synonyms are experimental 🧪. The motivation is to reduce typing, especially the underscore (`_`)
-  in both function names, but it's not clear that the loss of clarity is worth it. Maybe synonyms
-  `group` and `order` might be better? Feedback welcome.
+- [#340]: The [`group_by`](https://sq.io/docs/query#group_by) function now has a synonym `gb`, and
+  [`order_by`](https://sq.io/docs/query#order_by) now has synonym `ob`. These synonyms are experimental 🧪. The
+  motivation is to reduce typing, especially the underscore (`_`) in both function names, but it's not clear that the
+  loss of clarity is worth it. Maybe synonyms `group` and `order` might be better? Feedback welcome.
 
   ```shell
   # Previously
@@ -767,18 +681,18 @@ you encounter any weirdness.
   $ sq '.payment | .customer_id, sum(.amount) | gb(.customer_id) | ob(.customer_id)'
   ```
 
-- [#340]: [`sq inspect`](https://sq.io/docs/cmd/inspect): added flag shorthand `-C`
-  for `--catalogs` and `-S` for `--schemata`. These were the only `inspect`
-  flags without shorthand.
+- [#340]: [`sq inspect`](https://sq.io/docs/cmd/inspect): added flag shorthand `-C` for `--catalogs` and `-S` for
+  `--schemata`. These were the only `inspect` flags without shorthand.
 
 ## [v0.45.0] - 2023-11-21
 
 ### Changed
 
-- [#335]: Previously, `sq` didn't handle decimal values correctly. It basically
-  shoved a decimal value into a `float` or `string` and hoped for the best.
-  [As is known](https://medium.com/@mayuribudake999/difference-between-decimal-and-float-eede050f6c9a),
-  floats are imprecise, and so we saw [unwanted behavior](https://github.com/neilotoole/sq/actions/runs/6932116521/job/18855333269#step:6:2345), e.g.
+- [#335]: Previously, `sq` didn't handle decimal values correctly. It basically shoved a decimal value into a `float` or
+  `string` and hoped for the best.
+  [As is known](https://medium.com/@mayuribudake999/difference-between-decimal-and-float-eede050f6c9a), floats are
+  imprecise, and so we saw
+  [unwanted behavior](https://github.com/neilotoole/sq/actions/runs/6932116521/job/18855333269#step:6:2345), e.g.
 
   ```shell
   db_type_test.go:194:
@@ -788,24 +702,23 @@ you encounter any weirdness.
                       actual  : "77.77000000000001"
   ```
 
-  Now, `sq` uses a dedicated [`Decimal`](https://github.com/shopspring/decimal) type end-to-end.
-  No precision is lost, and at the output end, the value is rendered with the correct precision.
+  Now, `sq` uses a dedicated [`Decimal`](https://github.com/shopspring/decimal) type end-to-end. No precision is lost,
+  and at the output end, the value is rendered with the correct precision.
 
-  There is a [proposal](https://github.com/golang/go/issues/30870) to add decimal support to
-  the Go [`database/sql`](https://pkg.go.dev/database/sql) package. If that happens, `sq` will happily
-  switch to that mechanism.
-  - 👉 A side effect of decimal support is that some output formats may now render decimal values
-    differently (i.e. correctly). In particular, Excel output should now render decimals as a number
-    (as opposed to a string), and with the precision defined in the database. Previously,
-    a database `NUMERIC(10,5)` value might have been rendered as `100.00`,
-    but will now accurately render `100.00000`.
+  There is a [proposal](https://github.com/golang/go/issues/30870) to add decimal support to the Go
+  [`database/sql`](https://pkg.go.dev/database/sql) package. If that happens, `sq` will happily switch to that
+  mechanism.
+  - 👉 A side effect of decimal support is that some output formats may now render decimal values differently (i.e.
+    correctly). In particular, Excel output should now render decimals as a number (as opposed to a string), and with
+    the precision defined in the database. Previously, a database `NUMERIC(10,5)` value might have been rendered as
+    `100.00`, but will now accurately render `100.00000`.
 
 ## [v0.44.0] - 2023-11-20
 
 ### Added
 
-- New [SLQ](https://sq.io/docs/concepts#slq) function [`rownum()`](https://sq.io/docs/query#rownum) that returns the one-indexed
-  row number of the current record.
+- New [SLQ](https://sq.io/docs/concepts#slq) function [`rownum()`](https://sq.io/docs/query#rownum) that returns the
+  one-indexed row number of the current record.
 
   ```shell
   $ sq '.actor | rownum(), .actor_id, .first_name | order_by(.first_name)'
@@ -842,27 +755,26 @@ you encounter any weirdness.
 
 - [`sq version`](https://sq.io/docs/cmd/version) now honors option
   [`format.datetime`](https://sq.io/docs/config#formatdatetime) when outputting build timestamp.
-- Fixed a fairly nasty bug that prevented correct rendering of SLQ functions nested inside
-  an expression.
+- Fixed a fairly nasty bug that prevented correct rendering of SLQ functions nested inside an expression.
 
 ### Changed
 
-- The `--exec` and `--query` flags for [`sq sql`](https://sq.io/docs/cmd/sql) were removed in
-  the preceding release ([v0.43.1]).
-  That was probably a bit hasty, especially because it's possible those flags _could_ be reintroduced
-  when the _query vs exec_ situation is figured out. So, those two flags are now restored, in
-  that their use won't cause an error, but they've been hidden from command help, and remain no-op.
+- The `--exec` and `--query` flags for [`sq sql`](https://sq.io/docs/cmd/sql) were removed in the preceding release
+  ([v0.43.1]). That was probably a bit hasty, especially because it's possible those flags _could_ be reintroduced when
+  the _query vs exec_ situation is figured out. So, those two flags are now restored, in that their use won't cause an
+  error, but they've been hidden from command help, and remain no-op.
 
 ## [v0.43.1] - 2023-11-19
 
 ### Added
 
-- Related to [#270], the output of [`sq inspect`](https://sq.io/docs/inspect) now includes the
-  source's catalog (in JSON and YAML output formats).
+- Related to [#270], the output of [`sq inspect`](https://sq.io/docs/inspect) now includes the source's catalog (in JSON
+  and YAML output formats).
 
 ### Fixed
 
-- MySQL driver didn't populate all expected values for [`sq inspect --overview`](https://sq.io/docs/inspect#source-overview).
+- MySQL driver didn't populate all expected values for
+  [`sq inspect --overview`](https://sq.io/docs/inspect#source-overview).
 
 ### Changed
 
@@ -872,36 +784,35 @@ you encounter any weirdness.
 
 ### Added
 
-- [#270]: Flag [`--src.schema`](https://sq.io/docs/cmd/sq/#override-active-schema) permits switching the source's schema (and catalog)
-  for the duration of the command. The flag is supported for the
+- [#270]: Flag [`--src.schema`](https://sq.io/docs/cmd/sq/#override-active-schema) permits switching the source's schema
+  (and catalog) for the duration of the command. The flag is supported for the
   [`sq`](https://sq.io/docs/cmd/sq#override-active-schema), [`sql`](https://sq.io/docs/cmd/sql/#active-source--schema)
   and [`inspect`](https://sq.io/docs/inspect#override-active-schema) commands.
-- New SLQ functions [`catalog()`](https://sq.io/docs/query#catalog) and
-  [`schema()`](https://sq.io/docs/query#schema) return the catalog and schema of the DB connection.
+- New SLQ functions [`catalog()`](https://sq.io/docs/query#catalog) and [`schema()`](https://sq.io/docs/query#schema)
+  return the catalog and schema of the DB connection.
 - The SLQ [`unique`](https://sq.io/docs/query#unique) function now has a synonym `uniq`.
 
 ### Changed
 
-- `sq src --text` now outputs only the handle of the active source. Previously it
-  also printed the driver type and short location. Instead use `sq src --text --verbose` to
-  see those details.
+- `sq src --text` now outputs only the handle of the active source. Previously it also printed the driver type and short
+  location. Instead use `sq src --text --verbose` to see those details.
 
 ## [v0.42.1] - 2023-09-10
 
 ### Fixed
 
-- [#308]: Fix to allow build on [32-bit systems](https://github.com/void-linux/void-packages/pull/45023).
-  Thanks [@icp](https://github.com/icp1994).
+- [#308]: Fix to allow build on [32-bit systems](https://github.com/void-linux/void-packages/pull/45023). Thanks
+  [@icp](https://github.com/icp1994).
 
 ## [v0.42.0] - 2023-08-22
 
 ### Added
 
-- 🐥 [#279]: The SQLite [driver](https://sq.io/docs/drivers/sqlite) now has initial support
-  for several SQLite [extensions](https://sq.io/docs/drivers/sqlite#extensions)
-  baked in, including [Virtual Table](https://www.sqlite.org/vtab.html) and [FTS5](https://www.sqlite.org/fts5.html).
-  Note that this is an early access release of extensions support. Please [open an issue](https://github.com/neilotoole/sq/issues/new/choose) if
-  you discover something bad.
+- 🐥 [#279]: The SQLite [driver](https://sq.io/docs/drivers/sqlite) now has initial support for several SQLite
+  [extensions](https://sq.io/docs/drivers/sqlite#extensions) baked in, including
+  [Virtual Table](https://www.sqlite.org/vtab.html) and [FTS5](https://www.sqlite.org/fts5.html). Note that this is an
+  early access release of extensions support. Please [open an issue](https://github.com/neilotoole/sq/issues/new/choose)
+  if you discover something bad.
 
 ## [v0.41.1] - 2023-08-20
 
@@ -911,19 +822,17 @@ you encounter any weirdness.
 
 ## [v0.41.0] - 2023-08-20
 
-This release is heavily focused on improvements to Microsoft Excel support.
-The underlying Excel library has been changed from [`tealeg/xlsx`](https://github.com/tealeg/xlsx)
-to [`qax-os/excelize`](https://github.com/qax-os/excelize), largely because
-`tealeg/xlsx` is no longer actively maintained. Thus, both the [XLSX output writer](https://sq.io/docs/output/#xlsx)
-and the [XLSX driver](https://sq.io/docs/drivers/xlsx) have been rewritten. There should be some performance
-improvements, but it's also possible that the rewrite introduced bugs. If you
-discover anything strange, please [open an issue](https://github.com/neilotoole/sq/issues/new/choose).
+This release is heavily focused on improvements to Microsoft Excel support. The underlying Excel library has been
+changed from [`tealeg/xlsx`](https://github.com/tealeg/xlsx) to [`qax-os/excelize`](https://github.com/qax-os/excelize),
+largely because `tealeg/xlsx` is no longer actively maintained. Thus, both the
+[XLSX output writer](https://sq.io/docs/output/#xlsx) and the [XLSX driver](https://sq.io/docs/drivers/xlsx) have been
+rewritten. There should be some performance improvements, but it's also possible that the rewrite introduced bugs. If
+you discover anything strange, please [open an issue](https://github.com/neilotoole/sq/issues/new/choose).
 
 ### Added
 
-- [#99]: The [CSV](https://sq.io/docs/drivers/csv) and [XLSX](https://sq.io/docs/drivers/xlsx)
-  drivers can now handle duplicate header column names in the ingest data.
-  For example, given a CSV file:
+- [#99]: The [CSV](https://sq.io/docs/drivers/csv) and [XLSX](https://sq.io/docs/drivers/xlsx) drivers can now handle
+  duplicate header column names in the ingest data. For example, given a CSV file:
 
   ```csv
   actor_id,first_name,actor_id
@@ -937,62 +846,57 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
   actor_id,first_name,actor_id_1
   ```
 
-  The renaming behavior is controlled by a new option [`ingest.column.rename`](https://sq.io/docs/config#ingestcolumnrename)
-  This new option is effectively the ingest counterpart of the existing output option
-  [`result.column.rename`](https://sq.io/docs/config#resultcolumnrename).
+  The renaming behavior is controlled by a new option
+  [`ingest.column.rename`](https://sq.io/docs/config#ingestcolumnrename) This new option is effectively the ingest
+  counterpart of the existing output option [`result.column.rename`](https://sq.io/docs/config#resultcolumnrename).
 
-- [#191]: The [XLSX](https://sq.io/docs/drivers/xlsx) driver now [detects](https://sq.io/docs/drivers/xlsx#header-row) header rows, like
-  the CSV driver already does. Thus, you now typically don't need to specify
-  the `--ingest.header` flag for Excel files. However, the option remains available
-  in case `sq` can't figure it out for a particular file.
+- [#191]: The [XLSX](https://sq.io/docs/drivers/xlsx) driver now [detects](https://sq.io/docs/drivers/xlsx#header-row)
+  header rows, like the CSV driver already does. Thus, you now typically don't need to specify the `--ingest.header`
+  flag for Excel files. However, the option remains available in case `sq` can't figure it out for a particular file.
 
-- The Excel writer has three new config options for controlling date/time output.
-  Note that these format strings are distinct from [`format.datetime`](https://sq.io/docs/config#formatdatetime)
-  and friends, because Excel has its own format string mechanism.
-  - [`format.excel.datetime`](https://sq.io/docs/config#formatexceldatetime): Controls datetime format, e.g. `2023-08-03 16:07:01`.
+- The Excel writer has three new config options for controlling date/time output. Note that these format strings are
+  distinct from [`format.datetime`](https://sq.io/docs/config#formatdatetime) and friends, because Excel has its own
+  format string mechanism.
+  - [`format.excel.datetime`](https://sq.io/docs/config#formatexceldatetime): Controls datetime format, e.g.
+    `2023-08-03 16:07:01`.
   - [`format.excel.date`](https://sq.io/docs/config#formatexceldatetime): Controls date-only format, e.g. `2023-08-03`.
   - [`format.excel.time`](https://sq.io/docs/config#formatexceldatetime): Controls time-only format, e.g. `4:07 pm`.
 
-- The ingest [kind detectors](https://sq.io/docs/detect#kinds) (e.g. for `CSV` or `XLSX`)
-  now detect more [date & time formats](https://sq.io/docs/detect#datetime-formats) as `kind.Datetime`, `kind.Date`, and `kind.Time`.
+- The ingest [kind detectors](https://sq.io/docs/detect#kinds) (e.g. for `CSV` or `XLSX`) now detect more
+  [date & time formats](https://sq.io/docs/detect#datetime-formats) as `kind.Datetime`, `kind.Date`, and `kind.Time`.
 
-- If an error occurs when the output format is `text`, a stack trace is printed
-  to `stderr` when the command is executed with `--verbose` (`-v`).
+- If an error occurs when the output format is `text`, a stack trace is printed to `stderr` when the command is executed
+  with `--verbose` (`-v`).
 
-- There's a new option [`error.format`](https://sq.io/docs/config#errorformat) that controls error output format independent
-  of the main [`format`](https://sq.io/docs/config#format) option . The `error.format` value must be one of `text` or `json`.
+- There's a new option [`error.format`](https://sq.io/docs/config#errorformat) that controls error output format
+  independent of the main [`format`](https://sq.io/docs/config#format) option . The `error.format` value must be one of
+  `text` or `json`.
 
 ### Changed
 
-- ☢️ The default Excel date format has changed. Previously
-  the format was `11/9/89`, and now it is `1989-11-09`. The same applies
-  to datetimes, e.g. `11/9/1989  00:00:00` becomes `1989-11-09 00:00`.
+- ☢️ The default Excel date format has changed. Previously the format was `11/9/89`, and now it is `1989-11-09`. The
+  same applies to datetimes, e.g. `11/9/1989  00:00:00` becomes `1989-11-09 00:00`.
 
-  This change is made to reduce ambiguity and confusion.
-  `sq` uses a [library](https://github.com/qax-os/excelize)
-  to interact with Excel files, and it seems that the library chooses a particular format
-  by default (`11/9/89`). There are several paths we could take here:
+  This change is made to reduce ambiguity and confusion. `sq` uses a [library](https://github.com/qax-os/excelize) to
+  interact with Excel files, and it seems that the library chooses a particular format by default (`11/9/89`). There are
+  several paths we could take here:
 
   1. Interrogate the OS, and use the OS locale date format.
   2. Stick with the library default `11/9/89`.
   3. Pick a default other than `11/9/89`.
 
-  We pick the third option. The first option (locale-dependent)
-  is excluded because, as a general rule, we want `sq` to produce the same
-  output regardless of locale/system settings. We exclude the second option
-  because month/day confuses most of the world. Thus, we're left with picking a
-  default, and `1989-11-09` is the format used in
+  We pick the third option. The first option (locale-dependent) is excluded because, as a general rule, we want `sq` to
+  produce the same output regardless of locale/system settings. We exclude the second option because month/day confuses
+  most of the world. Thus, we're left with picking a default, and `1989-11-09` is the format used in
   [RFC3339](https://datatracker.ietf.org/doc/html/rfc3339) and friends.
 
-  Whether this is the correct (standard?) approach is still unclear, and
-  feedback is welcome. However, the user can make use of the new config options
-  ([`format.excel.datetime`](https://sq.io/docs/config#formatexceldatetime) etc.)
-  to customize the format as they see fit.
+  Whether this is the correct (standard?) approach is still unclear, and feedback is welcome. However, the user can make
+  use of the new config options ([`format.excel.datetime`](https://sq.io/docs/config#formatexceldatetime) etc.) to
+  customize the format as they see fit.
 
 - The XLSX writer now outputs header rows in **bold text**.
 
-- ☢️ The XLSX writer now outputs blob (`bytes`) cell data as a base64-encoded string,
-  instead of raw bytes.
+- ☢️ The XLSX writer now outputs blob (`bytes`) cell data as a base64-encoded string, instead of raw bytes.
 
 ### Fixed
 
@@ -1000,31 +904,28 @@ discover anything strange, please [open an issue](https://github.com/neilotoole/
 
 ## [v0.40.0] - 2023-07-03
 
-This release features a complete overhaul of the [`join`](https://sq.io/docs/query#joins)
-mechanism.
+This release features a complete overhaul of the [`join`](https://sq.io/docs/query#joins) mechanism.
 
 ### Added
 
-- [#277]: A table selector can now have an alias. This in and of itself is not
-  particularly useful, but it's a building block for [multiple joins](https://github.com/neilotoole/sq/issues/12).
+- [#277]: A table selector can now have an alias. This in and of itself is not particularly useful, but it's a building
+  block for [multiple joins](https://github.com/neilotoole/sq/issues/12).
 
   ```shell
   $ sq '@sakila | .actor:a | .a.first_name'
   ```
 
-- New option `result.column.rename` that exposes a template used to rename
-  result set column names before display. The primary use case is to de-duplicate
-  columns names on a `SELECT * FROM tbl1 JOIN tbl2`, where `tbl1` and `tbl2`
-  have clashing column names ([docs](https://sq.io/docs/config#resultcolumnrename)).
+- New option `result.column.rename` that exposes a template used to rename result set column names before display. The
+  primary use case is to de-duplicate columns names on a `SELECT * FROM tbl1 JOIN tbl2`, where `tbl1` and `tbl2` have
+  clashing column names ([docs](https://sq.io/docs/config#resultcolumnrename)).
 
-- [#157]: Previously only `join` (`INNER JOIN`) was available: now the rest of
-  the join types such as `left_outer_join`, `cross_join`, etc. are
-  implemented ([docs](https://sq.io/docs/query#join-types)).
+- [#157]: Previously only `join` (`INNER JOIN`) was available: now the rest of the join types such as `left_outer_join`,
+  `cross_join`, etc. are implemented ([docs](https://sq.io/docs/query#join-types)).
 
 ### Changed
 
-- ☢️ [#12]: The table [join](https://sq.io/docs/query#joins) mechanism has been
-  completely overhauled. Now there's support for multiple joins. See [docs](https://sq.io/docs/query#joins).
+- ☢️ [#12]: The table [join](https://sq.io/docs/query#joins) mechanism has been completely overhauled. Now there's
+  support for multiple joins. See [docs](https://sq.io/docs/query#joins).
 
   ```shell
   # Previously, only a single join was possible
@@ -1051,9 +952,8 @@ mechanism.
 ### Added
 
 - [#263]: `sq version` now supports `--yaml` output.
-- [#263]: `sq version` now outputs host OS details with `--verbose`, `--json`
-  and `--yaml` flags. The motivation behind this is bug submission: we want
-  to know which OS/arch the user is on. E.g. for `sq version -j`:
+- [#263]: `sq version` now outputs host OS details with `--verbose`, `--json` and `--yaml` flags. The motivation behind
+  this is bug submission: we want to know which OS/arch the user is on. E.g. for `sq version -j`:
 
 ```json
 {
@@ -1072,27 +972,25 @@ mechanism.
 }
 ```
 
-- [#263]: The output of `sq inspect` and `sq inspect -v` has been refactored
-  significantly, and should now be easier to work with ([docs](https://sq.io/docs/inspect)).
+- [#263]: The output of `sq inspect` and `sq inspect -v` has been refactored significantly, and should now be easier to
+  work with ([docs](https://sq.io/docs/inspect)).
 
 ## [v0.38.1] - 2023-06-19
 
 ### Fixed
 
-- [#261]: The JSON writer (`--json`) could get deadlocked when a record contained
-  a large amount of data, triggering an internal `Flush()` (which is mutex-guarded)
-  from within the mutex-guarded `WriteRecords()` method.
+- [#261]: The JSON writer (`--json`) could get deadlocked when a record contained a large amount of data, triggering an
+  internal `Flush()` (which is mutex-guarded) from within the mutex-guarded `WriteRecords()` method.
 
 ## [v0.38.0] - 2023-06-18
 
-This release has significant improvements (and breaking changes)
-to SLQ (`sq`'s query language).
+This release has significant improvements (and breaking changes) to SLQ (`sq`'s query language).
 
 ### Changed
 
-- ☢️ [#254]: The formerly-implicit "WHERE" mechanism now requires an explicit `where()` function.
-  This, alas, is a fairly big breaking change. But it's necessary to remove an ambiguity roadblock.
-  See discussion in the [issue](https://github.com/neilotoole/sq/issues/254).
+- ☢️ [#254]: The formerly-implicit "WHERE" mechanism now requires an explicit `where()` function. This, alas, is a
+  fairly big breaking change. But it's necessary to remove an ambiguity roadblock. See discussion in the
+  [issue](https://github.com/neilotoole/sq/issues/254).
 
   ```shell
   # Previously
@@ -1102,8 +1000,7 @@ to SLQ (`sq`'s query language).
   $ sq '.actor | where(.actor_id <= 2)'
   ```
 
-- [#256]: Column-only queries are now possible. This has the neat side effect
-  that `sq` can now be used as a calculator.
+- [#256]: Column-only queries are now possible. This has the neat side effect that `sq` can now be used as a calculator.
 
   ```shell
   $ sq 1+2
@@ -1140,8 +1037,7 @@ to SLQ (`sq`'s query language).
   NICK        3
   ```
 
-- [#258]: Column aliases can now be arbitrary strings, instead of only a
-  valid identifier.
+- [#258]: Column aliases can now be arbitrary strings, instead of only a valid identifier.
 
   ```shell
   # Previously only valid identifier allowed
@@ -1173,8 +1069,8 @@ to SLQ (`sq`'s query language).
 
 ### Changed
 
-- ☢️ [Proprietary database functions](https://sq.io/docs/query#proprietary-functions) are now
-  invoked by prefixing the function name with an underscore. For example:
+- ☢️ [Proprietary database functions](https://sq.io/docs/query#proprietary-functions) are now invoked by prefixing the
+  function name with an underscore. For example:
 
   ```shell
   # mysql "date_format" func
@@ -1197,32 +1093,26 @@ The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
 ### Added
 
 - [#229]: `sq diff` compares two sources, or tables.
-- `sq inspect --dbprops` is a new mode that returns only the DB properties.
-  Relatedly, the properties mechanism is now implemented for all four supported
-  DB types (previously, it was only implemented for Postgres and MySQL).
+- `sq inspect --dbprops` is a new mode that returns only the DB properties. Relatedly, the properties mechanism is now
+  implemented for all four supported DB types (previously, it was only implemented for Postgres and MySQL).
 - [CSV](https://sq.io/docs/output#csv-tsv) format now colorizes output.
 
 ### Changed
 
-- `sq inspect -v` previously returned DB properties in a field named `db_variables`.
-  This field has been renamed to `db_properties`. The renaming reflects the fact
-  that some of those properties aren't really variables in the sense that they
-  can be modified (e.g. DB server version or such).
-- The structure of the former `db_variables` (now `db_properties`) field has
-  changed. Previously it was an array of `{"name": "XX", "value": "YY"}` values,
-  but now is a map, where the keys are strings, and the values can be either
-  a scalar (`bool`, `int`, `string`, etc.), or a nested value such as an array
-  or map. This change is made because some databases (e.g. SQLite) feature
-  complex data in some property values.
-- CSV format now renders byte sequences as `[777 bytes]` instead of dumping
-  the raw bytes.
-- ☢️ TSV format (`--tsv`) no longer has a shorthand form `-T`. Apparently that
-  shorthand wasn't used much, and `-T` is needed elsewhere.
+- `sq inspect -v` previously returned DB properties in a field named `db_variables`. This field has been renamed to
+  `db_properties`. The renaming reflects the fact that some of those properties aren't really variables in the sense
+  that they can be modified (e.g. DB server version or such).
+- The structure of the former `db_variables` (now `db_properties`) field has changed. Previously it was an array of
+  `{"name": "XX", "value": "YY"}` values, but now is a map, where the keys are strings, and the values can be either a
+  scalar (`bool`, `int`, `string`, etc.), or a nested value such as an array or map. This change is made because some
+  databases (e.g. SQLite) feature complex data in some property values.
+- CSV format now renders byte sequences as `[777 bytes]` instead of dumping the raw bytes.
+- ☢️ TSV format (`--tsv`) no longer has a shorthand form `-T`. Apparently that shorthand wasn't used much, and `-T` is
+  needed elsewhere.
 - ☢️ Likewise, `--xml` no longer has shorthand `-X`. And `--markdown` has lost alias `--md`.
-- In addition to the format flags `--text`, `--json`, etc., there is now
-  a `--format=FORMAT` flag, e.g. `--format=json`. This will allow `sq` to
-  continue to expand the number of output formats, without needing to have
-  a dedicated flag for each format.
+- In addition to the format flags `--text`, `--json`, etc., there is now a `--format=FORMAT` flag, e.g. `--format=json`.
+  This will allow `sq` to continue to expand the number of output formats, without needing to have a dedicated flag for
+  each format.
 
 ### Fixed
 
@@ -1236,8 +1126,8 @@ The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
 
 ### Fixed
 
-- `sq config get OPT --text` now prints only the value, not `KEY VALUE`.
-  If you want to see key and value, consider using `--yaml`, or `--text --verbose`.
+- `sq config get OPT --text` now prints only the value, not `KEY VALUE`. If you want to see key and value, consider
+  using `--yaml`, or `--text --verbose`.
 
 ## [v0.34.2] - 2023-05-08
 
@@ -1249,13 +1139,13 @@ The major feature is the long-gestating [`sq diff`](https://sq.io/docs/diff).
 
 ### Fixed
 
-- Fixed a minor issue where `sq ls -jv` and `sq ls -yv` produced no output
-  if config contained no explicitly set options.
+- Fixed a minor issue where `sq ls -jv` and `sq ls -yv` produced no output if config contained no explicitly set
+  options.
 
 ## [v0.34.0] - 2023-05-07
 
-This release significantly overhauls `sq`'s config mechanism ([#199]).
-For an overview, see the new [config docs](https://sq.io/docs/config).
+This release significantly overhauls `sq`'s config mechanism ([#199]). For an overview, see the new
+[config docs](https://sq.io/docs/config).
 
 Alas, this release has several minor breaking changes ☢️.
 
@@ -1277,8 +1167,8 @@ Alas, this release has several minor breaking changes ☢️.
   $ sq config set log.file /var/log/sq.log
   ```
 
-  There are also equivalent flags (`--log`, `--log.file` and `--log.level`) and
-  envars (`SQ_LOG`, `SQ_LOG_FILE` and `SQ_LOG_LEVEL`).
+  There are also equivalent flags (`--log`, `--log.file` and `--log.level`) and envars (`SQ_LOG`, `SQ_LOG_FILE` and
+  `SQ_LOG_LEVEL`).
 - Several more commands support YAML output:
   - [`sq group`](https://sq.io/docs/cmd/group)
   - [`sq ls`](https://sq.io/docs/cmd/ls)
@@ -1288,19 +1178,16 @@ Alas, this release has several minor breaking changes ☢️.
 
 ### Changed
 
-- The structure of `sq`'s config file (`sq.yml`) has changed. The config
-  file is automatically upgraded when using the new version.
-- The default location of the `sq` log file has changed. The new location
-  is platform-dependent. Use `sq config get log.file -v` to view the location,
-  or `sq config set log.file /path/to/sq.log` to set it.
+- The structure of `sq`'s config file (`sq.yml`) has changed. The config file is automatically upgraded when using the
+  new version.
+- The default location of the `sq` log file has changed. The new location is platform-dependent. Use
+  `sq config get log.file -v` to view the location, or `sq config set log.file /path/to/sq.log` to set it.
 - ☢️ Envar `SQ_CONFIG` replaces `SQ_CONFIGDIR`.
 - ☢️ Envar `SQ_LOG_FILE` replaces `SQ_LOGFILE`.
-- ☢️ Format flag `--table` is renamed to `--text`. This is changed because while the
-  output is mostly in table format, sometimes it's just plain text. Thus
-  `table` was not quite accurate.
-- ☢️ The flag to explicitly specify a driver when piping input to `sq` has been
-  renamed from `--driver` to `--ingest.driver`. This change aligns
-  the naming of the ingest options and reduces ambiguity.
+- ☢️ Format flag `--table` is renamed to `--text`. This is changed because while the output is mostly in table format,
+  sometimes it's just plain text. Thus `table` was not quite accurate.
+- ☢️ The flag to explicitly specify a driver when piping input to `sq` has been renamed from `--driver` to
+  `--ingest.driver`. This change aligns the naming of the ingest options and reduces ambiguity.
 
   ```shell
   # previously
@@ -1310,8 +1197,8 @@ Alas, this release has several minor breaking changes ☢️.
   $ cat mystery.data | sq --ingest.driver=csv '.data'
   ```
 
-- ☢️ `sq add` no longer has the generic `--opts x=y` mechanism. This flag was
-  ambiguous and confusing. Instead, use explicit option flags.
+- ☢️ `sq add` no longer has the generic `--opts x=y` mechanism. This flag was ambiguous and confusing. Instead, use
+  explicit option flags.
 
   ```shell
   # previously
@@ -1321,9 +1208,8 @@ Alas, this release has several minor breaking changes ☢️.
   $ sq add ./actor.csv --ingest.header=false
   ```
 
-- ☢️ The short form of the `sq add --handle` flag has been changed from `-h` to
-  `-n`. While this is not ideal, the `-h` shorthand is already in use everywhere
-  else as the short form of `--header`.
+- ☢️ The short form of the `sq add --handle` flag has been changed from `-h` to `-n`. While this is not ideal, the `-h`
+  shorthand is already in use everywhere else as the short form of `--header`.
 
   ```shell
   # previously
@@ -1333,26 +1219,22 @@ Alas, this release has several minor breaking changes ☢️.
   $ sq add ./actor.csv -n @actor
   ```
 
-- ☢️ The `--pretty` flag has been removed. Its only previous use was with the
-  `json` format, where if `--pretty=false` would output the JSON in compact form.
-  To better align with jq, there is now a `--compact` / `-c` flag that behaves
+- ☢️ The `--pretty` flag has been removed. Its only previous use was with the `json` format, where if `--pretty=false`
+  would output the JSON in compact form. To better align with jq, there is now a `--compact` / `-c` flag that behaves
   identically to jq.
-- ☢️ Because of the above `--compact` / `-c` flag, the short form of the `--csv`
-  flag is changing from `-c` to `-C`. It's an unfortunate situation, but alignment
-  with jq's behavior is an overarching principle that justifies the change.
+- ☢️ Because of the above `--compact` / `-c` flag, the short form of the `--csv` flag is changing from `-c` to `-C`.
+  It's an unfortunate situation, but alignment with jq's behavior is an overarching principle that justifies the change.
 
 ## [v0.33.0] - 2023-04-15
 
-The headline feature is [source groups](https://sq.io/docs/source#groups).
-This is the biggest change to the `sq` CLI in some time, and should
-make working with lots of sources much easier.
+The headline feature is [source groups](https://sq.io/docs/source#groups). This is the biggest change to the `sq` CLI in
+some time, and should make working with lots of sources much easier.
 
 ### Added
 
-- [#192]: `sq` now has a mechanism to group sources. A source handle can
-  now be scoped. For example, instead of `@sakila_prod`, `@sakila_staging`, etc,
-  you can use `@prod/sakila`, `@staging/sakila`. Use `sq group prod` to
-  set the active group (which `sq ls` respects). See [docs](https://sq.io/docs/source#groups).
+- [#192]: `sq` now has a mechanism to group sources. A source handle can now be scoped. For example, instead of
+  `@sakila_prod`, `@sakila_staging`, etc, you can use `@prod/sakila`, `@staging/sakila`. Use `sq group prod` to set the
+  active group (which `sq ls` respects). See [docs](https://sq.io/docs/source#groups).
 - `sq group GROUP` sets the active group to `GROUP`.
 - `sq group` returns the active group (default is `/`, the root group).
 - `sq ls GROUP` lists the sources in `GROUP`.
@@ -1361,33 +1243,28 @@ make working with lots of sources much easier.
 
 ### Changed
 
-- `sq ls` now shows the active item in a distinct color. It no longer adds
-  an asterisk to the active item.
+- `sq ls` now shows the active item in a distinct color. It no longer adds an asterisk to the active item.
 - `sq ls` now sorts alphabetically when using `--table` format.
-- `sq ls` now shows the sources in the active group only. But note that
-  the default active group is `/` (the root group), so the default behavior
-  of `sq ls` is the same as before.
-- `sq add hello.csv` will now generate the handle `@hello` instead of `@hello_csv`.
-  On a second invocation, it will return `@hello1` instead of `@hello_csv_1`. Why
-  this change? Well, with the availability of the source group mechanism, the `_` character
-  in the handle somehow looked ugly. And more importantly, `_` is a relative pain to type.
-- `sq ping` has changed to support groups. Instead of `sq ping --all`, you can
-  do `sq ping GROUP`, e.g. `sq ping /`.
+- `sq ls` now shows the sources in the active group only. But note that the default active group is `/` (the root
+  group), so the default behavior of `sq ls` is the same as before.
+- `sq add hello.csv` will now generate the handle `@hello` instead of `@hello_csv`. On a second invocation, it will
+  return `@hello1` instead of `@hello_csv_1`. Why this change? Well, with the availability of the source group
+  mechanism, the `_` character in the handle somehow looked ugly. And more importantly, `_` is a relative pain to type.
+- `sq ping` has changed to support groups. Instead of `sq ping --all`, you can do `sq ping GROUP`, e.g. `sq ping /`.
 
 ## [v0.32.0] - 2023-04-09
 
 ### Added
 
-- [#187]: For `csv` sources, `sq` will now try to auto-detect if the CSV file
-  has a header row or not. Previously, this needed to be explicitly specified
-  via an awkward syntax:
+- [#187]: For `csv` sources, `sq` will now try to auto-detect if the CSV file has a header row or not. Previously, this
+  needed to be explicitly specified via an awkward syntax:
 
   ```shell
   $ sq add ./actor.csv --opts=header=true
   ```
 
-  This change makes working with CSV files significantly lower friction.
-  A command like the below now almost always works as expected:
+  This change makes working with CSV files significantly lower friction. A command like the below now almost always
+  works as expected:
 
   ```shell
   $ cat ./actor.csv | sq .data
@@ -1397,9 +1274,8 @@ make working with lots of sources much easier.
 
 ### Fixed
 
-- `sq` is now better at detecting the (data) kind of CSV fields. It now more
-  accurately distinguishes between `Decimal` and `Int`, and knows how to
-  handle `Datetime`.
+- `sq` is now better at detecting the (data) kind of CSV fields. It now more accurately distinguishes between `Decimal`
+  and `Int`, and knows how to handle `Datetime`.
 
 - [#189]: `sq` now treats CSV empty fields as `NULL`.
 
@@ -1407,8 +1283,7 @@ make working with lots of sources much easier.
 
 ### Added
 
-- [#173]: Predefined variables via `--arg`
-  flag ([docs](https://sq.io/docs/query#predefined-variables)):
+- [#173]: Predefined variables via `--arg` flag ([docs](https://sq.io/docs/query#predefined-variables)):
 
   ```shell
   $ sq --arg first TOM '.actor | .first_name == $first'
@@ -1450,8 +1325,7 @@ make working with lots of sources much easier.
 
 - The `count` function has been changed ([docs](https://sq.io/docs/query#count))
   - Added no-args version: `.actor | count` equivalent to `SELECT COUNT(*) AS "count" FROM "actor"`.
-  - ☢️ The "star" version (`.actor | count(*)`) is no longer supported; use the
-    naked version instead.
+  - ☢️ The "star" version (`.actor | count(*)`) is no longer supported; use the naked version instead.
 - Function columns are now named according to the `sq` token, not the SQL token.
 
   ```shell
@@ -1493,13 +1367,11 @@ make working with lots of sources much easier.
 
 ### Added
 
-- [#98]: Whitespace is now allowed in SLQ selector names. You can
-  do `@sakila | ."film actor" | ."actor id"`.
+- [#98]: Whitespace is now allowed in SLQ selector names. You can do `@sakila | ."film actor" | ."actor id"`.
 
 ### Fixed
 
-- [#155]: `sq inspect` now populates `schema` field in JSON for MySQL,
-  SQLite, and SQL Server (Postgres already worked).
+- [#155]: `sq inspect` now populates `schema` field in JSON for MySQL, SQLite, and SQL Server (Postgres already worked).
 
 ## [v0.25.1] - 2023-03-19
 
@@ -1511,10 +1383,9 @@ make working with lots of sources much easier.
 
 ### Added
 
-- [#15]: Column Aliases. You can now specify an alias for a column (or column expression
-  such as a function). For example: `sq '.actor | .first_name:given_name`, or `sq .actor | count(*):quantity`.
-- [#151]: `sq add` now has a `--active` flag, which immediately sets the new source
-  as the active source.
+- [#15]: Column Aliases. You can now specify an alias for a column (or column expression such as a function). For
+  example: `sq '.actor | .first_name:given_name`, or `sq .actor | count(*):quantity`.
+- [#151]: `sq add` now has a `--active` flag, which immediately sets the new source as the active source.
 
 ## [v0.24.4] - 2023-03-15
 
@@ -1526,8 +1397,8 @@ make working with lots of sources much easier.
 
 ### Added
 
-- When a CSV source has explicit column names (via `--opts cols=A,B,C`), `sq` now verifies
-  that the CSV data record field count matches the number of explicit columns.
+- When a CSV source has explicit column names (via `--opts cols=A,B,C`), `sq` now verifies that the CSV data record
+  field count matches the number of explicit columns.
 
 ## [v0.24.2] - 2023-03-13
 
@@ -1592,33 +1463,29 @@ make working with lots of sources much easier.
 
 ### Added
 
-- Installer for [Arch Linux](https://archlinux.org),
-  via [Arch User Repository](https://aur.archlinux.org).
+- Installer for [Arch Linux](https://archlinux.org), via [Arch User Repository](https://aur.archlinux.org).
 
 ## [v0.18.2] - 2022-12-25
 
 ### Added
 
-- The build pipeline now produces `.apk` packages for [Alpine Linux](https://www.alpinelinux.org),
-  and `install.sh` has been updated accordingly. However, the `.apk` files
-  are not yet published to a repository, so it's necessary to run `apk` against
-  the downloaded `.apk` file (`install.sh` does this for you).
+- The build pipeline now produces `.apk` packages for [Alpine Linux](https://www.alpinelinux.org), and `install.sh` has
+  been updated accordingly. However, the `.apk` files are not yet published to a repository, so it's necessary to run
+  `apk` against the downloaded `.apk` file (`install.sh` does this for you).
 
 ## [v0.18.0] - 2022-12-24
 
 ### Added
 
-- [#95]: `sq add` now has a `--password` (`-p`) flag that prompts the user for the data source
-  password, instead of putting it in the location string. It will also read from stdin
-  if there's input there.
+- [#95]: `sq add` now has a `--password` (`-p`) flag that prompts the user for the data source password, instead of
+  putting it in the location string. It will also read from stdin if there's input there.
 
 ## [v0.17.0] - 2022-12-23
 
 ### Changed
 
-- More or less every `go.mod` dependency has been updated to latest. This includes
-  drivers for `sqlite` and `sqlserver`. The driver updates led to some broken
-  things, which have been fixed.
+- More or less every `go.mod` dependency has been updated to latest. This includes drivers for `sqlite` and `sqlserver`.
+  The driver updates led to some broken things, which have been fixed.
 
 ## [v0.16.1] - 2022-12-23
 
