@@ -16,6 +16,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
+- Interactive commands may show a right-aligned update-available notice on
+  stderr when a newer release is cached. Set `SQ_NO_UPDATE_NOTIFIER=1` to
+  disable. See [install docs](https://sq.io/docs/install#update-notices).
 - [#1007]: The `sq` container image is now published to Docker Hub as
   [`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq), alongside the
   existing `ghcr.io/neilotoole/sq`. Both registries carry the same image. The
