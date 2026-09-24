@@ -81,7 +81,6 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 	db := th.OpenDB(src)
 
 	_, actualTblName := createTypeTestTable(th, src, true)
-	t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
 
 	rows, err := db.Query("SELECT * FROM " + actualTblName)
 	require.NoError(t, err)
