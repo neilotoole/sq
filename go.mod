@@ -79,7 +79,7 @@ require (
 	// mechanism should minimize the impact on the sq binary size. Plus, there
 	// is significant functionality in usql that sq may take advantag eof in the
 	// future.
-	github.com/xo/usql v0.21.5
+	github.com/xo/usql v0.21.6
 	github.com/xuri/excelize/v2 v2.11.0
 	github.com/zalando/go-keyring v0.2.9-0.20260616202443-860ea660ec62
 	go.uber.org/atomic v1.12.0
