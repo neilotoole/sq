@@ -35,7 +35,7 @@
     },
   },
   "packages": {
-    "@babel/cli": ["@babel/cli@8.0.5", "", { "dependencies": { "@jridgewell/trace-mapping": "^0.3.31", "chokidar": "^5.0.0", "commander": "^14.0.2", "convert-source-map": "^2.0.0", "glob": "^13.0.0", "slash": "^5.1.0" }, "peerDependencies": { "@babel/core": "^8.0.0" }, "bin": { "babel": "./bin/babel.js" } }, "sha512-LEEejQQmSSdLqPJ67poExeYNDO53hraPtn4dyF96W0m452Zys4BEI2kc8kJHLlIy/djUE0gbJ4J7UlIOIB/i9Q=="],
+    "@babel/cli": ["@babel/cli@8.0.6", "", { "dependencies": { "@jridgewell/trace-mapping": "^0.3.31", "chokidar": "^5.0.0", "commander": "^14.0.2", "convert-source-map": "^2.0.0", "glob": "^13.0.0", "slash": "^5.1.0" }, "peerDependencies": { "@babel/core": "^8.0.0" }, "bin": { "babel": "./bin/babel.js" } }, "sha512-um8l/siZ6XioGNxbmEry1Z3u77Ye6bkDkg6lXewtZDacGNC+MLh85CWcnMV/A12i4eh77HkhkSKVlZtk4JsucA=="],
 
     "@babel/code-frame": ["@babel/code-frame@8.0.0", "", { "dependencies": { "@babel/helper-validator-identifier": "^8.0.0", "js-tokens": "^10.0.0" } }, "sha512-dYYg153EyN2Ekbqw2zAsbd6/JR+9N2SEoC7YV2GyyqMM7x9bLDTjBD6XBhSMLH0wtIVyJj03jWNriQhaN+eoCw=="],
 
