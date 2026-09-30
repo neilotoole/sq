@@ -37,6 +37,13 @@ CHECKENV_SCRIPT := ./scripts/checkenv.bash
 # -----------------------------------------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------------------------------------
+# The harness runs node_modules/.bin/lighthouse, not `bunx lighthouse`: bunx prefers a local
+# binary but falls back to the registry's latest from any other directory, and Lighthouse rescores
+# heavily across majors, so an unpinned run is not comparable to a deploy preview. lighthouse
+# arrives as a dependency of @netlify/plugin-lighthouse and is pinned by `overrides` in
+# package.json, so the plugin and this harness always run the same version. When bumping that
+# plugin, move the override with it. See site/CLAUDE.md for the differences that remain.
+#
 # Port used by the Lighthouse harness (prod build + gzip/brotli static server).
 # Chosen to avoid :8080 (Docker via `make run`) and :1313 (Hugo dev via `make site-local`).
 LH_PORT ?= 8090
@@ -149,12 +156,12 @@ site-lighthouse:
 	}; \
 	mkdir -p lighthouse-reports; \
 	log_indent log_dim "[3/4] Running Lighthouse (mobile, throttled)…"; \
-	bunx lighthouse "$(LH_URL)" --form-factor=mobile \
+	node_modules/.bin/lighthouse "$(LH_URL)" --form-factor=mobile \
 	  --output=html --output=json \
 	  --output-path=lighthouse-reports/mobile \
 	  --chrome-flags="--headless" --quiet; \
 	log_indent log_dim "[4/4] Running Lighthouse (desktop)…"; \
-	bunx lighthouse "$(LH_URL)" --preset=desktop \
+	node_modules/.bin/lighthouse "$(LH_URL)" --preset=desktop \
 	  --output=html --output=json \
 	  --output-path=lighthouse-reports/desktop \
 	  --chrome-flags="--headless" --quiet; \

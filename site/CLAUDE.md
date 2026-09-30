@@ -198,6 +198,42 @@ checksums in `scripts/install-lychee.sh` together. Rust and Cargo are not requir
   description, `--force` still resolves from `bun.lock` and does not float to newer in-range
   versions.
 
+### Lighthouse
+
+Two separate runners produce Lighthouse scores, and they only agree if kept aligned:
+
+- **Deploy previews:** `@netlify/plugin-lighthouse` audits the deployed preview URL. It runs
+  `onSuccess`, after the deploy, using the lighthouse version it depends on.
+- **Locally:** `make site-lighthouse` builds the production site, serves it with gzip/brotli, and
+  audits `http://localhost:8090`.
+
+`lighthouse` reaches `node_modules` as a dependency of `@netlify/plugin-lighthouse`, and
+`overrides` in `package.json` pins it so the plugin and the harness always run the same version.
+When bumping that plugin, move the override with it, or local numbers stop predicting preview
+numbers.
+
+The harness runs `node_modules/.bin/lighthouse`. Do not switch it back to `bunx lighthouse`: bunx
+prefers the local binary but silently falls back to the registry's latest from any other
+directory, and the versions are not interchangeable. The same page scored SEO 93 under 9.6.3 and
+69 under 13.4.1, because the single failing audit (`is-crawlable`) was reweighted from 1-of-15 to
+4-of-11. Accessibility went from 54 audits to 76, and the PWA category was removed in v12.
+
+Even at matching versions, a local run does not reproduce a production score, by design:
+
+- The plugin passes `skipAudits: ['is-crawlable']` when auditing a deploy URL, because Netlify
+  injects `x-robots-tag: noindex` on previews. The harness serves without that header, so the
+  audit passes on its own merits instead of being skipped.
+- Local runs see no Netlify headers (no CSP, no `netlify.toml` caching rules) and no CDN latency.
+- Third-party scripts behave differently from `localhost`. Measured the same day on 9.6.8:
+  Best Practices was 100 locally and 92 on `https://sq.io`, because the analytics beacon logs a
+  console error under a headless browser against the real origin but not against the local server.
+
+So use the harness for relative comparisons, not to predict the number a deploy preview reports.
+
+The plugin's `full-config` is not a distinct configuration: in 9.6.8 it is
+`{extends: 'lighthouse:default', settings: {}}`, so the harness's default-config mobile run
+already matches it.
+
 ## Content Style Guide
 
 ### Asciinema Terminal Recordings
