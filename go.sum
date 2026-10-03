@@ -726,10 +726,10 @@ github.com/uber-go/tally v3.5.10+incompatible h1:PDkAMvnVYOdJtvyCZQURmHtOakCiWAW
 github.com/uber-go/tally v3.5.10+incompatible/go.mod h1:YDTIBxdXyOU/sCWilKB4bgyufu1cEi0jdVnRdxvjnmU=
 github.com/uber/athenadriver v1.1.15 h1:z/hivAcXmGgUCVoXgVvwwIzc4auTeF3TCmwyFTtd8NE=
 github.com/uber/athenadriver v1.1.15/go.mod h1:RnKD7+9Aup8iuFfhK+I26U+z137IXWeoLaEZDepd0Eg=
-github.com/vbauerster/cupwriter v0.0.4 h1:9sBPe0uXWLZuWQU5lqVbhyFlxX6c09asST/YfatFAys=
-github.com/vbauerster/cupwriter v0.0.4/go.mod h1:IFyzS6Xis5dnBH/rdAhrnuzg3c+KkUqEN6yE8lhJlDw=
-github.com/vbauerster/mpb/v8 v8.16.1 h1:gNYmwMip9xRWNGAiblZOgUNXWeU2P0NIGd5x0f8ffbc=
-github.com/vbauerster/mpb/v8 v8.16.1/go.mod h1:gnU8zNF/JWltFepqwko/ulMEUIDrydIq7T4UdMN26Nw=
+github.com/vbauerster/cupwriter v0.0.5 h1:pxlPgxPLIebXh8lJPOZmn2TmjPE8+PqJIFkKkr7hI9I=
+github.com/vbauerster/cupwriter v0.0.5/go.mod h1:ptJDgOtLtGZp1gLzycD0TFnZztDhrQdsikG6EAA4xYQ=
+github.com/vbauerster/mpb/v8 v8.16.2 h1:+UH2Nhn6asKkdX58hSgN+5Jqg/JcFSqCcU+8z0IiYYo=
+github.com/vbauerster/mpb/v8 v8.16.2/go.mod h1:PFkxR+jl7Eew9ukpdUcodHBGq9ow74b6cXI7xL0t3mA=
 github.com/vertica/vertica-sql-go v1.3.8 h1:FomjkM3cam9yE6zSic31flNWPLdsZbYGK9ihlLtbF1Y=
 github.com/vertica/vertica-sql-go v1.3.8/go.mod h1:c4OZ8lq1Ztc18w8a0nG+dzQh69BzJRcKN2LZOnYbERI=
 github.com/xo/dburl v0.26.1 h1:3e+brUUKrXSunomj0cq+iTaRxDrsdyiqvXbFcMdObYk=
