@@ -588,8 +588,8 @@ github.com/nakagami/firebirdsql v0.9.20 h1:I7kbSFOSzL0RI2z0XIfbamUkq6PZ1dN6eWlTb
 github.com/nakagami/firebirdsql v0.9.20/go.mod h1:HsxjwNJ2Xr4MIppGCJheXkvaOFcvsj3UIYaveiQb6rQ=
 github.com/nathan-fiscaletti/consolesize-go v0.0.0-20260406063853-3bac975de715 h1:FiSC3sz/k2SYB32YJ1bLlBVB7Li0N7n6jcYa9Knq/60=
 github.com/nathan-fiscaletti/consolesize-go v0.0.0-20260406063853-3bac975de715/go.mod h1:DQpEqvLUU3b35AJUVu5P6LFn/RY3qj4WtMjvrcE8gto=
-github.com/ncruces/go-strftime v1.0.0 h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=
-github.com/ncruces/go-strftime v1.0.0/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
+github.com/ncruces/go-strftime v1.1.0 h1:vtPmPWMkb539RGV9WpWT9EwJGvrOCKvMNI4obWL47Hk=
+github.com/ncruces/go-strftime v1.1.0/go.mod h1:yVaq7iwCN09vHRrKBrrflXT0M9tTMG2KmZ9Fj7xeG/g=
 github.com/neilotoole/fifomu v0.2.0 h1:6mBpHXsOIpyrOYZUab7Bz2R+HL6R1f6qo8v/m7CkJy0=
 github.com/neilotoole/fifomu v0.2.0/go.mod h1:tJqmHyCaQ/PH+nZdVLrVv+2ah5Zz/wpuKfPSYJit9ek=
 github.com/neilotoole/jsoncolor v0.10.1 h1:Z3wHhAjPYhotZn3HYsAsChCwKP5GLZKJl0nMygAwlmo=
