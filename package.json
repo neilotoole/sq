@@ -7,6 +7,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
-    "dprint": "^0.57.4"
+    "dprint": "^0.58.0"
   }
 }
