@@ -74,7 +74,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.12.1
 	github.com/vbauerster/mpb/v8 v8.16.2
-	github.com/xo/dburl v0.26.1
+	github.com/xo/dburl v0.40.0
 	// Although usql is a large module, Go's DCE (Dead Code Elimination)
 	// mechanism should minimize the impact on the sq binary size. Plus, there
 	// is significant functionality in usql that sq may take advantag eof in the
