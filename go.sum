@@ -732,8 +732,8 @@ github.com/vbauerster/mpb/v8 v8.16.2 h1:+UH2Nhn6asKkdX58hSgN+5Jqg/JcFSqCcU+8z0Ii
 github.com/vbauerster/mpb/v8 v8.16.2/go.mod h1:PFkxR+jl7Eew9ukpdUcodHBGq9ow74b6cXI7xL0t3mA=
 github.com/vertica/vertica-sql-go v1.3.8 h1:FomjkM3cam9yE6zSic31flNWPLdsZbYGK9ihlLtbF1Y=
 github.com/vertica/vertica-sql-go v1.3.8/go.mod h1:c4OZ8lq1Ztc18w8a0nG+dzQh69BzJRcKN2LZOnYbERI=
-github.com/xo/dburl v0.26.1 h1:3e+brUUKrXSunomj0cq+iTaRxDrsdyiqvXbFcMdObYk=
-github.com/xo/dburl v0.26.1/go.mod h1:uazlaAQxj4gkshhfuuYyvwCBouOmNnG2aDxTCFZpmL4=
+github.com/xo/dburl v0.40.0 h1:rqNIdBA2uUc+zfzsQWQI2K0k+CgvK4MHX/XNwho+d34=
+github.com/xo/dburl v0.40.0/go.mod h1:uazlaAQxj4gkshhfuuYyvwCBouOmNnG2aDxTCFZpmL4=
 github.com/xo/tblfmt v0.18.3 h1:2LTZxeK4KgB6wnQAzwm/yIAAMPNQNfBM5BFiA4ArDFI=
 github.com/xo/tblfmt v0.18.3/go.mod h1:9v9Ij0sQvW0FZWOCJIIpGBBguS6jUBQUaC9WeeJN8sc=
 github.com/xo/terminfo v1.0.0 h1:2ZpYzqWzyyytjk3TP6aJVDhkMAkc99/1xKQdA3TDTBY=
