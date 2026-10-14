@@ -631,6 +631,7 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 	)
 	require.NoError(h.T, err)
 
+	records:
 	for _, rec := range records {
 		require.NoError(h.T, bi.Munge(rec))
 
@@ -641,13 +642,14 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 			require.NoError(h.T, h.Context.Err())
 
 		case err = <-bi.ErrCh:
-			// Should not happen
+			// Should not happen while records remain.
 			if err != nil {
 				close(bi.RecordCh)
 				require.NoError(h.T, err)
-			} else {
-				break
 			}
+			// ErrCh closed / completed: stop sending (matches drivers/xlsx/ingest.go).
+			// A bare break only exits the select and would drop this record.
+			break records
 
 		case bi.RecordCh <- rec:
 		}
