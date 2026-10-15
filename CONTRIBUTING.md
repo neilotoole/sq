@@ -13,10 +13,9 @@ For AI coding assistants working in this repo:
 - [AGENTS.md](./AGENTS.md) is the cross-agent guide (shared rules plus
   contributor [Agent Skills](https://agentskills.io/specification) under
   [`.agents/skills/`](./.agents/skills/)).
-- [CLAUDE.md](./CLAUDE.md) is the Claude Code entry point and links to AGENTS.md
-  for shared rules. Claude Code also discovers skills via
-  [`.claude/skills`](./.claude/skills) (a symlink to `.agents/skills` when
-  checked out).
+- Claude Code reads AGENTS.md directly (v2.1.277 or later), and discovers
+  skills via [`.claude/skills`](./.claude/skills) (a symlink to
+  `.agents/skills` when checked out).
 - Install a skill into your agent with
   `npx skills add neilotoole/sq --skill <name>` (see
   [AGENTS.md](./AGENTS.md#installing-and-verifying-skills-npx-skills)).

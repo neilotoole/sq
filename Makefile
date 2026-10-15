@@ -163,5 +163,5 @@ endif
 
 .PHONY: site-local
 site-local: ## Start the local sq.io dev server (delegates to site/Makefile).
-	@# See site/Makefile and site/CLAUDE.md for the full set of site targets.
+	@# See site/Makefile and site/AGENTS.md for the full set of site targets.
 	$(MAKE) -C site site-local

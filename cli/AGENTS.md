@@ -1,4 +1,4 @@
-# CLAUDE.md (cli package)
+# AGENTS.md (cli package)
 
 Conventions specific to the `cli` package: cobra command construction, flags,
 shell completion, and output writers. Repo-wide rules in
