@@ -46,7 +46,7 @@ require (
 	github.com/h2non/filetype v1.1.3
 	github.com/itchyny/gojq v0.12.19
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/mattn/go-colorable v0.1.15
+	github.com/mattn/go-colorable v0.1.16
 	github.com/mattn/go-runewidth v0.0.30
 	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/microsoft/go-mssqldb v1.11.2
