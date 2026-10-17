@@ -16,7 +16,7 @@ godebug x509negativeserial=1
 
 require (
 	al.essio.dev/pkg/shellescape v1.6.1
-	github.com/ClickHouse/clickhouse-go/v2 v2.48.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.49.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e
 	github.com/alecthomas/chroma/v2 v2.27.0
@@ -102,7 +102,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
-	github.com/andybalholm/brotli v1.2.4 // indirect
+	github.com/andybalholm/brotli v1.2.6 // indirect
 	github.com/apache/arrow-go/v18 v18.8.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
