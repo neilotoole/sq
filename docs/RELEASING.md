@@ -84,7 +84,7 @@ Pushing the tag triggers the release path of the **Main Pipeline**
 tested at every supported version (`db-release`), then
 per-platform [GoReleaser](https://goreleaser.com) builds
 (`.goreleaser-*.yml`) produce the binaries, `publish` cuts the GitHub release,
-`docker-publish` pushes the `ghcr.io` image, and `test-install` smoke-tests the
+`docker-publish` pushes the `ghcr.io` and Docker Hub images, and `test-install` smoke-tests the
 published artifacts as a post-publish canary. When the GitHub release is
 published, [`site-publish-release.yml`](../.github/workflows/site-publish-release.yml)
 auto-deploys [sq.io](https://sq.io).

@@ -10,6 +10,27 @@ updates:
     schedule:
       interval: "weekly"
 
+  # Isolated Go tool modules (see tools/README.md). Dependabot doesn't support
+  # the go.mod tool directive yet
+  # (https://github.com/dependabot/dependabot-core/issues/12050), and each tool
+  # is required as "// indirect", which Dependabot skips by default. Allowing
+  # each tool by name bumps the tool itself without also opening a PR for every
+  # transitive dependency. Add new tools here too.
+  - package-ecosystem: "gomod"
+    directories:
+      - "/tools/*"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-name: "github.com/dkorunic/betteralign"
+        dependency-type: "indirect"
+      - dependency-name: "github.com/golangci/golangci-lint/v2"
+        dependency-type: "indirect"
+      - dependency-name: "github.com/incu6us/goimports-reviser/v3"
+        dependency-type: "indirect"
+      - dependency-name: "github.com/mfridman/tparse"
+        dependency-type: "indirect"
+
   # Bun lockfile at the repo root (formatting + JS lint toolchain: dprint, biome).
   - package-ecosystem: "bun"
     directory: "/"

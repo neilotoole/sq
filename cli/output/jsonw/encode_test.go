@@ -18,7 +18,7 @@ import (
 // character has to render identically whichever sq command produced the JSON.
 func TestEncodeString_MatchesJSONColor(t *testing.T) {
 	var samples []string
-	for c := 0; c < 0x80; c++ {
+	for c := range 0x80 {
 		samples = append(samples, fmt.Sprintf("a%sb", string(rune(c))))
 	}
 	samples = append(

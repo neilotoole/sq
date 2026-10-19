@@ -228,8 +228,7 @@ func humanizeError(err error) error {
 	// An error anywhere in the chain that implements errz.HumanReadable
 	// supplies its own concise user-facing message, replacing the full
 	// rendered chain (which remains in the log and in verbose output).
-	var hr errz.HumanReadable
-	if errors.As(err, &hr) {
+	if hr, ok := errors.AsType[errz.HumanReadable](err); ok {
 		return errz.New(hr.HumanError())
 	}
 

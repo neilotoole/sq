@@ -260,7 +260,7 @@ func DBTypeForKind(knd kind.Kind) string {
 func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 	rec = make([]any, len(row))
 
-	for i := 0; i < len(row); i++ {
+	for i := range row {
 		if row[i] == nil {
 			rec[i] = nil
 			continue
@@ -796,7 +796,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 		j     int
 	)
 
-	for i := 0; i < len(tblNames); i++ {
+	for i := range tblNames {
 		if terms > 0 {
 			sb.WriteString(" UNION ALL ")
 		}

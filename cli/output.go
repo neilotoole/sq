@@ -441,9 +441,9 @@ func newWriters(ru *run.Run, o options.Options) (w *output.Writers, outCfg *outp
 		// writer impl. See expand_writer.go for that rationale.) Any
 		// command that prints a location gets --expand for free; the
 		// decorators no-op when the flag is unset.
-		w.Source = &expandSourceWriter{w: w.Source, expander: expander{cmd: cmd, ru: ru}}
-		w.Ping = &expandPingWriter{w: w.Ping, expander: expander{cmd: cmd, ru: ru}}
-		w.Metadata = &expandMetadataWriter{w: w.Metadata, expander: expander{cmd: cmd, ru: ru}}
+		w.Source = &expandSourceWriter{w: w.Source, cmd: cmd, ru: ru}
+		w.Ping = &expandPingWriter{w: w.Ping, cmd: cmd, ru: ru}
+		w.Metadata = &expandMetadataWriter{w: w.Metadata, cmd: cmd, ru: ru}
 	}
 
 	return w, outCfg

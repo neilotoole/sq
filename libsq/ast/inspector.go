@@ -2,6 +2,7 @@ package ast
 
 import (
 	"reflect"
+	"slices"
 
 	"github.com/samber/lo"
 
@@ -97,8 +98,8 @@ func (in *Inspector) FindColExprSegment() (*SegmentNode, error) {
 	segs := in.ast.Segments()
 
 	// work backwards from the end
-	for i := len(segs) - 1; i >= 0; i-- {
-		elems := segs[i].Children()
+	for i, seg := range slices.Backward(segs) {
+		elems := seg.Children()
 		numColExprs := 0
 
 		for _, elem := range elems {
@@ -115,7 +116,7 @@ func (in *Inspector) FindColExprSegment() (*SegmentNode, error) {
 		}
 
 		if numColExprs > 0 {
-			return segs[i], nil
+			return seg, nil
 		}
 	}
 

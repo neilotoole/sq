@@ -19,6 +19,7 @@ import (
 
 	"github.com/neilotoole/sq/cli"
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/options"
 	"github.com/neilotoole/sq/libsq/core/secret"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -59,8 +60,20 @@ func TestCmdAdd(t *testing.T) {
 	}
 	_ = actorDataQuery
 
+	// duckCopy returns the absolute path of a per-test copy of the sakila
+	// DuckDB fixture. The "add" cmd pings the source read-write, and on
+	// Windows a DuckDB handle on the shared fixture makes concurrent copies
+	// of it (e.g. by Helper.Source in another package) fail with a sharing
+	// violation. See gh1198.
+	duckCopy := func(t *testing.T) string {
+		t.Helper()
+		fp := filepath.Join(tu.TempDir(t), filepath.Base(sakila.PathDuck))
+		require.NoError(t, ioz.CopyFile(fp, proj.Abs(sakila.PathDuck), true))
+		return fp
+	}
+
 	testCases := []struct {
-		// Set only one of loc, or locFromHandle, to create
+		// Set only one of loc, locFromHandle, or locFn, to create
 		// the first arg to "add" cmd.
 		//
 		// loc, when set, will be used directly.
@@ -68,6 +81,9 @@ func TestCmdAdd(t *testing.T) {
 		// locFromHandle, when set, gets the location from the
 		// config source with the given handle.
 		locFromHandle string
+		// locFn, when set, returns the location. It's invoked
+		// in the subtest, so it can create per-test files.
+		locFn func(t *testing.T) string
 
 		driver       string // --driver flag
 		handle       string // --handle flag
@@ -182,19 +198,29 @@ func TestCmdAdd(t *testing.T) {
 		},
 		{
 			// duckdb with scheme
-			loc:        "duckdb://" + proj.Abs(sakila.PathDuck),
+			locFn: func(t *testing.T) string {
+				t.Helper()
+				return "duckdb://" + duckCopy(t)
+			},
 			wantHandle: "@sakila",
 			wantType:   drivertype.DuckDB,
 		},
 		{
 			// duckdb without scheme, absolute path
-			loc:        proj.Abs(sakila.PathDuck),
+			locFn:      duckCopy,
 			wantHandle: "@sakila",
 			wantType:   drivertype.DuckDB,
 		},
 		{
-			// duckdb without scheme, relative path
-			loc:        proj.Rel(sakila.PathDuck),
+			// duckdb without scheme, relative path. The copy may be on a
+			// different volume from the cwd (e.g. C: vs D: on Windows),
+			// where no relative path exists, so chdir into its dir.
+			locFn: func(t *testing.T) string {
+				t.Helper()
+				fp := duckCopy(t)
+				t.Chdir(filepath.Dir(fp))
+				return filepath.Base(fp)
+			},
 			wantHandle: "@sakila",
 			wantType:   drivertype.DuckDB,
 		},
@@ -242,6 +268,9 @@ func TestCmdAdd(t *testing.T) {
 			if tc.locFromHandle != "" {
 				th := testh.New(t)
 				tc.loc = th.Source(tc.locFromHandle).Location
+			}
+			if tc.locFn != nil {
+				tc.loc = tc.locFn(t)
 			}
 
 			args := []string{"add", tc.loc}

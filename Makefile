@@ -90,7 +90,15 @@ gen: ## Run code generation (go generate + betteralign on generated code).
 	@go generate ./...
 	@# betteralign re-orders struct fields in generated code for optimal memory
 	@# layout. https://github.com/dkorunic/betteralign
-	@go tool -modfile=tools/betteralign/go.mod betteralign -apply ./libsq/ast/internal/slq >/dev/null 2>&1 || true
+	@# It skips generated files unless -generated_files is set. It exits 3 when
+	@# it finds misaligned structs, even with -apply, which is the normal result
+	@# right after regeneration, so only other exit codes are failures.
+	@out=$$(go tool -modfile=tools/betteralign/go.mod betteralign -apply -generated_files ./libsq/ast/internal/slq 2>&1); \
+		rc=$$?; \
+		if [ $$rc -ne 0 ] && [ $$rc -ne 3 ]; then \
+			printf '%s\n' "$$out" >&2; \
+			exit $$rc; \
+		fi
 
 .PHONY: fmt
 fmt: ## Format the whole repo (Go imports + dprint for everything else).
@@ -131,6 +139,7 @@ goreleaser-verify-config: ## Validate the goreleaser config files (no build/publ
 	goreleaser check -f .goreleaser-linux-amd64.yml
 	goreleaser check -f .goreleaser-linux-arm64.yml
 	goreleaser check -f .goreleaser-windows.yml
+	goreleaser check -f .goreleaser-docker.yml
 
 .PHONY: goreleaser-build-local-arch
 goreleaser-build-local-arch: ## Build via goreleaser for the local arch (snapshot; no publish).

@@ -426,35 +426,40 @@ func (op LogLevelOpt) Process(o options.Options) (options.Options, error) {
 		return o, nil
 	}
 
-	// v should be a string
-	switch x := v.(type) {
-	case string:
-	// continue below
-	case int:
-		v = slog.Level(x)
-		// continue below
-	case slog.Level:
+	if _, isLevel := v.(slog.Level); isLevel {
 		return o, nil
-	default:
-		return nil, errz.Errorf("option {%s} should be {%T} or {%T} but got {%T}: %v",
-			key, slog.LevelDebug, "", x, x)
 	}
 
-	var s string
-	s, ok = v.(string)
-	if !ok {
-		return nil, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
-			key, s, v, v)
-	}
-
-	var lvl slog.Level
-	if err := lvl.UnmarshalText([]byte(s)); err != nil {
-		return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", key, lvl)
+	lvl, err := op.convert(v)
+	if err != nil {
+		return nil, err
 	}
 
 	o = o.Clone()
 	o[key] = lvl
 	return o, nil
+}
+
+// convert coerces v into a slog.Level. A level reaches the config only as a
+// string or an int, so Get needs this to avoid silently returning op's default
+// for an Options that has not been through Registry.Process. See #1209.
+func (op LogLevelOpt) convert(v any) (slog.Level, error) {
+	key := op.Key()
+	switch x := v.(type) {
+	case slog.Level:
+		return x, nil
+	case int:
+		return slog.Level(x), nil
+	case string:
+		var lvl slog.Level
+		if err := lvl.UnmarshalText([]byte(x)); err != nil {
+			return 0, errz.Wrapf(err, "option {%s} is not a valid {%T}", key, lvl)
+		}
+		return lvl, nil
+	default:
+		return 0, errz.Errorf("option {%s} should be {%T} or {%T} but got {%T}: %v",
+			key, slog.LevelDebug, "", x, x)
+	}
 }
 
 // Get returns op's value in o. If o is nil, or no value
@@ -465,13 +470,12 @@ func (op LogLevelOpt) Get(o options.Options) slog.Level {
 	}
 
 	v, ok := o[op.Key()]
-	if !ok {
+	if !ok || v == nil {
 		return op.defaultVal
 	}
 
-	var lvl slog.Level
-	lvl, ok = v.(slog.Level)
-	if !ok {
+	lvl, err := op.convert(v)
+	if err != nil {
 		return op.defaultVal
 	}
 

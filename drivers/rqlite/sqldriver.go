@@ -330,7 +330,7 @@ func convertWireValue(conv wireConv, v any) driver.Value {
 
 // rtypeRawValues is the expected reflect.Type of
 // gorqlite.QueryResult's values field.
-var rtypeRawValues = reflect.TypeOf([][]any(nil))
+var rtypeRawValues = reflect.TypeFor[[][]any]()
 
 // rawValues extracts the raw row data (the JSON-decoded "values"
 // array) from qr. gorqlite provides no public access to it: Map,

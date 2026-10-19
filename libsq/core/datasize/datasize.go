@@ -73,35 +73,45 @@ func (op Opt) Process(o options.Options) (options.Options, error) {
 		return o, nil
 	}
 
+	if _, isByteSize := v.(ByteSize); isByteSize {
+		return o, nil
+	}
+
+	f, err := op.convert(v)
+	if err != nil {
+		return nil, err
+	}
+
+	o = o.Clone()
+	o[key] = f
+	return o, nil
+}
+
+// convert coerces v into a ByteSize. A ByteSize reaches the config only as a
+// string or a number, so Get needs this to avoid silently returning op's
+// default for an Options that has not been through Registry.Process.
+// See #1209.
+func (op Opt) convert(v any) (ByteSize, error) {
+	key := op.Key()
 	switch v := v.(type) {
 	case ByteSize:
-		return o, nil
+		return v, nil
 	case uint:
-		o = o.Clone()
-		o[key] = ByteSize(v)
-		return o, nil
+		return ByteSize(v), nil
 	case uint64:
-		o = o.Clone()
-		o[key] = ByteSize(v)
-		return o, nil
+		return ByteSize(v), nil
 	case int:
-		o = o.Clone()
-		o[key] = ByteSize(v) //nolint:gosec // ignore overflow concern
-		return o, nil
+		return ByteSize(v), nil //nolint:gosec // ignore overflow concern
 	case int64:
-		o = o.Clone()
-		o[key] = ByteSize(v) //nolint:gosec // ignore overflow concern
-		return o, nil
+		return ByteSize(v), nil //nolint:gosec // ignore overflow concern
 	case string:
 		var f ByteSize
 		if err := f.UnmarshalText([]byte(v)); err != nil {
-			return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", key, f)
+			return 0, errz.Wrapf(err, "option {%s} is not a valid {%T}", key, f)
 		}
-		o = o.Clone()
-		o[key] = f
-		return o, nil
+		return f, nil
 	default:
-		return nil, errz.Errorf("option {%s} should be a string, an integer, or {%T} but got {%T}: %v",
+		return 0, errz.Errorf("option {%s} should be a string, an integer, or {%T} but got {%T}: %v",
 			key, ByteSize(0), v, v)
 	}
 }
@@ -129,13 +139,12 @@ func (op Opt) Get(o options.Options) ByteSize {
 	}
 
 	v, ok := o[op.Key()]
-	if !ok {
+	if !ok || v == nil {
 		return op.defaultVal
 	}
 
-	var f ByteSize
-	f, ok = v.(ByteSize)
-	if !ok {
+	f, err := op.convert(v)
+	if err != nil {
 		return op.defaultVal
 	}
 

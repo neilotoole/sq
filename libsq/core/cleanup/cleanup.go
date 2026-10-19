@@ -4,6 +4,7 @@ package cleanup
 
 import (
 	"io"
+	"slices"
 	"sync"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -132,8 +133,8 @@ func (cu *Cleanup) Run() error {
 	// Run cleanups in reverse order. The fns slice can't contain nil
 	// entries: Add, AddE, AddC, and Append all reject or wrap nil before
 	// appending, so no nil guard is needed here.
-	for i := len(cu.fns) - 1; i >= 0; i-- {
-		err = errz.Append(err, cu.fns[i]())
+	for _, v := range slices.Backward(cu.fns) {
+		err = errz.Append(err, v())
 	}
 
 	// Set fns to nil so that the cleanup funcs

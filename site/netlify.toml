@@ -7,6 +7,12 @@ functions = "functions"
 NODE_VERSION = "22.13.1"
 BUN_VERSION = "1.3.13"
 HUGO_VERSION = "0.139.2"
+# Netlify restores a per-branch node_modules cache. Installing a newer bun.lock
+# over a stale tree can leave nested dependencies missing, which crashes the
+# install stage (#1210, #1184). --force reinstalls every dependency rather than
+# patching the restored tree. Despite the flag's description, it still resolves
+# from bun.lock and does not float to newer in-range versions.
+BUN_FLAGS = "--force"
 
 [context.production]
 command = "bun run build"
@@ -41,18 +47,11 @@ providers = [
 
 [[plugins]]
 package = "@netlify/plugin-lighthouse"
-
-# optional, fails build when a category is below a threshold
-[plugins.inputs.thresholds]
-#    performance = 0.9
-#    accessibility = 0.9
-#    best-practices = 0.9
-#    seo = 0.9
-#    pwa = 0.9
-
-# optional, deploy the lighthouse report to a path under your site
-[plugins.inputs]
-output_path = "reports/lighthouse.html"
+# No inputs. Without fail_deploy_on_score_thresholds the plugin registers
+# onSuccess, which audits the deployed URL; that path discards output_path and
+# cannot write a report, so scores land in the build log and Netlify's deploy
+# summary only. Declaring [plugins.inputs.thresholds] (which was empty) before
+# [plugins.inputs] also tripped Netlify's post-processing TOML parser (#1218).
 
 [dev]
 framework = "#custom"

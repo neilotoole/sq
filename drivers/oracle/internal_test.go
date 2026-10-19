@@ -126,7 +126,6 @@ func TestKindFromOracleNumber(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.typeName, func(t *testing.T) {
 			t.Parallel()
 			got := kindFromOracleNumber(tc.typeName)

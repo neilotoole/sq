@@ -39,7 +39,7 @@ func TestSmoke(t *testing.T) {
 			t.Parallel()
 
 			th := testh.New(t)
-			src := th.Source(sakila.CSVActor)
+			src := th.Source(handle)
 
 			sink, err := th.QuerySQL(src, nil, "SELECT * FROM data")
 			require.NoError(t, err)

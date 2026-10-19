@@ -18,10 +18,12 @@ import (
 	"github.com/neilotoole/sq/cli/config"
 	"github.com/neilotoole/sq/cli/config/yamlstore"
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/drivers/sqlite3"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/files"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/location"
+	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/proj"
 	"github.com/neilotoole/sq/testh/sakila"
 )
@@ -87,6 +89,36 @@ func TestWindowsSmoke(t *testing.T) {
 		require.NoError(t, os.MkdirAll(newDir, 0o700))
 		require.NoError(t, ioz.RenameDir(oldDir, newDir))
 		require.DirExists(t, filepath.Join(newDir, "sub"))
+	})
+
+	t.Run("helper_cleanup", func(t *testing.T) {
+		// A test Helper copies the SQLite fixture into a temp dir and holds a
+		// grip open on the copy. testh.New registers the temp dir removal
+		// before Helper.Close, so removal runs after the grip is closed;
+		// registered the other way round, the still-open file blocks removal
+		// on Windows and fails the test (gh #1162). The full suite covers
+		// this too, but it runs on Windows only nightly and on release tags,
+		// whereas this smoke package runs on every PR (gh #1203).
+		var dir string
+
+		// If the inner subtest fails, stop here: its temp dirs are kept on
+		// failure by design, so the assertion below would add a second,
+		// misleading failure.
+		if !t.Run("helper", func(t *testing.T) {
+			th := testh.New(t)
+			src := th.Source(sakila.SL3)
+			th.Open(src)
+
+			fp, err := sqlite3.PathFromLocation(src)
+			require.NoError(t, err)
+			dir = filepath.Dir(fp)
+			require.DirExists(t, dir)
+		}) {
+			t.FailNow()
+		}
+
+		require.NotEmpty(t, dir)
+		require.NoDirExists(t, dir)
 	})
 
 	t.Run("end_to_end", func(t *testing.T) {

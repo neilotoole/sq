@@ -25,10 +25,6 @@ import (
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
-// anyPtr returns a *any pointing at v, to exercise the *any unwrap in
-// newRecordFromScanRow.
-func anyPtr(v any) *any { return &v }
-
 // TestProvider_DriverFor verifies the Provider returns a driver for the
 // rqlite type and rejects everything else.
 func TestProvider_DriverFor(t *testing.T) {
@@ -268,7 +264,7 @@ func TestNewRecordFromScanRow(t *testing.T) {
 		want any
 	}{
 		{name: "nil", knd: kind.Int, in: nil, want: nil},
-		{name: "any_wrapping_int", knd: kind.Int, in: anyPtr(int64(7)), want: int64(7)},
+		{name: "any_wrapping_int", knd: kind.Int, in: new(any(int64(7))), want: int64(7)},
 		{name: "ptr_int64", knd: kind.Int, in: &i64, want: int64(42)},
 		{name: "int64", knd: kind.Int, in: int64(42), want: int64(42)},
 		{name: "ptr_float64_to_int", knd: kind.Int, in: &f64, want: int64(3)},

@@ -79,9 +79,8 @@ func hasErrCode(err error, code string) bool {
 	if err == nil {
 		return false
 	}
-	var pgErr *pgconn.PgError
 
-	if errors.As(err, &pgErr) {
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
 		return pgErr.Code == code
 	}
 
