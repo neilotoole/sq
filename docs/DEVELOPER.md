@@ -90,6 +90,13 @@ any of these:
 
 The first three need Docker on your machine and bind-mount your clone into the container.
 
+> [!TIP]
+> After an interactive `docker exec` (such as `devcontainer exec bash`) or a failed command, the
+> Docker CLI prints "What's next" hints suggesting Docker Debug or Gordon, Docker's AI agent. The
+> `make devcontainer-*` targets turn them off. To turn them off for every Docker command, set
+> `DOCKER_CLI_HINTS=false` in your shell profile, or in Docker Desktop clear **Settings → General
+> → Show CLI Hints**.
+
 Things to know:
 
 - **Go version.** The image sets `GOTOOLCHAIN=auto`, so the `go` command downloads the version

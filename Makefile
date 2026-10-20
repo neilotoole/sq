@@ -166,6 +166,11 @@ endif
 # work inside the container when this checkout is a worktree (with relative
 # paths); in a regular clone it does nothing.
 
+# Silence Docker's "What's next" hints, which the host docker CLI prints after
+# an interactive exec or a failed command. The CLI passes its environment on to
+# the docker commands it runs.
+devcontainer-up devcontainer-rebuild devcontainer-shell devcontainer-down: export DOCKER_CLI_HINTS := false
+
 .PHONY: devcontainer-up
 devcontainer-up: ## Start the dev container, reusing an existing one.
 	devcontainer up --mount-git-worktree-common-dir
