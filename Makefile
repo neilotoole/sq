@@ -159,6 +159,31 @@ else
 	goreleaser build --snapshot --clean --single-target -f .goreleaser-windows.yml
 endif
 
+# ---- Dev container (run on the host) --------------------------------------
+#
+# Wrappers around the Dev Container CLI (https://github.com/devcontainers/cli);
+# see docs/DEVELOPER.md#dev-container. --mount-git-worktree-common-dir lets git
+# work inside the container when this checkout is a worktree (with relative
+# paths); in a regular clone it does nothing.
+
+.PHONY: devcontainer-up
+devcontainer-up: ## Start the dev container, reusing an existing one.
+	devcontainer up --workspace-folder . --mount-git-worktree-common-dir
+
+.PHONY: devcontainer-rebuild
+devcontainer-rebuild: ## Recreate the dev container from scratch (cache volumes survive).
+	devcontainer up --workspace-folder . --mount-git-worktree-common-dir --remove-existing-container
+
+.PHONY: devcontainer-shell
+devcontainer-shell: ## Open a shell in the running dev container.
+	devcontainer exec --workspace-folder . bash
+
+.PHONY: devcontainer-down
+devcontainer-down: ## Stop and remove the dev container (cache volumes survive).
+	@# The CLI has no "down" command; it finds its container by this label.
+	@ids=$$(docker ps -aq --filter label=devcontainer.local_folder=$(CURDIR)); \
+		if [ -n "$$ids" ]; then docker rm -f $$ids; else echo "No dev container for $(CURDIR)."; fi
+
 # ---- Site (sq.io) ---------------------------------------------------------
 
 .PHONY: site-local

@@ -60,12 +60,23 @@ container runs `make init` when it's created, so the inner loop above works as i
 any of these:
 
 - **Command line.** Install the [Dev Container CLI](https://github.com/devcontainers/cli)
-  (`brew install devcontainer`, or `npm install -g @devcontainers/cli`), then from the repo root:
+  (`brew install devcontainer`, or `npm install -g @devcontainers/cli`), then use the `make`
+  targets from the repo root:
+
+  | Target                      | Runs                                                                                               |
+  | --------------------------- | -------------------------------------------------------------------------------------------------- |
+  | `make devcontainer-up`      | `devcontainer up --workspace-folder . --mount-git-worktree-common-dir`                             |
+  | `make devcontainer-shell`   | `devcontainer exec --workspace-folder . bash`                                                      |
+  | `make devcontainer-rebuild` | `devcontainer up --workspace-folder . --mount-git-worktree-common-dir --remove-existing-container` |
+  | `make devcontainer-down`    | `docker rm -f $(docker ps -aq --filter label=devcontainer.local_folder=$PWD)`                      |
+
+  `devcontainer-up` reuses the existing container. `devcontainer-rebuild` replaces it, which you
+  need after changing `.devcontainer/` (the cache volumes survive both rebuild and down). The CLI
+  has no `down` command, so `devcontainer-down` removes the container by the label the CLI puts on
+  it. To run a single command in the container:
 
   ```bash
-  devcontainer up --workspace-folder .                     # build and start the container
-  devcontainer exec --workspace-folder . make test-short   # run a command in it
-  devcontainer exec --workspace-folder . bash              # or open a shell
+  devcontainer exec --workspace-folder . make test-short
   ```
 
 - **GoLand** (or IntelliJ IDEA with the Go plugin). Open `.devcontainer/devcontainer.json`,
@@ -105,8 +116,9 @@ Things to know:
   git worktree repair --relative-paths        # convert the existing ones
   ```
 
-  Then add `--mount-git-worktree-common-dir` to `devcontainer up`, or in VS Code turn on the
-  `dev.containers.experimentalMountGitWorktreeCommonDir` setting. GoLand has no equivalent, so
+  The `make` targets above pass `--mount-git-worktree-common-dir` to `devcontainer up`, which
+  mounts the main clone's `.git` into the container. In VS Code, turn on the
+  `dev.containers.experimentalMountGitWorktreeCommonDir` setting instead. GoLand has no equivalent, so
   use a regular clone there. Relative worktrees mark the repository with
   `extensions.relativeWorktrees`, which tools built on libgit2 older than 1.9.4 refuse to open.
 
