@@ -12,8 +12,14 @@ FROM mcr.microsoft.com/devcontainers/go:2-1.27-trixie
 # `make lint`. The Makefile builds SQLite with the sqlite_icu tag, which needs
 # the ICU headers. The base image already has gcc (cgo, for SQLite and DuckDB),
 # git, jq and make.
+#
+# The base image also ships Sequoia's sq (an OpenPGP tool), which would answer
+# to `sq` until `make install` puts this repo's sq ahead of it on the PATH.
+# Nothing needs it: dpkg-dev only suggests it, and apt verifies signatures
+# with the separate sqv package.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends default-jre-headless libicu-dev shellcheck \
+  && apt-get purge -y sq \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
