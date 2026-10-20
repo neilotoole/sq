@@ -127,7 +127,7 @@ flowchart LR
 ```
 
 `publish` cuts the GitHub release with GoReleaser and pushes to every channel: archives and
-checksums, the Homebrew tap, the Scoop bucket, the nfpm packages, Gemfury and the AUR (see
+checksums, the Scoop bucket, the nfpm packages, Gemfury and the AUR (see
 [Release](#release)).
 
 `docker-publish` is a sibling of `publish`, not downstream of it, so the image ships with the
@@ -324,10 +324,9 @@ tag such as `v0.50.0-rc.1` publishes as a prerelease and does not trigger the si
 | Channel                                                                                                                               | Config                       | Job              | Secret                                               |
 | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- | ---------------- | ---------------------------------------------------- |
 | GitHub release with archives and checksums                                                                                            | `.goreleaser.yml` `release:` | `publish`        | `GH_PAT`                                             |
-| Homebrew tap (`neilotoole/homebrew-sq`)                                                                                               | `.goreleaser.yml` `brews:`   | `publish`        | `GH_PAT`                                             |
 | Scoop bucket (`neilotoole/sq`)                                                                                                        | `.goreleaser.yml` `scoops:`  | `publish`        | `GH_PAT`                                             |
 | apk, deb, rpm, termux.deb, archlinux packages                                                                                         | `.goreleaser.yml` `nfpms:`   | `publish`        |                                                      |
-| Gemfury (deb and rpm)                                                                                                                 | `.goreleaser.yml` `furies:`  | `publish`        | `FURY_TOKEN`                                         |
+| Gemfury (deb and rpm)                                                                                                                 | `.goreleaser.yml` `gemfury:` | `publish`        | `FURY_TOKEN`                                         |
 | AUR (`sq-bin`)                                                                                                                        | `.goreleaser.yml` `aurs:`    | `publish`        | `AUR_PRIVATE_KEY`                                    |
 | `ghcr.io/neilotoole/sq` and `docker.io/neilotoole/sq` (amd64, arm64, multi-arch manifest, cosign-signed, SLSA provenance + SPDX SBOM) | `.goreleaser-docker.yml`     | `docker-publish` | `GITHUB_TOKEN`, `DOCKER_USERNAME`, `DOCKER_PASSWORD` |
 
@@ -345,10 +344,11 @@ release fails if an attestation was uploaded but is not actually verifiable.
 ### `test-install`, the post-publish canary
 
 [`test-install.yml`](../.github/workflows/test-install.yml) installs the just-published release
-on nine platforms (Docker image, macOS Homebrew, `install.sh` on Linux, Alpine, Arch via pacman
-and via yay, Homebrew on Ubuntu, Void Linux, Windows Scoop) and checks `sq version` reports the
-tag. The `install.sh` job is itself a three-container matrix (Ubuntu, Fedora, Rocky 9), so the
-nine jobs expand to eleven legs. Void Linux is the one exception to the version check: its
+on seven platforms (Docker image, `install.sh` on Linux, Alpine, Arch via pacman and via yay,
+Void Linux, Windows Scoop) and checks `sq version` reports the tag. The `install.sh` job is itself
+a three-container matrix (Ubuntu, Fedora, Rocky 9), so the seven jobs expand to nine legs.
+Homebrew is not tested: `sq` is a homebrew-core formula, which Homebrew's maintainers bump some
+time after the release. Void Linux is the one exception to the version check: its
 package is updated by hand, so that leg only asserts that `sq` runs. The Scoop job retries for
 up to 20 minutes, because the bucket manifest is bumped by `publish` in the same pipeline.
 
@@ -465,7 +465,7 @@ Actions and the Netlify CLI only; Netlify's own git integration is disabled. Man
 
 | Secret                                  | Used by                                                                   | For                                                    |
 | --------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `GH_PAT`                                | `binaries-*`, `publish`                                                   | GoReleaser: release, tap and bucket pushes             |
+| `GH_PAT`                                | `binaries-*`, `publish`                                                   | GoReleaser: release and bucket pushes                  |
 | `GORELEASER_KEY`                        | `binaries-*`, `publish`, `docker-publish`                                 | GoReleaser Pro                                         |
 | `FURY_TOKEN`                            | `publish`                                                                 | Gemfury upload                                         |
 | `AUR_PRIVATE_KEY`                       | `publish`                                                                 | AUR package push                                       |
@@ -477,8 +477,8 @@ Actions and the Netlify CLI only; Netlify's own git integration is disabled. Man
 
 ### Adding a release channel
 
-Add the block to `.goreleaser.yml` (see the existing `brews:`, `scoops:`, `nfpms:`, `furies:`,
-`aurs:` entries), add any secret to `publish`'s `env:` in `main.yml`, run
+Add the block to `.goreleaser.yml` (see the existing `scoops:`, `nfpms:`, `gemfury:`, `aurs:`
+entries), add any secret to `publish`'s `env:` in `main.yml`, run
 `make goreleaser-verify-config`, and add a `test-install.yml` job that installs from the new
 channel and checks `sq version`.
 
