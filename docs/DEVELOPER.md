@@ -43,22 +43,41 @@ make install     # build + install sq into the Go bin dir
 Mark long-running tests with [`tu.SkipShort`](../testh/tu/skip.go) so they stay out of the dev loop
 (`-short`) but still run in the nightly and release suites (see [`CI.md`](./CI.md)).
 
-### Site (sq.io) local dev
+### Website (sq.io) local dev
 
-The website under [`site/`](../site) has its own Bun/Hugo tooling and
-`Makefile`. `make site-local` (from the repo root) delegates to it; for the
+The website under [`site/`](../site) builds [sq.io](https://sq.io). It has its own Bun/Hugo tooling
+and `Makefile`. `make site-local` (from the repo root) delegates to it; for the
 full set of site commands (dev server, link checking, Netlify validation) see
 [`site/README.md`](../site/README.md) and [`site/CLAUDE.md`](../site/CLAUDE.md).
 
 ## Dev container
 
-The repo ships a [dev container](https://containers.dev) in
-[`.devcontainer/`](../.devcontainer) for contributors who aren't set up for the macOS toolchain
-described in [`CONTRIBUTING.md`](../CONTRIBUTING.md#tooling). It is a Debian image with Go, gcc
-(for cgo), Java (for ANTLR), bun, shellcheck and jq. Open the repo in VS Code with the Dev
-Containers extension and choose **Reopen in Container**, or create a GitHub Codespace from the
-repo page. The container runs `make init` when it's created, so the inner loop above works as
-is.
+If you'd rather not install the [tools](../CONTRIBUTING.md#tooling) on your machine, or just
+prefer working in a container, [`.devcontainer/`](../.devcontainer) defines a
+[dev container](https://containers.dev) with all of them. It is a Debian image with Go, gcc (for
+cgo), Java (for ANTLR), bun, and various libraries and utilities such as shellcheck and jq. The
+container runs `make init` when it's created, so the inner loop above works as is. Start it from
+any of these:
+
+- **Command line.** Install the [Dev Container CLI](https://github.com/devcontainers/cli)
+  (`brew install devcontainer`, or `npm install -g @devcontainers/cli`), then from the repo root:
+
+  ```bash
+  devcontainer up --workspace-folder .                     # build and start the container
+  devcontainer exec --workspace-folder . make test-short   # run a command in it
+  devcontainer exec --workspace-folder . bash              # or open a shell
+  ```
+
+- **GoLand** (or IntelliJ IDEA with the Go plugin). Open `.devcontainer/devcontainer.json`,
+  click the container icon in the gutter, and choose **Create Dev Container and Mount Sources**.
+  The IDE backend runs inside the container.
+- **VS Code.** With the
+  [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+  extension installed, run **Dev Containers: Reopen in Container** from the Command Palette.
+- **GitHub Codespaces.** On the repo page choose **Code → Codespaces → Create codespace**, or
+  run `gh codespace create -R neilotoole/sq`. Nothing to install locally, and no Docker needed.
+
+The first three need Docker on your machine and bind-mount your clone into the container.
 
 Things to know:
 
@@ -77,6 +96,9 @@ Things to know:
   [`SAKILA.md`](./SAKILA.md#running-external-engines-locally)).
 - **Linux only.** The container can't reproduce macOS- or Windows-specific behavior. CI covers
   those (see [`CI.md`](./CI.md)).
+- **Not from a git worktree.** A worktree's `.git` is a file pointing into the main clone, which
+  the container doesn't mount, so `git` (and with it `make init`) fails inside the container.
+  Open the dev container from a regular clone.
 
 The [**Dev Container**](./CI.md#workflow-inventory) workflow builds the image and runs
 `make gen`, `make lint` and `make test-short` inside it, on changes to `.devcontainer/` or the
