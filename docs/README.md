@@ -21,7 +21,7 @@
   grammar-editing checklist). Companion to
   [`grammar/SLQ.g4`](../grammar/SLQ.g4).
 - [`DEVELOPER.md`](./DEVELOPER.md): the local development loop (the `Makefile`
-  targets, the inner loop, git hooks, site local dev).
+  targets, the inner loop, git hooks, site local dev, the dev container).
 - [`CI.md`](./CI.md): how CI works, for contributors and maintainers (what runs
   on a PR, nightly, and on a release tag; the DB integration matrix; the
   release path; what gates a merge; changing workflows safely).

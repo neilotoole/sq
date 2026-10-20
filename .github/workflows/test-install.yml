@@ -34,33 +34,10 @@ jobs:
           fi
           echo "OK: Docker image $image reports $got"
 
-  macos-brew:
-    # Pin the macOS version: macos-latest migrates to macOS 26 from 2026-06-15.
-    runs-on: macos-15
-    if: startsWith(github.ref, 'refs/tags/v')
-    env:
-      # Silence brew's generic env hints, and skip the auto-update step that
-      # scans the runner's preinstalled third-party taps (aws/tap, azure/bicep)
-      # and emits "not trusted" warnings unrelated to sq.
-      HOMEBREW_NO_ENV_HINTS: "1"
-      HOMEBREW_NO_AUTO_UPDATE: "1"
-    steps:
-      - name: Set up Homebrew
-        uses: Homebrew/actions/setup-homebrew@eb02c69dbabdb66ff183c614f4ce7ab3c077592c # master
-
-      - name: Test brew
-        shell: bash
-        run: |
-          set -e pipefail
-          brew install neilotoole/sq/sq
-          if [ "$(sq version | awk '{print $2}')" != "${{github.ref_name}}" ]; then
-            echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
-            exit 1
-          fi
-
-  # Disabling macos-install-sh for now, because install.sh now uses the brew core
-  # sq formula, instead of the neilotoole/sq/sq formula. The brew core formula is
-  # updated by the brew maintainers, so it won't be available at the time this job runs.
+  # Disabling macos-install-sh for now, because install.sh uses the brew core sq
+  # formula. The brew core formula is updated by the brew maintainers after the
+  # release, so it won't be available at the time this job runs. Brew is not
+  # tested here for the same reason.
 
   #  macos-install-sh:
   #    runs-on: macos-15
@@ -197,32 +174,6 @@ jobs:
 
           # Should be installed via yay
           sudo -u moi /bin/sh -c "$(curl -fsSL https://sq.io/install.sh)"
-          if [ "$(sq version | awk '{print $2}')" != "${{github.ref_name}}" ]; then
-            echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
-            exit 1
-          fi
-
-  ubuntu-brew:
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    env:
-      # Quiet brew's generic env hints, and skip the pre-install auto-update
-      # step. The formula was just tapped, so there's nothing to refresh, and
-      # this also avoids the untrusted-tap noise brew emits while scanning taps.
-      # Note: the "Sandbox unavailable" warning on Linux is inherent to building
-      # from source in a container without a bottle, and isn't silenced here.
-      HOMEBREW_NO_ENV_HINTS: "1"
-      HOMEBREW_NO_AUTO_UPDATE: "1"
-    steps:
-      - name: Set up Homebrew
-        id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@eb02c69dbabdb66ff183c614f4ce7ab3c077592c # master
-
-      - name: Test install via brew
-        shell: bash
-        run: |
-          set -e pipefail
-          brew install neilotoole/sq/sq
           if [ "$(sq version | awk '{print $2}')" != "${{github.ref_name}}" ]; then
             echo "Expected sq ${{github.ref_name}} but got: $(sq version)"
             exit 1

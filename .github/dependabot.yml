@@ -43,6 +43,14 @@ updates:
     schedule:
       interval: "weekly"
 
+  # Contributor dev container image (.devcontainer/Dockerfile): the Go base
+  # image and the oven/bun stage. Keep the bun tag in step with the
+  # bun-version pins in the workflows.
+  - package-ecosystem: "docker"
+    directory: "/.devcontainer"
+    schedule:
+      interval: "weekly"
+
   # GitHub Actions used in .github/workflows/ (directory "/" is the repo root;
   # Dependabot discovers all workflow files beneath it).
   - package-ecosystem: "github-actions"
