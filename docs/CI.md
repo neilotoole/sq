@@ -24,6 +24,7 @@ All workflows live in [`.github/workflows/`](../.github/workflows).
 | -------------------------- | --------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------- |
 | Main Pipeline              | `main.yml`                  | PR, push `master`, tag `v*`, nightly 09:17 UTC, dispatch    | Build, test, lint; on tags build, publish and canary the release      | `publish`, `docker-publish`   |
 | Format                     | `format.yml`                | push `master`/`develop` or PR touching formatted file types | `dprint check` and Biome                                              | nothing (advisory)            |
+| Dev Container              | `devcontainer.yml`          | push/PR on `.devcontainer/**`, `Makefile`; weekly; dispatch | Build the dev container; `make gen`, `lint`, `test-short` in it       | nothing                       |
 | Dependency Review          | `dependency-review.yml`     | PR, ignoring `**.md`, `sq.json` and `.github/**`            | Flags risky dependency changes                                        | nothing (advisory)            |
 | DB integration             | `db-integration.yml`        | `workflow_call`, dispatch                                   | One job per engine:version, `go test ./...` against a live container  | callers decide                |
 | DB integration (scheduled) | `db-scheduled.yml`          | 04:00 UTC daily except Monday, Mon 05:00 UTC, dispatch      | Every engine at bookends nightly, every version weekly, with coverage | nothing                       |
@@ -53,6 +54,7 @@ flowchart TD
   PR --> dep[Dependency Review]
   PR -->|formatted file types| fmt[Format]
   PR -->|"drivers/** or DB machinery"| dbpr["DB integration (PR)<br/>select → db-integration"]
+  PR -->|".devcontainer/** or Makefile"| dc[Dev Container]
   PR -->|"site/**"| site[Site CI]
   PR -->|"site/**"| cqs[CodeQL site]
 ```
@@ -99,6 +101,7 @@ All times UTC.
 | ------------------------- | -------------------------- | -------------------------------------------------- |
 | 04:00 daily except Monday | DB integration (scheduled) | every engine at bookends, with coverage to Codecov |
 | 05:00 Monday              | DB integration (scheduled) | every engine at every version, with coverage       |
+| 06:23 Tuesday             | Dev Container              | build image; run gen, lint, `-short` tests         |
 | 07:00 daily               | Site data (nightly)        | refresh `site/data/github.toml`, commit if changed |
 | 07:15 daily               | Site Links (nightly)       | lychee external link crawl                         |
 | 09:17 daily               | Main Pipeline              | full suite (no `-short`) on Linux, macOS, Windows  |

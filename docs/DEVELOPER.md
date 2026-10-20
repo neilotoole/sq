@@ -1,7 +1,7 @@
 # Developing sq
 
-The local development loop: the `Makefile` targets, the inner loop, the git hooks, and site
-local dev. What happens once a pull request is open is in [`CI.md`](./CI.md).
+The local development loop: the `Makefile` targets, the inner loop, the git hooks, site local
+dev, and the dev container. What happens once a pull request is open is in [`CI.md`](./CI.md).
 [`CONTRIBUTING.md`](../CONTRIBUTING.md) covers the surrounding contributor process (opening
 issues and PRs).
 
@@ -49,3 +49,35 @@ The website under [`site/`](../site) has its own Bun/Hugo tooling and
 `Makefile`. `make site-local` (from the repo root) delegates to it; for the
 full set of site commands (dev server, link checking, Netlify validation) see
 [`site/README.md`](../site/README.md) and [`site/CLAUDE.md`](../site/CLAUDE.md).
+
+## Dev container
+
+The repo ships a [dev container](https://containers.dev) in
+[`.devcontainer/`](../.devcontainer) for contributors who aren't set up for the macOS toolchain
+described in [`CONTRIBUTING.md`](../CONTRIBUTING.md#tooling). It is a Debian image with Go, gcc
+(for cgo), Java (for ANTLR), bun, shellcheck and jq. Open the repo in VS Code with the Dev
+Containers extension and choose **Reopen in Container**, or create a GitHub Codespace from the
+repo page. The container runs `make init` when it's created, so the inner loop above works as
+is.
+
+Things to know:
+
+- **Go version.** The image sets `GOTOOLCHAIN=auto`, so the `go` command downloads the version
+  that [`go.mod`](../go.mod) names if the image's Go is older.
+- **Caches.** The Go build and module caches, golangci-lint's cache and DuckDB's extension
+  downloads live on named Docker volumes, so rebuilding the container doesn't start from cold.
+- **`node_modules`.** Both `node_modules` directories (repo root and `site/`) are volumes too.
+  They hold platform-specific binaries (dprint, biome, hugo), and the volumes keep the
+  container's Linux binaries from replacing your host's when the repo is bind-mounted from macOS
+  or Windows.
+- **Sakila databases.** The container has no Docker access, so it can't start the `sakiladb/*`
+  images. `make test` still runs, but the external-engine tests skip themselves because their
+  envars are unset. To run those tests, use
+  [`sakila-start-local.sh`](../sakila-start-local.sh) on a host with Docker (see
+  [`SAKILA.md`](./SAKILA.md#running-external-engines-locally)).
+- **Linux only.** The container can't reproduce macOS- or Windows-specific behavior. CI covers
+  those (see [`CI.md`](./CI.md)).
+
+The [**Dev Container**](./CI.md#workflow-inventory) workflow builds the image and runs
+`make gen`, `make lint` and `make test-short` inside it, on changes to `.devcontainer/` or the
+`Makefile` and weekly.
