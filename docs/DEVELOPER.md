@@ -63,12 +63,12 @@ any of these:
   (`brew install devcontainer`, or `npm install -g @devcontainers/cli`), then use the `make`
   targets from the repo root:
 
-  | Target                      | Runs                                                                                               |
-  | --------------------------- | -------------------------------------------------------------------------------------------------- |
-  | `make devcontainer-up`      | `devcontainer up --workspace-folder . --mount-git-worktree-common-dir`                             |
-  | `make devcontainer-shell`   | `devcontainer exec --workspace-folder . bash`                                                      |
-  | `make devcontainer-rebuild` | `devcontainer up --workspace-folder . --mount-git-worktree-common-dir --remove-existing-container` |
-  | `make devcontainer-down`    | `docker rm -f $(docker ps -aq --filter label=devcontainer.local_folder=$PWD)`                      |
+  | Target                      | Runs                                                                          |
+  | --------------------------- | ----------------------------------------------------------------------------- |
+  | `make devcontainer-up`      | `devcontainer up --mount-git-worktree-common-dir`                             |
+  | `make devcontainer-shell`   | `devcontainer exec bash`                                                      |
+  | `make devcontainer-rebuild` | `devcontainer up --mount-git-worktree-common-dir --remove-existing-container` |
+  | `make devcontainer-down`    | `docker rm -f $(docker ps -aq --filter label=devcontainer.local_folder=$PWD)` |
 
   `devcontainer-up` reuses the existing container. `devcontainer-rebuild` replaces it, which you
   need after changing `.devcontainer/` (the cache volumes survive both rebuild and down). The CLI
@@ -76,7 +76,7 @@ any of these:
   it. To run a single command in the container:
 
   ```bash
-  devcontainer exec --workspace-folder . make test-short
+  devcontainer exec make test-short
   ```
 
 - **GoLand** (or IntelliJ IDEA with the Go plugin). Open `.devcontainer/devcontainer.json`,

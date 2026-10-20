@@ -168,15 +168,15 @@ endif
 
 .PHONY: devcontainer-up
 devcontainer-up: ## Start the dev container, reusing an existing one.
-	devcontainer up --workspace-folder . --mount-git-worktree-common-dir
+	devcontainer up --mount-git-worktree-common-dir
 
 .PHONY: devcontainer-rebuild
 devcontainer-rebuild: ## Recreate the dev container from scratch (cache volumes survive).
-	devcontainer up --workspace-folder . --mount-git-worktree-common-dir --remove-existing-container
+	devcontainer up --mount-git-worktree-common-dir --remove-existing-container
 
 .PHONY: devcontainer-shell
 devcontainer-shell: ## Open a shell in the running dev container.
-	devcontainer exec --workspace-folder . bash
+	devcontainer exec bash
 
 .PHONY: devcontainer-down
 devcontainer-down: ## Stop and remove the dev container (cache volumes survive).
