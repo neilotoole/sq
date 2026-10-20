@@ -19,6 +19,13 @@ RUN apt-get update \
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 RUN ln -s bun /usr/local/bin/bunx
 
+# Docker Desktop reports a bind mount's root directory as owned by root for
+# about the first second after the container starts, so git's ownership check
+# fails ("detected dubious ownership") if postCreateCommand reaches git in that
+# window. The check guards against other users' repositories on a shared
+# machine, which doesn't apply to a single-user dev container.
+RUN git config --system --add safe.directory '*'
+
 # The base image sets GOTOOLCHAIN=local, which breaks the build as soon as
 # go.mod asks for a newer Go than the image ships. With auto, the go command
 # downloads the toolchain that go.mod names.

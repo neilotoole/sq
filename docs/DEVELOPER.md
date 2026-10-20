@@ -96,9 +96,19 @@ Things to know:
   [`SAKILA.md`](./SAKILA.md#running-external-engines-locally)).
 - **Linux only.** The container can't reproduce macOS- or Windows-specific behavior. CI covers
   those (see [`CI.md`](./CI.md)).
-- **Not from a git worktree.** A worktree's `.git` is a file pointing into the main clone, which
-  the container doesn't mount, so `git` (and with it `make init`) fails inside the container.
-  Open the dev container from a regular clone.
+- **Git worktrees.** A worktree's `.git` is a file pointing into the main clone, so the container
+  needs the main clone's `.git` mounted too, and the link must be a relative path (git 2.48 or
+  later) to resolve inside the container. Convert your worktrees once, from the main clone:
+
+  ```bash
+  git config worktree.useRelativePaths true   # new worktrees get relative paths
+  git worktree repair --relative-paths        # convert the existing ones
+  ```
+
+  Then add `--mount-git-worktree-common-dir` to `devcontainer up`, or in VS Code turn on the
+  `dev.containers.experimentalMountGitWorktreeCommonDir` setting. GoLand has no equivalent, so
+  use a regular clone there. Relative worktrees mark the repository with
+  `extensions.relativeWorktrees`, which tools built on libgit2 older than 1.9.4 refuse to open.
 
 The [**Dev Container**](./CI.md#workflow-inventory) workflow builds the image and runs
 `make gen`, `make lint` and `make test-short` inside it, on changes to `.devcontainer/` or the
