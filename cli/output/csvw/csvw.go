@@ -17,6 +17,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 )
 
 const (
@@ -132,6 +133,8 @@ func (w *RecordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 					size = len(val)
 				}
 				fields[i] = w.pr.Bytes.Sprintf("[%d bytes]", size)
+			case vector.Vector:
+				fields[i] = w.pr.Bytes.Sprint(val.String())
 			case time.Time:
 				switch w.recMeta[i].Kind() { //nolint:exhaustive
 				default:
