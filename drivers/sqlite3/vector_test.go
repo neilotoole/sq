@@ -464,10 +464,11 @@ func TestVector_Vec0UnparsedDDL(t *testing.T) {
 	th := testh.New(t)
 	src := th.Source(sakila.SL3)
 	tbl := stringz.UniqTableName("vec_unparsed")
-	// The apostrophe in the comment makes sq's DDL parser fail, while SQLite
-	// strips the comment before sqlite-vec sees the arguments.
-	th.ExecSQL(src, `CREATE VIRTUAL TABLE `+tbl+` USING vec0(doc_id INTEGER PRIMARY KEY, -- the doc's id
-embedding float[2])`)
+	// sqlite-vec matches the element type by prefix, so it accepts
+	// "float32[2]" as a float vector, but sq's DDL parser rejects the
+	// unknown element type.
+	th.ExecSQL(src, `CREATE VIRTUAL TABLE `+tbl+` USING vec0(doc_id INTEGER PRIMARY KEY,
+embedding float32[2])`)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
 	th.ExecSQL(src, `INSERT INTO `+tbl+`(doc_id, embedding) VALUES (1, '[1,2]')`)
 
@@ -480,4 +481,30 @@ embedding float[2])`)
 	require.NoError(t, err)
 	require.Len(t, sink.Recs, 1)
 	require.IsType(t, []byte{}, sink.Recs[0][colIndex(t, sink, "embedding")])
+}
+
+// TestVector_Vec0CommentedDDL verifies that SQL comments in a vec0
+// declaration, including an apostrophe or a comma inside a comment, don't
+// stop the vector columns from decoding.
+func TestVector_Vec0CommentedDDL(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tbl := stringz.UniqTableName("vec_commented")
+	th.ExecSQL(src, `CREATE VIRTUAL TABLE `+tbl+` USING vec0(
+doc_id INTEGER PRIMARY KEY, -- the doc's id, unique
+embedding float[2] /* dims, metric */
+)`)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+	th.ExecSQL(src, `INSERT INTO `+tbl+`(doc_id, embedding) VALUES (1, '[1,2]')`)
+
+	tblMeta, err := th.TableMetadata(src, tbl)
+	require.NoError(t, err)
+	require.Len(t, tblMeta.Columns, 2)
+	require.True(t, colByName(t, tblMeta, "doc_id").PrimaryKey)
+	require.Equal(t, &vector.Type{Dim: 2, Elem: vector.F32}, colByName(t, tblMeta, "embedding").Vector)
+
+	sink, err := th.QuerySLQ(src.Handle+`.`+tbl, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 1)
+	require.Equal(t, "[1,2]", vecJSON(t, sink.Recs[0][colIndex(t, sink, "embedding")]))
 }

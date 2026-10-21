@@ -77,7 +77,7 @@ var (
 // TABLE statement (e.g. "vec0", "fts5"), or "" if createSQL is not a
 // virtual table declaration.
 func VirtualTableModule(createSQL string) string {
-	m := rxVirtualModule.FindStringSubmatch(createSQL)
+	m := rxVirtualModule.FindStringSubmatch(stripComments(createSQL))
 	if m == nil {
 		return ""
 	}
@@ -88,6 +88,7 @@ func VirtualTableModule(createSQL string) string {
 // columns in declaration order. Table options (e.g. "chunk_size=8") are not
 // columns and are skipped.
 func ParseVec0(createSQL string) ([]Vec0Column, error) {
+	createSQL = stripComments(createSQL)
 	if VirtualTableModule(createSQL) != "vec0" {
 		return nil, errz.New("not a vec0 virtual table declaration")
 	}
@@ -300,6 +301,49 @@ func skipQuoted(s string, i int) int {
 		return j + 1
 	}
 	return -1
+}
+
+// stripComments replaces each SQL comment in s, a "--" comment running to
+// the end of its line or a "/* */" comment, with a single space. Comment
+// markers inside quotes are left alone. An unterminated comment runs to the
+// end of s, as in SQLite.
+func stripComments(s string) string {
+	if !strings.Contains(s, "--") && !strings.Contains(s, "/*") {
+		return s
+	}
+
+	var sb strings.Builder
+	sb.Grow(len(s))
+	for i := 0; i < len(s); {
+		switch {
+		case s[i] == '"' || s[i] == '\'' || s[i] == '`' || s[i] == '[':
+			j := skipQuoted(s, i)
+			if j < 0 {
+				j = len(s)
+			}
+			sb.WriteString(s[i:j])
+			i = j
+		case strings.HasPrefix(s[i:], "--"):
+			j := strings.IndexByte(s[i:], '\n')
+			if j < 0 {
+				j = len(s) - i
+			}
+			sb.WriteByte(' ')
+			i += j
+		case strings.HasPrefix(s[i:], "/*"):
+			j := strings.Index(s[i+2:], "*/")
+			if j < 0 {
+				i = len(s)
+			} else {
+				i += 2 + j + 2
+			}
+			sb.WriteByte(' ')
+		default:
+			sb.WriteByte(s[i])
+			i++
+		}
+	}
+	return sb.String()
 }
 
 // matchParen returns the index of the ")" matching the "(" at s[open].

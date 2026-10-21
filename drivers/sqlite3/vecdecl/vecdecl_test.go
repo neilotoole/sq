@@ -97,6 +97,40 @@ func TestParseVec0(t *testing.T) {
 		require.Equal(t, "e", cols[0].Name)
 	})
 
+	t.Run("line_comment_apostrophe", func(t *testing.T) {
+		cols, err := vecdecl.ParseVec0("CREATE VIRTUAL TABLE v USING vec0(\n" +
+			"  doc_id INTEGER PRIMARY KEY, -- the doc's id\n" +
+			"  embedding float[2]\n)")
+		require.NoError(t, err)
+		require.Len(t, cols, 2)
+		require.Equal(t, "doc_id", cols[0].Name)
+		require.Equal(t, vecdecl.RolePrimaryKey, cols[0].Role)
+		require.Equal(t, "embedding", cols[1].Name)
+		require.Equal(t, vector.Type{Dim: 2, Elem: vector.F32}, *cols[1].Vector)
+	})
+
+	t.Run("comments_with_commas", func(t *testing.T) {
+		cols, err := vecdecl.ParseVec0("CREATE VIRTUAL TABLE /* the, table */ v USING vec0(\n" +
+			"  e float[2] /* dims, metric */ distance_metric=cosine, -- first, vector\n" +
+			"  category TEXT -- trailing, comment\n" +
+			")")
+		require.NoError(t, err)
+		require.Len(t, cols, 2)
+		require.Equal(t, "e", cols[0].Name)
+		require.Equal(t, vector.Type{Dim: 2, Elem: vector.F32, Metric: "cosine"}, *cols[0].Vector)
+		require.Equal(t, "category", cols[1].Name)
+		require.Equal(t, vecdecl.RoleMetadata, cols[1].Role)
+		require.Equal(t, "TEXT", cols[1].DeclType)
+	})
+
+	t.Run("comment_markers_in_quotes", func(t *testing.T) {
+		cols, err := vecdecl.ParseVec0(`CREATE VIRTUAL TABLE v USING vec0("a--b" float[2], "c/*d" text)`)
+		require.NoError(t, err)
+		require.Len(t, cols, 2)
+		require.Equal(t, "a--b", cols[0].Name)
+		require.Equal(t, "c/*d", cols[1].Name)
+	})
+
 	t.Run("errors", func(t *testing.T) {
 		for _, in := range []string{
 			"CREATE VIRTUAL TABLE t USING fts5(a, b)",
@@ -119,6 +153,9 @@ func TestVirtualTableModule(t *testing.T) {
 	require.Equal(t, "vec0", vecdecl.VirtualTableModule(`create virtual table "x y" using VEC0(e float[2])`))
 	require.Equal(t, "vectorlite", vecdecl.VirtualTableModule(
 		"CREATE VIRTUAL TABLE t USING vectorlite(e float32[2], hnsw(max_elements=1))",
+	))
+	require.Equal(t, "vec0", vecdecl.VirtualTableModule(
+		"CREATE VIRTUAL TABLE t -- a comment\nUSING /* another */ vec0(e float[2])",
 	))
 	require.Equal(t, "", vecdecl.VirtualTableModule("CREATE TABLE t(a int)"))
 	require.Equal(t, "", vecdecl.VirtualTableModule(""))
