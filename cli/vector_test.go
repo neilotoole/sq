@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -153,9 +154,81 @@ func checkLibSQLJSON(t *testing.T, got []map[string]any) {
 	require.Equal(t, []any{1.0, 2.0, 3.0}, got[0]["f"])
 }
 
+// malformedVectorSrc returns a SQLite source, added to th, whose table t has a
+// libSQL F32_BLOB(4) column e. Row 1's e is a valid vector, and row 2's e is
+// three bytes, which don't decode.
+func malformedVectorSrc(t *testing.T, th *testh.Helper) *source.Source {
+	t.Helper()
+	src := th.Add(&source.Source{
+		Handle:   "@bad",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + filepath.Join(t.TempDir(), "bad.db"),
+	})
+	th.ExecSQL(src, "CREATE TABLE t(id INTEGER PRIMARY KEY, e F32_BLOB(4), name TEXT)")
+	th.ExecSQL(src, "INSERT INTO t VALUES (1, x'0000803f000000400000404000008040', 'a'), "+
+		"(2, x'010203', 'b')")
+	return src
+}
+
 // TestCmdSLQ_VectorCopy verifies that vector columns copy as their original
 // bytes, for a cross-source join and for --insert.
 func TestCmdSLQ_VectorCopy(t *testing.T) {
+	// A copy passes vector values through without decoding them, so a
+	// malformed value copies unchanged instead of failing the query.
+	t.Run("join_malformed", func(t *testing.T) {
+		th := testh.New(t)
+		badSrc := malformedVectorSrc(t, th)
+		csvSrc := th.Source(sakila.CSVActor)
+		tr := testrun.New(th.Context, t, nil).Add(*badSrc, *csvSrc)
+		err := tr.Exec("-j",
+			"@bad.t:t | join("+csvSrc.Handle+".data:a, .t.id == .a.actor_id) | .t.id, .t.e, .a.first_name")
+		require.NoError(t, err)
+		got := tr.BindSliceMap()
+		require.Len(t, got, 2)
+		require.Equal(t, "AACAPwAAAEAAAEBAAACAQA==", got[0]["e"])
+		require.Equal(t, "AQID", got[1]["e"])
+		require.Equal(t, "NICK", got[1]["first_name"])
+	})
+
+	t.Run("output_malformed", func(t *testing.T) {
+		th := testh.New(t)
+		badSrc := malformedVectorSrc(t, th)
+		tr := testrun.New(th.Context, t, nil).Add(*badSrc)
+		err := tr.Exec("-j", "@bad.t | .e")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), `column "e", row 2: invalid f32 vector`)
+	})
+
+	t.Run("insert_malformed", func(t *testing.T) {
+		for _, cmd := range []string{"slq", "sql"} {
+			t.Run(cmd, func(t *testing.T) {
+				th := testh.New(t)
+				badSrc := malformedVectorSrc(t, th)
+				destSrc := th.Source(sakila.SL3)
+				destTbl := stringz.UniqTableName("vec_copy")
+				t.Cleanup(func() { th.DropTable(destSrc, tablefq.From(destTbl)) })
+
+				query := "@bad.t | .id, .e"
+				args := []string{"slq", "--insert=" + destSrc.Handle + "." + destTbl}
+				if cmd == "sql" {
+					query = "SELECT id, e FROM t"
+					args = []string{"sql", "--src=" + badSrc.Handle, "--insert=" + destSrc.Handle + "." + destTbl}
+				}
+
+				tr := testrun.New(th.Context, t, nil).Add(*badSrc, *destSrc)
+				require.NoError(t, tr.Exec(append(args, query)...))
+
+				got, err := th.QuerySQL(destSrc, nil,
+					"SELECT hex(e), typeof(e) FROM "+destTbl+" ORDER BY id")
+				require.NoError(t, err)
+				require.Len(t, got.Recs, 2)
+				require.Equal(t, "0000803F000000400000404000008040", got.Recs[0][0])
+				require.Equal(t, "010203", got.Recs[1][0])
+				require.Equal(t, "blob", got.Recs[1][1])
+			})
+		}
+	})
+
 	t.Run("join_csv", func(t *testing.T) {
 		th := testh.New(t)
 		csvSrc := th.Source(sakila.CSVActor)

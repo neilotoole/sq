@@ -546,7 +546,9 @@ func copyTableCompanionDDL(ctx context.Context, db sqlz.DB,
 // RecordMeta implements driver.SQLDriver. Vector columns decode to
 // vector.Vector: a column with a hints.Vectors entry is a sqlite-vec vec0
 // column, and a column with a libSQL declared vector type (e.g. F32_BLOB(4))
-// is a libSQL column. A value that doesn't decode fails the query.
+// is a libSQL column. A value that doesn't decode fails the query. If
+// hints.RawVectors is true, vector values aren't decoded: each is its stored
+// bytes.
 func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints driver.ResultHints) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
@@ -570,6 +572,10 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hi
 		// decode from the raw scanned values.
 		rec := newRecordFromScanRow(recMeta, vals)
 		for _, dec := range decoders {
+			if hints.RawVectors {
+				rec[dec.idx] = dec.raw(vals[dec.idx])
+				continue
+			}
 			v, decErr := dec.decode(vals[dec.idx], row)
 			if decErr != nil {
 				return nil, decErr

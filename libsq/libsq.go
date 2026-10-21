@@ -66,9 +66,15 @@ type QueryContext struct {
 	// mode used for every source the pipeline opens, except a source whose
 	// handle matches WriteHandle (see openModeFor).
 	//
-	// Field order note: WriteHandle (string) precedes the slice fields and
-	// AccessMode (one byte) is last, to satisfy govet fieldalignment.
+	// Field order note: WriteHandle (string) precedes the slice fields, and
+	// the one-byte fields AccessMode and RawVectors are last, to satisfy
+	// govet fieldalignment.
 	AccessMode driver.AccessMode
+
+	// RawVectors is true when the query's results are inserted into a table
+	// (the --insert destination). Vector values are then copied as their
+	// stored bytes, without decoding them. See driver.ResultHints.
+	RawVectors bool
 }
 
 // openModeFor returns the access mode the pipeline should use when opening

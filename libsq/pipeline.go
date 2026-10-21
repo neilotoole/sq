@@ -134,13 +134,11 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 	// SQLite/rqlite pinning sum() to kind.Decimal, or a vec0 vector column's
 	// type) so the driver can apply them when building record metadata. See
 	// issues #839 and #848.
-	var hints driver.ResultHints
+	hints := driver.ResultHints{RawVectors: p.qc.RawVectors}
 	if p.rc != nil {
-		hints = driver.ResultHints{
-			Kinds:   p.rc.ResultColumnKinds,
-			Vectors: p.rc.ResultColumnVectors,
-			Table:   p.table,
-		}
+		hints.Kinds = p.rc.ResultColumnKinds
+		hints.Vectors = p.rc.ResultColumnVectors
+		hints.Table = p.table
 	}
 
 	if err := QuerySQL(ctx, p.targetGrip, conn, recw, hints, p.targetSQL); err != nil {
@@ -690,7 +688,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
 	)
 
 	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)
-	err := QuerySQL(ctx, fromDB, nil, inserter, driver.ResultHints{}, query)
+	err := QuerySQL(ctx, fromDB, nil, inserter, driver.ResultHints{RawVectors: true}, query)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destGrip.Source().Handle, destTbl)
 	}

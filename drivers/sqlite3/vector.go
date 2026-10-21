@@ -1,6 +1,7 @@
 package sqlite3
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 
@@ -100,6 +101,20 @@ func (vd vectorDecoder) decode(val any, row int) (any, error) {
 		return nil, errz.Wrapf(err, "column %q, row %d", vd.name, row)
 	}
 	return v, nil
+}
+
+// raw returns the scanned value val as stored, without decoding it: a copy
+// of its bytes for a blob or text value, or nil for NULL. An int64 or
+// float64 value is returned unchanged.
+func (vd vectorDecoder) raw(val any) any {
+	switch val := unwrapScanned(val).(type) {
+	case []byte:
+		return bytes.Clone(val)
+	case string:
+		return []byte(val)
+	default:
+		return val
+	}
 }
 
 // unwrapScanned returns the value held by val, a scan destination from

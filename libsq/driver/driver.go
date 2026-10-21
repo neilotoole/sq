@@ -44,6 +44,12 @@ type ResultHints struct {
 	// as for a join or a raw SQL query. A driver may use it in error
 	// messages about a result value.
 	Table string
+
+	// RawVectors is true when the results are copied into a table, rather
+	// than output. A driver then passes vector values through as their stored
+	// bytes, without decoding them, so a malformed value copies unchanged
+	// instead of failing the query.
+	RawVectors bool
 }
 
 // Provider is a factory that returns Driver instances.

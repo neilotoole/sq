@@ -259,7 +259,7 @@ func execSQLInsert(ctx context.Context, ru *run.Run,
 	)
 
 	start := time.Now()
-	err = libsq.QuerySQL(ctx, fromGrip, nil, inserter, driver.ResultHints{}, args[0])
+	err = libsq.QuerySQL(ctx, fromGrip, nil, inserter, driver.ResultHints{RawVectors: true}, args[0])
 	if err != nil {
 		return errz.Wrapf(err, "insert to {%s} failed", source.Target(destSrc, destTbl))
 	}

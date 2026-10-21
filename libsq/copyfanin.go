@@ -261,7 +261,7 @@ func (b *copyBuffer) finish(err error) {
 // cancels promptly.
 func readCopyTable(ctx context.Context, task *joinCopyTask, buf *copyBuffer) error {
 	query := "SELECT * FROM " + task.fromTbl.Render(task.fromGrip.SQLDriver().Dialect().Enquote)
-	err := QuerySQL(ctx, task.fromGrip, nil, buf, driver.ResultHints{}, query)
+	err := QuerySQL(ctx, task.fromGrip, nil, buf, driver.ResultHints{RawVectors: true}, query)
 	buf.finish(err)
 	if err != nil {
 		return errz.Wrapf(err, "read %s.%s failed", task.fromGrip.Source().Handle, task.fromTbl)
