@@ -14,7 +14,6 @@ import (
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/driver"
 )
@@ -131,12 +130,15 @@ func unwrapScanned(val any) any {
 
 // vec0TableHints returns the vector columns of the vec0 table tbl, declared
 // by ddl, and the table's visible columns in SELECT * order. Both are nil if
-// the table has no vector columns, or if SQLite can't open the table: the
-// query against the table then reports SQLite's error.
+// the table has no vector columns, if ddl doesn't parse, or if SQLite can't
+// open the table. The query against the table then proceeds without vector
+// hints (vectors stay bytes), or reports SQLite's error.
 func vec0TableHints(ctx context.Context, db sqlz.DB, tbl, ddl string) (map[string]vector.Type, []string, error) {
 	vecCols, err := vecdecl.ParseVec0(ddl)
 	if err != nil {
-		return nil, nil, errz.Wrapf(err, "sqlite3: table %s", stringz.DoubleQuote(tbl))
+		lg.FromContext(ctx).Warn("Failed to parse vec0 table DDL",
+			lga.Table, tbl, lga.Err, err)
+		return nil, nil, nil
 	}
 
 	var vectors map[string]vector.Type

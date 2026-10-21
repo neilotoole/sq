@@ -457,3 +457,27 @@ func TestVector_UnopenableVec0Query(t *testing.T) {
 	require.Contains(t, err.Error(), "SQL query against @vtab_unopenable failed")
 	require.Contains(t, err.Error(), "vec0 constructor error")
 }
+
+// TestVector_Vec0UnparsedDDL verifies that a vec0 table whose DDL sq can't
+// parse (but sqlite-vec accepts) is still queryable, with no vector hints.
+func TestVector_Vec0UnparsedDDL(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tbl := stringz.UniqTableName("vec_unparsed")
+	// The apostrophe in the comment makes sq's DDL parser fail, while SQLite
+	// strips the comment before sqlite-vec sees the arguments.
+	th.ExecSQL(src, `CREATE VIRTUAL TABLE `+tbl+` USING vec0(doc_id INTEGER PRIMARY KEY, -- the doc's id
+embedding float[2])`)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+	th.ExecSQL(src, `INSERT INTO `+tbl+`(doc_id, embedding) VALUES (1, '[1,2]')`)
+
+	sink, err := th.QuerySLQ(src.Handle+`.`+tbl+` | .doc_id`, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 1)
+	require.EqualValues(t, 1, sink.Recs[0][0])
+
+	sink, err = th.QuerySLQ(src.Handle+`.`+tbl, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 1)
+	require.IsType(t, []byte{}, sink.Recs[0][colIndex(t, sink, "embedding")])
+}
