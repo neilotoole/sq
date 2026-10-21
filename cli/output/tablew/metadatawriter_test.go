@@ -587,6 +587,25 @@ func TestPrintTables_ErrorCell(t *testing.T) {
 		require.Contains(t, badLine, errText, "verbose=%v", verbose)
 		require.Contains(t, bad2Line, "rejected", "verbose=%v", verbose)
 	}
+
+	// The single-table path, as used by "sq inspect @src.tbl".
+	for _, verbose := range []bool{false, true} {
+		for _, tbl := range tbls[1:] {
+			var buf bytes.Buffer
+			pr := output.NewPrinting()
+			pr.EnableColor(false)
+			pr.Verbose = verbose
+			w := NewMetadataWriter(&buf, pr)
+			require.NoError(t, w.TableMetadata(tbl))
+			var line string
+			for _, l := range strings.Split(buf.String(), "\n") {
+				if strings.HasPrefix(l, tbl.Name+" ") {
+					line = l
+				}
+			}
+			require.Contains(t, line, tbl.Error, "table=%s verbose=%v", tbl.Name, verbose)
+		}
+	}
 }
 
 // TestPrintTablesVerbose_ErrorDefinition verifies that verbose output shows

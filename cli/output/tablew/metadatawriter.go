@@ -84,7 +84,7 @@ func (w *mdWriter) doTableMeta(md *metadata.Table) error {
 		md.Name,
 		md.TableType,
 		strconv.FormatInt(md.RowCount, 10),
-		strings.Join(colNames, ", "),
+		w.colsCell(md, strings.Join(colNames, ", ")),
 	}
 	rows = append(rows, row)
 
