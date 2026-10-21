@@ -208,6 +208,14 @@ func TestLibSQL_RowCounts(t *testing.T) {
 	require.Equal(t, int64(2), tblMeta.RowCount)
 }
 
+func TestLibSQL_SLQNotIndexedCase(t *testing.T) {
+	th, _ := vecSrc(t, "@lib", "libsql.db")
+	sink, err := th.QuerySLQ(`@lib.T | count`, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 1)
+	require.EqualValues(t, 2, sink.Recs[0][0])
+}
+
 func TestLibSQL_SLQNotIndexed(t *testing.T) {
 	th, src := vecSrc(t, "@lib", "libsql.db")
 

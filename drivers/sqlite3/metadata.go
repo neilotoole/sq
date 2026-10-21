@@ -346,7 +346,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	if err != nil {
 		return nil, err
 	}
-	query := fmt.Sprintf(tpl, fromTableClause(tblMeta.Name, vecIdxTbls[tblMeta.Name]))
+	query := fmt.Sprintf(tpl, fromTableClause(tblMeta.Name, vecIdxTbls[strings.ToLower(tblMeta.Name)]))
 	err = db.QueryRowContext(ctx, query, tblMeta.Name, tblMeta.Name).
 		Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schema)
 	if err != nil {
@@ -1185,7 +1185,7 @@ func getLibSQLVectorIndexedTables(ctx context.Context, db sqlz.DB, tbls ...strin
 	q := `SELECT DISTINCT tbl_name FROM sqlite_master WHERE type = 'index' AND sql LIKE ?`
 	args := []any{libsqlVectorIdxPattern}
 	if len(tbls) == 1 {
-		q += ` AND tbl_name = ?`
+		q += ` AND tbl_name = ? COLLATE NOCASE`
 		args = append(args, tbls[0])
 	}
 
@@ -1201,7 +1201,8 @@ func getLibSQLVectorIndexedTables(ctx context.Context, db sqlz.DB, tbls ...strin
 		if err = rows.Scan(&name); err != nil {
 			return nil, errw(err)
 		}
-		set[name] = true
+		// SQLite resolves table names case-insensitively, so key by lower case.
+		set[strings.ToLower(name)] = true
 	}
 	if err = rows.Err(); err != nil {
 		return nil, errw(err)
@@ -1269,7 +1270,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 		if terms > 0 {
 			sb.WriteString(" UNION ALL ")
 		}
-		sb.WriteString("SELECT COUNT(*) FROM " + fromTableClause(tblNames[i], vecIdxTbls[tblNames[i]]))
+		sb.WriteString("SELECT COUNT(*) FROM " + fromTableClause(tblNames[i], vecIdxTbls[strings.ToLower(tblNames[i])]))
 		terms++
 
 		if terms != maxCompoundSelect && i != len(tblNames)-1 {
@@ -1342,7 +1343,7 @@ func countTblsIndividually(ctx context.Context, db sqlz.DB, names []string, coun
 		}
 		var count int64
 		err := db.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM "+fromTableClause(name, vecIdxTbls[name])).Scan(&count)
+			"SELECT COUNT(*) FROM "+fromTableClause(name, vecIdxTbls[strings.ToLower(name)])).Scan(&count)
 		if err != nil {
 			wrapped := errw(err)
 			if errz.Has[*driver.NotExistError](wrapped) {

@@ -286,7 +286,7 @@ func (d *driveri) TableHints(ctx context.Context, db sqlz.DB, tbl string) (*rend
 	if err != nil {
 		return nil, err
 	}
-	if !tbls[tbl] {
+	if !tbls[strings.ToLower(tbl)] {
 		return nil, nil //nolint:nilnil
 	}
 	return &render.TableHints{NotIndexed: true}, nil
