@@ -61,6 +61,7 @@ func TestDecoders(t *testing.T) {
 		{"libsql_bf16", ls, mustHex(t, "803F004060C0803E06"), ty(4, vector.BF16), want4, 0, false},
 		{"libsql_f8", ls, mustHex(t, "D1FF00AEB1B0B03C000060C0000004"), ty(4, vector.F8), want4, 0.02, false},
 		{"libsql_bit", ls, mustHex(t, "0D07001403"), ty(12, vector.Bit), bits12, 0, false},
+		{"libsql_bit_short_data", ls, mustHex(t, "010003"), ty(16, vector.Bit), nil, 0, true},
 		{"libsql_bad_tag", ls, mustHex(t, "0000803F0000004009"), ty(4, vector.F32), nil, 0, true},
 		{"libsql_dim_mismatch", ls, mustHex(t, f32hex), ty(3, vector.F32), nil, 0, true},
 		{"libsql_f16_dim_mismatch", ls, mustHex(t, "003C004000C3003405"), ty(5, vector.F16), nil, 0, true},

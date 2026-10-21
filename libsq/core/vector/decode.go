@@ -101,10 +101,11 @@ func DecodeLibSQL(b []byte, t Type) (Vector, error) {
 		}
 		trailing := int(body[len(body)-1])
 		dims := 8*len(body) - trailing
-		if dims != t.Dim {
+		data := body[:len(body)-1]
+		if dims != t.Dim || len(data) < (t.Dim+7)/8 {
 			return Vector{}, lenErr(b, t)
 		}
-		vals = decodeBits(body[:len(body)-1], t.Dim)
+		vals = decodeBits(data, t.Dim)
 	case tagF8:
 		elem = F8
 		// Layout: [u8 x dims][padding 0-3][alpha f32][shift f32][padding u8]
