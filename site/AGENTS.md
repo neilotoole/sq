@@ -1,4 +1,4 @@
-# AGENTS.md (site)
+# AGENTS.md (site/)
 
 Conventions specific to the sq.io website under `site/`. Repo-wide rules in
 [AGENTS.md](../AGENTS.md) still apply here.

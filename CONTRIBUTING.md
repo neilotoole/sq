@@ -15,7 +15,9 @@ For AI coding assistants working in this repo:
   [`.agents/skills/`](./.agents/skills/)).
 - Claude Code reads AGENTS.md directly (v2.1.277 or later), and discovers
   skills via [`.claude/skills`](./.claude/skills) (a symlink to
-  `.agents/skills` when checked out).
+  `.agents/skills` when checked out). If you keep a gitignored `CLAUDE.local.md`,
+  it stops Claude Code from reading AGENTS.md; set **Project instructions** to
+  `claude-md-and-agents-md` in `/config`.
 - Install a skill into your agent with
   `npx skills add neilotoole/sq --skill <name>` (see
   [AGENTS.md](./AGENTS.md#installing-and-verifying-skills-npx-skills)).
