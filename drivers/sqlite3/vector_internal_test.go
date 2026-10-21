@@ -86,3 +86,40 @@ func TestVec0TableHints_BusyIsError(t *testing.T) {
 	require.Nil(t, vectors)
 	require.Nil(t, cols)
 }
+
+func TestUnopenableTable_IndexedByError(t *testing.T) {
+	const ddl = `CREATE VIRTUAL TABLE v USING vec0(a FLOAT[4] INDEXED BY rescore(quantizer=bit), ` +
+		`"B" FLOAT[4] INDEXED BY ivf())`
+
+	testCases := []struct {
+		name    string
+		errText string
+		want    string
+	}{
+		{
+			name: "first_column",
+			errText: "vec0 constructor error: could not parse vector column " +
+				"'a FLOAT[4] INDEXED BY rescore(quantizer=bit)'",
+			want: `vec0 column "a": unsupported index type: rescore(quantizer=bit)`,
+		},
+		{
+			name: "quoted_second_column",
+			errText: "vec0 constructor error: could not parse vector column " +
+				`'"B" FLOAT[4] INDEXED BY ivf()'`,
+			want: `vec0 column "B": unsupported index type: ivf()`,
+		},
+		{
+			name:    "other_error",
+			errText: "vec0 constructor error: could not parse table option 'chunk_size=7'",
+			want:    "vec0 constructor error: could not parse table option 'chunk_size=7'",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tbl := unopenableTable(context.Background(), "main", "v", ddl, tc.errText)
+			require.Equal(t, tc.want, tbl.Error)
+			require.Len(t, tbl.Columns, 2)
+		})
+	}
+}

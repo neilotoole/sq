@@ -1159,10 +1159,10 @@ WHERE type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' ORDER BY name`
 // unopenableTable builds the metadata for a virtual table that can't be
 // opened. Row count is zero, and Definition holds the table's DDL. For a
 // vec0 table the columns are taken from the parsed DDL, via the same overlay
-// used for openable tables; for any other module there are no columns. If a
-// vec0 vector column declares an index (INDEXED BY), which the bundled
-// sqlite-vec doesn't support, Error names that column and index instead of
-// carrying SQLite's error text.
+// used for openable tables; for any other module there are no columns. If
+// SQLite's error is sqlite-vec failing to parse a vector column that declares
+// an index (INDEXED BY), which the bundled sqlite-vec doesn't support, Error
+// names that column and index instead. Any other error is kept as is.
 func unopenableTable(ctx context.Context, schemaName, tblName, ddl, errText string) *metadata.Table {
 	tbl := &metadata.Table{
 		Name:        tblName,
@@ -1185,7 +1185,7 @@ func unopenableTable(ctx context.Context, schemaName, tblName, ddl, errText stri
 			applyVectorMetadata(ctx, ddl, tbl)
 
 			for _, d := range decls {
-				if d.IndexedBy != "" {
+				if d.IndexedBy != "" && isVec0ColumnParseErr(errText, d.Name) {
 					tbl.Error = fmt.Sprintf("vec0 column %q: unsupported index type: %s", d.Name, d.IndexedBy)
 					break
 				}
@@ -1193,6 +1193,30 @@ func unopenableTable(ctx context.Context, schemaName, tblName, ddl, errText stri
 		}
 	}
 	return tbl
+}
+
+// vec0ColumnParseErr is the text sqlite-vec puts before the column
+// definition it failed to parse.
+const vec0ColumnParseErr = "could not parse vector column '"
+
+// isVec0ColumnParseErr reports whether errText is sqlite-vec failing to
+// parse the definition of column col. Any other error, such as a bad table
+// option, is not.
+func isVec0ColumnParseErr(errText, col string) bool {
+	i := strings.Index(errText, vec0ColumnParseErr)
+	if i < 0 {
+		return false
+	}
+	def := strings.TrimLeft(errText[i+len(vec0ColumnParseErr):], "\"`[")
+	if len(def) <= len(col) || !strings.EqualFold(def[:len(col)], col) {
+		return false
+	}
+	switch def[len(col)] {
+	case ' ', '\t', '\n', '\r', '"', '`', ']':
+		return true
+	default:
+		return false
+	}
 }
 
 // libsqlVectorIdxPattern matches the SQL of a libSQL vector index. LIKE is
