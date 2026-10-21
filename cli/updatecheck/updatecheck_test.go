@@ -2,7 +2,6 @@ package updatecheck
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -132,15 +131,15 @@ func TestFetchBrewVersion(t *testing.T) {
 func TestNormalizeVersion(t *testing.T) {
 	t.Parallel()
 
-	got, err := NormalizeVersion("1.2.3")
+	got, err := normalizeVersion("1.2.3")
 	require.NoError(t, err)
 	require.Equal(t, "v1.2.3", got)
 
-	got, err = NormalizeVersion("v1.2.3")
+	got, err = normalizeVersion("v1.2.3")
 	require.NoError(t, err)
 	require.Equal(t, "v1.2.3", got)
 
-	_, err = NormalizeVersion("not-a-version")
+	_, err = normalizeVersion("not-a-version")
 	require.Error(t, err)
 }
 
@@ -155,7 +154,7 @@ func TestReadFreshCache_stale(t *testing.T) {
 	t.Parallel()
 
 	cacheDir := t.TempDir()
-	require.NoError(t, writeCache(cacheDir, Cache{
+	require.NoError(t, writeCache(cacheDir, cacheEntry{
 		LatestVersion: "v9.9.9",
 		CheckedAt:     time.Now().UTC().Add(-defaultCacheTTL - time.Minute),
 	}))
@@ -165,74 +164,137 @@ func TestReadFreshCache_stale(t *testing.T) {
 	require.Empty(t, latest)
 }
 
-func TestFetchLatestWithWait_ignoresStaleCacheOnTimeout(t *testing.T) {
-	cacheDir := t.TempDir()
-	require.NoError(t, writeCache(cacheDir, Cache{
-		LatestVersion: "v9.9.9",
-		CheckedAt:     time.Now().UTC().Add(-defaultCacheTTL - time.Minute),
-	}))
-
-	got, err := fetchLatestWithWait(
-		context.Background(),
-		cacheDir,
-		time.Nanosecond,
-		func(ctx context.Context) (string, error) {
-			<-ctx.Done()
-			return "", ctx.Err()
-		},
-	)
-	require.NoError(t, err)
-	require.Empty(t, got)
-}
-
 func TestWriteCache_roundTrip(t *testing.T) {
 	t.Parallel()
 
 	cacheDir := t.TempDir()
-	require.NoError(t, writeCache(cacheDir, Cache{
+	require.NoError(t, writeCache(cacheDir, cacheEntry{
 		LatestVersion: "v0.54.0",
 		CheckedAt:     time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC),
 	}))
 
-	b, err := os.ReadFile(filepath.Join(cacheDir, cacheFileName))
-	require.NoError(t, err)
-
-	var got Cache
-	require.NoError(t, json.Unmarshal(b, &got))
+	got, ok := readCache(cacheDir)
+	require.True(t, ok)
 	require.Equal(t, "v0.54.0", got.LatestVersion)
 	require.Equal(t, time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC), got.CheckedAt)
 }
 
-func TestFetchLatestWithWait_fallsBackToCacheOnFetchError(t *testing.T) {
-	cacheDir := t.TempDir()
-	require.NoError(t, writeCache(cacheDir, Cache{
-		LatestVersion: "v9.9.9",
-		CheckedAt:     time.Now().UTC(),
-	}))
-
-	got, err := fetchLatestWithWait(
-		context.Background(),
-		cacheDir,
-		time.Second,
-		func(context.Context) (string, error) { return "", errors.New("boom") },
-	)
-	require.NoError(t, err)
-	require.Equal(t, "v9.9.9", got)
+// blockingFetch returns a fetch func that ignores ctx and blocks until the
+// test ends, so that only the timeout branch of fetchLatestWithWait can fire.
+// A fetch that returned ctx.Err() on cancellation would race the timeout
+// branch against the fetch-error branch, and both read the cache.
+func blockingFetch(t *testing.T) func(context.Context) (string, error) {
+	t.Helper()
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	return func(context.Context) (string, error) {
+		<-release
+		return "", errors.New("released")
+	}
 }
 
-func TestFetchLatestWithWait_fallsBackToCacheOnNormalizeError(t *testing.T) {
-	cacheDir := t.TempDir()
-	require.NoError(t, writeCache(cacheDir, Cache{
-		LatestVersion: "v9.9.8",
-		CheckedAt:     time.Now().UTC(),
-	}))
+func TestFetchLatestWithWait(t *testing.T) {
+	t.Parallel()
 
-	got, err := fetchLatestWithWait(
-		context.Background(),
-		cacheDir,
-		time.Second,
-		func(context.Context) (string, error) { return "not-a-version", nil },
-	)
-	require.NoError(t, err)
-	require.Equal(t, "v9.9.8", got)
+	fresh := cacheEntry{LatestVersion: "v9.9.9", CheckedAt: time.Now().UTC()}
+	stale := cacheEntry{
+		LatestVersion: "v9.9.9",
+		CheckedAt:     time.Now().UTC().Add(-defaultCacheTTL - time.Minute),
+	}
+	fetchErr := func(context.Context) (string, error) { return "", errors.New("boom") }
+	fetchInvalid := func(context.Context) (string, error) { return "not-a-version", nil }
+
+	testCases := []struct {
+		name    string
+		cache   *cacheEntry
+		fetch   func(t *testing.T) func(context.Context) (string, error)
+		timeout time.Duration
+		want    string
+	}{
+		{
+			name:    "timeout_fresh_cache",
+			timeout: 10 * time.Millisecond,
+			cache:   &fresh,
+			fetch:   blockingFetch,
+			want:    "v9.9.9",
+		},
+		{
+			name:    "timeout_stale_cache",
+			timeout: 10 * time.Millisecond,
+			cache:   &stale,
+			fetch:   blockingFetch,
+			want:    "",
+		},
+		{
+			name:    "timeout_no_cache",
+			timeout: 10 * time.Millisecond,
+			fetch:   blockingFetch,
+			want:    "",
+		},
+		{
+			name:  "fetch_error_fresh_cache",
+			cache: &fresh,
+			fetch: func(*testing.T) func(context.Context) (string, error) { return fetchErr },
+			want:  "v9.9.9",
+		},
+		{
+			name:  "fetch_error_no_cache",
+			fetch: func(*testing.T) func(context.Context) (string, error) { return fetchErr },
+			want:  "",
+		},
+		{
+			name:  "invalid_version_fresh_cache",
+			cache: &fresh,
+			fetch: func(*testing.T) func(context.Context) (string, error) { return fetchInvalid },
+			want:  "v9.9.9",
+		},
+		{
+			name:  "invalid_version_no_cache",
+			fetch: func(*testing.T) func(context.Context) (string, error) { return fetchInvalid },
+			want:  "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cacheDir := t.TempDir()
+			if tc.cache != nil {
+				require.NoError(t, writeCache(cacheDir, *tc.cache))
+			}
+
+			timeout := tc.timeout
+			if timeout == 0 {
+				timeout = time.Second
+			}
+
+			got := fetchLatestWithWait(context.Background(), cacheDir, timeout, tc.fetch(t))
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestFetchLatestWithWait_writesCacheOnSuccess(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := t.TempDir()
+	before := time.Now().UTC()
+
+	got := fetchLatestWithWait(context.Background(), cacheDir, time.Second,
+		func(context.Context) (string, error) { return "0.60.0", nil })
+	require.Equal(t, "v0.60.0", got)
+
+	c, ok := readCache(cacheDir)
+	require.True(t, ok)
+	require.Equal(t, "v0.60.0", c.LatestVersion)
+	require.False(t, c.CheckedAt.Before(before))
+}
+
+func TestFetchLatestWithWait_noCacheDir(t *testing.T) {
+	t.Parallel()
+
+	got := fetchLatestWithWait(context.Background(), "", time.Second,
+		func(context.Context) (string, error) { return "0.60.0", nil })
+	require.Equal(t, "v0.60.0", got)
 }

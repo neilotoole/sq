@@ -15,7 +15,6 @@ import (
 
 	"golang.org/x/mod/semver"
 
-	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
@@ -25,37 +24,26 @@ import (
 const (
 	cacheFileName   = "update-check.json"
 	defaultCacheTTL = 24 * time.Hour
-	fetchTimeout    = 500 * time.Millisecond
-	brewFormulaURL  = `https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/s/sq.rb`
 )
 
-// Cache holds a cached latest-version lookup.
-type Cache struct {
+// cacheEntry holds a cached latest-version lookup.
+type cacheEntry struct {
 	CheckedAt     time.Time `json:"checked_at"`
 	LatestVersion string    `json:"latest_version"`
 }
 
-// CacheDirForRun returns the cache dir for ru after preRun has initialized Files.
-func CacheDirForRun(ru *run.Run) string {
-	if ru == nil || ru.Files == nil {
-		return ""
-	}
-	return ru.Files.CacheDir()
-}
-
-// FetchLatestWithWait fetches the latest version, waiting up to timeout.
-// Used by sq version where a fresh result is preferred over cache-only.
-func FetchLatestWithWait(ctx context.Context, cacheDir string, timeout time.Duration) (string, error) {
+// FetchLatestWithWait fetches the latest sq version from the brew formula,
+// waiting up to timeout. A successful fetch is cached in cacheDir. If the
+// fetch fails or doesn't complete within timeout, the cached version is
+// returned if it is less than 24h old; otherwise the empty string is returned.
+// If cacheDir is empty, caching is disabled.
+func FetchLatestWithWait(ctx context.Context, cacheDir string, timeout time.Duration) string {
 	return fetchLatestWithWait(ctx, cacheDir, timeout, fetchBrewVersion)
 }
 
 func fetchLatestWithWait(
 	ctx context.Context, cacheDir string, timeout time.Duration, fetch func(context.Context) (string, error),
-) (string, error) {
-	if timeout <= 0 {
-		timeout = fetchTimeout
-	}
-
+) string {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -73,35 +61,30 @@ func fetchLatestWithWait(
 	select {
 	case <-ctx.Done():
 		if latest, ok := readFreshCache(cacheDir); ok {
-			return latest, nil
+			return latest
 		}
-		return "", nil
+		return ""
 	case result := <-resultCh:
-		if result.err != nil {
-			lg.WarnIfError(lg.FromContext(ctx), "Get brew version", result.err)
-			if latest, ok := readFreshCache(cacheDir); ok {
-				return latest, nil
-			}
-			return "", nil
+		latest, err := result.raw, result.err
+		if err == nil {
+			latest, err = normalizeVersion(latest)
 		}
-		raw := result.raw
-
-		latest, err := NormalizeVersion(raw)
 		if err != nil {
+			lg.WarnIfError(lg.FromContext(ctx), "Get brew version", err)
 			if cached, ok := readFreshCache(cacheDir); ok {
-				return cached, nil
+				return cached
 			}
-			return "", err
+			return ""
 		}
 		if latest != "" && cacheDir != "" {
-			_ = writeCache(cacheDir, Cache{LatestVersion: latest, CheckedAt: time.Now().UTC()})
+			_ = writeCache(cacheDir, cacheEntry{LatestVersion: latest, CheckedAt: time.Now().UTC()})
 		}
-		return latest, nil
+		return latest
 	}
 }
 
-// NormalizeVersion returns a semver-valid version with a "v" prefix.
-func NormalizeVersion(raw string) (string, error) {
+// normalizeVersion returns a semver-valid version with a "v" prefix.
+func normalizeVersion(raw string) (string, error) {
 	if raw == "" {
 		return "", nil
 	}
@@ -118,19 +101,19 @@ func cachePath(cacheDir string) string {
 	return filepath.Join(cacheDir, cacheFileName)
 }
 
-func readCache(cacheDir string) (Cache, bool) {
+func readCache(cacheDir string) (cacheEntry, bool) {
 	if cacheDir == "" {
-		return Cache{}, false
+		return cacheEntry{}, false
 	}
 
 	b, err := os.ReadFile(cachePath(cacheDir))
 	if err != nil {
-		return Cache{}, false
+		return cacheEntry{}, false
 	}
 
-	var c Cache
+	var c cacheEntry
 	if err := json.Unmarshal(b, &c); err != nil {
-		return Cache{}, false
+		return cacheEntry{}, false
 	}
 	return c, true
 }
@@ -146,7 +129,7 @@ func readFreshCache(cacheDir string) (string, bool) {
 	return c.LatestVersion, true
 }
 
-func writeCache(cacheDir string, c Cache) error {
+func writeCache(cacheDir string, c cacheEntry) error {
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		return errz.Err(err)
 	}
@@ -178,10 +161,18 @@ func writeCache(cacheDir string, c Cache) error {
 	return nil
 }
 
+// fetchBrewVersion fetches the latest available sq version via
+// the published homebrew-core formula. Previously this function fetched from
+// the personal tap (neilotoole/homebrew-sq), but since sq was accepted into
+// homebrew-core, we now check there as it's the canonical source for most users
+// who install via "brew install sq".
 func fetchBrewVersion(ctx context.Context) (string, error) {
-	lg.FromContext(ctx).Debug("Fetching brew formula for version check", lga.URL, brewFormulaURL)
+	// Old URL (personal tap): https://raw.githubusercontent.com/neilotoole/homebrew-sq/master/sq.rb
+	const u = `https://raw.githubusercontent.com/Homebrew/homebrew-core/HEAD/Formula/s/sq.rb`
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, brewFormulaURL, http.NoBody)
+	lg.FromContext(ctx).Debug("Fetching brew formula for version check", lga.URL, u)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
 	if err != nil {
 		return "", errz.Err(err)
 	}
@@ -205,35 +196,55 @@ func fetchBrewVersion(ctx context.Context) (string, error) {
 	return versionFromBrewFormula(body)
 }
 
+// versionFromBrewFormula returns the brew version from f, which is a brew
+// ruby formula. The version is returned without a "v" prefix, e.g. "0.1.2",
+// not "v0.1.2".
+//
+// It supports two formula formats:
+//   - Explicit version: `version "0.48.11"` (used by personal tap/GoReleaser)
+//   - URL-based version: `url ".../tags/v0.48.11.tar.gz"` (used by homebrew-core)
+//
+// While scanning the formula (up to the "bottle" section), explicit version
+// takes precedence over URL-based version. A version declared after the
+// "bottle" section is not considered.
 func versionFromBrewFormula(f []byte) (string, error) {
 	var (
 		val        string
-		urlVersion string
+		urlVersion string // URL-based version (fallback)
 	)
 
 	sc := bufio.NewScanner(bytes.NewReader(f))
 	for sc.Scan() {
 		val = strings.TrimSpace(sc.Text())
 
+		// Check for explicit version line: version "0.48.11"
+		// Explicit version always takes precedence, so return immediately.
 		if strings.HasPrefix(val, `version "`) {
 			val = val[9:]
 			val = strings.TrimSuffix(val, `"`)
-			if !semver.IsValid("v" + val) {
+			if !semver.IsValid("v" + val) { // semver pkg requires "v" prefix
 				return "", errz.Errorf("invalid brew formula: invalid semver {%s}", val)
 			}
 			return val, nil
 		}
 
+		// Check for URL-based version (homebrew-core format):
+		// url "https://github.com/neilotoole/sq/archive/refs/tags/v0.48.11.tar.gz"
+		// Don't return immediately; continue scanning for explicit version.
 		if strings.HasPrefix(val, `url "`) && strings.Contains(val, "/tags/v") {
+			// Extract version from URL pattern /tags/vX.Y.Z.tar.gz
 			idx := strings.Index(val, "/tags/v")
 			if idx != -1 {
+				// Start after "/tags/v"
 				verStart := idx + len("/tags/v")
 				remainder := val[verStart:]
+				// Find the end at .tar.gz or .zip
 				if before, _, ok := strings.Cut(remainder, ".tar.gz"); ok {
 					val = before
 				} else if before, _, ok := strings.Cut(remainder, ".zip"); ok {
 					val = before
 				} else {
+					// Unrecognized archive extension; skip and keep scanning.
 					continue
 				}
 				if !semver.IsValid("v" + val) {
@@ -244,6 +255,7 @@ func versionFromBrewFormula(f []byte) (string, error) {
 		}
 
 		if strings.HasPrefix(val, "bottle") {
+			// Reached the bottle section; stop scanning.
 			break
 		}
 	}

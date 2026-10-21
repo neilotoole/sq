@@ -70,12 +70,12 @@ Before upgrading, check the changelog: https://sq.io/changelog`,
 func execVersion(cmd *cobra.Command, _ []string) error {
 	ru := run.FromContext(cmd.Context())
 
-	latestVersion, err := updatecheck.FetchLatestWithWait(
-		cmd.Context(), updatecheck.CacheDirForRun(ru), 500*time.Millisecond,
-	)
-	if err != nil {
-		return err
-	}
+	// We'd like to display that there's an update available, but we don't
+	// want to wait around long for that. The timeout is short so that
+	// "sq version" returns quickly even with low/slow/no-connectivity.
+	//
+	// See also: https://github.com/neilotoole/sq/issues/531
+	latestVersion := updatecheck.FetchLatestWithWait(cmd.Context(), ru.Files.CacheDir(), 500*time.Millisecond)
 
 	return ru.Writers.Version.Version(buildinfo.Get(), latestVersion, hostinfo.Get())
 }

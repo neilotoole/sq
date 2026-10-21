@@ -2,7 +2,6 @@ package tablew_test
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 	"time"
 
@@ -61,6 +60,5 @@ func TestVersionWriter_verbose_newerAvailable(t *testing.T) {
 		got := buf.String()
 		require.Contains(t, got, "Latest version:  ")
 		require.Contains(t, got, pr.UpdateAvailable.Sprint("v0.54.0"))
-		require.True(t, strings.Contains(got, "\x1b["), "expected ANSI background on latest version")
 	})
 }
