@@ -18,6 +18,7 @@ import (
 	"github.com/neilotoole/sq/cli/flag"
 	"github.com/neilotoole/sq/cli/output/format"
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/ioz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lgt"
@@ -1347,4 +1348,75 @@ func TestInspect_DuckDB_DoesNotModifyMtime(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, statBefore.ModTime(), statAfter.ModTime(),
 		"DuckDB file mtime must not change after sq inspect")
+}
+
+// addUnopenableVtabSource copies the vtab_unopenable.db fixture to a temp file
+// and adds it to tr as @vtab.
+func addUnopenableVtabSource(t *testing.T, tr *testrun.TestRun) {
+	t.Helper()
+
+	b, err := os.ReadFile(proj.Abs("drivers/sqlite3/testdata/vtab_unopenable.db"))
+	require.NoError(t, err)
+	dbPath := tu.TempFile(t, "vtab_unopenable.db")
+	require.NoError(t, os.WriteFile(dbPath, b, 0o600))
+
+	require.NoError(t, tr.Run.Config.Collection.Add(&source.Source{
+		Handle:   "@vtab",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + dbPath,
+	}))
+}
+
+// TestCmdInspect_UnopenableTables_Source verifies that inspecting a source
+// containing tables that can't be opened succeeds, reports each error as a
+// warning on stderr, and sets "error" on those tables only.
+func TestCmdInspect_UnopenableTables_Source(t *testing.T) {
+	tr := testrun.New(t.Context(), t, nil)
+	addUnopenableVtabSource(t, tr)
+
+	require.NoError(t, tr.Exec("inspect", "@vtab", "--json"))
+
+	errOut := tr.ErrOut.String()
+	require.Contains(t, errOut, "warning: @vtab.fx_other: no such module: vectorlite")
+	require.Contains(t, errOut, "warning: @vtab.fx_rescore: ")
+	require.NotContains(t, errOut, "@vtab.plain")
+
+	var md metadata.Source
+	require.NoError(t, json.Unmarshal(tr.Out.Bytes(), &md))
+	errored := map[string]bool{}
+	for _, tbl := range md.Tables {
+		if tbl.Error != "" {
+			errored[tbl.Name] = true
+		}
+	}
+	require.Equal(t, map[string]bool{"fx_other": true, "fx_rescore": true}, errored)
+}
+
+// TestCmdInspect_UnopenableTables_Overview verifies that --overview emits no
+// table warnings.
+func TestCmdInspect_UnopenableTables_Overview(t *testing.T) {
+	tr := testrun.New(t.Context(), t, nil)
+	addUnopenableVtabSource(t, tr)
+
+	require.NoError(t, tr.Exec("inspect", "@vtab", "--overview"))
+	require.NotContains(t, tr.ErrOut.String(), "warning:")
+}
+
+// TestCmdInspect_UnopenableTables_Table verifies that inspecting an
+// unopenable table prints its metadata, then exits with code 1.
+func TestCmdInspect_UnopenableTables_Table(t *testing.T) {
+	tr := testrun.New(t.Context(), t, nil)
+	addUnopenableVtabSource(t, tr)
+
+	err := tr.Exec("inspect", "@vtab.fx_other", "--json")
+	require.Error(t, err)
+	require.Equal(t, 1, errz.ExitCode(err))
+	require.Contains(t, tr.Out.String(), `"error"`)
+	require.Contains(t, tr.Out.String(), "no such module: vectorlite")
+
+	tr = testrun.New(t.Context(), t, nil)
+	addUnopenableVtabSource(t, tr)
+	require.NoError(t, tr.Exec("inspect", "@vtab.plain", "--json"))
+	require.NotContains(t, tr.Out.String(), `"error"`)
+	require.Empty(t, tr.ErrOut.String())
 }

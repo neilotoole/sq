@@ -545,3 +545,44 @@ func TestPrintTablesVerbose_GoldenLayout(t *testing.T) {
 	require.GreaterOrEqual(t, strings.Count(emailRow, "demo_email_key"), 2,
 		"the UC name must appear in both the INDEXES (wrapped) and UNIQUE CONSTRAINTS (bare) cells")
 }
+
+// TestPrintTables_ErrorCell verifies that a table with an Error shows the
+// error text in the COLS cell, in both normal and verbose output.
+func TestPrintTables_ErrorCell(t *testing.T) {
+	const errText = "no such module: vectorlite"
+	tbls := []*metadata.Table{
+		{
+			Name: "ok", TableType: "table", RowCount: 2,
+			Columns: []*metadata.Column{{Name: "id", BaseType: "INTEGER"}},
+		},
+		{Name: "bad", TableType: "virtual", Error: errText},
+		{
+			Name: "bad2", TableType: "virtual", Error: "rejected",
+			Columns: []*metadata.Column{{Name: "a", BaseType: "TEXT"}, {Name: "b", BaseType: "TEXT"}},
+		},
+	}
+
+	for _, verbose := range []bool{false, true} {
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+		w := NewMetadataWriter(&buf, pr).(*mdWriter)
+		if verbose {
+			require.NoError(t, w.printTablesVerbose(tbls))
+		} else {
+			require.NoError(t, w.printTables(tbls))
+		}
+
+		var badLine, bad2Line string
+		for _, line := range strings.Split(buf.String(), "\n") {
+			switch {
+			case strings.HasPrefix(line, "bad2"):
+				bad2Line = line
+			case strings.HasPrefix(line, "bad"):
+				badLine = line
+			}
+		}
+		require.Contains(t, badLine, errText, "verbose=%v", verbose)
+		require.Contains(t, bad2Line, "rejected", "verbose=%v", verbose)
+	}
+}

@@ -228,7 +228,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 				tbl.Name,
 				tbl.TableType,
 				strconv.FormatInt(tbl.RowCount, 10),
-				"0",
+				w.colsCell(tbl, "0"),
 				"", "", "", "", "", "", "",
 			})
 			continue
@@ -238,7 +238,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 			tbl.Name,
 			tbl.TableType,
 			strconv.FormatInt(tbl.RowCount, 10),
-			strconv.Itoa(len(tbl.Columns)),
+			w.colsCell(tbl, strconv.Itoa(len(tbl.Columns))),
 			tbl.Columns[0].Name,
 			tbl.Columns[0].BaseType,
 			getPK(tbl.Columns[0]),
@@ -436,6 +436,15 @@ func uniqueNamesByColumn(tbl *metadata.Table) map[string][]string {
 	return out
 }
 
+// colsCell returns the COLS cell for tbl: the error text styled with the
+// error color if the table has an Error, otherwise normal.
+func (w *mdWriter) colsCell(tbl *metadata.Table, normal string) string {
+	if tbl.Error == "" {
+		return normal
+	}
+	return w.tbl.pr.Error.Sprint(tbl.Error)
+}
+
 func (w *mdWriter) printTables(tables []*metadata.Table) error {
 	w.tbl.reset()
 
@@ -461,6 +470,9 @@ func (w *mdWriter) printTables(tables []*metadata.Table) error {
 			tbl.TableType,
 			strconv.FormatInt(tbl.RowCount, 10),
 			w.tbl.pr.String.Sprint(strings.Join(colNames, ", ")),
+		}
+		if tbl.Error != "" {
+			row[3] = w.colsCell(tbl, "")
 		}
 
 		rows = append(rows, row)
