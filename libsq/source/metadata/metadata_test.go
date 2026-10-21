@@ -12,6 +12,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -1833,4 +1834,18 @@ func TestSource_Clone_NilLoggerSilencesWarnings(t *testing.T) {
 	require.Empty(t, buf.String(),
 		"Source.Clone must not emit log entries — programmatic callers wanting "+
 			"validation should call LinkForeignKeys with a real logger")
+}
+
+func TestColumn_Clone_Vector(t *testing.T) {
+	orig := &metadata.Column{
+		Name:   "e",
+		Role:   "metadata",
+		Vector: &vector.Type{Dim: 4, Elem: vector.F32, Metric: "cosine"},
+	}
+	clone := orig.Clone()
+	require.Equal(t, orig, clone)
+	require.NotSame(t, orig.Vector, clone.Vector)
+
+	clone.Vector.Dim = 99
+	require.Equal(t, 4, orig.Vector.Dim)
 }

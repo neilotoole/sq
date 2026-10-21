@@ -9,6 +9,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
@@ -426,6 +427,14 @@ type Column struct { //nolint:govet // field alignment
 	Generated     bool   `json:"generated,omitempty" yaml:"generated,omitempty"`
 	GeneratedExpr string `json:"generated_expr,omitempty" yaml:"generated_expr,omitempty"`
 	Collation     string `json:"collation,omitempty" yaml:"collation,omitempty"`
+
+	// Vector is non-nil if Kind is [kind.Vector] and the driver knows the
+	// vector's dimension and element type.
+	Vector *vector.Type `json:"vector,omitempty" yaml:"vector,omitempty"`
+
+	// Role is the column's special role in its table, if any. For a sqlite-vec
+	// vec0 table it is "partition_key", "metadata" or "auxiliary".
+	Role string `json:"role,omitempty" yaml:"role,omitempty"`
 }
 
 // Clone returns a deep copy of c. If c is nil, nil is returned.
@@ -434,7 +443,15 @@ func (c *Column) Clone() *Column {
 		return nil
 	}
 
+	var vec *vector.Type
+	if c.Vector != nil {
+		v := *c.Vector
+		vec = &v
+	}
+
 	return &Column{
+		Vector:        vec,
+		Role:          c.Role,
 		Name:          c.Name,
 		Position:      c.Position,
 		PrimaryKey:    c.PrimaryKey,

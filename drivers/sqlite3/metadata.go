@@ -13,6 +13,7 @@ import (
 	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
+	"github.com/neilotoole/sq/drivers/sqlite3/vecdecl"
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -182,6 +183,12 @@ func kindFromDBTypeName(ctx context.Context, colName, dbTypeName string, scanTyp
 		case sqlz.RTypeBytes:
 			return kind.Bytes
 		}
+	}
+
+	// libSQL vector types such as F32_BLOB(4) and FLOAT32(3) must be
+	// checked before the BLOB and FLOA substring fallbacks below.
+	if _, ok := vecdecl.ParseLibSQLType(dbTypeName); ok {
+		return kind.Vector
 	}
 
 	var knd kind.Kind
@@ -404,6 +411,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	if tblMeta.TableType == sqlz.TableTypeView {
 		tblMeta.ViewDefinition = ddl
 	}
+	applyVectorMetadata(ctx, ddl, tblMeta)
 
 	// Triggers attach to both tables and views (INSTEAD OF triggers).
 	tblMeta.Triggers, err = getTableTriggers(ctx, db, tblMeta.Name)
@@ -438,6 +446,68 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	}
 
 	return tblMeta, nil
+}
+
+// applyVectorMetadata sets the vector-related fields of tblMeta's columns.
+// It is shared by getTableMetadata and getAllTableMetadata so that both
+// paths report identical column metadata.
+//
+// For a vec0 virtual table (sqlite-vec), the columns are overlaid with the
+// declarations parsed from ddl, because SQLite reports no declared types for
+// virtual-table columns. For any other table, a column whose declared type is
+// a libSQL vector type (F32_BLOB(4) etc.) gets its vector.Type assigned.
+func applyVectorMetadata(ctx context.Context, ddl string, tblMeta *metadata.Table) {
+	if tblMeta.TableType == sqlz.TableTypeVirtual {
+		if !strings.EqualFold(vecdecl.VirtualTableModule(ddl), "vec0") {
+			return
+		}
+
+		decls, err := vecdecl.ParseVec0(ddl)
+		if err != nil {
+			lg.FromContext(ctx).Warn("Failed to parse vec0 table DDL",
+				lga.Table, tblMeta.Name, lga.Err, err)
+			return
+		}
+
+		byName := make(map[string]vecdecl.Vec0Column, len(decls))
+		for _, d := range decls {
+			byName[d.Name] = d
+		}
+
+		for _, col := range tblMeta.Columns {
+			d, ok := byName[col.Name]
+			if !ok {
+				continue
+			}
+
+			col.BaseType = d.DeclType
+			col.ColumnType = d.DeclType
+			if d.Vector != nil {
+				v := *d.Vector
+				col.Vector = &v
+				col.Kind = kind.Vector
+			} else {
+				col.Kind = kindFromDBTypeName(ctx, col.Name, d.DeclType, nil)
+			}
+			if d.Role == vecdecl.RolePrimaryKey {
+				col.PrimaryKey = true
+			}
+			switch d.Role {
+			case vecdecl.RolePartitionKey, vecdecl.RoleMetadata, vecdecl.RoleAuxiliary:
+				col.Role = string(d.Role)
+			case vecdecl.RoleVector, vecdecl.RolePrimaryKey:
+				// Self-evident from Kind and PrimaryKey.
+			}
+		}
+		return
+	}
+
+	for _, col := range tblMeta.Columns {
+		if vt, ok := vecdecl.ParseLibSQLType(col.BaseType); ok {
+			col.Kind = kind.Vector
+			col.Vector = &vt
+		}
+	}
 }
 
 // getTableIndexes returns the unique constraints and the physical
@@ -866,6 +936,7 @@ ORDER BY m.name, p.cid
 		if tblMeta.TableType == sqlz.TableTypeView {
 			tblMeta.ViewDefinition = ddl
 		}
+		applyVectorMetadata(ctx, ddl, tblMeta)
 
 		// Triggers attach to both tables and views (INSTEAD OF triggers).
 		tblMeta.Triggers = allTriggers[tblMeta.Name]
