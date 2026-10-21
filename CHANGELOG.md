@@ -50,11 +50,6 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
-- [#1298]: A libSQL table with a `libsql_vector_idx` index was reported as having
-  0 rows by `sq inspect`, and returned no rows from SLQ queries.
-- `sq inspect` no longer fails for a whole SQLite source when it contains a virtual table that
-  `sq` can't serve, such as one using an unknown module. The table is listed with an error, and
-  `sq inspect` prints a warning for it.
 - [#1151]: Opening a DuckDB source is much faster, and no longer needs network
   access on a machine with an empty extension cache.
 - [#1165]: A source-level option was ignored once `sq` reloaded its config,
@@ -69,6 +64,13 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   in cleartext. This affected ClickHouse sources whose location omitted the port,
   and SQLite and DuckDB sources carrying an `_auth_pass` query param when added
   via [`sq add`](https://sq.io/docs/cmd/add).
+- [#1298]: A libSQL table with a `libsql_vector_idx` index was reported as having
+  0 rows by `sq inspect`, and returned no rows from SLQ queries.
+- `sq inspect` no longer fails for a whole SQLite source when it contains a
+  virtual table that `sq` can't serve, such as one using an unknown module or a
+  newer sqlite-vec feature. The table is listed with an error and `sq inspect`
+  prints a warning for it. For a `vec0` table, the columns parsed from its
+  declaration are shown along with the error.
 
 ## [v0.55.0] - 2026-09-09
 

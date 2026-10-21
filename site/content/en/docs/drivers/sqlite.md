@@ -151,11 +151,16 @@ $ sq inspect @vec.doc_vec -j
 For a libSQL table, a `libsql_vector_idx` index is listed with a `vector` object holding
 its `method` (`diskann`), `metric` and `params`.
 
-A virtual table that `sq` can't serve, such as one from an unknown module like
-`vectorlite`, or a `vec0` table that uses a newer sqlite-vec feature such as
-`INDEXED BY rescore(...)`, doesn't break `sq inspect` for the whole source. The table is
-listed with an error, and `sq inspect @src` prints a `warning:` line for each such table
-on stderr. `sq inspect @src.tbl` on such a table exits with an error.
+A virtual table that `sq` can't serve doesn't break `sq inspect` for the whole source.
+The table is listed with an error, and `sq inspect @src` prints a `warning:` line for each
+such table on stderr and exits 0. `sq inspect @src.tbl` on such a table exits with an error.
+
+- For a `vec0` table that the bundled sqlite-vec can't open, such as one using a newer
+  sqlite-vec feature like `INDEXED BY rescore(...)`, `inspect` shows the columns parsed
+  from the table's declaration (including each vector column's dimension, element type
+  and metric) together with the error.
+- For a table from any other unknown module, such as `vectorlite`, `inspect` shows only
+  the error.
 
 ### Query
 
