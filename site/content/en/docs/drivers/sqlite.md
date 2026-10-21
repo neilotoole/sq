@@ -76,19 +76,136 @@ You may find it necessary to use [native sql mode](/docs/cmd/sql) to access some
 extension features.
 {{< /alert >}}
 
-| Extension        | Details                                                                                                                                                 |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vtable`         | [Virtual Table](https://www.sqlite.org/vtab.html) <br/><small>👉 [`sq inspect`](/docs/inspect) will show the virtual table's type as `virtual`.</small> |
-| `fts5`           | [Full Text Search 5](https://www.sqlite.org/fts5.html)                                                                                                  |
-| `json`           | [JSON](https://sqlite.org/json1.html)                                                                                                                   |
-| `math_functions` | [Math Functions](https://www.sqlite.org/lang_mathfunc.html)                                                                                             |
-| `introspect`     | Additional `PRAGMA` statements: `function_list`, `module_list`, `pragma_list`                                                                           |
-| `stat4`          | Additional statistics to assist query planning                                                                                                          |
+| Extension        | Details                                                                                                                                                                                                              |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vtable`         | [Virtual Table](https://www.sqlite.org/vtab.html) <br/><small>👉 [`sq inspect`](/docs/inspect) will show the virtual table's type as `virtual`.</small>                                                              |
+| `fts5`           | [Full Text Search 5](https://www.sqlite.org/fts5.html)                                                                                                                                                               |
+| `json`           | [JSON](https://sqlite.org/json1.html)                                                                                                                                                                                |
+| `math_functions` | [Math Functions](https://www.sqlite.org/lang_mathfunc.html)                                                                                                                                                          |
+| `introspect`     | Additional `PRAGMA` statements: `function_list`, `module_list`, `pragma_list`                                                                                                                                        |
+| `stat4`          | Additional statistics to assist query planning                                                                                                                                                                       |
+| `vec0`           | [sqlite-vec](https://github.com/asg017/sqlite-vec) vector search, from the community fork [`vlasky/sqlite-vec`](https://github.com/vlasky/sqlite-vec) `v0.2.7-alpha` <br/><small>👉 See [Vectors](#vectors).</small> |
 
 {{< alert icon="👉" >}}
 There is already a [feature request](https://github.com/neilotoole/sq/issues/86) to
 add [SpatiaLite](https://www.gaia-gis.it/fossil/libspatialite/index) support.
 {{< /alert >}}
+
+## Vectors
+
+`sq` recognizes vector columns in two kinds of SQLite database, and gives them the
+column kind `vector`.
+
+- [sqlite-vec](https://github.com/asg017/sqlite-vec) `vec0` virtual tables. The
+  extension is built into `sq`, so `vec0` tables open, inspect and query with no setup.
+- libSQL/Turso vector columns, declared as `F32_BLOB(N)` (also `F64_BLOB`, `F16_BLOB`,
+  `FB16_BLOB`, `F8_BLOB`, `F1BIT_BLOB` and the `FLOAT32(N)` style aliases). No extension
+  is needed.
+
+A plain `BLOB` or `JSON` column is never treated as a vector.
+
+### Inspect
+
+`sq inspect` reports each vector column with its declared type and, in JSON and YAML,
+a `vector` object with the dimension (`dim`), element type (`elem`) and, for `vec0`,
+the distance metric (`metric`).
+
+```shell
+$ sq inspect @vec.doc_vec -j
+{
+  "name": "doc_vec",
+  "table_type": "virtual",
+  "row_count": 3,
+  "columns": [
+    {
+      "name": "doc_id",
+      "primary_key": true,
+      "column_type": "INTEGER",
+      "kind": "int"
+    },
+    {
+      "name": "embedding",
+      "column_type": "float[4]",
+      "kind": "vector",
+      "vector": {
+        "dim": 4,
+        "elem": "f32",
+        "metric": "cosine"
+      }
+    },
+    {
+      "name": "category",
+      "kind": "text",
+      "role": "metadata"
+    },
+    {
+      "name": "note",
+      "kind": "text",
+      "role": "auxiliary"
+    }
+  ]
+}
+```
+
+(Output abridged.) A `vec0` partition key, metadata or auxiliary column carries a `role`.
+For a libSQL table, a `libsql_vector_idx` index is listed with a `vector` object holding
+its `method` (`diskann`), `metric` and `params`.
+
+A virtual table that `sq` can't serve, such as one from an unknown module like
+`vectorlite`, or a `vec0` table that uses a newer sqlite-vec feature such as
+`INDEXED BY rescore(...)`, doesn't break `sq inspect` for the whole source. The table is
+listed with an error, and `sq inspect @src` prints a `warning:` line for each such table
+on stderr. `sq inspect @src.tbl` on such a table exits with an error.
+
+### Query
+
+An SLQ query on a single `vec0` table decodes its vectors, including `SELECT *`-style
+queries, column lists and aliases.
+
+```shell
+$ sq '@vec.doc_vec'
+doc_id  embedding  category  note
+1       [4 × f32]  animal    n1
+2       [4 × f32]  animal    n2
+3       [4 × f32]  vehicle   n3
+```
+
+SLQ has no nearest-neighbor or vector functions. For KNN search, use
+[native SQL mode](/docs/cmd/sql), passing the query vector as a JSON literal:
+
+```shell
+$ sq sql --src @vec "SELECT doc_id, distance FROM doc_vec WHERE embedding MATCH '[0.85,0.15,0,0]' AND k = 2"
+doc_id  distance
+1       0.00204825890250504
+2       0.0024704814422875643
+```
+
+In a join, and in `sq sql`, `vec0` vectors come back as bytes. In `sq sql`, wrap the
+column in `vec_to_json(embedding)` to get numbers. libSQL vector columns decode
+everywhere, including `sq sql`.
+
+### Output formats
+
+| Format                        | Vector rendering                                              |
+| ----------------------------- | ------------------------------------------------------------- |
+| Text                          | Summary, e.g. `[384 × f32]`                                   |
+| JSON, YAML                    | Full array of numbers, in the shortest form that round-trips  |
+| CSV, TSV, Markdown, HTML, XML | The array as a single text cell                               |
+| XLSX                          | The same text, or the summary if it exceeds 32,767 characters |
+| `--raw`                       | The stored bytes                                              |
+
+When a query result is copied (`--insert`, or a cross-source join), a vector is written
+as its original bytes into a `BLOB` column.
+
+### Limits
+
+- Vector columns can't be written as vector types.
+- The internal tables behind a `vec0` table (`*_chunks`, `*_rowids`,
+  `*_vector_chunksNN` and so on), and the internal tables of FTS5 and libSQL, are listed
+  as ordinary tables.
+- On a libSQL table with a `libsql_vector_idx` index, `sq inspect` and SLQ queries return
+  the correct rows, but a raw `sq sql` query can undercount unless it adds `NOT INDEXED`
+  after the table name: `SELECT count(*) FROM t NOT INDEXED`.
 
 ## Inspect field provenance
 

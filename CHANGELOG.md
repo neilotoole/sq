@@ -22,6 +22,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   image also now ships with SLSA build provenance and an SPDX SBOM, in addition
   to the existing cosign signature.
 
+- SQLite vector support. [`sq inspect`](https://sq.io/docs/inspect) and
+  [`sq sql`](https://sq.io/docs/cmd/sql) now work with `vec0` tables from
+  [sqlite-vec](https://github.com/asg017/sqlite-vec), which is built into `sq`, and with
+  libSQL/Turso vector columns (`F32_BLOB(N)` and friends). Vector columns have the new
+  kind `vector`, and `inspect` reports their dimension, element type and distance metric.
+  Query results show a summary such as `[384 × f32]` in text output and the full array
+  of numbers in JSON and YAML. See the [driver docs](https://sq.io/docs/drivers/sqlite#vectors).
+
 ### Changed
 
 - [#1013]: Querying a remote source now makes one fewer server round-trip per `sq`
@@ -42,6 +50,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#1298]: A libSQL table with a `libsql_vector_idx` index was reported as having
+  0 rows by `sq inspect`, and returned no rows from SLQ queries.
+- `sq inspect` no longer fails for a whole SQLite source when it contains a virtual table that
+  `sq` can't serve, such as one using an unknown module. The table is listed with an error, and
+  `sq inspect` prints a warning for it.
 - [#1151]: Opening a DuckDB source is much faster, and no longer needs network
   access on a machine with an empty extension cache.
 - [#1165]: A source-level option was ignored once `sq` reloaded its config,
@@ -1818,6 +1831,7 @@ make working with lots of sources much easier.
 [#1165]: https://github.com/neilotoole/sq/issues/1165
 [#1209]: https://github.com/neilotoole/sq/issues/1209
 [#1220]: https://github.com/neilotoole/sq/issues/1220
+[#1298]: https://github.com/neilotoole/sq/issues/1298
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
