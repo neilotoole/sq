@@ -119,3 +119,46 @@ func TestVector_LibSQLMetadata(t *testing.T) {
 	check(t, got)
 	require.Equal(t, tblMeta.Columns, got.Columns)
 }
+
+func TestVTab_Unopenable(t *testing.T) {
+	th, src := vecSrc(t, "@vtab_unopenable", "vtab_unopenable.db")
+
+	srcMeta, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+
+	var names []string
+	for _, tbl := range srcMeta.Tables {
+		names = append(names, tbl.Name)
+	}
+	require.Equal(t, []string{"fx_other", "fx_rescore", "plain"}, names)
+
+	plain := srcMeta.Table("plain")
+	require.Equal(t, int64(2), plain.RowCount)
+	require.Empty(t, plain.Error)
+
+	rescore := srcMeta.Table("fx_rescore")
+	require.Equal(t, sqlz.TableTypeVirtual, rescore.TableType)
+	require.NotEmpty(t, rescore.Error)
+	require.Zero(t, rescore.RowCount)
+	require.Len(t, rescore.Columns, 1)
+	emb := colByName(t, rescore, "embedding")
+	require.Equal(t, kind.Vector, emb.Kind)
+	require.Equal(t, &vector.Type{Dim: 384, Elem: vector.F32, Metric: "cosine"}, emb.Vector)
+
+	other := srcMeta.Table("fx_other")
+	require.Equal(t, sqlz.TableTypeVirtual, other.TableType)
+	require.Contains(t, other.Error, "no such module: vectorlite")
+	require.Empty(t, other.Columns)
+
+	for _, name := range []string{"fx_other", "fx_rescore"} {
+		tblMeta, err := th.TableMetadata(src, name)
+		require.NoError(t, err, name)
+		require.Equal(t, srcMeta.Table(name).Error, tblMeta.Error, name)
+		require.Equal(t, srcMeta.Table(name).Columns, tblMeta.Columns, name)
+		require.Equal(t, sqlz.TableTypeVirtual, tblMeta.TableType, name)
+	}
+
+	tblMeta, err := th.TableMetadata(src, "plain")
+	require.NoError(t, err)
+	require.Empty(t, tblMeta.Error)
+}

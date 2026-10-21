@@ -4,10 +4,12 @@ import "C"
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 
 	"golang.org/x/mod/semver"
@@ -296,6 +298,23 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	tblMeta := &metadata.Table{Name: tblName}
 	// Note that there's no easy way of getting the physical size of
 	// a table, so tblMeta.Size remains nil.
+
+	// A virtual table whose module is unavailable (or rejects the table's
+	// declaration) can't be opened at all; report it with an error
+	// instead of failing.
+	if ddl, isVirtual, err := getVirtualTableDDL(ctx, db, tblName); err != nil {
+		return nil, err
+	} else if isVirtual {
+		if probeErr := probeVirtualTable(ctx, db, tblName); probeErr != "" {
+			var schema string
+			err = db.QueryRowContext(ctx,
+				"SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1").Scan(&schema)
+			if err != nil {
+				return nil, errw(err)
+			}
+			return unopenableTable(ctx, schema, tblName, ddl, probeErr), nil
+		}
+	}
 
 	// But we can get the row count and table type ("table" or "view").
 	// The table name is bound as a query parameter where it appears in
@@ -782,8 +801,21 @@ SELECT m.name as table_name, m.type, p.cid, p.name, p.type, p.'notnull' as 'notn
 (substr(m.sql, 0, 21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
 COALESCE(m.sql, '') AS table_ddl
 FROM sqlite_master AS m JOIN pragma_table_xinfo(m.name) AS p
+WHERE m.name NOT IN (SELECT value FROM json_each(?))
 ORDER BY m.name, p.cid
 `
+
+	// A virtual table that can't be opened would fail the whole query
+	// above, so such tables are found first, excluded from the query (the
+	// names are passed as a bound JSON array), and added back below.
+	unopenable, err := findUnopenableVirtualTables(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	excludeJSON, err := vtabNamesJSON(unopenable)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		tblMetas        []*metadata.Table
@@ -796,7 +828,7 @@ ORDER BY m.name, p.cid
 		curTblMeta      *metadata.Table
 	)
 
-	rows, err := db.QueryContext(ctx, query)
+	rows, err := db.QueryContext(ctx, query, excludeJSON)
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -961,7 +993,138 @@ ORDER BY m.name, p.cid
 		}
 	}
 
-	return tblMetas, nil
+	return addUnopenableTables(ctx, tblMetas, unopenable, allTriggers, schemaName), nil
+}
+
+// vtabNamesJSON returns the names of vtabs as a JSON array.
+func vtabNamesJSON(vtabs []unopenableVTab) (string, error) {
+	names := make([]string, len(vtabs))
+	for i := range vtabs {
+		names[i] = vtabs[i].name
+	}
+	b, err := json.Marshal(names)
+	if err != nil {
+		return "", errz.Err(err)
+	}
+	return string(b), nil
+}
+
+// addUnopenableTables appends a fallback table for each of vtabs to tblMetas,
+// and returns the result sorted by table name.
+func addUnopenableTables(ctx context.Context, tblMetas []*metadata.Table, vtabs []unopenableVTab,
+	triggers map[string][]*metadata.Trigger, schemaName string,
+) []*metadata.Table {
+	if len(vtabs) == 0 {
+		return tblMetas
+	}
+	for _, u := range vtabs {
+		tbl := unopenableTable(ctx, schemaName, u.name, u.ddl, u.errText)
+		tbl.Triggers = triggers[u.name]
+		tblMetas = append(tblMetas, tbl)
+	}
+	sort.SliceStable(tblMetas, func(i, j int) bool { return tblMetas[i].Name < tblMetas[j].Name })
+	return tblMetas
+}
+
+// unopenableVTab describes a virtual table that SQLite can't open.
+type unopenableVTab struct {
+	name    string
+	ddl     string
+	errText string
+}
+
+// getVirtualTableDDL returns the CREATE DDL of tblName, and whether tblName
+// is a virtual table.
+func getVirtualTableDDL(ctx context.Context, db sqlz.DB, tblName string) (ddl string, isVirtual bool, err error) {
+	const q = `SELECT COALESCE(sql, '') FROM sqlite_master
+WHERE name = ? AND type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' LIMIT 1`
+	err = db.QueryRowContext(ctx, q, tblName).Scan(&ddl)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", false, nil
+	case err != nil:
+		return "", false, errw(err)
+	}
+	return ddl, true, nil
+}
+
+// probeVirtualTable tries to open the virtual table tblName, and returns
+// SQLite's error text if that fails, or empty string if it can be opened.
+func probeVirtualTable(ctx context.Context, db sqlz.DB, tblName string) string {
+	rows, err := db.QueryContext(ctx, "SELECT 1 FROM "+stringz.DoubleQuote(tblName)+" LIMIT 0")
+	if err != nil {
+		return err.Error()
+	}
+	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
+	if err = rows.Err(); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+// findUnopenableVirtualTables returns the virtual tables in db that can't be
+// opened, such as those of an unavailable module, ordered by name.
+func findUnopenableVirtualTables(ctx context.Context, db sqlz.DB) ([]unopenableVTab, error) {
+	const q = `SELECT name, COALESCE(sql, '') FROM sqlite_master
+WHERE type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' ORDER BY name`
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	var vtabs []unopenableVTab
+	for rows.Next() {
+		var v unopenableVTab
+		if err = rows.Scan(&v.name, &v.ddl); err != nil {
+			sqlz.CloseRows(lg.FromContext(ctx), rows)
+			return nil, errw(err)
+		}
+		vtabs = append(vtabs, v)
+	}
+	err = rows.Err()
+	sqlz.CloseRows(lg.FromContext(ctx), rows)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	var bad []unopenableVTab
+	for _, v := range vtabs {
+		if strings.HasPrefix(v.name, "sqlite_") {
+			continue
+		}
+		if v.errText = probeVirtualTable(ctx, db, v.name); v.errText != "" {
+			bad = append(bad, v)
+		}
+	}
+	return bad, nil
+}
+
+// unopenableTable builds the metadata for a virtual table that can't be
+// opened. Row count is zero. For a vec0 table the columns are taken from
+// the parsed DDL, via the same overlay used for openable tables; for any
+// other module there are no columns.
+func unopenableTable(ctx context.Context, schemaName, tblName, ddl, errText string) *metadata.Table {
+	tbl := &metadata.Table{
+		Name:        tblName,
+		FQName:      schemaName + "." + tblName,
+		TableType:   sqlz.TableTypeVirtual,
+		DBTableType: sqlz.TableTypeTable,
+		Error:       errText,
+	}
+
+	if strings.EqualFold(vecdecl.VirtualTableModule(ddl), "vec0") {
+		if decls, err := vecdecl.ParseVec0(ddl); err == nil {
+			for i, d := range decls {
+				tbl.Columns = append(tbl.Columns, &metadata.Column{
+					Name:     d.Name,
+					Position: int64(i),
+					Nullable: true,
+				})
+			}
+			applyVectorMetadata(ctx, ddl, tbl)
+		}
+	}
+	return tbl
 }
 
 // getTblRowCounts returns the number of rows in each table. If a table named

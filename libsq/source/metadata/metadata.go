@@ -236,6 +236,12 @@ type Table struct { //nolint:govet // field alignment
 	// comparable across engines. Empty for tables.
 	ViewDefinition string `json:"view_definition,omitempty" yaml:"view_definition,omitempty"`
 
+	// Error, if non-empty, is the reason the table could not be read, for
+	// example a SQLite virtual table whose module is unavailable. The
+	// table is still listed, with whatever metadata could be derived
+	// without opening it.
+	Error string `json:"error,omitempty" yaml:"error,omitempty"`
+
 	// RowCount is the number of rows in the table.
 	RowCount int64 `json:"row_count" yaml:"row_count"`
 
@@ -312,6 +318,7 @@ func (t *Table) Clone() *Table {
 		TableType:      t.TableType,
 		DBTableType:    t.DBTableType,
 		ViewDefinition: t.ViewDefinition,
+		Error:          t.Error,
 		RowCount:       t.RowCount,
 		Size:           clonePtr(t.Size),
 		Comment:        t.Comment,

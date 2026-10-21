@@ -1761,6 +1761,7 @@ func TestTable_Clone_AllFieldsCovered(t *testing.T) {
 		TableType:      "table",
 		DBTableType:    "BASE TABLE",
 		ViewDefinition: "SELECT 1",
+		Error:          "no such module: x",
 		RowCount:       200,
 		Size:           &sz,
 		Comment:        "Film table",
