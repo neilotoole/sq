@@ -218,6 +218,8 @@ as its original bytes into a `BLOB` column.
 - On a libSQL table with a `libsql_vector_idx` index, `sq inspect` and SLQ queries return
   the correct rows, but a raw `sq sql` query can undercount unless it adds `NOT INDEXED`
   after the table name: `SELECT count(*) FROM t NOT INDEXED`.
+- SLQ queries read a table with a `libsql_vector_idx` index using `NOT INDEXED`, which also
+  bypasses the table's other indexes, so such queries may be slower on large tables.
 
 ## Inspect field provenance
 

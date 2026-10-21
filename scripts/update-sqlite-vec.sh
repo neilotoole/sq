@@ -7,7 +7,11 @@
 # Downloads sqlite-vec.c, sqlite-vec.h and the license files from the
 # vlasky/sqlite-vec fork at <commit> into drivers/sqlite3/internal/sqlitevec,
 # copies mattn/go-sqlite3's sqlite3-binding.h (for the version in go.mod) to
-# sqlite3.h there, and rewrites README.md with provenance and sha256 sums.
+# sqlite3.h there, and rewrites README.md with provenance and the sha256 sums
+# of the fetched files. The files are fetched by full commit SHA; the sums are
+# recorded, not verified against a published list.
+#
+# Run "make fmt" afterwards, to format the generated README.md.
 
 set -euo pipefail
 
@@ -64,6 +68,9 @@ SQLITE_VER="$(sed -n 's/^#define SQLITE_VERSION  *"\(.*\)"/\1/p' "$DEST/sqlite3.
   echo "\`sqlite3.h\` is mattn's \`sqlite3-binding.h\`. When mattn is bumped, rerun the script so the"
   echo "header matches the SQLite that is linked."
   echo
+  echo "The script fetches each file by full commit SHA and records the sha256 sums below. It doesn't"
+  echo "verify them against a published list. Run \`make fmt\` after the script, to format this file."
+  echo
   echo "| File | sha256 |"
   echo "| ---- | ------ |"
   for f in sqlite-vec.c sqlite-vec.h sqlite3.h LICENSE-MIT LICENSE-APACHE; do
@@ -72,3 +79,4 @@ SQLITE_VER="$(sed -n 's/^#define SQLITE_VERSION  *"\(.*\)"/\1/p' "$DEST/sqlite3.
 } >"$DEST/README.md"
 
 echo "Vendored sqlite-vec $VEC_VER ($FULL_SHA) with SQLite $SQLITE_VER header."
+echo "Run 'make fmt' to format $DEST/README.md."

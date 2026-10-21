@@ -16,6 +16,9 @@ scalar path. The vendored files are verbatim.
 `sqlite3.h` is mattn's `sqlite3-binding.h`. When mattn is bumped, rerun the script so the
 header matches the SQLite that is linked.
 
+The script fetches each file by full commit SHA and records the sha256 sums below. It doesn't
+verify them against a published list. Run `make fmt` after the script, to format this file.
+
 | File           | sha256                                                           |
 | -------------- | ---------------------------------------------------------------- |
 | sqlite-vec.c   | 30a3958c1859dba90db41d2f860ac68dad71cf3d37325669669e2903af1232a8 |
