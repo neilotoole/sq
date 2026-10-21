@@ -219,10 +219,13 @@ func TestLibSQL_RowCounts(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(2), srcMeta.Table("t").RowCount)
 	require.Equal(t, int64(1), srcMeta.Table("u").RowCount)
+	require.Equal(t, int64(2), srcMeta.Table("w").RowCount)
 
-	tblMeta, err := th.TableMetadata(src, "t")
-	require.NoError(t, err)
-	require.Equal(t, int64(2), tblMeta.RowCount)
+	for _, tbl := range []string{"t", "w"} {
+		tblMeta, err := th.TableMetadata(src, tbl)
+		require.NoError(t, err)
+		require.Equal(t, int64(2), tblMeta.RowCount, tbl)
+	}
 }
 
 func TestLibSQL_SLQNotIndexedCase(t *testing.T) {
@@ -262,6 +265,12 @@ func TestLibSQL_SLQNotIndexed(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, res.SQL, `FROM "t" NOT INDEXED`)
 	require.Contains(t, res.SQL, `JOIN "u" NOT INDEXED`)
+
+	// w_idx has a comment between libsql_vector_idx and its parenthesis.
+	sink, err = th.QuerySLQ(`@lib.w | count`, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 1)
+	require.EqualValues(t, 2, sink.Recs[0][0])
 }
 
 func TestLibSQL_IndexMetadata(t *testing.T) {
@@ -294,6 +303,13 @@ func TestLibSQL_IndexMetadata(t *testing.T) {
 		"compress_neighbors": "float1bit",
 		"max_neighbors":      "8",
 	}, idx.Vector.Params)
+
+	tblMeta, err = th.TableMetadata(src, "w")
+	require.NoError(t, err)
+	idx = idxByName(tblMeta, "w_idx")
+	require.NotNil(t, idx)
+	require.Equal(t, []string{"e"}, idx.Columns)
+	require.Equal(t, &metadata.IndexVector{Method: "diskann", Metric: "l2"}, idx.Vector)
 }
 
 // vecJSON asserts that val is a vector.Vector and returns its JSON form.

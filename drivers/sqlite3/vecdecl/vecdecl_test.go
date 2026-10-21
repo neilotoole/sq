@@ -216,6 +216,15 @@ func TestParseLibSQLVectorIndex(t *testing.T) {
 	require.Equal(t, &metadata.IndexVector{Method: "diskann"}, iv)
 	require.Nil(t, iv.Params)
 
+	col, iv, ok = vecdecl.ParseLibSQLVectorIndex("CREATE INDEX i ON t(libsql_vector_idx(/* note */ emb, " +
+		"-- metric\n'metric=l2'))")
+	require.True(t, ok)
+	require.Equal(t, "emb", col)
+	require.Equal(t, &metadata.IndexVector{Method: "diskann", Metric: "l2"}, iv)
+
+	_, _, ok = vecdecl.ParseLibSQLVectorIndex("CREATE INDEX i ON t(a) -- libsql_vector_idx(b)")
+	require.False(t, ok)
+
 	col, iv, ok = vecdecl.ParseLibSQLVectorIndex("CREATE INDEX i ON t(a, b)")
 	require.False(t, ok)
 	require.Empty(t, col)

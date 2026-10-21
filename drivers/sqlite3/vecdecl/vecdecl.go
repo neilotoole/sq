@@ -235,12 +235,12 @@ func ParseLibSQLType(declType string) (vector.Type, bool) {
 // indexed column and the index details, or ok false if createIndexSQL is
 // not a libSQL vector index.
 func ParseLibSQLVectorIndex(createIndexSQL string) (col string, iv *metadata.IndexVector, ok bool) {
-	loc := rxLibSQLIndex.FindStringIndex(createIndexSQL)
+	s := stripComments(createIndexSQL)
+	loc := rxLibSQLIndex.FindStringIndex(s)
 	if loc == nil {
 		return "", nil, false
 	}
 
-	s := createIndexSQL
 	open := loc[1] - 1
 	end, err := matchParen(s, open)
 	if err != nil {

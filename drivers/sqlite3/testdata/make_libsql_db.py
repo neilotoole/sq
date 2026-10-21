@@ -42,6 +42,17 @@ def main() -> None:
         "CREATE INDEX u_idx ON u(libsql_vector_idx(e, "
         "'compress_neighbors=float1bit', 'max_neighbors=8'))"
     )
+
+    # libSQL accepts whitespace and comments between the function name and
+    # its parenthesis. The note and x columns make the index the cheaper
+    # covering index for stock SQLite's planner.
+    db.execute(
+        "CREATE TABLE w(id INTEGER PRIMARY KEY, e F32_BLOB(2), note TEXT, x TEXT)"
+    )
+    db.execute(
+        "INSERT INTO w(id, e) VALUES (1, vector32('[1,2]')), (2, vector32('[3,4]'))"
+    )
+    db.execute("CREATE INDEX w_idx ON w(libsql_vector_idx /* spaced */ (e, 'metric=l2'))")
     db.commit()
 
 

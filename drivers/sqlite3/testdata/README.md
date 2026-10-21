@@ -99,6 +99,9 @@ Contents:
   with only `e32` set (from JSON text). Index `t_idx` is `libsql_vector_idx(e32, 'metric=cosine')`.
 - `u(id, e F8_BLOB(4))`: 1 row. Index `u_idx` uses `compress_neighbors=float1bit` and
   `max_neighbors=8`.
+- `w(id, e F32_BLOB(2), note, x)`: 2 rows. Index `w_idx` is
+  `libsql_vector_idx /* spaced */ (e, 'metric=l2')`, with a comment between the function name and
+  its parenthesis. Stock SQLite's planner picks `w_idx` as a covering index for `count(*)`.
 
 ## vtab_unopenable.db
 

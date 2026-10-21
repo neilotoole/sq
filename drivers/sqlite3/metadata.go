@@ -1220,8 +1220,12 @@ func isVec0ColumnParseErr(errText, col string) bool {
 }
 
 // libsqlVectorIdxPattern matches the SQL of a libSQL vector index. LIKE is
-// case-insensitive for ASCII in SQLite.
-const libsqlVectorIdxPattern = `%libsql_vector_idx(%`
+// case-insensitive for ASCII in SQLite. The pattern stops at the function
+// name, because libSQL accepts whitespace and comments before the
+// parenthesis. An index that mentions the name only in a comment also
+// matches; its table is then read with NOT INDEXED, which is slower but
+// returns the same rows.
+const libsqlVectorIdxPattern = `%libsql_vector_idx%`
 
 // getLibSQLVectorIndexedTables returns the set of tables that have a libSQL
 // vector index. Stock SQLite can't maintain such an index (its b-tree is empty),
