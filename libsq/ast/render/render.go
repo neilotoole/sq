@@ -37,6 +37,14 @@ type Context struct {
 	// #839. It's nil unless at least one result column has a forced kind.
 	ResultColumnKinds map[int]kind.Kind
 
+	// ResultColumnVectors records the vector type of result columns, by their
+	// zero-based output position, that select a vector column of VectorTable.
+	// It's populated during column rendering from TableHints, and lets the
+	// driver decode vector columns whose type the backend doesn't report
+	// (sqlite-vec's vec0 columns). It's nil unless VectorTable is set and at
+	// least one result column selects a vector column.
+	ResultColumnVectors map[int]vector.Type
+
 	// DBSemver is the canonical semver of the target server (e.g. "v8.0.36"),
 	// or "" if unknown. Lets a FunctionOverride emit version-appropriate SQL.
 	// Populated by the pipeline from the grip's DBSemver.

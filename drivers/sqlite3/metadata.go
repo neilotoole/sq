@@ -31,12 +31,14 @@ import (
 )
 
 // recordMetaFromColumnTypes returns record.Meta for colTypes.
-func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType, kindHints map[int]kind.Kind,
+func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType, hints driver.ResultHints,
 ) (record.Meta, error) {
-	// kindHints carries forced result-column kinds recorded during rendering
+	// hints.Kinds carries forced result-column kinds recorded during rendering
 	// (e.g. sum() pinned to kind.Decimal). SQLite reports no usable type for
 	// such expressions, so without a hint they would be surfaced as int/float
-	// from the scanned value. See issue #839.
+	// from the scanned value. See issue #839. Likewise, sqlite-vec declares
+	// vec0 columns with no type, so hints.Vectors marks those that are
+	// vectors.
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
@@ -47,10 +49,13 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType, 
 		dbTypeName := colType.DatabaseTypeName()
 
 		knd := kindFromDBTypeName(ctx, colType.Name(), dbTypeName, colType.ScanType())
-		if hint, ok := kindHints[i]; ok {
+		if hint, ok := hints.Kinds[i]; ok {
 			// Force the renderer-pinned kind. setScanType derives the scan
 			// target from the kind, so kind.Decimal yields a decimal scan.
 			knd = hint
+		}
+		if _, ok := hints.Vectors[i]; ok {
+			knd = kind.Vector
 		}
 		colTypeData := record.NewColumnTypeData(colType, knd)
 

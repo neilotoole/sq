@@ -17,11 +17,28 @@ import (
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
+
+// ResultHints carries hints about a query's result columns, keyed by
+// zero-based output position, recorded during SLQ rendering. They inform a
+// driver's SQLDriver.RecordMeta about columns whose type the backend can't
+// report. The zero value means no hints.
+type ResultHints struct {
+	// Kinds holds forced result-column kinds, e.g. SQLite/rqlite pinning sum()
+	// to kind.Decimal, or Oracle pinning count()/rownum() to kind.Int. See
+	// issues #839 and #848.
+	Kinds map[int]kind.Kind
+
+	// Vectors holds the vector types of result columns that select a vector
+	// column of a sqlite-vec vec0 table. sqlite-vec declares those columns
+	// with no type, so the result metadata alone can't identify them.
+	Vectors map[int]vector.Type
+}
 
 // Provider is a factory that returns Driver instances.
 type Provider interface {
@@ -142,14 +159,13 @@ type SQLDriver interface {
 	// RecordMeta also returns a NewRecordFunc which can be
 	// applied to the scan row from sql.Rows.
 	//
-	// The hints arg carries forced result-column kinds, keyed by zero-based
-	// output position, recorded during SLQ rendering (e.g. SQLite/rqlite pinning
-	// sum() to kind.Decimal, or Oracle pinning count()/rownum() to kind.Int). A
-	// hint overrides the kind derived from colTypes, which in turn selects the
-	// scan target, so it must be applied before any row is scanned. Callers
-	// outside the SLQ query path (table metadata, ingest/copy) pass nil; drivers
-	// that surface no such hints ignore the arg.
-	RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints map[int]kind.Kind) (
+	// The hints arg carries result-column hints recorded during SLQ rendering;
+	// see ResultHints. A kind hint overrides the kind derived from colTypes,
+	// which in turn selects the scan target, so it must be applied before any
+	// row is scanned. Callers outside the SLQ query path (raw SQL, table
+	// metadata, ingest/copy) pass the zero value; drivers that surface no such
+	// hints ignore the arg.
+	RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints ResultHints) (
 		record.Meta, NewRecordFunc, error)
 
 	// PrepareInsertStmt prepares a statement for inserting

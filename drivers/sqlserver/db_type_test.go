@@ -12,6 +12,7 @@ import (
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
@@ -303,7 +304,7 @@ func TestDatabaseTypes(t *testing.T) {
 
 			sink := &testh.RecordSink{}
 			recw := output.NewRecordWriterAdapter(th.Context, sink)
-			err := libsq.QuerySQL(th.Context, th.Open(src), nil, recw, nil, "SELECT * FROM "+actualTblName)
+			err := libsq.QuerySQL(th.Context, th.Open(src), nil, recw, driver.ResultHints{}, "SELECT * FROM "+actualTblName)
 			require.NoError(t, err)
 			written, err := recw.Wait()
 			require.NoError(t, err)

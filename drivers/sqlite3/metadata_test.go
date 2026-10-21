@@ -19,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -214,7 +215,7 @@ func TestRecordMetadata(t *testing.T) {
 			colTypes, err := rows.ColumnTypes()
 			require.NoError(t, err)
 
-			recMeta, _, err := drvr.RecordMeta(th.Context, colTypes, nil)
+			recMeta, _, err := drvr.RecordMeta(th.Context, colTypes, driver.ResultHints{})
 			require.NoError(t, err)
 			require.Equal(t, len(tc.colNames), len(recMeta))
 

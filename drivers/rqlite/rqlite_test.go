@@ -1700,7 +1700,7 @@ func TestColumnTypes_EmptyTable(t *testing.T) {
 	// RecordMeta should map each declared type to its expected
 	// non-Unknown kind, end-to-end. This is the assertion that ties
 	// the wrapper's DatabaseTypeName back to the rest of the driver.
-	recMeta, _, err := drvr.RecordMeta(th.Context, colTypes, nil)
+	recMeta, _, err := drvr.RecordMeta(th.Context, colTypes, driver.ResultHints{})
 	require.NoError(t, err)
 	require.Equal(t, []kind.Kind{
 		kind.Int,

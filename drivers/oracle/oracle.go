@@ -196,7 +196,7 @@ func (d *driveri) Renderer() *render.Renderer {
 	// avoid the fractional-value scan crash (issue #844). Without intervention
 	// these would surface as a decimal string ("200") instead of an integer. Pin
 	// them to kind.Int so they scan as int64 and stay numbers, matching every
-	// other driver. RecordMeta applies these hints via its kindHints parameter.
+	// other driver. RecordMeta applies these hints via ResultHints.Kinds.
 	r.FunctionResultKinds[ast.FuncNameCount] = kind.Int
 	r.FunctionResultKinds[ast.FuncNameCountUnique] = kind.Int
 	r.FunctionResultKinds[ast.FuncNameRowNum] = kind.Int
@@ -615,12 +615,12 @@ ORDER BY column_id`
 
 // RecordMeta implements driver.SQLDriver.
 func (d *driveri) RecordMeta(
-	ctx context.Context, colTypes []*sql.ColumnType, kindHints map[int]kind.Kind,
+	ctx context.Context, colTypes []*sql.ColumnType, hints driver.ResultHints,
 ) (record.Meta, driver.NewRecordFunc, error) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 
-	// kindHints carries forced result-column kinds recorded during rendering,
+	// hints.Kinds carries forced result-column kinds recorded during rendering,
 	// e.g. count() and rownum() pinned to kind.Int. Oracle reports their result
 	// column as a floating-scale NUMBER that refineBareNumberKind classifies as
 	// kind.Decimal (to avoid the fractional-value scan crash, issue #844), so
@@ -633,7 +633,7 @@ func (d *driveri) RecordMeta(
 		if colType.DatabaseTypeName() == "NUMBER" && knd == kind.Decimal {
 			knd = refineBareNumberKind(colType.DecimalSize())
 		}
-		if hint, ok := kindHints[i]; ok {
+		if hint, ok := hints.Kinds[i]; ok {
 			// Force the renderer-pinned kind; setScanType derives the scan
 			// target from it, so kind.Int yields an int64 scan.
 			knd = hint
@@ -705,7 +705,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	recMeta, _, err := d.RecordMeta(ctx, colTypes, nil)
+	recMeta, _, err := d.RecordMeta(ctx, colTypes, driver.ResultHints{})
 	return recMeta, err
 }
 

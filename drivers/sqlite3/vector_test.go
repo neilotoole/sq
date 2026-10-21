@@ -9,12 +9,15 @@ import (
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -277,4 +280,180 @@ func TestLibSQL_IndexMetadata(t *testing.T) {
 		"compress_neighbors": "float1bit",
 		"max_neighbors":      "8",
 	}, idx.Vector.Params)
+}
+
+// vecJSON asserts that val is a vector.Vector and returns its JSON form.
+func vecJSON(t *testing.T, val any) string {
+	t.Helper()
+	v, ok := val.(vector.Vector)
+	require.True(t, ok, "want vector.Vector but got %T", val)
+	return string(v.AppendJSON(nil))
+}
+
+// colIndex returns the index of the named column in sink's record meta.
+func colIndex(t *testing.T, sink *testh.RecordSink, name string) int {
+	t.Helper()
+	for i, fm := range sink.RecMeta {
+		if fm.Name() == name {
+			return i
+		}
+	}
+	require.FailNow(t, "result column not found", name)
+	return -1
+}
+
+func TestVector_DecodeVec0SLQ(t *testing.T) {
+	th, _ := vecSrc(t, "@vec", "vec.db")
+
+	t.Run("select_star", func(t *testing.T) {
+		sink, err := th.QuerySLQ(`@vec.doc_vec | .[0]`, nil)
+		require.NoError(t, err)
+		require.Len(t, sink.Recs, 1)
+		i := colIndex(t, sink, "embedding")
+		require.Equal(t, kind.Vector, sink.RecMeta[i].Kind())
+		require.Equal(t, "[0.9,0.1,0,0]", vecJSON(t, sink.Recs[0][i]))
+		require.Equal(t, "animal", sink.Recs[0][colIndex(t, sink, "category")])
+		require.Equal(t, "n1", sink.Recs[0][colIndex(t, sink, "note")])
+	})
+
+	t.Run("cols", func(t *testing.T) {
+		sink, err := th.QuerySLQ(`@vec.doc_vec | .doc_id, .embedding`, nil)
+		require.NoError(t, err)
+		require.Len(t, sink.Recs, 3)
+		require.EqualValues(t, 1, sink.Recs[0][0])
+		require.Equal(t, "[0.9,0.1,0,0]", vecJSON(t, sink.Recs[0][1]))
+		require.Equal(t, "[0.8,0.2,0,0]", vecJSON(t, sink.Recs[1][1]))
+		require.Equal(t, "[0,0,0.9,0.1]", vecJSON(t, sink.Recs[2][1]))
+	})
+
+	t.Run("alias", func(t *testing.T) {
+		sink, err := th.QuerySLQ(`@vec.doc_vec | .embedding:e`, nil)
+		require.NoError(t, err)
+		require.Len(t, sink.Recs, 3)
+		require.Equal(t, "e", sink.RecMeta[0].Name())
+		require.Equal(t, kind.Vector, sink.RecMeta[0].Kind())
+		require.Equal(t, "[0.9,0.1,0,0]", vecJSON(t, sink.Recs[0][0]))
+	})
+
+	t.Run("int8_and_bit", func(t *testing.T) {
+		sink, err := th.QuerySLQ(`@vec.bin_vec`, nil)
+		require.NoError(t, err)
+		require.Len(t, sink.Recs, 1)
+		require.Equal(t, "[1,2,3,4]", vecJSON(t, sink.Recs[0][colIndex(t, sink, "e_i8")]))
+		require.Equal(t, "[0,0,0,0,1,1,1,1]", vecJSON(t, sink.Recs[0][colIndex(t, sink, "e_bit")]))
+	})
+
+	t.Run("partition_key", func(t *testing.T) {
+		sink, err := th.QuerySLQ(`@vec.part_vec | .user_id, .e`, nil)
+		require.NoError(t, err)
+		require.Len(t, sink.Recs, 2)
+		require.EqualValues(t, 2, sink.Recs[1][0])
+		require.Equal(t, "[3,4]", vecJSON(t, sink.Recs[1][1]))
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		sink, err := th.QuerySLQ(`@vec.empty_vec`, nil)
+		require.NoError(t, err)
+		require.Empty(t, sink.Recs)
+		require.Equal(t, kind.Vector, sink.RecMeta[colIndex(t, sink, "e")].Kind())
+	})
+
+	t.Run("plain_table", func(t *testing.T) {
+		sink, err := th.QuerySLQ(`@vec.docs | .title`, nil)
+		require.NoError(t, err)
+		require.Len(t, sink.Recs, 3)
+		require.Equal(t, "cat", sink.Recs[0][0])
+	})
+
+	t.Run("join", func(t *testing.T) {
+		// Joins don't get vec0 hints; the query must still succeed.
+		sink, err := th.QuerySLQ(
+			`@vec.doc_vec:d | join(@vec.docs:x, .d.doc_id == .x.id) | .x.title, .d.embedding`, nil,
+		)
+		require.NoError(t, err)
+		require.Len(t, sink.Recs, 3)
+	})
+}
+
+func TestVector_Vec0SQL(t *testing.T) {
+	th, src := vecSrc(t, "@vec", "vec.db")
+
+	// sq sql can't tell which result columns are vec0 vectors, so they stay
+	// bytes.
+	sink, err := th.QuerySQL(src, nil, `SELECT embedding FROM doc_vec`)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 3)
+	require.NotEqual(t, kind.Vector, sink.RecMeta[0].Kind())
+	require.IsType(t, []byte{}, sink.Recs[0][0])
+
+	sink, err = th.QuerySQL(src, nil,
+		`SELECT doc_id, distance FROM doc_vec WHERE embedding MATCH '[0.85,0.15,0,0]' AND k = 2`)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 2)
+	require.EqualValues(t, 1, sink.Recs[0][0])
+	require.EqualValues(t, 2, sink.Recs[1][0])
+}
+
+func TestVector_DecodeLibSQL(t *testing.T) {
+	th, src := vecSrc(t, "@lib", "libsql.db")
+
+	check := func(t *testing.T, sink *testh.RecordSink) {
+		t.Helper()
+		require.Len(t, sink.Recs, 2)
+		e32, e64 := colIndex(t, sink, "e32"), colIndex(t, sink, "e64")
+		e16, f := colIndex(t, sink, "e16"), colIndex(t, sink, "f")
+		for _, i := range []int{e32, e64, e16, f} {
+			require.Equal(t, kind.Vector, sink.RecMeta[i].Kind(), sink.RecMeta[i].Name())
+		}
+
+		require.Equal(t, "[1,2,-3.5,0.25]", vecJSON(t, sink.Recs[0][e32]))
+		// Row 2 holds JSON text, as libSQL stores text unchanged.
+		require.Equal(t, "[0.5,0.5,0.5,0.5]", vecJSON(t, sink.Recs[1][e32]))
+		require.Equal(t, "[1,2,-3.5,0.25]", vecJSON(t, sink.Recs[0][e64]))
+		require.Nil(t, sink.Recs[1][e64])
+		require.Equal(t, "[1,2,-3.5,0.25]", vecJSON(t, sink.Recs[0][e16]))
+		require.Equal(t, "[1,2,3]", vecJSON(t, sink.Recs[0][f]))
+	}
+
+	t.Run("slq", func(t *testing.T) {
+		sink, err := th.QuerySLQ(`@lib.t`, nil)
+		require.NoError(t, err)
+		check(t, sink)
+	})
+
+	t.Run("sql", func(t *testing.T) {
+		sink, err := th.QuerySQL(src, nil, `SELECT * FROM t`)
+		require.NoError(t, err)
+		check(t, sink)
+	})
+}
+
+func TestVector_DecodeError(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tbl := stringz.UniqTableName("vec_corrupt")
+	th.ExecSQL(src, `CREATE TABLE `+tbl+`(id INTEGER PRIMARY KEY, e F32_BLOB(4))`)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+	th.ExecSQL(src, `INSERT INTO `+tbl+`(id, e) VALUES (1, X'0000803F000000400000000000000000')`)
+	// A 3-byte value can't be an F32_BLOB(4).
+	th.ExecSQL(src, `INSERT INTO `+tbl+`(id, e) VALUES (2, X'010203')`)
+
+	_, err := th.QuerySQL(src, nil, `SELECT id, e FROM `+tbl+` ORDER BY id`)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `column "e", row 2`)
+
+	_, err = th.QuerySLQ(src.Handle+`.`+tbl+` | .e`, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `column "e", row 2`)
+}
+
+// TestVector_UnopenableVec0Query verifies that a query against a vec0 table
+// that SQLite can't open reports the query's error, not an error from
+// collecting the table's vector hints.
+func TestVector_UnopenableVec0Query(t *testing.T) {
+	th, _ := vecSrc(t, "@vtab_unopenable", "vtab_unopenable.db")
+	_, err := th.QuerySLQ(`@vtab_unopenable.fx_rescore`, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "SQL query against @vtab_unopenable failed")
+	require.Contains(t, err.Error(), "vec0 constructor error")
 }

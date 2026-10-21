@@ -12,7 +12,6 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -127,12 +126,13 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 		}
 	}
 
-	// Pass any result-column kind hints recorded during rendering (e.g.
-	// SQLite/rqlite pinning sum() to kind.Decimal) so the driver can apply them
-	// when building record metadata. See issues #839 and #848.
-	var hints map[int]kind.Kind
+	// Pass any result-column hints recorded during rendering (e.g.
+	// SQLite/rqlite pinning sum() to kind.Decimal, or a vec0 vector column's
+	// type) so the driver can apply them when building record metadata. See
+	// issues #839 and #848.
+	var hints driver.ResultHints
 	if p.rc != nil {
-		hints = p.rc.ResultColumnKinds
+		hints = driver.ResultHints{Kinds: p.rc.ResultColumnKinds, Vectors: p.rc.ResultColumnVectors}
 	}
 
 	if err := QuerySQL(ctx, p.targetGrip, conn, recw, hints, p.targetSQL); err != nil {
@@ -317,6 +317,14 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 
 	if err = p.loadTableHints(ctx, fromGrip, tblSel); err != nil {
 		return "", nil, err
+	}
+
+	// Only a single-table query gets a vector table: with a join, a result
+	// column can't reliably be traced back to its source table.
+	if name := tblSel.Table().Table; name != "" {
+		if h := p.rc.TableHints[name]; h != nil && len(h.Vectors) > 0 {
+			p.rc.VectorTable = name
+		}
 	}
 
 	fromClause, err = rndr.FromTable(p.rc, tblSel)
@@ -673,7 +681,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
 	)
 
 	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)
-	err := QuerySQL(ctx, fromDB, nil, inserter, nil, query)
+	err := QuerySQL(ctx, fromDB, nil, inserter, driver.ResultHints{}, query)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destGrip.Source().Handle, destTbl)
 	}
