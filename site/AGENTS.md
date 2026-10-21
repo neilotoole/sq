@@ -1,7 +1,7 @@
-# CLAUDE.md
+# AGENTS.md (site/)
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this
-repository. Repo-wide rules in [AGENTS.md](../AGENTS.md) still apply here.
+Conventions specific to the sq.io website under `site/`. Repo-wide rules in
+[AGENTS.md](../AGENTS.md) still apply here.
 
 ## Project Overview
 

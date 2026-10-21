@@ -424,7 +424,7 @@ Actions and the Netlify CLI only; Netlify's own git integration is disabled. Man
 `site-publish-release.yml`; both call `site-publish-netlify.yml`, which needs
 `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID`. The nightly data refresh pushes to master with
 `SITE_DATA_PUSH_TOKEN`. See [`site/README.md`](../site/README.md) and
-[`site/CLAUDE.md`](../site/CLAUDE.md).
+[`site/AGENTS.md`](../site/AGENTS.md).
 
 ## Maintainer guide
 

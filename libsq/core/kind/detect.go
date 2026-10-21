@@ -39,7 +39,7 @@ func NewDetector() *Detector {
 			Date:     {},
 			Datetime: {},
 		},
-		mungeFns: map[Kind]MungeFunc{},
+		mungeFns: make(map[Kind]MungeFunc),
 	}
 }
 

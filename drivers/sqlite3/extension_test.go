@@ -34,6 +34,12 @@ func TestExtension_fts5(t *testing.T) {
 	require.Equal(t, tblActorFts, tblMeta1.Name)
 	require.Equal(t, sqlz.TableTypeVirtual, tblMeta1.TableType)
 
+	// The virtual table counts as a table (gh1300): 16 sakila tables, FTS5's
+	// four internal tables, and actor_fts.
+	require.Equal(t, int64(21), srcMeta.TableCount)
+	require.Equal(t, int64(7), srcMeta.ViewCount)
+	require.Equal(t, int64(len(srcMeta.Tables)), srcMeta.TableCount+srcMeta.ViewCount)
+
 	require.Equal(t, "actor_id", tblMeta1.Columns[0].Name)
 	require.Equal(t, "integer", tblMeta1.Columns[0].ColumnType)
 	require.Equal(t, "integer", tblMeta1.Columns[0].BaseType)
