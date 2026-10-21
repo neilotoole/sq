@@ -1,0 +1,44 @@
+// Dev container for sq contributors. See docs/DEVELOPER.md#dev-container.
+{
+  "name": "sq",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  // Building DuckDB and SQLite through cgo is slow on 2 cores. Codespaces
+  // only offers machine types that meet this.
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
+  "mounts": [
+    // Go build, module and golangci-lint caches, and DuckDB's extension
+    // downloads. Shared by every sq dev container on the host.
+    "source=sq-devcontainer-cache,target=/home/vscode/.cache,type=volume",
+    "source=sq-devcontainer-duckdb,target=/home/vscode/.duckdb,type=volume",
+    // node_modules holds platform-specific binaries (dprint, biome, hugo).
+    // A volume per workspace keeps the container's Linux binaries from
+    // overwriting the host's when the repo is bind-mounted from macOS or
+    // Windows.
+    "source=sq-node-modules-${devcontainerId},target=${containerWorkspaceFolder}/node_modules,type=volume",
+    "source=sq-site-node-modules-${devcontainerId},target=${containerWorkspaceFolder}/site/node_modules,type=volume"
+  ],
+  // New volumes mounted inside the workspace come up owned by root.
+  "postCreateCommand": "sudo chown vscode:vscode node_modules site/node_modules && make init",
+  "forwardPorts": [1313],
+  "portsAttributes": {
+    "1313": {
+      "label": "sq.io (make site-local)",
+      "onAutoForward": "notify"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "dprint.dprint",
+        "biomejs.biome",
+        "timonwong.shellcheck"
+      ]
+    }
+  }
+}

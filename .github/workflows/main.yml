@@ -23,7 +23,7 @@ concurrency:
         && !startsWith(github.ref, 'refs/tags/v') }}
 
 env:
-  GORELEASER_VERSION: 2.13.3
+  GORELEASER_VERSION: 2.18.3
   GOLANGCI_LINT_VERSION: v2.13.2
   TPARSE_VERSION: v0.18.0
   BUILD_TAGS: "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions"
@@ -218,7 +218,7 @@ jobs:
 
       - name: shellcheck
         run: |
-          shellcheck ./install.sh scripts/fmt-go-imports.sh scripts/build-db-matrix.sh scripts/dedup-db-matrix.sh scripts/build-db-matrix_test.sh scripts/dedup-db-matrix_test.sh
+          shellcheck ./install.sh sakila-start-local.sh sakila-stop-local.sh scripts/fmt-go-imports.sh scripts/build-db-matrix.sh scripts/dedup-db-matrix.sh scripts/build-db-matrix_test.sh scripts/dedup-db-matrix_test.sh
           # Hermetic unit tests for the shared DB-matrix scripts (no network;
           # dedup stubs docker on PATH).
           bash scripts/build-db-matrix_test.sh
@@ -608,8 +608,8 @@ jobs:
       # Independently verify what was just pushed. A green attest step means
       # "uploaded", not "verifiable", so gate the release on real verification.
       # GitHub's attestation store is written synchronously and is the hard
-      # gate. The registry referrer, which is what Docker Scout reads, can lag
-      # briefly after push, so those reads are retried.
+      # gate. The registry referrer, which the --bundle-from-oci reads below
+      # use, can lag briefly after push, so those reads are retried.
       - name: Verify attestations
         env:
           GH_TOKEN: ${{ github.token }}

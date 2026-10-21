@@ -64,7 +64,8 @@ type Source struct { //nolint:govet // field alignment
 	// Mirrors [Table.Size].
 	Size *int64 `json:"size,omitempty" yaml:"size,omitempty"`
 
-	// TableCount is the count of tables (excluding views).
+	// TableCount is the count of tables, including virtual tables, and
+	// excluding views.
 	TableCount int64 `json:"table_count" yaml:"table_count"`
 
 	// ViewCount is the count of views.
@@ -193,7 +194,8 @@ func (s *Source) TableNames() []string {
 // RecomputeTableCounts derives TableCount and ViewCount from s.Tables.
 // This is the single classification point for canonical table types;
 // new types (external, snapshot, ...) extend the switch here rather
-// than in every driver. Materialized views count as views.
+// than in every driver. Virtual tables count as tables, and materialized
+// views count as views.
 func (s *Source) RecomputeTableCounts() {
 	s.TableCount, s.ViewCount = 0, 0
 	for _, tbl := range s.Tables {
@@ -201,7 +203,7 @@ func (s *Source) RecomputeTableCounts() {
 			continue
 		}
 		switch tbl.TableType {
-		case sqlz.TableTypeTable:
+		case sqlz.TableTypeTable, sqlz.TableTypeVirtual:
 			s.TableCount++
 		case sqlz.TableTypeView, sqlz.TableTypeMaterializedView:
 			s.ViewCount++
