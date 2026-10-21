@@ -3,8 +3,10 @@
 Guidance for AI coding assistants (Claude Code, Copilot, Cursor, Codex, etc.) and
 human contributors working in this repo.
 
-[`CLAUDE.md`](./CLAUDE.md) is the Claude Code entry point; it points here for
-all shared rules.
+Subdirectories add their own conventions on top of these rules:
+
+- [`cli/AGENTS.md`](./cli/AGENTS.md): CLI command conventions
+- [`site/AGENTS.md`](./site/AGENTS.md): sq.io website (Hugo/Bun) conventions
 
 > [!IMPORTANT]
 > Before making a significant change, review [`docs/README.md`](./docs/README.md)
@@ -194,7 +196,7 @@ produce stackless errors that surface upstream with no useful trace.
 
 Command-authoring conventions for the `cli` package (including the rule that
 every argument-taking command must offer shell completion) live in
-[`cli/CLAUDE.md`](./cli/CLAUDE.md).
+[`cli/AGENTS.md`](./cli/AGENTS.md).
 
 ### Passing data: prefer explicit signatures over `context.Value`
 
