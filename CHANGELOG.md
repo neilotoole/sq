@@ -39,6 +39,12 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#1165]: A duration option set on a source is now displayed in its canonical
   form. A source configured with `conn.max-idle-time: 100s` shows as `1m40s` in
   [`sq ls`](https://sq.io/docs/cmd/ls) `-v` and `sq config ls --src`.
+- [#1285]: The `neilotoole/sq` Homebrew tap is retired, and releases are no longer
+  published to it. Install with `brew install sq`, the homebrew-core formula. An
+  existing tap install switches to the core formula on the next `brew update`.
+  Homebrew no longer builds bottles for Intel Macs, so `brew install sq` builds
+  from source there. Intel Mac users can instead download the `macos-amd64` binary
+  from [GitHub releases](https://github.com/neilotoole/sq/releases).
 
 ### Fixed
 
@@ -1818,6 +1824,7 @@ make working with lots of sources much easier.
 [#1165]: https://github.com/neilotoole/sq/issues/1165
 [#1209]: https://github.com/neilotoole/sq/issues/1209
 [#1220]: https://github.com/neilotoole/sq/issues/1220
+[#1285]: https://github.com/neilotoole/sq/issues/1285
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
