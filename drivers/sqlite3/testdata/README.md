@@ -118,3 +118,7 @@ Contents:
 - `fx_rescore`: a `vec0` table using `INDEXED BY rescore(...)`, which the bundled sqlite-vec
   rejects.
 - `fx_other`: a table for the nonexistent `vectorlite` module.
+
+`vtab_unopenable_only.db` is the same script run with a second argument, `only`
+(`./make_vtab_unopenable_db.sh vtab_unopenable_only.db only`). It holds just `fx_other`, for
+testing a source in which every table is unopenable.

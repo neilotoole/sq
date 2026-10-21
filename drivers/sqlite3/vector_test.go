@@ -1,6 +1,7 @@
 package sqlite3_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -8,6 +9,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/vector"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -161,4 +163,33 @@ func TestVTab_Unopenable(t *testing.T) {
 	tblMeta, err := th.TableMetadata(src, "plain")
 	require.NoError(t, err)
 	require.Empty(t, tblMeta.Error)
+}
+
+func TestVTab_UnopenableOnly(t *testing.T) {
+	th, src := vecSrc(t, "@vtab_unopenable_only", "vtab_unopenable_only.db")
+
+	srcMeta, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+	require.Len(t, srcMeta.Tables, 1)
+	require.Equal(t, "fx_other", srcMeta.Tables[0].Name)
+	require.Contains(t, srcMeta.Tables[0].Error, "no such module: vectorlite")
+}
+
+// TestVTab_ContextCancelNotUnopenable verifies that a cancelled context
+// fails metadata collection instead of marking healthy virtual tables
+// as unopenable.
+func TestVTab_ContextCancelNotUnopenable(t *testing.T) {
+	th, src := vecSrc(t, "@sakila_fts5", "sakila_fts5.db")
+	grip, err := th.Grips().Open(th.Context, src, driver.ModeReadWrite)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(th.Context)
+	cancel()
+
+	_, err = grip.SourceMetadata(ctx, false)
+	require.Error(t, err)
+	require.ErrorIs(t, err, context.Canceled)
+
+	_, err = grip.TableMetadata(ctx, "actor_fts")
+	require.Error(t, err)
 }

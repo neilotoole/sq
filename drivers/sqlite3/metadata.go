@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	mattn "github.com/mattn/go-sqlite3"
 	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
@@ -305,7 +306,11 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	if ddl, isVirtual, err := getVirtualTableDDL(ctx, db, tblName); err != nil {
 		return nil, err
 	} else if isVirtual {
-		if probeErr := probeVirtualTable(ctx, db, tblName); probeErr != "" {
+		probeErr, err := probeVirtualTable(ctx, db, tblName)
+		if err != nil {
+			return nil, err
+		}
+		if probeErr != "" {
 			var schema string
 			err = db.QueryRowContext(ctx,
 				"SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1").Scan(&schema)
@@ -1048,18 +1053,32 @@ WHERE name = ? AND type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' LIMIT 1`
 	return ddl, true, nil
 }
 
-// probeVirtualTable tries to open the virtual table tblName, and returns
-// SQLite's error text if that fails, or empty string if it can be opened.
-func probeVirtualTable(ctx context.Context, db sqlz.DB, tblName string) string {
+// probeVirtualTable tries to open the virtual table tblName. If SQLite
+// itself rejects the table, its error text is returned in errText. Any other
+// failure (context cancellation, I/O, a closed DB) is returned as err, and
+// must not be mistaken for an unopenable table.
+func probeVirtualTable(ctx context.Context, db sqlz.DB, tblName string) (errText string, err error) {
+	if err = ctx.Err(); err != nil {
+		return "", errz.Err(err)
+	}
+
 	rows, err := db.QueryContext(ctx, "SELECT 1 FROM "+stringz.DoubleQuote(tblName)+" LIMIT 0")
-	if err != nil {
-		return err.Error()
+	if err == nil {
+		defer sqlz.CloseRows(lg.FromContext(ctx), rows)
+		err = rows.Err()
 	}
-	defer sqlz.CloseRows(lg.FromContext(ctx), rows)
-	if err = rows.Err(); err != nil {
-		return err.Error()
+	if err == nil {
+		return "", nil
 	}
-	return ""
+
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return "", errz.Err(ctxErr)
+	}
+	var sqliteErr mattn.Error
+	if errors.As(err, &sqliteErr) {
+		return err.Error(), nil
+	}
+	return "", errw(err)
 }
 
 // findUnopenableVirtualTables returns the virtual tables in db that can't be
@@ -1092,7 +1111,10 @@ WHERE type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' ORDER BY name`
 		if strings.HasPrefix(v.name, "sqlite_") {
 			continue
 		}
-		if v.errText = probeVirtualTable(ctx, db, v.name); v.errText != "" {
+		if v.errText, err = probeVirtualTable(ctx, db, v.name); err != nil {
+			return nil, err
+		}
+		if v.errText != "" {
 			bad = append(bad, v)
 		}
 	}
