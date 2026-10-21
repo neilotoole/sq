@@ -12,11 +12,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
 	"github.com/shopspring/decimal"
 
+	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlitevec"
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
@@ -155,7 +157,15 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessM
 	return g, nil
 }
 
+// registerVec registers sqlite-vec with SQLite once per process, before the
+// first connection is opened.
+var registerVec = sync.OnceValue(sqlitevec.Register)
+
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
+	if err := registerVec(); err != nil {
+		return nil, errz.Err(err)
+	}
+
 	dsn, err := dsnFromLocation(src.Location)
 	if err != nil {
 		return nil, err
