@@ -9,7 +9,7 @@ package sqlitevec
 
 /*
 #cgo CFLAGS: -DSQLITE_CORE -DSQLITE_VEC_STATIC -DSQLITE_VEC_OMIT_FS
-#cgo arm64 CFLAGS: -DSQLITE_VEC_ENABLE_NEON
+#cgo darwin,arm64 CFLAGS: -DSQLITE_VEC_ENABLE_NEON
 #cgo linux LDFLAGS: -lm
 
 #include "sqlite-vec.h"

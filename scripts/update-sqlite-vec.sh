@@ -37,13 +37,6 @@ for f in sqlite-vec.c sqlite-vec.h LICENSE-MIT LICENSE-APACHE; do
   curl -fsSL "https://raw.githubusercontent.com/$REPO/$FULL_SHA/$f" -o "$DEST/$f"
 done
 
-# Local patch: gcc (unlike clang) rejects the implicit signed/unsigned NEON
-# vector conversions in the int8 L1 distance code, which breaks linux/arm64
-# builds. Make them explicit with vreinterpretq; the generated code is identical.
-sed -E 's/vaddq_s32\((acc[0-9]), vpaddlq_u16\(vpaddlq_u8\(diff([0-9]?)\)\)\)/vaddq_s32(\1, vreinterpretq_s32_u32(vpaddlq_u16(vpaddlq_u8(vreinterpretq_u8_s8(diff\2)))))/' \
-  "$DEST/sqlite-vec.c" >"$DEST/sqlite-vec.c.patched"
-mv "$DEST/sqlite-vec.c.patched" "$DEST/sqlite-vec.c"
-
 MATTN_VER="$(cd "$ROOT" && go list -m -f '{{.Version}}' github.com/mattn/go-sqlite3)"
 MATTN_DIR="$(go env GOMODCACHE)/github.com/mattn/go-sqlite3@$MATTN_VER"
 cp "$MATTN_DIR/sqlite3-binding.h" "$DEST/sqlite3.h"
@@ -64,9 +57,9 @@ SQLITE_VER="$(sed -n 's/^#define SQLITE_VERSION  *"\(.*\)"/\1/p' "$DEST/sqlite3.
   echo "- Commit: $FULL_SHA"
   echo "- mattn/go-sqlite3: $MATTN_VER (SQLite $SQLITE_VER)"
   echo
-  echo "\`sqlite-vec.c\` carries one local patch (applied by the script) in the NEON int8 L1 code:"
-  echo "explicit \`vreinterpretq\` casts replace implicit signed/unsigned vector conversions that gcc"
-  echo "rejects (clang accepts them). The sha256 below is for the patched file."
+  echo "NEON is enabled only on darwin/arm64 (see \`sqlitevec.go\`): gcc rejects the fork's NEON int8"
+  echo "code at this commit (implicit signed/unsigned vector conversions), so linux/arm64 uses the"
+  echo "scalar path. The vendored files are verbatim."
   echo
   echo "\`sqlite3.h\` is mattn's \`sqlite3-binding.h\`. When mattn is bumped, rerun the script so the"
   echo "header matches the SQLite that is linked."

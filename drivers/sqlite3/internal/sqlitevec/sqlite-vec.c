@@ -324,22 +324,22 @@ static i32 l1_int8_neon(const void *pVect1v, const void *pVect2v,
     int8x16_t v1 = vld1q_s8(pVect1);
     int8x16_t v2 = vld1q_s8(pVect2);
     int8x16_t diff1 = vabdq_s8(v1, v2);
-    acc1 = vaddq_s32(acc1, vreinterpretq_s32_u32(vpaddlq_u16(vpaddlq_u8(vreinterpretq_u8_s8(diff1)))));
+    acc1 = vaddq_s32(acc1, vpaddlq_u16(vpaddlq_u8(diff1)));
 
     v1 = vld1q_s8(pVect1 + 16);
     v2 = vld1q_s8(pVect2 + 16);
     int8x16_t diff2 = vabdq_s8(v1, v2);
-    acc2 = vaddq_s32(acc2, vreinterpretq_s32_u32(vpaddlq_u16(vpaddlq_u8(vreinterpretq_u8_s8(diff2)))));
+    acc2 = vaddq_s32(acc2, vpaddlq_u16(vpaddlq_u8(diff2)));
 
     v1 = vld1q_s8(pVect1 + 32);
     v2 = vld1q_s8(pVect2 + 32);
     int8x16_t diff3 = vabdq_s8(v1, v2);
-    acc3 = vaddq_s32(acc3, vreinterpretq_s32_u32(vpaddlq_u16(vpaddlq_u8(vreinterpretq_u8_s8(diff3)))));
+    acc3 = vaddq_s32(acc3, vpaddlq_u16(vpaddlq_u8(diff3)));
 
     v1 = vld1q_s8(pVect1 + 48);
     v2 = vld1q_s8(pVect2 + 48);
     int8x16_t diff4 = vabdq_s8(v1, v2);
-    acc4 = vaddq_s32(acc4, vreinterpretq_s32_u32(vpaddlq_u16(vpaddlq_u8(vreinterpretq_u8_s8(diff4)))));
+    acc4 = vaddq_s32(acc4, vpaddlq_u16(vpaddlq_u8(diff4)));
 
     pVect1 += 64;
     pVect2 += 64;
@@ -349,7 +349,7 @@ static i32 l1_int8_neon(const void *pVect1v, const void *pVect2v,
     int8x16_t v1 = vld1q_s8(pVect1);
     int8x16_t v2 = vld1q_s8(pVect2);
     int8x16_t diff = vabdq_s8(v1, v2);
-    acc1 = vaddq_s32(acc1, vreinterpretq_s32_u32(vpaddlq_u16(vpaddlq_u8(vreinterpretq_u8_s8(diff)))));
+    acc1 = vaddq_s32(acc1, vpaddlq_u16(vpaddlq_u8(diff)));
     pVect1 += 16;
     pVect2 += 16;
   }
