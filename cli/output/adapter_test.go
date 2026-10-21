@@ -11,6 +11,7 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/testsrc"
@@ -52,7 +53,7 @@ func TestRecordWriterAdapter(t *testing.T) {
 
 			sink := &testh.RecordSink{}
 			recw := output.NewRecordWriterAdapter(th.Context, sink)
-			err := libsq.QuerySQL(th.Context, grip, nil, recw, nil, tc.sqlQuery)
+			err := libsq.QuerySQL(th.Context, grip, nil, recw, driver.ResultHints{}, tc.sqlQuery)
 			require.NoError(t, err)
 			written, err := recw.Wait()
 			require.NoError(t, err)

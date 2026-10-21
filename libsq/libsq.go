@@ -14,7 +14,6 @@ import (
 	"errors"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -67,9 +66,15 @@ type QueryContext struct {
 	// mode used for every source the pipeline opens, except a source whose
 	// handle matches WriteHandle (see openModeFor).
 	//
-	// Field order note: WriteHandle (string) precedes the slice fields and
-	// AccessMode (one byte) is last, to satisfy govet fieldalignment.
+	// Field order note: WriteHandle (string) precedes the slice fields, and
+	// the one-byte fields AccessMode and RawVectors are last, to satisfy
+	// govet fieldalignment.
 	AccessMode driver.AccessMode
+
+	// RawVectors is true when the query's results are inserted into a table
+	// (the --insert destination). Vector values are then copied as their
+	// stored bytes, without decoding them. See driver.ResultHints.
+	RawVectors bool
 }
 
 // openModeFor returns the access mode the pipeline should use when opening
@@ -298,10 +303,10 @@ func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 // non-nil, the query is executed against it. Otherwise, the connection is
 // obtained from grip.
 //
-// The hints arg carries forced result-column kinds (keyed by zero-based output
-// position) for the driver's RecordMeta to apply; see SQLDriver.RecordMeta. The
-// SLQ pipeline supplies hints recorded during rendering; callers executing raw
-// SQL pass nil.
+// The hints arg carries result-column hints (keyed by zero-based output
+// position) for the driver's RecordMeta to apply; see SQLDriver.RecordMeta and
+// driver.ResultHints. The SLQ pipeline supplies hints recorded during
+// rendering; callers executing raw SQL pass the zero value.
 //
 // Note that QuerySQL may return before recw has finished writing, thus the
 // caller may wish to wait for recw to complete.
@@ -309,7 +314,7 @@ func ExecSQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
 //
 // See also: ExecSQL.
 func QuerySQL(ctx context.Context, grip driver.Grip, db sqlz.DB,
-	recw RecordWriter, hints map[int]kind.Kind, query string, args ...any,
+	recw RecordWriter, hints driver.ResultHints, query string, args ...any,
 ) error {
 	log := lg.FromContext(ctx)
 	errw := grip.SQLDriver().ErrWrapFunc()

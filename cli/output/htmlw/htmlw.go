@@ -19,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 )
 
 // RecordWriter implements output.RecordWriter.
@@ -120,6 +121,8 @@ func (w *recordWriter) writeRecord(rec record.Record) error {
 			s = stringz.FormatDecimal(val)
 		case []byte:
 			s = base64.StdEncoding.EncodeToString(val)
+		case vector.Vector:
+			s = html.EscapeString(val.String())
 		case time.Time:
 			switch w.recMeta[i].Kind() { //nolint:exhaustive
 			default:

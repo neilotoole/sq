@@ -43,6 +43,9 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 	if leftTbl.Alias() != "" {
 		sql = AppendSQL(sql, "AS "+enquote(leftTbl.Alias()))
 	}
+	if rc.notIndexed(leftTbl.Table().Table) {
+		sql = AppendSQL(sql, "NOT INDEXED")
+	}
 
 	for i, join := range joins {
 		var s string
@@ -60,6 +63,9 @@ func doJoin(rc *Context, leftTbl *ast.TblSelectorNode, joins []*ast.JoinNode) (s
 		s = AppendSQL(s, tbl.Table().Render(enquote))
 		if tbl.Alias() != "" {
 			s = AppendSQL(s, "AS "+enquote(tbl.Alias()))
+		}
+		if rc.notIndexed(tbl.Table().Table) {
+			s = AppendSQL(s, "NOT INDEXED")
 		}
 
 		if expr := join.Predicate(); expr != nil {

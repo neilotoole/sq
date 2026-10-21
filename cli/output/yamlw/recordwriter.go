@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"io"
+	"math"
 	"strconv"
 	"sync"
 	"time"
@@ -12,12 +13,14 @@ import (
 	"github.com/fatih/color"
 	goccy "github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
+	"github.com/goccy/go-yaml/token"
 	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/core/vector"
 )
 
 var _ output.NewRecordWriterFunc = NewRecordWriter
@@ -78,6 +81,8 @@ func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 		switch w.recMeta[i].Kind() {
 		case kind.Bytes:
 			w.clrs[i] = w.pr.Bytes
+		case kind.Vector:
+			w.clrs[i] = w.pr.Number
 		case kind.Null:
 			w.clrs[i] = w.pr.Null
 		case kind.Text:
@@ -107,7 +112,7 @@ func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 // color can't be determined from metadata alone. See #851.
 func colorForValue(pr *output.Printing, val any) *color.Color {
 	switch val.(type) {
-	case int64, float64, decimal.Decimal:
+	case int64, float64, decimal.Decimal, vector.Vector:
 		return pr.Number
 	case bool:
 		return pr.Bool
@@ -192,7 +197,11 @@ func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 				val = base64.StdEncoding.EncodeToString(b)
 			}
 
-			node, err = w.enc.EncodeToNode(val)
+			if vec, ok := val.(vector.Vector); ok {
+				node = vectorNode(vec)
+			} else {
+				node, err = w.enc.EncodeToNode(val)
+			}
 			if err != nil {
 				return errz.Wrapf(err, "yaml: failed to encode result: [%d].%s",
 					i, w.recMeta[j].MungedName())
@@ -216,6 +225,32 @@ func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 	}
 
 	return nil
+}
+
+// vectorNode returns a flow-style YAML sequence for vec, such as
+// "[0.9, -0.12345679]". The numbers are formatted by vector.FormatElem and
+// added as numeric scalar nodes, because goccy would otherwise render an f32
+// element as the float64 it was widened to (0.8999999761581421). Non-finite
+// elements are null.
+func vectorNode(vec vector.Vector) ast.Node {
+	pos := &token.Position{}
+	seq := ast.Sequence(token.New("[", "[", pos), true)
+	seq.End = token.New("]", "]", pos)
+	seq.Values = make([]ast.Node, len(vec.Values))
+	for i, f := range vec.Values {
+		if math.IsNaN(f) || math.IsInf(f, 0) {
+			seq.Values[i] = ast.Null(token.New("null", "null", pos))
+			continue
+		}
+		s := vector.FormatElem(vec.Elem, f)
+		tk := token.New(s, s, pos)
+		if vec.Elem == vector.I8 || vec.Elem == vector.Bit {
+			seq.Values[i] = ast.Integer(tk)
+		} else {
+			seq.Values[i] = ast.Float(tk)
+		}
+	}
+	return seq
 }
 
 // Flush implements output.RecordWriter.

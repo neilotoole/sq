@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -544,4 +546,151 @@ func TestPrintTablesVerbose_GoldenLayout(t *testing.T) {
 	// the INDEXES cell, and once bare in the UNIQUE CONSTRAINTS cell.
 	require.GreaterOrEqual(t, strings.Count(emailRow, "demo_email_key"), 2,
 		"the UC name must appear in both the INDEXES (wrapped) and UNIQUE CONSTRAINTS (bare) cells")
+}
+
+// TestPrintTables_ErrorCell verifies that a table with an Error shows the
+// error text in the COLS cell, in both normal and verbose output.
+func TestPrintTables_ErrorCell(t *testing.T) {
+	const errText = "no such module: vectorlite"
+	tbls := []*metadata.Table{
+		{
+			Name: "ok", TableType: "table", RowCount: 2,
+			Columns: []*metadata.Column{{Name: "id", BaseType: "INTEGER"}},
+		},
+		{Name: "bad", TableType: "virtual", Error: errText},
+		{
+			Name: "bad2", TableType: "virtual", Error: "rejected",
+			Columns: []*metadata.Column{{Name: "a", BaseType: "TEXT"}, {Name: "b", BaseType: "TEXT"}},
+		},
+	}
+
+	for _, verbose := range []bool{false, true} {
+		var buf bytes.Buffer
+		pr := output.NewPrinting()
+		pr.EnableColor(false)
+		w := NewMetadataWriter(&buf, pr).(*mdWriter)
+		if verbose {
+			require.NoError(t, w.printTablesVerbose(tbls))
+		} else {
+			require.NoError(t, w.printTables(tbls))
+		}
+
+		var badLine, bad2Line string
+		for _, line := range strings.Split(buf.String(), "\n") {
+			switch {
+			case strings.HasPrefix(line, "bad2"):
+				bad2Line = line
+			case strings.HasPrefix(line, "bad"):
+				badLine = line
+			}
+		}
+		require.Contains(t, badLine, errText, "verbose=%v", verbose)
+		require.Contains(t, bad2Line, "rejected", "verbose=%v", verbose)
+	}
+
+	// The single-table path, as used by "sq inspect @src.tbl".
+	for _, verbose := range []bool{false, true} {
+		for _, tbl := range tbls[1:] {
+			var buf bytes.Buffer
+			pr := output.NewPrinting()
+			pr.EnableColor(false)
+			pr.Verbose = verbose
+			w := NewMetadataWriter(&buf, pr)
+			require.NoError(t, w.TableMetadata(tbl))
+			var line string
+			for _, l := range strings.Split(buf.String(), "\n") {
+				if strings.HasPrefix(l, tbl.Name+" ") {
+					line = l
+				}
+			}
+			require.Contains(t, line, tbl.Error, "table=%s verbose=%v", tbl.Name, verbose)
+		}
+	}
+}
+
+// TestPrintTablesVerbose_ErrorDefinition verifies that verbose output shows
+// the declaration of each table that has an Error and a Definition, after
+// the table, and that non-verbose output doesn't.
+func TestPrintTablesVerbose_ErrorDefinition(t *testing.T) {
+	const (
+		otherDDL   = "CREATE VIRTUAL TABLE fx_other USING vectorlite(e float32[3])"
+		rescoreDDL = "CREATE VIRTUAL TABLE fx_rescore USING vec0(e float[2] INDEXED BY rescore(x=1))"
+	)
+	tbls := []*metadata.Table{
+		{Name: "fx_other", TableType: "virtual", Error: "no such module: vectorlite", Definition: otherDDL},
+		{
+			Name: "fx_rescore", TableType: "virtual", Error: "unsupported index type", Definition: rescoreDDL,
+			Columns: []*metadata.Column{{Name: "e", BaseType: "float[2]"}},
+		},
+		{
+			Name: "ok", TableType: "table", RowCount: 1,
+			Columns: []*metadata.Column{{Name: "id", BaseType: "INTEGER"}},
+		},
+	}
+
+	var buf bytes.Buffer
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := NewMetadataWriter(&buf, pr).(*mdWriter)
+	require.NoError(t, w.printTablesVerbose(tbls))
+	out := buf.String()
+
+	require.Contains(t, out, "\nfx_other: "+otherDDL+"\n")
+	require.Contains(t, out, "\nfx_rescore: "+rescoreDDL+"\n")
+	require.NotContains(t, out, "\nok: ")
+	// The declarations follow the table.
+	require.Greater(t, strings.Index(out, "fx_other: "), strings.LastIndex(out, "INTEGER"))
+
+	buf.Reset()
+	w = NewMetadataWriter(&buf, pr).(*mdWriter)
+	require.NoError(t, w.printTables(tbls))
+	require.NotContains(t, buf.String(), "CREATE VIRTUAL TABLE")
+}
+
+// TestPrintTablesVerbose_VectorTypeCell verifies that the column TYPE cell
+// shows a vector column's distance metric and a vec0 column's role.
+func TestPrintTablesVerbose_VectorTypeCell(t *testing.T) {
+	tbls := []*metadata.Table{
+		{
+			Name: "doc_vec", TableType: "virtual", RowCount: 3,
+			Columns: []*metadata.Column{
+				{Name: "doc_id", BaseType: "INTEGER", PrimaryKey: true},
+				{
+					Name: "embedding", BaseType: "float[4]", Kind: kind.Vector,
+					Vector: &vector.Type{Dim: 4, Elem: vector.F32, Metric: "cosine"},
+				},
+				{
+					Name: "plain_vec", BaseType: "F32_BLOB(4)", Kind: kind.Vector,
+					Vector: &vector.Type{Dim: 4, Elem: vector.F32},
+				},
+				{Name: "user_id", BaseType: "integer", Role: "partition_key"},
+				{Name: "category", BaseType: "text", Role: "metadata"},
+				{Name: "note", BaseType: "text", Role: "auxiliary"},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := NewMetadataWriter(&buf, pr).(*mdWriter)
+	require.NoError(t, w.printTablesVerbose(tbls))
+
+	colRow := func(name string) string {
+		for _, line := range strings.Split(buf.String(), "\n") {
+			if strings.Contains(line, " "+name+" ") {
+				return line
+			}
+		}
+		require.FailNow(t, "column row not found", "%s in:\n%s", name, buf.String())
+		return ""
+	}
+
+	require.Regexp(t, `\sfloat\[4\] cosine\s`, colRow("embedding"))
+	// No metric or role: the cell is the declared type alone.
+	require.Regexp(t, `\sF32_BLOB\(4\)\s{2,}`, colRow("plain_vec"))
+	require.Regexp(t, `\sinteger \(partition_key\)\s`, colRow("user_id"))
+	require.Regexp(t, `\stext \(metadata\)\s`, colRow("category"))
+	require.Regexp(t, `\stext \(auxiliary\)\s`, colRow("note"))
+	require.Regexp(t, `\sINTEGER\s+pk\s`, colRow("doc_id"))
 }

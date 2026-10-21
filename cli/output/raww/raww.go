@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 )
 
 // recordWriter implements output.RecordWriter for raw output.
@@ -65,6 +66,8 @@ func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 			case nil:
 			case []byte:
 				_, _ = w.out.Write(val)
+			case vector.Vector:
+				_, _ = w.out.Write(val.Raw)
 			case string:
 				_, _ = w.out.Write([]byte(val))
 			case bool:

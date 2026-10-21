@@ -21,5 +21,9 @@ func doFromTable(rc *Context, tblSel *ast.TblSelectorNode) (string, error) {
 		clause += " AS " + rc.Dialect.Enquote(alias)
 	}
 
+	if rc.notIndexed(tbl.Table) {
+		clause += " NOT INDEXED"
+	}
+
 	return clause, nil
 }

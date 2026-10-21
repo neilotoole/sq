@@ -19,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 )
 
 // recordWriter implements output.RecordWriter.
@@ -192,6 +193,8 @@ func (w *recordWriter) writeRecord(ctx context.Context, rec record.Record) error
 			tmpBuf.Reset()
 		case []byte:
 			w.fieldPrintFns[i](w.outBuf, base64.StdEncoding.EncodeToString(val))
+		case vector.Vector:
+			w.fieldPrintFns[i](w.outBuf, val.String())
 		case bool:
 			w.fieldPrintFns[i](w.outBuf, strconv.FormatBool(val))
 		case int64:

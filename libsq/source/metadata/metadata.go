@@ -9,6 +9,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
@@ -237,6 +238,19 @@ type Table struct { //nolint:govet // field alignment
 	// comparable across engines. Empty for tables.
 	ViewDefinition string `json:"view_definition,omitempty" yaml:"view_definition,omitempty"`
 
+	// Error, if non-empty, is the reason the table could not be read, for
+	// example a SQLite virtual table whose module is unavailable. The
+	// table is still listed, with whatever metadata could be derived
+	// without opening it.
+	Error string `json:"error,omitempty" yaml:"error,omitempty"`
+
+	// Definition is the table's raw DDL, as declared. It's set for a table
+	// that could not be read (see Error), such as a SQLite virtual table of
+	// an unavailable module, whose declaration is then the best description
+	// of the table. It's empty otherwise. For a view's DDL, see
+	// ViewDefinition.
+	Definition string `json:"definition,omitempty" yaml:"definition,omitempty"`
+
 	// RowCount is the number of rows in the table.
 	RowCount int64 `json:"row_count" yaml:"row_count"`
 
@@ -313,6 +327,8 @@ func (t *Table) Clone() *Table {
 		TableType:      t.TableType,
 		DBTableType:    t.DBTableType,
 		ViewDefinition: t.ViewDefinition,
+		Error:          t.Error,
+		Definition:     t.Definition,
 		RowCount:       t.RowCount,
 		Size:           clonePtr(t.Size),
 		Comment:        t.Comment,
@@ -428,6 +444,14 @@ type Column struct { //nolint:govet // field alignment
 	Generated     bool   `json:"generated,omitempty" yaml:"generated,omitempty"`
 	GeneratedExpr string `json:"generated_expr,omitempty" yaml:"generated_expr,omitempty"`
 	Collation     string `json:"collation,omitempty" yaml:"collation,omitempty"`
+
+	// Vector is non-nil if Kind is [kind.Vector] and the driver knows the
+	// vector's dimension and element type.
+	Vector *vector.Type `json:"vector,omitempty" yaml:"vector,omitempty"`
+
+	// Role is the column's special role in its table, if any. For a sqlite-vec
+	// vec0 table it is "partition_key", "metadata" or "auxiliary".
+	Role string `json:"role,omitempty" yaml:"role,omitempty"`
 }
 
 // Clone returns a deep copy of c. If c is nil, nil is returned.
@@ -436,7 +460,15 @@ func (c *Column) Clone() *Column {
 		return nil
 	}
 
+	var vec *vector.Type
+	if c.Vector != nil {
+		v := *c.Vector
+		vec = &v
+	}
+
 	return &Column{
+		Vector:        vec,
+		Role:          c.Role,
 		Name:          c.Name,
 		Position:      c.Position,
 		PrimaryKey:    c.PrimaryKey,
@@ -728,6 +760,23 @@ type Index struct { //nolint:govet // field alignment
 	// "HASH", "GIN", or "NONCLUSTERED". Empty when the source doesn't
 	// report it.
 	Type string `json:"type,omitempty" yaml:"type,omitempty"`
+
+	// Vector is non-nil when the index is a vector index (for example a
+	// libSQL DiskANN index). It is nil for all other indexes.
+	Vector *IndexVector `json:"vector,omitempty" yaml:"vector,omitempty"`
+}
+
+// IndexVector describes the vector-index specifics of an [Index].
+type IndexVector struct { //nolint:govet // field alignment
+	// Method is the index method, such as "diskann".
+	Method string `json:"method" yaml:"method"`
+
+	// Metric is the distance metric, such as "cosine". Empty if the index
+	// doesn't declare one.
+	Metric string `json:"metric,omitempty" yaml:"metric,omitempty"`
+
+	// Params holds any other index settings, keyed by name. Nil if none.
+	Params map[string]string `json:"params,omitempty" yaml:"params,omitempty"`
 }
 
 // Clone returns a deep copy of i. If i is nil, nil is returned.
@@ -744,6 +793,11 @@ func (i *Index) Clone() *Index {
 	}
 	if i.Columns != nil {
 		c.Columns = append([]string(nil), i.Columns...)
+	}
+	if i.Vector != nil {
+		v := *i.Vector
+		v.Params = maps.Clone(i.Vector.Params)
+		c.Vector = &v
 	}
 	return c
 }

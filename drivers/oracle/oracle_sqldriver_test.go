@@ -327,7 +327,7 @@ func TestDriver_ListTableNames_Variants(t *testing.T) {
 // TestDriver_QueryAggregates is a package-local regression for the computed-
 // NUMBER kind handling (issues #594, #839, #844): count() must scan as an
 // integer (not a decimal string), sum() stays decimal, and avg() is float.
-// It exercises the renderer function overrides and RecordMeta's kindHints at
+// It exercises the renderer function overrides and RecordMeta's kind hints at
 // runtime.
 func TestDriver_QueryAggregates(t *testing.T) {
 	tu.SkipShort(t, true)

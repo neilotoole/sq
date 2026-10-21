@@ -131,7 +131,7 @@ func getIngestRecMeta(ctx context.Context, destGrip driver.Grip, tblDef *schema.
 		return nil, err
 	}
 
-	destMeta, _, err := drvr.RecordMeta(ctx, colTypes, nil)
+	destMeta, _, err := drvr.RecordMeta(ctx, colTypes, driver.ResultHints{})
 	if err != nil {
 		return nil, err
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -196,7 +197,7 @@ func TestRecordMeta_BlobScan(t *testing.T) {
 
 	colTypes, err := rows.ColumnTypes()
 	require.NoError(t, err)
-	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(ctx, colTypes, nil)
+	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(ctx, colTypes, driver.ResultHints{})
 	require.NoError(t, err)
 	require.Equal(t, kind.Bytes, recMeta[1].Kind())
 
@@ -803,7 +804,7 @@ func TestRecordMeta_BasicQuery(t *testing.T) {
 	colTypes, err := rows.ColumnTypes()
 	require.NoError(t, err)
 
-	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(context.Background(), colTypes, nil)
+	recMeta, newRecFn, err := grip.SQLDriver().RecordMeta(context.Background(), colTypes, driver.ResultHints{})
 	require.NoError(t, err)
 	require.NotNil(t, newRecFn)
 	require.Len(t, recMeta, 4)

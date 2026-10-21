@@ -378,7 +378,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ driver.ResultHints) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
@@ -813,7 +813,7 @@ func (d *driveri) getTableColsMeta(ctx context.Context, db sqlz.DB, tblName stri
 		return nil, errw(rows.Err())
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, driver.ResultHints{})
 	if err != nil {
 		sqlz.CloseRows(d.log, rows)
 		return nil, errw(err)

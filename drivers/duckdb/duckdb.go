@@ -363,7 +363,7 @@ func (d *driveri) TableColumnTypes(ctx context.Context, db sqlz.DB, tblName stri
 // are represented as nil in the driver.Value slice. The munge function
 // converts duckdb-specific types (Decimal, Interval, *big.Int, composites)
 // to sq's canonical record types.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, kindHints map[int]kind.Kind) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints driver.ResultHints) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	ctData := make([]*record.ColumnTypeData, len(colTypes))
@@ -371,7 +371,7 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, ki
 	for i, ct := range colTypes {
 		dbTypeName := ct.DatabaseTypeName()
 		knd := kindFromDBTypeName(dbTypeName)
-		if hint, ok := kindHints[i]; ok {
+		if hint, ok := hints.Kinds[i]; ok {
 			// A renderer-pinned kind (e.g. sum() forced to decimal; see #853)
 			// overrides the kind derived from the DB type name. The munge
 			// coerces the scanned value to match the pinned kind. Setting the

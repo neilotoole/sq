@@ -171,6 +171,7 @@ func execSLQInsert(ctx context.Context, ru *run.Run, mArgs map[string]string,
 	// handles stay read-only, so inserting from a read-only source works.
 	qc.AccessMode = driver.ModeReadOnly
 	qc.WriteHandle = destSrc.Handle
+	qc.RawVectors = true
 
 	// Note: We don't need to worry about closing fromConn and
 	// destConn because they are closed by databases.Close, which

@@ -21,6 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 )
 
 type recordWriter struct {
@@ -261,6 +262,15 @@ func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 					}
 				}
 
+			case vector.Vector:
+				s := val.String()
+				if len(s) > maxCellChars {
+					s = val.Summary()
+				}
+				if err := w.xfile.SetCellStr(SheetName, cellIndex, s); err != nil {
+					return errw(err)
+				}
+
 			case string:
 				// It seems that kind.Time values are supplied as string (at least
 				// by some backend database drivers). However, Excel won't honor the
@@ -381,6 +391,9 @@ func (w *recordWriter) WriteRecords(ctx context.Context, recs []record.Record) e
 }
 
 const SheetName = "data"
+
+// maxCellChars is the maximum number of characters that Excel allows in a cell.
+const maxCellChars = 32767
 
 // NewFile returns a new file with a single, empty sheet named "data".
 func NewFile() (*excelize.File, error) {

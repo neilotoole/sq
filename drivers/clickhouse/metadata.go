@@ -1115,7 +1115,7 @@ func setScanType(colTypeData *record.ColumnTypeData, knd kind.Kind, nullable boo
 			colTypeData.ScanType = sqlz.RTypeNullBool
 		case kind.Datetime, kind.Date, kind.Time:
 			colTypeData.ScanType = sqlz.RTypeNullTime
-		case kind.Bytes:
+		case kind.Bytes, kind.Vector:
 			colTypeData.ScanType = sqlz.RTypeBytes // []byte handles nil naturally
 		}
 		return
@@ -1133,7 +1133,7 @@ func setScanType(colTypeData *record.ColumnTypeData, knd kind.Kind, nullable boo
 		colTypeData.ScanType = sqlz.RTypeBool
 	case kind.Datetime, kind.Date, kind.Time:
 		colTypeData.ScanType = sqlz.RTypeTime
-	case kind.Bytes:
+	case kind.Bytes, kind.Vector:
 		colTypeData.ScanType = sqlz.RTypeBytes
 	}
 }

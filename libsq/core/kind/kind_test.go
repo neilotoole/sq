@@ -25,6 +25,7 @@ func TestKind(t *testing.T) {
 		kind.Date:     "date",
 		kind.Time:     "time",
 		kind.Bytes:    "bytes",
+		kind.Vector:   "vector",
 	}
 
 	for knd, testText := range testCases {

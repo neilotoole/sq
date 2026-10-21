@@ -4,15 +4,19 @@ import "C"
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 
+	mattn "github.com/mattn/go-sqlite3"
 	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
+	"github.com/neilotoole/sq/drivers/sqlite3/vecdecl"
 	"github.com/neilotoole/sq/libsq/core/debugz"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -27,12 +31,14 @@ import (
 )
 
 // recordMetaFromColumnTypes returns record.Meta for colTypes.
-func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType, kindHints map[int]kind.Kind,
+func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType, hints driver.ResultHints,
 ) (record.Meta, error) {
-	// kindHints carries forced result-column kinds recorded during rendering
+	// hints.Kinds carries forced result-column kinds recorded during rendering
 	// (e.g. sum() pinned to kind.Decimal). SQLite reports no usable type for
 	// such expressions, so without a hint they would be surfaced as int/float
-	// from the scanned value. See issue #839.
+	// from the scanned value. See issue #839. Likewise, sqlite-vec declares
+	// vec0 columns with no type, so hints.Vectors marks those that are
+	// vectors.
 	sColTypeData := make([]*record.ColumnTypeData, len(colTypes))
 	ogColNames := make([]string, len(colTypes))
 	for i, colType := range colTypes {
@@ -43,10 +49,13 @@ func recordMetaFromColumnTypes(ctx context.Context, colTypes []*sql.ColumnType, 
 		dbTypeName := colType.DatabaseTypeName()
 
 		knd := kindFromDBTypeName(ctx, colType.Name(), dbTypeName, colType.ScanType())
-		if hint, ok := kindHints[i]; ok {
+		if hint, ok := hints.Kinds[i]; ok {
 			// Force the renderer-pinned kind. setScanType derives the scan
 			// target from the kind, so kind.Decimal yields a decimal scan.
 			knd = hint
+		}
+		if _, ok := hints.Vectors[i]; ok {
+			knd = kind.Vector
 		}
 		colTypeData := record.NewColumnTypeData(colType, knd)
 
@@ -126,6 +135,9 @@ func setScanType(ctx context.Context, colType *record.ColumnTypeData) {
 	case kind.Float:
 		scanType = sqlz.RTypeNullFloat64
 
+	case kind.Vector:
+		scanType = sqlz.RTypeAny
+
 	case kind.Bytes:
 		scanType = sqlz.RTypeBytes
 
@@ -179,6 +191,12 @@ func kindFromDBTypeName(ctx context.Context, colName, dbTypeName string, scanTyp
 		case sqlz.RTypeBytes:
 			return kind.Bytes
 		}
+	}
+
+	// libSQL vector types such as F32_BLOB(4) and FLOAT32(3) must be
+	// checked before the BLOB and FLOA substring fallbacks below.
+	if _, ok := vecdecl.ParseLibSQLType(dbTypeName); ok {
+		return kind.Vector
 	}
 
 	var knd kind.Kind
@@ -265,7 +283,7 @@ func DBTypeForKind(knd kind.Kind) string {
 		return "INTEGER"
 	case kind.Float:
 		return "REAL"
-	case kind.Bytes:
+	case kind.Bytes, kind.Vector:
 		return "BLOB"
 	case kind.Decimal:
 		return "NUMERIC"
@@ -286,6 +304,27 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	tblMeta := &metadata.Table{Name: tblName}
 	// Note that there's no easy way of getting the physical size of
 	// a table, so tblMeta.Size remains nil.
+
+	// A virtual table whose module is unavailable (or rejects the table's
+	// declaration) can't be opened at all; report it with an error
+	// instead of failing.
+	if ddl, isVirtual, err := getVirtualTableDDL(ctx, db, tblName); err != nil {
+		return nil, err
+	} else if isVirtual {
+		probeErr, err := probeVirtualTable(ctx, db, tblName)
+		if err != nil {
+			return nil, err
+		}
+		if probeErr != "" {
+			var schema string
+			err = db.QueryRowContext(ctx,
+				"SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1").Scan(&schema)
+			if err != nil {
+				return nil, errw(err)
+			}
+			return unopenableTable(ctx, schema, tblName, ddl, probeErr), nil
+		}
+	}
 
 	// But we can get the row count and table type ("table" or "view").
 	// The table name is bound as a query parameter where it appears in
@@ -308,8 +347,12 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 
 	var schema string
 	var isVirtualTbl sql.NullBool
-	query := fmt.Sprintf(tpl, stringz.DoubleQuote(tblMeta.Name))
-	err := db.QueryRowContext(ctx, query, tblMeta.Name, tblMeta.Name).
+	vecIdxTbls, err := getLibSQLVectorIndexedTables(ctx, db, tblMeta.Name)
+	if err != nil {
+		return nil, err
+	}
+	query := fmt.Sprintf(tpl, fromTableClause(tblMeta.Name, vecIdxTbls[strings.ToLower(tblMeta.Name)]))
+	err = db.QueryRowContext(ctx, query, tblMeta.Name, tblMeta.Name).
 		Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schema)
 	if err != nil {
 		return nil, errw(err)
@@ -401,6 +444,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	if tblMeta.TableType == sqlz.TableTypeView {
 		tblMeta.ViewDefinition = ddl
 	}
+	applyVectorMetadata(ctx, ddl, tblMeta)
 
 	// Triggers attach to both tables and views (INSTEAD OF triggers).
 	tblMeta.Triggers, err = getTableTriggers(ctx, db, tblMeta.Name)
@@ -435,6 +479,68 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	}
 
 	return tblMeta, nil
+}
+
+// applyVectorMetadata sets the vector-related fields of tblMeta's columns.
+// It is shared by getTableMetadata and getAllTableMetadata so that both
+// paths report identical column metadata.
+//
+// For a vec0 virtual table (sqlite-vec), the columns are overlaid with the
+// declarations parsed from ddl, because SQLite reports no declared types for
+// virtual-table columns. For any other table, a column whose declared type is
+// a libSQL vector type (F32_BLOB(4) etc.) gets its vector.Type assigned.
+func applyVectorMetadata(ctx context.Context, ddl string, tblMeta *metadata.Table) {
+	if tblMeta.TableType == sqlz.TableTypeVirtual {
+		if !strings.EqualFold(vecdecl.VirtualTableModule(ddl), "vec0") {
+			return
+		}
+
+		decls, err := vecdecl.ParseVec0(ddl)
+		if err != nil {
+			lg.FromContext(ctx).Warn("Failed to parse vec0 table DDL",
+				lga.Table, tblMeta.Name, lga.Err, err)
+			return
+		}
+
+		byName := make(map[string]vecdecl.Vec0Column, len(decls))
+		for _, d := range decls {
+			byName[d.Name] = d
+		}
+
+		for _, col := range tblMeta.Columns {
+			d, ok := byName[col.Name]
+			if !ok {
+				continue
+			}
+
+			col.BaseType = d.DeclType
+			col.ColumnType = d.DeclType
+			if d.Vector != nil {
+				v := *d.Vector
+				col.Vector = &v
+				col.Kind = kind.Vector
+			} else {
+				col.Kind = kindFromDBTypeName(ctx, col.Name, d.DeclType, nil)
+			}
+			if d.Role == vecdecl.RolePrimaryKey {
+				col.PrimaryKey = true
+			}
+			switch d.Role {
+			case vecdecl.RolePartitionKey, vecdecl.RoleMetadata, vecdecl.RoleAuxiliary:
+				col.Role = string(d.Role)
+			case vecdecl.RoleVector, vecdecl.RolePrimaryKey:
+				// Self-evident from Kind and PrimaryKey.
+			}
+		}
+		return
+	}
+
+	for _, col := range tblMeta.Columns {
+		if vt, ok := vecdecl.ParseLibSQLType(col.BaseType); ok {
+			col.Kind = kind.Vector
+			col.Vector = &vt
+		}
+	}
 }
 
 // getTableIndexes returns the unique constraints and the physical
@@ -493,6 +599,23 @@ ORDER BY seq`
 			return nil, nil, err
 		}
 		if metadata.AllExpressionKeys(cols) {
+			var idxSQL sql.NullString
+			err = db.QueryRowContext(ctx,
+				`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?`,
+				info.name).Scan(&idxSQL)
+			if err != nil {
+				return nil, nil, errw(err)
+			}
+			if col, iv, ok := vecdecl.ParseLibSQLVectorIndex(idxSQL.String); ok {
+				indexes = append(indexes, &metadata.Index{
+					Name:    info.name,
+					Table:   tblName,
+					Columns: []string{col},
+					Vector:  iv,
+				})
+				continue
+			}
+
 			log.Debug("sqlite3: dropping index with only expression keys",
 				"table", tblName, "index", info.name)
 			continue
@@ -709,8 +832,21 @@ SELECT m.name as table_name, m.type, p.cid, p.name, p.type, p.'notnull' as 'notn
 (substr(m.sql, 0, 21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
 COALESCE(m.sql, '') AS table_ddl
 FROM sqlite_master AS m JOIN pragma_table_xinfo(m.name) AS p
+WHERE m.name NOT IN (SELECT value FROM json_each(?))
 ORDER BY m.name, p.cid
 `
+
+	// A virtual table that can't be opened would fail the whole query
+	// above, so such tables are found first, excluded from the query (the
+	// names are passed as a bound JSON array), and added back below.
+	unopenable, err := findUnopenableVirtualTables(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	excludeJSON, err := vtabNamesJSON(unopenable)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		tblMetas        []*metadata.Table
@@ -723,7 +859,7 @@ ORDER BY m.name, p.cid
 		curTblMeta      *metadata.Table
 	)
 
-	rows, err := db.QueryContext(ctx, query)
+	rows, err := db.QueryContext(ctx, query, excludeJSON)
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -863,6 +999,7 @@ ORDER BY m.name, p.cid
 		if tblMeta.TableType == sqlz.TableTypeView {
 			tblMeta.ViewDefinition = ddl
 		}
+		applyVectorMetadata(ctx, ddl, tblMeta)
 
 		// Triggers attach to both tables and views (INSTEAD OF triggers).
 		tblMeta.Triggers = allTriggers[tblMeta.Name]
@@ -887,7 +1024,253 @@ ORDER BY m.name, p.cid
 		}
 	}
 
-	return tblMetas, nil
+	return addUnopenableTables(ctx, tblMetas, unopenable, allTriggers, schemaName), nil
+}
+
+// vtabNamesJSON returns the names of vtabs as a JSON array.
+func vtabNamesJSON(vtabs []unopenableVTab) (string, error) {
+	names := make([]string, len(vtabs))
+	for i := range vtabs {
+		names[i] = vtabs[i].name
+	}
+	b, err := json.Marshal(names)
+	if err != nil {
+		return "", errz.Err(err)
+	}
+	return string(b), nil
+}
+
+// addUnopenableTables appends a fallback table for each of vtabs to tblMetas,
+// and returns the result sorted by table name.
+func addUnopenableTables(ctx context.Context, tblMetas []*metadata.Table, vtabs []unopenableVTab,
+	triggers map[string][]*metadata.Trigger, schemaName string,
+) []*metadata.Table {
+	if len(vtabs) == 0 {
+		return tblMetas
+	}
+	for _, u := range vtabs {
+		tbl := unopenableTable(ctx, schemaName, u.name, u.ddl, u.errText)
+		tbl.Triggers = triggers[u.name]
+		tblMetas = append(tblMetas, tbl)
+	}
+	sort.SliceStable(tblMetas, func(i, j int) bool { return tblMetas[i].Name < tblMetas[j].Name })
+	return tblMetas
+}
+
+// unopenableVTab describes a virtual table that SQLite can't open.
+type unopenableVTab struct {
+	name    string
+	ddl     string
+	errText string
+}
+
+// getVirtualTableDDL returns the CREATE DDL of tblName, and whether tblName
+// is a virtual table.
+func getVirtualTableDDL(ctx context.Context, db sqlz.DB, tblName string) (ddl string, isVirtual bool, err error) {
+	const q = `SELECT COALESCE(sql, '') FROM sqlite_master
+WHERE name = ? AND type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' LIMIT 1`
+	err = db.QueryRowContext(ctx, q, tblName).Scan(&ddl)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", false, nil
+	case err != nil:
+		return "", false, errw(err)
+	}
+	return ddl, true, nil
+}
+
+// isModuleError reports whether err is the generic SQLITE_ERROR that SQLite
+// returns when it can't open a virtual table, for example "no such module"
+// or a module constructor error. Other SQLite errors, such as SQLITE_BUSY,
+// SQLITE_LOCKED or SQLITE_IOERR, are transient or environmental, and say
+// nothing about the table.
+func isModuleError(err error) bool {
+	var sqliteErr mattn.Error
+	return errors.As(err, &sqliteErr) && sqliteErr.Code == mattn.ErrError
+}
+
+// probeVirtualTable tries to open the virtual table tblName. If SQLite
+// itself rejects the table, its error text is returned in errText. Any other
+// failure (context cancellation, a busy or locked database, I/O, a closed
+// DB) is returned as err, and must not be mistaken for an unopenable table.
+func probeVirtualTable(ctx context.Context, db sqlz.DB, tblName string) (errText string, err error) {
+	if err = ctx.Err(); err != nil {
+		return "", errz.Err(err)
+	}
+
+	rows, err := db.QueryContext(ctx, "SELECT 1 FROM "+stringz.DoubleQuote(tblName)+" LIMIT 0")
+	if err == nil {
+		defer sqlz.CloseRows(lg.FromContext(ctx), rows)
+		err = rows.Err()
+	}
+	if err == nil {
+		return "", nil
+	}
+
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return "", errz.Err(ctxErr)
+	}
+	if isModuleError(err) {
+		return err.Error(), nil
+	}
+	return "", errw(err)
+}
+
+// findUnopenableVirtualTables returns the virtual tables in db that can't be
+// opened, such as those of an unavailable module, ordered by name.
+func findUnopenableVirtualTables(ctx context.Context, db sqlz.DB) ([]unopenableVTab, error) {
+	const q = `SELECT name, COALESCE(sql, '') FROM sqlite_master
+WHERE type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' ORDER BY name`
+	rows, err := db.QueryContext(ctx, q)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	var vtabs []unopenableVTab
+	for rows.Next() {
+		var v unopenableVTab
+		if err = rows.Scan(&v.name, &v.ddl); err != nil {
+			sqlz.CloseRows(lg.FromContext(ctx), rows)
+			return nil, errw(err)
+		}
+		vtabs = append(vtabs, v)
+	}
+	err = rows.Err()
+	sqlz.CloseRows(lg.FromContext(ctx), rows)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	var bad []unopenableVTab
+	for _, v := range vtabs {
+		if strings.HasPrefix(v.name, "sqlite_") {
+			continue
+		}
+		if v.errText, err = probeVirtualTable(ctx, db, v.name); err != nil {
+			return nil, err
+		}
+		if v.errText != "" {
+			bad = append(bad, v)
+		}
+	}
+	return bad, nil
+}
+
+// unopenableTable builds the metadata for a virtual table that can't be
+// opened. Row count is zero, and Definition holds the table's DDL. For a
+// vec0 table the columns are taken from the parsed DDL, via the same overlay
+// used for openable tables; for any other module there are no columns. If
+// SQLite's error is sqlite-vec failing to parse a vector column that declares
+// an index (INDEXED BY), which the bundled sqlite-vec doesn't support, Error
+// names that column and index instead. Any other error is kept as is.
+func unopenableTable(ctx context.Context, schemaName, tblName, ddl, errText string) *metadata.Table {
+	tbl := &metadata.Table{
+		Name:        tblName,
+		FQName:      schemaName + "." + tblName,
+		TableType:   sqlz.TableTypeVirtual,
+		DBTableType: sqlz.TableTypeTable,
+		Error:       errText,
+		Definition:  ddl,
+	}
+
+	if strings.EqualFold(vecdecl.VirtualTableModule(ddl), "vec0") {
+		if decls, err := vecdecl.ParseVec0(ddl); err == nil {
+			for i, d := range decls {
+				tbl.Columns = append(tbl.Columns, &metadata.Column{
+					Name:     d.Name,
+					Position: int64(i),
+					Nullable: true,
+				})
+			}
+			applyVectorMetadata(ctx, ddl, tbl)
+
+			for _, d := range decls {
+				if d.IndexedBy != "" && isVec0ColumnParseErr(errText, d.Name) {
+					tbl.Error = fmt.Sprintf("vec0 column %q: unsupported index type: %s", d.Name, d.IndexedBy)
+					break
+				}
+			}
+		}
+	}
+	return tbl
+}
+
+// vec0ColumnParseErr is the text sqlite-vec puts before the column
+// definition it failed to parse.
+const vec0ColumnParseErr = "could not parse vector column '"
+
+// isVec0ColumnParseErr reports whether errText is sqlite-vec failing to
+// parse the definition of column col. Any other error, such as a bad table
+// option, is not.
+func isVec0ColumnParseErr(errText, col string) bool {
+	i := strings.Index(errText, vec0ColumnParseErr)
+	if i < 0 {
+		return false
+	}
+	def := strings.TrimLeft(errText[i+len(vec0ColumnParseErr):], "\"`[")
+	if len(def) <= len(col) || !strings.EqualFold(def[:len(col)], col) {
+		return false
+	}
+	switch def[len(col)] {
+	case ' ', '\t', '\n', '\r', '"', '`', ']':
+		return true
+	default:
+		return false
+	}
+}
+
+// libsqlVectorIdxPattern matches the SQL of a libSQL vector index. LIKE is
+// case-insensitive for ASCII in SQLite. The pattern stops at the function
+// name, because libSQL accepts whitespace and comments before the
+// parenthesis. An index that mentions the name only in a comment also
+// matches; its table is then read with NOT INDEXED, which is slower but
+// returns the same rows.
+const libsqlVectorIdxPattern = `%libsql_vector_idx%`
+
+// getLibSQLVectorIndexedTables returns the set of tables that have a libSQL
+// vector index. Stock SQLite can't maintain such an index (its b-tree is empty),
+// yet the query planner may pick it as a covering index, so a query against
+// such a table must use NOT INDEXED (gh1298). If tbl is empty, all tables
+// are considered, else only tbl.
+func getLibSQLVectorIndexedTables(ctx context.Context, db sqlz.DB, tbl string) (map[string]bool, error) {
+	log := lg.FromContext(ctx)
+
+	q := `SELECT DISTINCT tbl_name FROM sqlite_master WHERE type = 'index' AND sql LIKE ?`
+	args := []any{libsqlVectorIdxPattern}
+	if tbl != "" {
+		q += ` AND tbl_name = ? COLLATE NOCASE`
+		args = append(args, tbl)
+	}
+
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	set := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err = rows.Scan(&name); err != nil {
+			return nil, errw(err)
+		}
+		// SQLite resolves table names case-insensitively, so key by lower case.
+		set[strings.ToLower(name)] = true
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return set, nil
+}
+
+// fromTableClause returns the FROM clause target for tbl: the quoted table
+// name, followed by NOT INDEXED if notIndexed is true.
+func fromTableClause(tbl string, notIndexed bool) string {
+	s := stringz.DoubleQuote(tbl)
+	if notIndexed {
+		s += " NOT INDEXED"
+	}
+	return s
 }
 
 // getTblRowCounts returns the number of rows in each table. If a table named
@@ -922,6 +1305,12 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 	// Thus if len(tblNames) > 500, we need to execute multiple queries.
 	const maxCompoundSelect = 500
 
+	// Tables with a libSQL vector index must be counted with NOT INDEXED.
+	vecIdxTbls, err := getLibSQLVectorIndexedTables(ctx, db, "")
+	if err != nil {
+		return nil, err
+	}
+
 	var (
 		tblCounts = make([]int64, len(tblNames))
 		sb        strings.Builder
@@ -934,7 +1323,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 		if terms > 0 {
 			sb.WriteString(" UNION ALL ")
 		}
-		sb.WriteString("SELECT COUNT(*) FROM " + stringz.DoubleQuote(tblNames[i]))
+		sb.WriteString("SELECT COUNT(*) FROM " + fromTableClause(tblNames[i], vecIdxTbls[strings.ToLower(tblNames[i])]))
 		terms++
 
 		if terms != maxCompoundSelect && i != len(tblNames)-1 {
@@ -954,7 +1343,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 				// has since vanished, so one dropped table doesn't abort the
 				// whole source scan.
 				batchEnd := j + terms
-				if err = countTblsIndividually(ctx, db, tblNames[j:batchEnd], tblCounts[j:batchEnd]); err != nil {
+				if err = countTblsIndividually(ctx, db, tblNames[j:batchEnd], tblCounts[j:batchEnd], vecIdxTbls); err != nil {
 					return nil, err
 				}
 				j = batchEnd
@@ -998,14 +1387,16 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 // vanished (NotExistError) are recorded as -1; any other error aborts. This is
 // the fallback path used by getTblRowCounts when the UNION ALL batch fails
 // because of a concurrent DROP TABLE.
-func countTblsIndividually(ctx context.Context, db sqlz.DB, names []string, counts []int64) error {
+func countTblsIndividually(ctx context.Context, db sqlz.DB, names []string, counts []int64,
+	vecIdxTbls map[string]bool,
+) error {
 	for i, name := range names {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}
 		var count int64
 		err := db.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM "+stringz.DoubleQuote(name)).Scan(&count)
+			"SELECT COUNT(*) FROM "+fromTableClause(name, vecIdxTbls[strings.ToLower(name)])).Scan(&count)
 		if err != nil {
 			wrapped := errw(err)
 			if errz.Has[*driver.NotExistError](wrapped) {

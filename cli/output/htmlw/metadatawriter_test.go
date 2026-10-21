@@ -379,3 +379,28 @@ func TestMetadataWriter_InspectEnrichment(t *testing.T) {
 	require.NotContains(t, plainGot, "View definition")
 	require.NotContains(t, plainGot, "<pre><code>")
 }
+
+// TestMetadataWriter_tableError verifies that a table with an Error shows
+// the error under its heading, in both source and single-table output.
+func TestMetadataWriter_tableError(t *testing.T) {
+	bad := &metadata.Table{Name: "fx_other", TableType: "virtual", Error: "no such module: <vectorlite>"}
+	ok := &metadata.Table{
+		Name: "ok", TableType: "table",
+		Columns: []*metadata.Column{{Name: "id", ColumnType: "INTEGER"}},
+	}
+	const want = `<p class="error"><strong>Error:</strong> no such module: &lt;vectorlite&gt;</p>`
+
+	buf := &bytes.Buffer{}
+	w := htmlw.NewMetadataWriter(buf, output.NewPrinting(), false)
+	require.NoError(t, w.TableMetadata(bad))
+	require.Contains(t, buf.String(), want)
+
+	buf.Reset()
+	src := &metadata.Source{
+		Handle: "@test", Name: "db", Driver: drivertype.Type("sqlite3"),
+		Tables: []*metadata.Table{bad, ok},
+	}
+	require.NoError(t, w.SourceMetadata(src, true))
+	require.Contains(t, buf.String(), want)
+	require.Equal(t, 1, bytes.Count(buf.Bytes(), []byte(`<p class="error">`)))
+}

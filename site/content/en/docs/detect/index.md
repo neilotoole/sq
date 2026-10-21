@@ -226,6 +226,7 @@ for each column.
 | `date`     | `1977-11-07`           |
 | `time`     | `17:59:28`             |
 | `bytes`    | `aHV6emFoCg==`         |
+| `vector`   | `[0.9,0.1,0,0]`        |
 
 {{< alert icon="👉" >}}
 In addition to the kinds in the table above, there are a handful of other internal

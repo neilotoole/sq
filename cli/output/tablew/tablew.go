@@ -27,6 +27,7 @@ import (
 	"github.com/neilotoole/sq/cli/output/tablew/internal"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 )
 
 // table encapsulates our table implementation.
@@ -97,6 +98,8 @@ func (t *table) renderResultCell(knd kind.Kind, val any) string {
 		return t.pr.Datetime.Sprint(s)
 	case []byte:
 		return t.sprintBytes(val)
+	case vector.Vector:
+		return t.pr.Bytes.Sprint(val.Summary())
 	case decimal.Decimal:
 		return t.pr.Number.Sprint(stringz.FormatDecimal(val))
 	}

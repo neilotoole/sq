@@ -707,10 +707,10 @@ func copyTableCompanionDDL(ctx context.Context, db sqlz.DB,
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints map[int]kind.Kind) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints driver.ResultHints) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
-	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes, hints)
+	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes, hints.Kinds)
 	if err != nil {
 		return nil, nil, errw(err)
 	}
@@ -1008,7 +1008,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, driver.ResultHints{})
 	if err != nil {
 		return nil, err
 	}

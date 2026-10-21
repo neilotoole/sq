@@ -28,6 +28,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tuning"
+	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
@@ -1177,6 +1178,11 @@ func newInsertMungeFunc(destTbl string, destMeta record.Meta) driver.InsertMunge
 			nullable, _ := destMeta[i].Nullable()
 			if rec[i] == nil && !nullable {
 				mungeSetZeroValue(i, rec, destMeta)
+				continue
+			}
+
+			if vec, ok := rec[i].(vector.Vector); ok {
+				rec[i] = vec.Raw
 				continue
 			}
 

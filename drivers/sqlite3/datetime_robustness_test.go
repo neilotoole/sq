@@ -10,6 +10,7 @@ import (
 	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/sakila"
 )
@@ -38,7 +39,7 @@ func TestQueryRailsDatetime(t *testing.T) {
 
 	sink := &testh.RecordSink{}
 	recw := output.NewRecordWriterAdapter(th.Context, sink)
-	err = libsq.QuerySQL(th.Context, th.Open(src), nil, recw, nil,
+	err = libsq.QuerySQL(th.Context, th.Open(src), nil, recw, driver.ResultHints{},
 		"SELECT id, created_at FROM "+tbl+" ORDER BY id")
 	require.NoError(t, err)
 	_, err = recw.Wait()

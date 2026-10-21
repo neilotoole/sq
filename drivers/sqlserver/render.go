@@ -82,7 +82,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 		return "TIME"
 	case kind.Date:
 		return "DATE"
-	case kind.Bytes:
+	case kind.Bytes, kind.Vector:
 		return "VARBINARY(MAX)"
 	}
 }
@@ -99,6 +99,7 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 	kind.Date:     `DEFAULT '1970-01-01'`,
 	kind.Time:     `DEFAULT '00:00:00'`,
 	kind.Bytes:    `DEFAULT 0x`,
+	kind.Vector:   `DEFAULT 0x`,
 	kind.Unknown:  `DEFAULT ''`,
 }
 
