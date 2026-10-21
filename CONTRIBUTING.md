@@ -50,7 +50,9 @@ Actions pins under `.github/workflows/`. See
 
 ## Tooling
 
-This documentation presumes you are on macOS. If not, adapt appropriately.
+This documentation presumes you are on macOS. If not, the repo's
+[dev container](./docs/DEVELOPER.md#dev-container) (from the command line, GoLand,
+VS Code or GitHub Codespaces) has everything below except Docker.
 This section also presumes you want to do full-stack `sq` development; if not,
 you may not need all of these tools. You'll definitely need `go`.
 

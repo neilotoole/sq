@@ -6,8 +6,13 @@
 # Usage: source its output to export the SQ_TEST_SRC__SAKILA_* DSN vars into the
 # current shell, then run the tests:
 #
-#   source <(./sakila-start-local.sh)   # or: eval "$(./sakila-start-local.sh)"
+#   source <(./sakila-start-local.sh)                  # every engine
+#   source <(./sakila-start-local.sh postgres mysql)   # just these
 #   make test
+#
+# Engine names are the keys of .github/sakila-db.json: postgres, mysql,
+# sqlserver, clickhouse, oracle, rqlite. Tests for engines that aren't started
+# skip themselves, since their envar is unset.
 #
 # Progress and health-check status are written to stderr; stdout carries only
 # the `export ...` lines, so the output is safe to source.
@@ -24,16 +29,29 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 config="$here/.github/sakila-db.json"
 
-# Stop anything already running.
-"$here/sakila-stop-local.sh" &>/dev/null || true
-
+# Keep in sync with sakila-stop-local.sh.
 declare -A cname=(
   [postgres]=sakiladb-pg [mysql]=sakiladb-my [sqlserver]=sakiladb-ms
   [clickhouse]=sakiladb-ch [oracle]=sakiladb-or [rqlite]=sakiladb-rq
 )
 declare -A platform=( [sqlserver]="--platform=linux/amd64" )
 
-engines=(postgres mysql sqlserver clickhouse oracle rqlite)
+engines=("$@")
+if [ ${#engines[@]} -eq 0 ]; then
+  engines=(postgres mysql sqlserver clickhouse oracle rqlite)
+fi
+
+for engine in "${engines[@]}"; do
+  if [ -z "${cname[$engine]:-}" ]; then
+    echo "unknown engine: $engine" >&2
+    exit 2
+  fi
+done
+
+# Stop any of the selected engines that are already running. Engines that
+# weren't selected keep running.
+"$here/sakila-stop-local.sh" "${engines[@]}" &>/dev/null || true
+
 exports=()
 
 for engine in "${engines[@]}"; do
