@@ -70,7 +70,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   virtual table that `sq` can't serve, such as one using an unknown module or a
   newer sqlite-vec feature. The table is listed with an error and `sq inspect`
   prints a warning for it. For a `vec0` table, the columns parsed from its
-  declaration are shown along with the error.
+  declaration are shown along with the error. For any other module, the table's
+  declaration is shown.
 
 ## [v0.55.0] - 2026-09-09
 

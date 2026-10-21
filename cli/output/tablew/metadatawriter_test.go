@@ -586,3 +586,42 @@ func TestPrintTables_ErrorCell(t *testing.T) {
 		require.Contains(t, bad2Line, "rejected", "verbose=%v", verbose)
 	}
 }
+
+// TestPrintTablesVerbose_ErrorDefinition verifies that verbose output shows
+// the declaration of each table that has an Error and a Definition, after
+// the table, and that non-verbose output doesn't.
+func TestPrintTablesVerbose_ErrorDefinition(t *testing.T) {
+	const (
+		otherDDL   = "CREATE VIRTUAL TABLE fx_other USING vectorlite(e float32[3])"
+		rescoreDDL = "CREATE VIRTUAL TABLE fx_rescore USING vec0(e float[2] INDEXED BY rescore(x=1))"
+	)
+	tbls := []*metadata.Table{
+		{Name: "fx_other", TableType: "virtual", Error: "no such module: vectorlite", Definition: otherDDL},
+		{
+			Name: "fx_rescore", TableType: "virtual", Error: "unsupported index type", Definition: rescoreDDL,
+			Columns: []*metadata.Column{{Name: "e", BaseType: "float[2]"}},
+		},
+		{
+			Name: "ok", TableType: "table", RowCount: 1,
+			Columns: []*metadata.Column{{Name: "id", BaseType: "INTEGER"}},
+		},
+	}
+
+	var buf bytes.Buffer
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := NewMetadataWriter(&buf, pr).(*mdWriter)
+	require.NoError(t, w.printTablesVerbose(tbls))
+	out := buf.String()
+
+	require.Contains(t, out, "\nfx_other: "+otherDDL+"\n")
+	require.Contains(t, out, "\nfx_rescore: "+rescoreDDL+"\n")
+	require.NotContains(t, out, "\nok: ")
+	// The declarations follow the table.
+	require.Greater(t, strings.Index(out, "fx_other: "), strings.LastIndex(out, "INTEGER"))
+
+	buf.Reset()
+	w = NewMetadataWriter(&buf, pr).(*mdWriter)
+	require.NoError(t, w.printTables(tbls))
+	require.NotContains(t, buf.String(), "CREATE VIRTUAL TABLE")
+}

@@ -1378,7 +1378,8 @@ func TestCmdInspect_UnopenableTables_Source(t *testing.T) {
 
 	errOut := tr.ErrOut.String()
 	require.Contains(t, errOut, "warning: @vtab.fx_other: no such module: vectorlite")
-	require.Contains(t, errOut, "warning: @vtab.fx_rescore: ")
+	require.Contains(t, errOut, `warning: @vtab.fx_rescore: vec0 column "embedding": `+
+		`unsupported index type: rescore(quantizer=bit, oversample=50)`)
 	require.NotContains(t, errOut, "@vtab.plain")
 
 	var md metadata.Source
@@ -1387,9 +1388,33 @@ func TestCmdInspect_UnopenableTables_Source(t *testing.T) {
 	for _, tbl := range md.Tables {
 		if tbl.Error != "" {
 			errored[tbl.Name] = true
+			require.Contains(t, tbl.Definition, "CREATE VIRTUAL TABLE "+tbl.Name+" USING ", tbl.Name)
+		} else {
+			require.Empty(t, tbl.Definition, tbl.Name)
 		}
 	}
 	require.Equal(t, map[string]bool{"fx_other": true, "fx_rescore": true}, errored)
+}
+
+// TestCmdInspect_UnopenableTables_TextVerbose verifies that verbose text
+// output shows the declaration of each unopenable table.
+func TestCmdInspect_UnopenableTables_TextVerbose(t *testing.T) {
+	const otherDDL = `CREATE VIRTUAL TABLE fx_other USING vectorlite(my_embedding float32[3], ` +
+		`hnsw(max_elements=100))`
+
+	tr := testrun.New(t.Context(), t, nil)
+	addUnopenableVtabSource(t, tr)
+	require.NoError(t, tr.Exec("inspect", "@vtab", "--text", "-v"))
+	out := tr.Out.String()
+	require.Contains(t, out, "fx_other: "+otherDDL)
+	require.Contains(t, out, "fx_rescore: CREATE VIRTUAL TABLE fx_rescore USING vec0(")
+	require.NotContains(t, out, "plain: ")
+
+	tr = testrun.New(t.Context(), t, nil)
+	addUnopenableVtabSource(t, tr)
+	err := tr.Exec("inspect", "@vtab.fx_other", "--text", "-v")
+	require.Error(t, err)
+	require.Contains(t, tr.Out.String(), "fx_other: "+otherDDL)
 }
 
 // TestCmdInspect_UnopenableTables_Overview verifies that --overview emits no

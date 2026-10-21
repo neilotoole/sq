@@ -1157,9 +1157,12 @@ WHERE type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' ORDER BY name`
 }
 
 // unopenableTable builds the metadata for a virtual table that can't be
-// opened. Row count is zero. For a vec0 table the columns are taken from
-// the parsed DDL, via the same overlay used for openable tables; for any
-// other module there are no columns.
+// opened. Row count is zero, and Definition holds the table's DDL. For a
+// vec0 table the columns are taken from the parsed DDL, via the same overlay
+// used for openable tables; for any other module there are no columns. If a
+// vec0 vector column declares an index (INDEXED BY), which the bundled
+// sqlite-vec doesn't support, Error names that column and index instead of
+// carrying SQLite's error text.
 func unopenableTable(ctx context.Context, schemaName, tblName, ddl, errText string) *metadata.Table {
 	tbl := &metadata.Table{
 		Name:        tblName,
@@ -1167,6 +1170,7 @@ func unopenableTable(ctx context.Context, schemaName, tblName, ddl, errText stri
 		TableType:   sqlz.TableTypeVirtual,
 		DBTableType: sqlz.TableTypeTable,
 		Error:       errText,
+		Definition:  ddl,
 	}
 
 	if strings.EqualFold(vecdecl.VirtualTableModule(ddl), "vec0") {
@@ -1179,6 +1183,13 @@ func unopenableTable(ctx context.Context, schemaName, tblName, ddl, errText stri
 				})
 			}
 			applyVectorMetadata(ctx, ddl, tbl)
+
+			for _, d := range decls {
+				if d.IndexedBy != "" {
+					tbl.Error = fmt.Sprintf("vec0 column %q: unsupported index type: %s", d.Name, d.IndexedBy)
+					break
+				}
+			}
 		}
 	}
 	return tbl

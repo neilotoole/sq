@@ -1762,6 +1762,7 @@ func TestTable_Clone_AllFieldsCovered(t *testing.T) {
 		DBTableType:    "BASE TABLE",
 		ViewDefinition: "SELECT 1",
 		Error:          "no such module: x",
+		Definition:     "CREATE VIRTUAL TABLE film USING x(a)",
 		RowCount:       200,
 		Size:           &sz,
 		Comment:        "Film table",

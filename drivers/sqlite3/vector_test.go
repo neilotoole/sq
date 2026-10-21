@@ -142,9 +142,19 @@ func TestVTab_Unopenable(t *testing.T) {
 	require.Equal(t, int64(2), plain.RowCount)
 	require.Empty(t, plain.Error)
 
+	const (
+		rescoreDDL = `CREATE VIRTUAL TABLE fx_rescore USING vec0(embedding FLOAT[384] ` +
+			`distance_metric=cosine INDEXED BY rescore(quantizer=bit, oversample=50))`
+		otherDDL = `CREATE VIRTUAL TABLE fx_other USING vectorlite(my_embedding float32[3], ` +
+			`hnsw(max_elements=100))`
+	)
+
 	rescore := srcMeta.Table("fx_rescore")
 	require.Equal(t, sqlz.TableTypeVirtual, rescore.TableType)
-	require.NotEmpty(t, rescore.Error)
+	require.Equal(t,
+		`vec0 column "embedding": unsupported index type: rescore(quantizer=bit, oversample=50)`,
+		rescore.Error)
+	require.Equal(t, rescoreDDL, rescore.Definition)
 	require.Zero(t, rescore.RowCount)
 	require.Len(t, rescore.Columns, 1)
 	emb := colByName(t, rescore, "embedding")
@@ -154,12 +164,14 @@ func TestVTab_Unopenable(t *testing.T) {
 	other := srcMeta.Table("fx_other")
 	require.Equal(t, sqlz.TableTypeVirtual, other.TableType)
 	require.Contains(t, other.Error, "no such module: vectorlite")
+	require.Equal(t, otherDDL, other.Definition)
 	require.Empty(t, other.Columns)
 
 	for _, name := range []string{"fx_other", "fx_rescore"} {
 		tblMeta, err := th.TableMetadata(src, name)
 		require.NoError(t, err, name)
 		require.Equal(t, srcMeta.Table(name).Error, tblMeta.Error, name)
+		require.Equal(t, srcMeta.Table(name).Definition, tblMeta.Definition, name)
 		require.Equal(t, srcMeta.Table(name).Columns, tblMeta.Columns, name)
 		require.Equal(t, sqlz.TableTypeVirtual, tblMeta.TableType, name)
 	}
@@ -167,6 +179,8 @@ func TestVTab_Unopenable(t *testing.T) {
 	tblMeta, err := th.TableMetadata(src, "plain")
 	require.NoError(t, err)
 	require.Empty(t, tblMeta.Error)
+	require.Empty(t, tblMeta.Definition)
+	require.Empty(t, plain.Definition)
 }
 
 func TestVTab_UnopenableOnly(t *testing.T) {

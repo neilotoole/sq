@@ -242,6 +242,13 @@ type Table struct { //nolint:govet // field alignment
 	// without opening it.
 	Error string `json:"error,omitempty" yaml:"error,omitempty"`
 
+	// Definition is the table's raw DDL, as declared. It's set for a table
+	// that could not be read (see Error), such as a SQLite virtual table of
+	// an unavailable module, whose declaration is then the best description
+	// of the table. It's empty otherwise. For a view's DDL, see
+	// ViewDefinition.
+	Definition string `json:"definition,omitempty" yaml:"definition,omitempty"`
+
 	// RowCount is the number of rows in the table.
 	RowCount int64 `json:"row_count" yaml:"row_count"`
 
@@ -319,6 +326,7 @@ func (t *Table) Clone() *Table {
 		DBTableType:    t.DBTableType,
 		ViewDefinition: t.ViewDefinition,
 		Error:          t.Error,
+		Definition:     t.Definition,
 		RowCount:       t.RowCount,
 		Size:           clonePtr(t.Size),
 		Comment:        t.Comment,

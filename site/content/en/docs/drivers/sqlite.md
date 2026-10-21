@@ -158,9 +158,14 @@ such table on stderr and exits 0. `sq inspect @src.tbl` on such a table exits wi
 - For a `vec0` table that the bundled sqlite-vec can't open, such as one using a newer
   sqlite-vec feature like `INDEXED BY rescore(...)`, `inspect` shows the columns parsed
   from the table's declaration (including each vector column's dimension, element type
-  and metric) together with the error.
-- For a table from any other unknown module, such as `vectorlite`, `inspect` shows only
-  the error.
+  and metric) together with the error. For `INDEXED BY`, the error names the column and
+  the unsupported index type.
+- For a table from any other unknown module, such as `vectorlite`, `inspect` shows the
+  table's declaration and the error.
+
+In JSON and YAML, such a table has an `error` field and a `definition` field holding its
+declaration. Text output shows the error in the `COLS` column, and `sq inspect -v` prints
+each such table's declaration after the table.
 
 ### Query
 

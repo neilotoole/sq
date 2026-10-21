@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -268,7 +269,27 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 		}
 	}
 
-	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
+	if err := w.tbl.appendRowsAndRenderAll(context.TODO(), rows); err != nil {
+		return err
+	}
+	return w.printErrorDefinitions(tbls)
+}
+
+// printErrorDefinitions prints the declaration of each table in tbls that
+// could not be read (see metadata.Table.Error), after the table output. For
+// such a table, such as a virtual table of an unknown module, the
+// declaration may be the only description sq has.
+func (w *mdWriter) printErrorDefinitions(tbls []*metadata.Table) error {
+	for _, tbl := range tbls {
+		if tbl.Error == "" || tbl.Definition == "" {
+			continue
+		}
+		if _, err := fmt.Fprintf(w.tbl.out, "\n%s: %s\n",
+			w.tbl.pr.String.Sprint(tbl.Name), w.tbl.pr.Faint.Sprint(tbl.Definition)); err != nil {
+			return errz.Err(err)
+		}
+	}
+	return nil
 }
 
 // outgoingFKByColumn returns a column-name → []*ForeignKey lookup for
