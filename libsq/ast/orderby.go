@@ -160,7 +160,7 @@ func (v *parseTreeVisitor) VisitOrderByTerm(ctx *slq.OrderByTermContext) any {
 
 	selNode, err := newSelectorNode(node, ctx.Selector())
 	if err != nil {
-		return nil
+		return err
 	}
 
 	if err = node.AddChild(selNode); err != nil {

@@ -62,6 +62,8 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   in cleartext. This affected ClickHouse sources whose location omitted the port,
   and SQLite and DuckDB sources carrying an `_auth_pass` query param when added
   via [`sq add`](https://sq.io/docs/cmd/add).
+- [#1225]: A malformed selector inside `order_by()` is now reported, instead of
+  being silently dropped and the query running unordered.
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1823,6 +1825,7 @@ make working with lots of sources much easier.
 [#1151]: https://github.com/neilotoole/sq/issues/1151
 [#1165]: https://github.com/neilotoole/sq/issues/1165
 [#1209]: https://github.com/neilotoole/sq/issues/1209
+[#1225]: https://github.com/neilotoole/sq/issues/1225
 [#1220]: https://github.com/neilotoole/sq/issues/1220
 [#1285]: https://github.com/neilotoole/sq/issues/1285
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
