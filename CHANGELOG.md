@@ -24,16 +24,27 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 - Extract Homebrew version lookup into `cli/updatecheck` (used by [`sq version`](https://sq.io/docs/cmd/version)).
   Verbose output highlights a newer release with dedicated styling.
-- [#1013]: Querying a remote source now makes one fewer server round-trip per `sq` invocation. The server version,
-  needed for version-aware SQL rendering, is read during the connectivity check when the source is opened, instead of in
-  a separate query.
-- [#1151]: DuckDB extensions that are not built into `sq` now load on first use instead of on every open. DuckDB does
-  not autoload `excel` for `COPY ... TO 'file.xlsx'`, so that statement no longer works via
-  [`sq sql`](https://sq.io/docs/cmd/sql); use `sq`'s [`--xlsx`](https://sq.io/docs/output#xlsx) output to write Excel
-  files. See the [driver docs](https://sq.io/docs/drivers/duckdb#extensions).
-- ☢️ `sq` is now built with Go 1.27, which requires macOS 13 Ventura or later. macOS 12 Monterey is no longer supported.
-- [#1165]: A duration option set on a source is now displayed in its canonical form. A source configured with
-  `conn.max-idle-time: 100s` shows as `1m40s` in [`sq ls`](https://sq.io/docs/cmd/ls) `-v` and `sq config ls --src`.
+- [#1013]: Querying a remote source now makes one fewer server round-trip per `sq`
+  invocation. The server version, needed for version-aware SQL rendering, is read
+  during the connectivity check when the source is opened, instead of in a
+  separate query.
+- [#1151]: DuckDB extensions that are not built into `sq` now load on first use
+  instead of on every open. DuckDB does not autoload `excel` for
+  `COPY ... TO 'file.xlsx'`, so that statement no longer works via
+  [`sq sql`](https://sq.io/docs/cmd/sql); use `sq`'s
+  [`--xlsx`](https://sq.io/docs/output#xlsx) output to write Excel files. See the
+  [driver docs](https://sq.io/docs/drivers/duckdb#extensions).
+- ☢️ `sq` is now built with Go 1.27, which requires macOS 13 Ventura or later. macOS 12 Monterey
+  is no longer supported.
+- [#1165]: A duration option set on a source is now displayed in its canonical
+  form. A source configured with `conn.max-idle-time: 100s` shows as `1m40s` in
+  [`sq ls`](https://sq.io/docs/cmd/ls) `-v` and `sq config ls --src`.
+- [#1285]: The `neilotoole/sq` Homebrew tap is retired, and releases are no longer
+  published to it. Install with `brew install sq`, the homebrew-core formula. An
+  existing tap install switches to the core formula on the next `brew update`.
+  Homebrew no longer builds bottles for Intel Macs, so `brew install sq` builds
+  from source there. Intel Mac users can instead download the `macos-amd64` binary
+  from [GitHub releases](https://github.com/neilotoole/sq/releases).
 
 ### Fixed
 
@@ -1685,6 +1696,7 @@ some time, and should make working with lots of sources much easier.
 [#1165]: https://github.com/neilotoole/sq/issues/1165
 [#1209]: https://github.com/neilotoole/sq/issues/1209
 [#1220]: https://github.com/neilotoole/sq/issues/1220
+[#1285]: https://github.com/neilotoole/sq/issues/1285
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

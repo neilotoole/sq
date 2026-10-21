@@ -110,6 +110,16 @@ make test                           # external-engine tests now run
 ./sakila-stop-local.sh              # tear the containers down
 ```
 
+Both scripts take engine names (the keys of
+[`sakila-db.json`](../.github/sakila-db.json)) to work on a subset, which helps on a machine
+that can't run all six at once:
+
+```bash
+source <(./sakila-start-local.sh postgres mysql)   # just these two
+./sakila-stop-local.sh postgres mysql
+```
+
+Tests for an engine that isn't running skip themselves, since its envar is unset.
 `make test-short` skips everything that needs a container.
 
 ## CI
