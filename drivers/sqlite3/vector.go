@@ -3,9 +3,6 @@ package sqlite3
 import (
 	"context"
 	"database/sql"
-	"errors"
-
-	mattn "github.com/mattn/go-sqlite3"
 
 	"github.com/neilotoole/sq/drivers/sqlite3/vecdecl"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -160,8 +157,7 @@ func vec0TableHints(ctx context.Context, db sqlz.DB, tbl, ddl string) (map[strin
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, nil, errz.Err(ctxErr)
 		}
-		var sqliteErr mattn.Error
-		if errors.As(err, &sqliteErr) {
+		if isModuleError(err) {
 			lg.FromContext(ctx).Debug("Skip vector hints for unopenable vec0 table",
 				lga.Table, tbl, lga.Err, err)
 			return nil, nil, nil

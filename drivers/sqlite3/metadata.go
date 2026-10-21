@@ -1079,10 +1079,20 @@ WHERE name = ? AND type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' LIMIT 1`
 	return ddl, true, nil
 }
 
+// isModuleError reports whether err is the generic SQLITE_ERROR that SQLite
+// returns when it can't open a virtual table, for example "no such module"
+// or a module constructor error. Other SQLite errors, such as SQLITE_BUSY,
+// SQLITE_LOCKED or SQLITE_IOERR, are transient or environmental, and say
+// nothing about the table.
+func isModuleError(err error) bool {
+	var sqliteErr mattn.Error
+	return errors.As(err, &sqliteErr) && sqliteErr.Code == mattn.ErrError
+}
+
 // probeVirtualTable tries to open the virtual table tblName. If SQLite
 // itself rejects the table, its error text is returned in errText. Any other
-// failure (context cancellation, I/O, a closed DB) is returned as err, and
-// must not be mistaken for an unopenable table.
+// failure (context cancellation, a busy or locked database, I/O, a closed
+// DB) is returned as err, and must not be mistaken for an unopenable table.
 func probeVirtualTable(ctx context.Context, db sqlz.DB, tblName string) (errText string, err error) {
 	if err = ctx.Err(); err != nil {
 		return "", errz.Err(err)
@@ -1100,8 +1110,7 @@ func probeVirtualTable(ctx context.Context, db sqlz.DB, tblName string) (errText
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return "", errz.Err(ctxErr)
 	}
-	var sqliteErr mattn.Error
-	if errors.As(err, &sqliteErr) {
+	if isModuleError(err) {
 		return err.Error(), nil
 	}
 	return "", errw(err)
