@@ -452,13 +452,22 @@ func TestVector_DecodeError(t *testing.T) {
 	// A 3-byte value can't be an F32_BLOB(4).
 	th.ExecSQL(src, `INSERT INTO `+tbl+`(id, e) VALUES (2, X'010203')`)
 
+	// In sq sql, the table isn't known.
 	_, err := th.QuerySQL(src, nil, `SELECT id, e FROM `+tbl+` ORDER BY id`)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), `column "e", row 2`)
+	require.Contains(t, err.Error(), `column "e", row 2: invalid f32 vector`)
+	require.NotContains(t, err.Error(), `table "`)
 
+	// A single-table SLQ query knows the table.
 	_, err = th.QuerySLQ(src.Handle+`.`+tbl+` | .e`, nil)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), `column "e", row 2`)
+	require.Contains(t, err.Error(), `table "`+tbl+`", column "e", row 2: invalid f32 vector`)
+
+	// A join doesn't attribute result columns to a table.
+	_, err = th.QuerySLQ(src.Handle+`.`+tbl+`:a | join(`+src.Handle+`.`+tbl+`:b, .a.id == .b.id) | .a.e`, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), `column "e", row 2: invalid f32 vector`)
+	require.NotContains(t, err.Error(), `table "`)
 }
 
 // TestVector_LibSQLTypeNumericValue verifies that a numeric value in a

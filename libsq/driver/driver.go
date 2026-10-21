@@ -38,6 +38,12 @@ type ResultHints struct {
 	// column of a sqlite-vec vec0 table. sqlite-vec declares those columns
 	// with no type, so the result metadata alone can't identify them.
 	Vectors map[int]vector.Type
+
+	// Table is the name of the table that every result column comes from,
+	// for a single-table SLQ query. It's empty when the table isn't known,
+	// as for a join or a raw SQL query. A driver may use it in error
+	// messages about a result value.
+	Table string
 }
 
 // Provider is a factory that returns Driver instances.

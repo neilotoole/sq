@@ -45,6 +45,10 @@ type pipeline struct {
 	// targetSQL is the ultimate SQL query to be executed against targetGrip.
 	targetSQL string
 
+	// table is the table name of a single-table query, i.e. one with a
+	// "FROM table" clause and no join. It's empty otherwise.
+	table string
+
 	// tasks contains tasks that must be completed before targetSQL
 	// is executed against targetGrip. Typically tasks is used to
 	// set up the joindb before it is queried.
@@ -132,7 +136,11 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 	// issues #839 and #848.
 	var hints driver.ResultHints
 	if p.rc != nil {
-		hints = driver.ResultHints{Kinds: p.rc.ResultColumnKinds, Vectors: p.rc.ResultColumnVectors}
+		hints = driver.ResultHints{
+			Kinds:   p.rc.ResultColumnKinds,
+			Vectors: p.rc.ResultColumnVectors,
+			Table:   p.table,
+		}
 	}
 
 	if err := QuerySQL(ctx, p.targetGrip, conn, recw, hints, p.targetSQL); err != nil {
@@ -322,6 +330,7 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 	// Only a single-table query gets a vector table: with a join, a result
 	// column can't reliably be traced back to its source table.
 	if name := tblSel.Table().Table; name != "" {
+		p.table = name
 		if h := p.rc.TableHints[name]; h != nil && len(h.Vectors) > 0 {
 			p.rc.VectorTable = name
 		}

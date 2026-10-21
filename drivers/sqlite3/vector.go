@@ -23,6 +23,10 @@ type vectorDecoder struct {
 	// name is the column name, used in error messages.
 	name string
 
+	// table is the name of the table the column comes from, used in error
+	// messages. It's empty if unknown.
+	table string
+
 	// idx is the column index.
 	idx int
 
@@ -42,7 +46,7 @@ func newVectorDecoders(recMeta record.Meta, hints driver.ResultHints) []vectorDe
 			continue
 		}
 
-		dec := vectorDecoder{idx: i, name: fm.MungedName()}
+		dec := vectorDecoder{idx: i, name: fm.MungedName(), table: hints.Table}
 		if vt, ok := hints.Vectors[i]; ok {
 			dec.typ, dec.vec0 = vt, true
 		} else if vt, ok = vecdecl.ParseLibSQLType(fm.DatabaseTypeName()); ok {
@@ -90,6 +94,9 @@ func (vd vectorDecoder) decode(val any, row int) (any, error) {
 	}
 
 	if err != nil {
+		if vd.table != "" {
+			return nil, errz.Wrapf(err, "table %q, column %q, row %d", vd.table, vd.name, row)
+		}
 		return nil, errz.Wrapf(err, "column %q, row %d", vd.name, row)
 	}
 	return v, nil
