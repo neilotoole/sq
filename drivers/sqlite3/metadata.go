@@ -126,6 +126,9 @@ func setScanType(ctx context.Context, colType *record.ColumnTypeData) {
 	case kind.Float:
 		scanType = sqlz.RTypeNullFloat64
 
+	case kind.Vector:
+		scanType = sqlz.RTypeAny
+
 	case kind.Bytes:
 		scanType = sqlz.RTypeBytes
 
@@ -265,7 +268,7 @@ func DBTypeForKind(knd kind.Kind) string {
 		return "INTEGER"
 	case kind.Float:
 		return "REAL"
-	case kind.Bytes:
+	case kind.Bytes, kind.Vector:
 		return "BLOB"
 	case kind.Decimal:
 		return "NUMERIC"

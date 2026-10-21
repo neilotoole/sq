@@ -182,7 +182,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 		return "TIMESTAMP"
 	case kind.Date:
 		return "DATE"
-	case kind.Bytes:
+	case kind.Bytes, kind.Vector:
 		return "BLOB"
 	case kind.Unknown:
 		return "VARCHAR2(4000)"
@@ -205,6 +205,7 @@ var createTblKindDefaults = map[kind.Kind]string{
 	kind.Date:     "DEFAULT DATE '1970-01-01'",
 	kind.Time:     "DEFAULT TIMESTAMP '1970-01-01 00:00:00'",
 	kind.Bytes:    "",            // Oracle doesn't support EMPTY_BLOB() as DEFAULT; omit default
+	kind.Vector:   "",            // Oracle doesn't support EMPTY_BLOB() as DEFAULT; omit default
 	kind.Unknown:  "DEFAULT ' '", // Oracle treats '' as NULL, use space instead
 }
 

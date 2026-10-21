@@ -10,6 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 )
 
 // Record is a []any row of field values returned from a query.
@@ -24,7 +25,7 @@ import (
 // A Record is typically built from a ScanRow, unwrapping and
 // munging elements such that the Record only contains standard types:
 //
-//	nil, int64, float64, bool, string, []byte, time.Time
+//	nil, int64, float64, bool, string, []byte, time.Time, vector.Vector
 //
 // It is an error for a Record to contain elements of any other type.
 type Record []any
@@ -35,12 +36,12 @@ type Record []any
 //
 // These acceptable types are:
 //
-//	nil, int64, float64, decimal.Decimal, bool, string, []byte, time.Time
+//	nil, int64, float64, decimal.Decimal, bool, string, []byte, time.Time, vector.Vector
 func Valid(rec Record) (i int, err error) {
 	var val any
 	for i, val = range rec {
 		switch val := val.(type) {
-		case nil, int64, float64, bool, string, []byte, time.Time, decimal.Decimal:
+		case nil, int64, float64, bool, string, []byte, time.Time, decimal.Decimal, vector.Vector:
 			continue
 		default:
 			return i, errz.Errorf("field [%d] has unacceptable record value type %T", i, val)
@@ -92,6 +93,14 @@ func Equal(a, b Record) bool {
 				return false
 			}
 			return va.Equal(vb)
+		case vector.Vector:
+			var vb vector.Vector
+			if vb, ok = b[i].(vector.Vector); !ok {
+				return false
+			}
+			if !va.Equal(vb) {
+				return false
+			}
 		case time.Time:
 			var vb time.Time
 			if vb, ok = b[i].(time.Time); !ok {
@@ -170,6 +179,8 @@ func Clone(rec Record) Record {
 			b := make([]byte, len(val))
 			copy(b, val)
 			r2[i] = b
+		case vector.Vector:
+			r2[i] = val.Clone()
 		default:
 			panic(fmt.Sprintf("field [%d] has unacceptable record value type %T", i, val))
 		}

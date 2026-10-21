@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/templatez"
+	"github.com/neilotoole/sq/libsq/core/vector"
 )
 
 // NewRecordFunc is invoked on a query result row (scanRow) to
@@ -370,6 +371,11 @@ func DefaultInsertMungeFunc(destTbl string, destMeta record.Meta) InsertMungeFun
 			nullable, _ := destMeta[i].Nullable()
 			if rec[i] == nil && !nullable {
 				mungeSetZeroValue(i, rec, destMeta)
+				continue
+			}
+
+			if vec, ok := rec[i].(vector.Vector); ok {
+				rec[i] = vec.Raw
 				continue
 			}
 

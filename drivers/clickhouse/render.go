@@ -76,7 +76,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 		return "Date"
 	case kind.Time:
 		return "DateTime"
-	case kind.Bytes:
+	case kind.Bytes, kind.Vector:
 		return "String" // Binary data as String
 	}
 	return "String"

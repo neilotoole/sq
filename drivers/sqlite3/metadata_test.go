@@ -706,3 +706,7 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 		})
 	}
 }
+
+func TestDBTypeForKind_Vector(t *testing.T) {
+	require.Equal(t, "BLOB", sqlite3.DBTypeForKind(kind.Vector))
+}

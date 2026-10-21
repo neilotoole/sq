@@ -76,7 +76,7 @@ func (w *recordWriter) Open(_ context.Context, recMeta record.Meta) error {
 
 		// Set up the colors
 		switch w.recMeta[i].Kind() {
-		case kind.Bytes:
+		case kind.Bytes, kind.Vector:
 			w.clrs[i] = w.pr.Bytes
 		case kind.Null:
 			w.clrs[i] = w.pr.Null

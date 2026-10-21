@@ -691,7 +691,7 @@ func (d *driveri) setScanType(colTypeData *record.ColumnTypeData, knd kind.Kind)
 		colTypeData.ScanType = sqlz.RTypeNullInt64
 	case kind.Datetime, kind.Date, kind.Time:
 		colTypeData.ScanType = sqlz.RTypeNullTime
-	case kind.Bytes:
+	case kind.Bytes, kind.Vector:
 		colTypeData.ScanType = sqlz.RTypeBytes
 	}
 }
