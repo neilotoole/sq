@@ -461,6 +461,39 @@ func TestVector_DecodeError(t *testing.T) {
 	require.Contains(t, err.Error(), `column "e", row 2`)
 }
 
+// TestVector_LibSQLTypeNumericValue verifies that a numeric value in a
+// plain SQLite column whose declared type matches a libSQL vector type, such
+// as FLOAT8(10), comes back unchanged instead of failing the query. Such a
+// value can't be a libSQL vector.
+func TestVector_LibSQLTypeNumericValue(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tbl := stringz.UniqTableName("float8")
+	th.ExecSQL(src, `CREATE TABLE `+tbl+`(id INTEGER PRIMARY KEY, r FLOAT8(10), i FLOAT32(2))`)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+	th.ExecSQL(src, `INSERT INTO `+tbl+`(id, r, i) VALUES (1, 1.5, 7), (2, NULL, NULL)`)
+
+	check := func(t *testing.T, sink *testh.RecordSink) {
+		t.Helper()
+		require.Len(t, sink.Recs, 2)
+		require.Equal(t, 1.5, sink.Recs[0][colIndex(t, sink, "r")])
+		require.EqualValues(t, 7, sink.Recs[0][colIndex(t, sink, "i")])
+		require.Nil(t, sink.Recs[1][colIndex(t, sink, "r")])
+	}
+
+	t.Run("sql", func(t *testing.T) {
+		sink, err := th.QuerySQL(src, nil, `SELECT id, r, i FROM `+tbl+` ORDER BY id`)
+		require.NoError(t, err)
+		check(t, sink)
+	})
+
+	t.Run("slq", func(t *testing.T) {
+		sink, err := th.QuerySLQ(src.Handle+`.`+tbl+` | .id, .r, .i`, nil)
+		require.NoError(t, err)
+		check(t, sink)
+	})
+}
+
 // TestVector_UnopenableVec0Query verifies that a query against a vec0 table
 // that SQLite can't open reports the query's error, not an error from
 // collecting the table's vector hints.

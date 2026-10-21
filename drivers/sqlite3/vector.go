@@ -57,7 +57,10 @@ func newVectorDecoders(recMeta record.Meta, hints driver.ResultHints) []vectorDe
 }
 
 // decode decodes the scanned value val, returning a vector.Vector, or nil if
-// val is NULL. Row is the 1-based row number, used in error messages.
+// val is NULL. An int64 or float64 value is returned unchanged: it can't be
+// a vector, and arises in a plain SQLite column whose declared type happens
+// to match a libSQL vector type, such as FLOAT8(10). Row is the 1-based row
+// number, used in error messages.
 func (vd vectorDecoder) decode(val any, row int) (any, error) {
 	var (
 		v   vector.Vector
@@ -67,6 +70,8 @@ func (vd vectorDecoder) decode(val any, row int) (any, error) {
 	switch val := unwrapScanned(val).(type) {
 	case nil:
 		return nil, nil //nolint:nilnil // NULL stays nil.
+	case int64, float64:
+		return val, nil
 	case []byte:
 		if vd.vec0 {
 			v, err = vector.DecodeVec0(val, vd.typ)

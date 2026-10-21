@@ -116,6 +116,30 @@ func TestCmdSQL_Vector(t *testing.T) {
 	})
 }
 
+// TestCmdSLQ_LibSQLTypeNumericValue verifies that every output format
+// renders a numeric value in a plain SQLite column whose declared type
+// matches a libSQL vector type, such as FLOAT8(10).
+func TestCmdSLQ_LibSQLTypeNumericValue(t *testing.T) {
+	th := testh.New(t)
+	src := th.Source(sakila.SL3)
+	tbl := stringz.UniqTableName("float8")
+	th.ExecSQL(src, "CREATE TABLE "+tbl+"(r FLOAT8(10))")
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+	th.ExecSQL(src, "INSERT INTO "+tbl+" VALUES (1.5)")
+
+	for _, format := range []string{"--json", "--yaml", "--text", "--csv", "--markdown", "--html", "--xml"} {
+		t.Run(format, func(t *testing.T) {
+			tr := testrun.New(th.Context, t, nil).Add(*src)
+			require.NoError(t, tr.Exec(format, src.Handle+"."+tbl))
+			require.Contains(t, tr.OutString(), "1.5")
+		})
+	}
+
+	tr := testrun.New(th.Context, t, nil).Add(*src)
+	require.NoError(t, tr.Exec("--json", src.Handle+"."+tbl))
+	require.Equal(t, []map[string]any{{"r": 1.5}}, tr.BindSliceMap())
+}
+
 // checkLibSQLJSON checks the JSON output of "SELECT * FROM t" against the
 // libsql.db fixture.
 func checkLibSQLJSON(t *testing.T, got []map[string]any) {
