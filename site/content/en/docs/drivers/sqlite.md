@@ -148,6 +148,8 @@ $ sq inspect @vec.doc_vec -j
 ```
 
 (Output abridged.) A `vec0` partition key, metadata or auxiliary column carries a `role`.
+In `sq inspect -v` text output, the column type shows the metric and the role, e.g.
+`float[4] cosine` and `TEXT (auxiliary)`.
 For a libSQL table, a `libsql_vector_idx` index is listed with a `vector` object holding
 its `method` (`diskann`), `metric` and `params`.
 

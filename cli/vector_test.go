@@ -80,6 +80,19 @@ func TestCmdSLQ_Vector(t *testing.T) {
 	})
 }
 
+// TestCmdInspect_VectorText verifies that verbose text inspect shows a vec0
+// vector column's metric and the roles of its other columns.
+func TestCmdInspect_VectorText(t *testing.T) {
+	tr := execVector(t, "inspect", "--text", "-v", "@vec.doc_vec")
+	out := tr.OutString()
+	require.Regexp(t, `\sembedding\s+float\[4\] cosine\s`, out)
+	require.Regexp(t, `\scategory\s+TEXT \(metadata\)\s`, out)
+	require.Regexp(t, `\snote\s+TEXT \(auxiliary\)\s`, out)
+
+	tr = execVector(t, "inspect", "--text", "-v", "@vec.part_vec")
+	require.Regexp(t, `\suser_id\s+\S+ \(partition_key\)\s`, tr.OutString())
+}
+
 func TestCmdSQL_Vector(t *testing.T) {
 	t.Run("vec0_stays_bytes", func(t *testing.T) {
 		tr := execVector(t, "sql", "-j", "--src", "@vec", "SELECT embedding FROM doc_vec")

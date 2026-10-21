@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -624,4 +626,52 @@ func TestPrintTablesVerbose_ErrorDefinition(t *testing.T) {
 	w = NewMetadataWriter(&buf, pr).(*mdWriter)
 	require.NoError(t, w.printTables(tbls))
 	require.NotContains(t, buf.String(), "CREATE VIRTUAL TABLE")
+}
+
+// TestPrintTablesVerbose_VectorTypeCell verifies that the column TYPE cell
+// shows a vector column's distance metric and a vec0 column's role.
+func TestPrintTablesVerbose_VectorTypeCell(t *testing.T) {
+	tbls := []*metadata.Table{
+		{
+			Name: "doc_vec", TableType: "virtual", RowCount: 3,
+			Columns: []*metadata.Column{
+				{Name: "doc_id", BaseType: "INTEGER", PrimaryKey: true},
+				{
+					Name: "embedding", BaseType: "float[4]", Kind: kind.Vector,
+					Vector: &vector.Type{Dim: 4, Elem: vector.F32, Metric: "cosine"},
+				},
+				{
+					Name: "plain_vec", BaseType: "F32_BLOB(4)", Kind: kind.Vector,
+					Vector: &vector.Type{Dim: 4, Elem: vector.F32},
+				},
+				{Name: "user_id", BaseType: "integer", Role: "partition_key"},
+				{Name: "category", BaseType: "text", Role: "metadata"},
+				{Name: "note", BaseType: "text", Role: "auxiliary"},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	pr := output.NewPrinting()
+	pr.EnableColor(false)
+	w := NewMetadataWriter(&buf, pr).(*mdWriter)
+	require.NoError(t, w.printTablesVerbose(tbls))
+
+	colRow := func(name string) string {
+		for _, line := range strings.Split(buf.String(), "\n") {
+			if strings.Contains(line, " "+name+" ") {
+				return line
+			}
+		}
+		require.FailNow(t, "column row not found", "%s in:\n%s", name, buf.String())
+		return ""
+	}
+
+	require.Regexp(t, `\sfloat\[4\] cosine\s`, colRow("embedding"))
+	// No metric or role: the cell is the declared type alone.
+	require.Regexp(t, `\sF32_BLOB\(4\)\s{2,}`, colRow("plain_vec"))
+	require.Regexp(t, `\sinteger \(partition_key\)\s`, colRow("user_id"))
+	require.Regexp(t, `\stext \(metadata\)\s`, colRow("category"))
+	require.Regexp(t, `\stext \(auxiliary\)\s`, colRow("note"))
+	require.Regexp(t, `\sINTEGER\s+pk\s`, colRow("doc_id"))
 }

@@ -241,7 +241,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 			strconv.FormatInt(tbl.RowCount, 10),
 			w.colsCell(tbl, strconv.Itoa(len(tbl.Columns))),
 			tbl.Columns[0].Name,
-			tbl.Columns[0].BaseType,
+			colTypeCell(tbl.Columns[0]),
 			getPK(tbl.Columns[0]),
 			getAuto(tbl.Columns[0]),
 			formatFKRefs(fkByCol[tbl.Columns[0].Name]),
@@ -258,7 +258,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 				"",
 				"",
 				tbl.Columns[i].Name,
-				tbl.Columns[i].BaseType,
+				colTypeCell(tbl.Columns[i]),
 				getPK(tbl.Columns[i]),
 				getAuto(tbl.Columns[i]),
 				formatFKRefs(fkByCol[tbl.Columns[i].Name]),
@@ -455,6 +455,20 @@ func uniqueNamesByColumn(tbl *metadata.Table) map[string][]string {
 		}
 	}
 	return out
+}
+
+// colTypeCell returns the column TYPE cell for col: its base type, followed
+// by a vector column's distance metric, if any, and the column's role in
+// parentheses, if any. For example "float[384] cosine" or "text (auxiliary)".
+func colTypeCell(col *metadata.Column) string {
+	s := col.BaseType
+	if col.Vector != nil && col.Vector.Metric != "" {
+		s += " " + col.Vector.Metric
+	}
+	if col.Role != "" {
+		s += " (" + col.Role + ")"
+	}
+	return s
 }
 
 // colsCell returns the COLS cell for tbl: the error text styled with the
