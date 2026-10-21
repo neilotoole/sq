@@ -28,9 +28,10 @@ import (
 // The provided scanRow arg is available for reuse after this
 // func returns.
 //
-// Ultimately rec should only contain:
+// Ultimately rec should only contain the types accepted by
+// record.Valid:
 //
-//	nil, *int64, *bool, *float64, *string, *[]byte, *time.Time
+//	nil, int64, float64, decimal.Decimal, bool, string, []byte, time.Time, vector.Vector
 //
 // Thus a func instance might unbox sql.NullString et al, or deal
 // with any driver specific quirks.

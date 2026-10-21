@@ -1182,16 +1182,16 @@ const libsqlVectorIdxPattern = `%libsql_vector_idx(%`
 // getLibSQLVectorIndexedTables returns the set of tables that have a libSQL
 // vector index. Stock SQLite can't maintain such an index (its b-tree is empty),
 // yet the query planner may pick it as a covering index, so a query against
-// such a table must use NOT INDEXED (gh1298). If tbls is empty, all tables
-// are considered, else only the named tables.
-func getLibSQLVectorIndexedTables(ctx context.Context, db sqlz.DB, tbls ...string) (map[string]bool, error) {
+// such a table must use NOT INDEXED (gh1298). If tbl is empty, all tables
+// are considered, else only tbl.
+func getLibSQLVectorIndexedTables(ctx context.Context, db sqlz.DB, tbl string) (map[string]bool, error) {
 	log := lg.FromContext(ctx)
 
 	q := `SELECT DISTINCT tbl_name FROM sqlite_master WHERE type = 'index' AND sql LIKE ?`
 	args := []any{libsqlVectorIdxPattern}
-	if len(tbls) == 1 {
+	if tbl != "" {
 		q += ` AND tbl_name = ? COLLATE NOCASE`
-		args = append(args, tbls[0])
+		args = append(args, tbl)
 	}
 
 	rows, err := db.QueryContext(ctx, q, args...)
@@ -1258,7 +1258,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 	const maxCompoundSelect = 500
 
 	// Tables with a libSQL vector index must be counted with NOT INDEXED.
-	vecIdxTbls, err := getLibSQLVectorIndexedTables(ctx, db)
+	vecIdxTbls, err := getLibSQLVectorIndexedTables(ctx, db, "")
 	if err != nil {
 		return nil, err
 	}
