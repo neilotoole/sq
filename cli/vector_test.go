@@ -168,6 +168,9 @@ func TestCmdSLQ_VectorCopy(t *testing.T) {
 		require.Equal(t, "PENELOPE", got[0]["first_name"])
 		// The join copies t into a scratch database, where e32 is a BLOB.
 		require.Equal(t, "AACAPwAAAEAAAGDAAACAPg==", got[0]["e32"])
+		// Row 2's e32 is JSON text. It copies as its bytes, as it did before
+		// vector support.
+		require.Equal(t, "WzAuNSwwLjUsMC41LDAuNV0=", got[1]["e32"])
 	})
 
 	t.Run("insert", func(t *testing.T) {
@@ -192,5 +195,8 @@ func TestCmdSLQ_VectorCopy(t *testing.T) {
 			require.Equal(t, want.Recs[i][0], got.Recs[i][0], "row %d", i+1)
 		}
 		require.Equal(t, "blob", got.Recs[0][1])
+		// Row 2's e32 is JSON text. It copies as its bytes into a BLOB, as it
+		// did before vector support.
+		require.Equal(t, "blob", got.Recs[1][1])
 	})
 }
