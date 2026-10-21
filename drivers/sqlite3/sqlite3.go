@@ -278,6 +278,20 @@ func placeholders(numCols, numRows int) string {
 	return strings.Join(rows, driver.Comma)
 }
 
+// TableHints implements driver.TableHinter. A table with a libSQL vector
+// index gets NotIndexed, because stock SQLite would otherwise use that
+// index's empty b-tree as a covering index (gh1298).
+func (d *driveri) TableHints(ctx context.Context, db sqlz.DB, tbl string) (*render.TableHints, error) {
+	tbls, err := getLibSQLVectorIndexedTables(ctx, db, tbl)
+	if err != nil {
+		return nil, err
+	}
+	if !tbls[tbl] {
+		return nil, nil //nolint:nilnil
+	}
+	return &render.TableHints{NotIndexed: true}, nil
+}
+
 // Renderer implements driver.SQLDriver.
 func (d *driveri) Renderer() *render.Renderer {
 	r := render.NewDefaultRenderer()

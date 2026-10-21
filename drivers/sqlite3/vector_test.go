@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/vector"
@@ -192,4 +193,80 @@ func TestVTab_ContextCancelNotUnopenable(t *testing.T) {
 
 	_, err = grip.TableMetadata(ctx, "actor_fts")
 	require.Error(t, err)
+}
+
+func TestLibSQL_RowCounts(t *testing.T) {
+	th, src := vecSrc(t, "@lib", "libsql.db")
+
+	srcMeta, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), srcMeta.Table("t").RowCount)
+	require.Equal(t, int64(1), srcMeta.Table("u").RowCount)
+
+	tblMeta, err := th.TableMetadata(src, "t")
+	require.NoError(t, err)
+	require.Equal(t, int64(2), tblMeta.RowCount)
+}
+
+func TestLibSQL_SLQNotIndexed(t *testing.T) {
+	th, src := vecSrc(t, "@lib", "libsql.db")
+
+	sink, err := th.QuerySLQ(`@lib.t | .id`, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 2)
+
+	sink, err = th.QuerySLQ(`@lib.t | count`, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 1)
+	require.EqualValues(t, 2, sink.Recs[0][0])
+
+	sink, err = th.QuerySLQ(`@lib.t:a | .a.id`, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 2)
+
+	qc := &libsq.QueryContext{Collection: th.NewCollection(src.Handle), Grips: th.Grips()}
+	res, err := libsq.SLQ2SQL(th.Context, qc, `@lib.t:a | .a.id`)
+	require.NoError(t, err)
+	require.Contains(t, res.SQL, `AS "a" NOT INDEXED`)
+
+	sink, err = th.QuerySLQ(`@lib.t | join(@lib.u, .id) | .t.id`, nil)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 1)
+
+	res, err = libsq.SLQ2SQL(th.Context, qc, `@lib.t | join(@lib.u, .id) | .t.id`)
+	require.NoError(t, err)
+	require.Contains(t, res.SQL, `FROM "t" NOT INDEXED`)
+	require.Contains(t, res.SQL, `JOIN "u" NOT INDEXED`)
+}
+
+func TestLibSQL_IndexMetadata(t *testing.T) {
+	th, src := vecSrc(t, "@lib", "libsql.db")
+
+	idxByName := func(tblMeta *metadata.Table, name string) *metadata.Index {
+		for _, idx := range tblMeta.Indexes {
+			if idx.Name == name {
+				return idx
+			}
+		}
+		return nil
+	}
+
+	tblMeta, err := th.TableMetadata(src, "t")
+	require.NoError(t, err)
+	idx := idxByName(tblMeta, "t_idx")
+	require.NotNil(t, idx)
+	require.Equal(t, []string{"e32"}, idx.Columns)
+	require.False(t, idx.Unique)
+	require.Equal(t, "t", idx.Table)
+	require.Equal(t, &metadata.IndexVector{Method: "diskann", Metric: "cosine"}, idx.Vector)
+
+	tblMeta, err = th.TableMetadata(src, "u")
+	require.NoError(t, err)
+	idx = idxByName(tblMeta, "u_idx")
+	require.NotNil(t, idx)
+	require.Equal(t, []string{"e"}, idx.Columns)
+	require.Equal(t, map[string]string{
+		"compress_neighbors": "float1bit",
+		"max_neighbors":      "8",
+	}, idx.Vector.Params)
 }

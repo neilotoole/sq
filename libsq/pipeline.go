@@ -315,12 +315,55 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		DBSemver: dbSemverOf(ctx, fromGrip),
 	}
 
+	if err = p.loadTableHints(ctx, fromGrip, tblSel); err != nil {
+		return "", nil, err
+	}
+
 	fromClause, err = rndr.FromTable(p.rc, tblSel)
 	if err != nil {
 		return "", nil, err
 	}
 
 	return fromClause, fromGrip, nil
+}
+
+// loadTableHints populates p.rc.TableHints for tblSels if grip's SQL driver
+// implements driver.TableHinter. It must be called after p.rc is set, and
+// before the FROM or JOIN clause is rendered.
+func (p *pipeline) loadTableHints(ctx context.Context, grip driver.Grip, tblSels ...*ast.TblSelectorNode) error {
+	hinter, ok := grip.SQLDriver().(driver.TableHinter)
+	if !ok {
+		return nil
+	}
+
+	db, err := grip.DB(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, tblSel := range tblSels {
+		name := tblSel.Table().Table
+		if name == "" {
+			continue
+		}
+		if _, ok = p.rc.TableHints[name]; ok {
+			continue
+		}
+
+		hints, err := hinter.TableHints(ctx, db, name)
+		if err != nil {
+			return err
+		}
+		if hints == nil {
+			continue
+		}
+		if p.rc.TableHints == nil {
+			p.rc.TableHints = map[string]*render.TableHints{}
+		}
+		p.rc.TableHints[name] = hints
+	}
+
+	return nil
 }
 
 // dbSemverOf returns grip's canonical semver, or "" if it can't be determined.
@@ -418,6 +461,15 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		Args:     p.qc.Args,
 		Dialect:  fromGrip.SQLDriver().Dialect(),
 		DBSemver: dbSemverOf(ctx, fromGrip),
+	}
+
+	tblSels := make([]*ast.TblSelectorNode, 0, len(jc.joins)+1)
+	tblSels = append(tblSels, jc.leftTbl)
+	for _, join := range jc.joins {
+		tblSels = append(tblSels, join.Table())
+	}
+	if err = p.loadTableHints(ctx, fromGrip, tblSels...); err != nil {
+		return "", nil, err
 	}
 
 	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)

@@ -342,8 +342,12 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 
 	var schema string
 	var isVirtualTbl sql.NullBool
-	query := fmt.Sprintf(tpl, stringz.DoubleQuote(tblMeta.Name))
-	err := db.QueryRowContext(ctx, query, tblMeta.Name, tblMeta.Name).
+	vecIdxTbls, err := getLibSQLVectorIndexedTables(ctx, db, tblMeta.Name)
+	if err != nil {
+		return nil, err
+	}
+	query := fmt.Sprintf(tpl, fromTableClause(tblMeta.Name, vecIdxTbls[tblMeta.Name]))
+	err = db.QueryRowContext(ctx, query, tblMeta.Name, tblMeta.Name).
 		Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schema)
 	if err != nil {
 		return nil, errw(err)
@@ -590,6 +594,23 @@ ORDER BY seq`
 			return nil, nil, err
 		}
 		if metadata.AllExpressionKeys(cols) {
+			var idxSQL sql.NullString
+			err = db.QueryRowContext(ctx,
+				`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?`,
+				info.name).Scan(&idxSQL)
+			if err != nil {
+				return nil, nil, errw(err)
+			}
+			if col, iv, ok := vecdecl.ParseLibSQLVectorIndex(idxSQL.String); ok {
+				indexes = append(indexes, &metadata.Index{
+					Name:    info.name,
+					Table:   tblName,
+					Columns: []string{col},
+					Vector:  iv,
+				})
+				continue
+			}
+
 			log.Debug("sqlite3: dropping index with only expression keys",
 				"table", tblName, "index", info.name)
 			continue
@@ -1149,6 +1170,55 @@ func unopenableTable(ctx context.Context, schemaName, tblName, ddl, errText stri
 	return tbl
 }
 
+// libsqlVectorIdxPattern matches the SQL of a libSQL vector index. LIKE is
+// case-insensitive for ASCII in SQLite.
+const libsqlVectorIdxPattern = `%libsql_vector_idx(%`
+
+// getLibSQLVectorIndexedTables returns the set of tables that have a libSQL
+// vector index. Stock SQLite can't maintain such an index (its b-tree is empty),
+// yet the query planner may pick it as a covering index, so a query against
+// such a table must use NOT INDEXED (gh1298). If tbls is empty, all tables
+// are considered, else only the named tables.
+func getLibSQLVectorIndexedTables(ctx context.Context, db sqlz.DB, tbls ...string) (map[string]bool, error) {
+	log := lg.FromContext(ctx)
+
+	q := `SELECT DISTINCT tbl_name FROM sqlite_master WHERE type = 'index' AND sql LIKE ?`
+	args := []any{libsqlVectorIdxPattern}
+	if len(tbls) == 1 {
+		q += ` AND tbl_name = ?`
+		args = append(args, tbls[0])
+	}
+
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	set := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err = rows.Scan(&name); err != nil {
+			return nil, errw(err)
+		}
+		set[name] = true
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+	return set, nil
+}
+
+// fromTableClause returns the FROM clause target for tbl: the quoted table
+// name, followed by NOT INDEXED if notIndexed is true.
+func fromTableClause(tbl string, notIndexed bool) string {
+	s := stringz.DoubleQuote(tbl)
+	if notIndexed {
+		s += " NOT INDEXED"
+	}
+	return s
+}
+
 // getTblRowCounts returns the number of rows in each table. If a table named
 // in tblNames is dropped by concurrent DDL between enumeration and the COUNT
 // batch here, the batch fails with "no such table"; getTblRowCounts then falls
@@ -1181,6 +1251,12 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 	// Thus if len(tblNames) > 500, we need to execute multiple queries.
 	const maxCompoundSelect = 500
 
+	// Tables with a libSQL vector index must be counted with NOT INDEXED.
+	vecIdxTbls, err := getLibSQLVectorIndexedTables(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
 	var (
 		tblCounts = make([]int64, len(tblNames))
 		sb        strings.Builder
@@ -1193,7 +1269,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 		if terms > 0 {
 			sb.WriteString(" UNION ALL ")
 		}
-		sb.WriteString("SELECT COUNT(*) FROM " + stringz.DoubleQuote(tblNames[i]))
+		sb.WriteString("SELECT COUNT(*) FROM " + fromTableClause(tblNames[i], vecIdxTbls[tblNames[i]]))
 		terms++
 
 		if terms != maxCompoundSelect && i != len(tblNames)-1 {
@@ -1213,7 +1289,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 				// has since vanished, so one dropped table doesn't abort the
 				// whole source scan.
 				batchEnd := j + terms
-				if err = countTblsIndividually(ctx, db, tblNames[j:batchEnd], tblCounts[j:batchEnd]); err != nil {
+				if err = countTblsIndividually(ctx, db, tblNames[j:batchEnd], tblCounts[j:batchEnd], vecIdxTbls); err != nil {
 					return nil, err
 				}
 				j = batchEnd
@@ -1257,14 +1333,16 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 // vanished (NotExistError) are recorded as -1; any other error aborts. This is
 // the fallback path used by getTblRowCounts when the UNION ALL batch fails
 // because of a concurrent DROP TABLE.
-func countTblsIndividually(ctx context.Context, db sqlz.DB, names []string, counts []int64) error {
+func countTblsIndividually(ctx context.Context, db sqlz.DB, names []string, counts []int64,
+	vecIdxTbls map[string]bool,
+) error {
 	for i, name := range names {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}
 		var count int64
 		err := db.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM "+stringz.DoubleQuote(name)).Scan(&count)
+			"SELECT COUNT(*) FROM "+fromTableClause(name, vecIdxTbls[name])).Scan(&count)
 		if err != nil {
 			wrapped := errw(err)
 			if errz.Has[*driver.NotExistError](wrapped) {

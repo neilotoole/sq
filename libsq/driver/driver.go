@@ -69,6 +69,15 @@ type Driver interface {
 	ValidateSource(src *source.Source) (*source.Source, error)
 }
 
+// TableHinter is an optional interface implemented by a SQLDriver that
+// needs to adjust how a table is referenced in a rendered query.
+type TableHinter interface {
+	// TableHints returns rendering hints for tbl, or nil if there are none.
+	// The pipeline calls it for each table referenced in a query, before
+	// rendering the FROM or JOIN clause.
+	TableHints(ctx context.Context, db sqlz.DB, tbl string) (*render.TableHints, error)
+}
+
 // SQLDriver is implemented by Driver instances for SQL databases.
 type SQLDriver interface {
 	Driver
