@@ -726,6 +726,23 @@ type Index struct { //nolint:govet // field alignment
 	// "HASH", "GIN", or "NONCLUSTERED". Empty when the source doesn't
 	// report it.
 	Type string `json:"type,omitempty" yaml:"type,omitempty"`
+
+	// Vector is non-nil when the index is a vector index (for example a
+	// libSQL DiskANN index). It is nil for all other indexes.
+	Vector *IndexVector `json:"vector,omitempty" yaml:"vector,omitempty"`
+}
+
+// IndexVector describes the vector-index specifics of an [Index].
+type IndexVector struct { //nolint:govet // field alignment
+	// Method is the index method, such as "diskann".
+	Method string `json:"method" yaml:"method"`
+
+	// Metric is the distance metric, such as "cosine". Empty if the index
+	// doesn't declare one.
+	Metric string `json:"metric,omitempty" yaml:"metric,omitempty"`
+
+	// Params holds any other index settings, keyed by name. Nil if none.
+	Params map[string]string `json:"params,omitempty" yaml:"params,omitempty"`
 }
 
 // Clone returns a deep copy of i. If i is nil, nil is returned.
@@ -742,6 +759,11 @@ func (i *Index) Clone() *Index {
 	}
 	if i.Columns != nil {
 		c.Columns = append([]string(nil), i.Columns...)
+	}
+	if i.Vector != nil {
+		v := *i.Vector
+		v.Params = maps.Clone(i.Vector.Params)
+		c.Vector = &v
 	}
 	return c
 }

@@ -1251,6 +1251,29 @@ func TestIndex_Clone(t *testing.T) {
 	})
 }
 
+func TestIndex_Clone_Vector(t *testing.T) {
+	idx := &metadata.Index{
+		Name:  "t_idx",
+		Table: "t",
+		Vector: &metadata.IndexVector{
+			Method: "diskann",
+			Metric: "cosine",
+			Params: map[string]string{"max_neighbors": "8"},
+		},
+	}
+	got := idx.Clone()
+	require.Equal(t, idx, got)
+	require.NotSame(t, idx.Vector, got.Vector)
+
+	got.Vector.Params["max_neighbors"] = "99"
+	got.Vector.Metric = "l2"
+	require.Equal(t, "8", idx.Vector.Params["max_neighbors"])
+	require.Equal(t, "cosine", idx.Vector.Metric)
+
+	idx.Vector.Params = nil
+	require.Nil(t, idx.Clone().Vector.Params)
+}
+
 func TestSchema_Clone(t *testing.T) {
 	t.Run("nil_schema", func(t *testing.T) {
 		var s *metadata.Schema
