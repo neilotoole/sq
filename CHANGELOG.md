@@ -66,6 +66,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   being silently dropped and the query running unordered.
 - [#1300]: [`sq inspect`](https://sq.io/docs/inspect) now counts virtual tables, such as
   SQLite FTS5 tables, in a source's table count. They were listed but not counted.
+- [#1311]: `sq inspect` on a SQLite table given in a different case from its
+  definition, e.g. `@t.T` for table `t`, failed with a scan error. The table is
+  now found, as it is by a query, and reported under its catalog name.
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1831,6 +1834,7 @@ make working with lots of sources much easier.
 [#1220]: https://github.com/neilotoole/sq/issues/1220
 [#1285]: https://github.com/neilotoole/sq/issues/1285
 [#1300]: https://github.com/neilotoole/sq/issues/1300
+[#1311]: https://github.com/neilotoole/sq/issues/1311
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
