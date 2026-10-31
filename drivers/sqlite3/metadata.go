@@ -299,18 +299,22 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	// The type filter matters: a trigger (or index) may share a table's
 	// name in sqlite_master, and without the filter the first matching
 	// row could misreport the table's type.
+	// SQLite resolves table names case-insensitively, so the name is
+	// matched with COLLATE NOCASE, and the catalog's spelling of the name
+	// replaces tblName for the lookups that follow (gh1311).
 	const tpl = `SELECT
 (SELECT COUNT(*) FROM %s),
-(SELECT type FROM sqlite_master WHERE name = ? AND type IN ('table','view') LIMIT 1),
-(SELECT 1 FROM sqlite_master WHERE name = ?
+(SELECT name FROM sqlite_master WHERE name = ?1 COLLATE NOCASE AND type IN ('table','view') LIMIT 1),
+(SELECT type FROM sqlite_master WHERE name = ?1 COLLATE NOCASE AND type IN ('table','view') LIMIT 1),
+(SELECT 1 FROM sqlite_master WHERE name = ?1 COLLATE NOCASE
  AND type = 'table' AND substr("sql",0,21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
 (SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1)`
 
 	var schema string
 	var isVirtualTbl sql.NullBool
 	query := fmt.Sprintf(tpl, stringz.DoubleQuote(tblMeta.Name))
-	err := db.QueryRowContext(ctx, query, tblMeta.Name, tblMeta.Name).
-		Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schema)
+	err := db.QueryRowContext(ctx, query, tblMeta.Name).
+		Scan(&tblMeta.RowCount, &tblMeta.Name, &tblMeta.DBTableType, &isVirtualTbl, &schema)
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -326,7 +330,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	default:
 	}
 
-	tblMeta.FQName = schema + "." + tblName
+	tblMeta.FQName = schema + "." + tblMeta.Name
 
 	// cid	name		type		notnull	dflt_value	pk	hidden
 	// 0	actor_id	INT			1		<null>		1	0
