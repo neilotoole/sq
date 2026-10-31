@@ -1144,6 +1144,7 @@ ORDER BY c.column_id`
 			Name:       colName,
 			Position:   int64(columnID),
 			Kind:       kindFromDBTypeName(lg.FromContext(ctx), colName, fullTypeName),
+			BaseType:   stripTypeParams(dataType), // DATA_TYPE can be "TIMESTAMP(6)".
 			ColumnType: fullTypeName,
 			Nullable:   nullable == "Y",
 			Comment:    comment.String,
