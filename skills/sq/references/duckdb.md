@@ -32,8 +32,8 @@ full list.
 
 ## Extensions
 
-`json`, `parquet`, `icu`, `autocomplete` and DuckDB's core functions are statically linked.
-`httpfs`, `excel`, `fts`, `inet`, `tpch`, `tpcds` and the other extensions in DuckDB's autoload
+`json`, `parquet`, `icu`, `autocomplete`, `tpch`, `tpcds` and DuckDB's core functions are
+statically linked. `httpfs`, `excel`, `fts`, `inet` and the other extensions in DuckDB's autoload
 list install and load automatically on first use (needs network once per DuckDB version; cached
 in `~/.duckdb`). You can query remote or local files directly, e.g. `read_parquet('file.parquet')`
 or `read_csv_auto('https://example.com/data.csv')`. Extensions outside that list (`spatial`,

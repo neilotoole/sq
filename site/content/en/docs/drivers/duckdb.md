@@ -51,10 +51,11 @@ $ sq add 'duckdb:///path/sakila.duckdb?memory_limit=4GB&threads=4'
 
 ## Extensions
 
-The driver statically links the `json`, `parquet`, `icu` and `autocomplete`
-extensions (plus DuckDB's core functions). These work offline with no setup.
+The driver statically links the `json`, `parquet`, `icu`, `autocomplete`,
+`tpch` and `tpcds` extensions (plus DuckDB's core functions). These work
+offline with no setup.
 
-The `httpfs`, `excel`, `fts`, `inet`, `tpch` and `tpcds` extensions, and the
+The `httpfs`, `excel`, `fts` and `inet` extensions, and the
 other extensions in DuckDB's autoload list, are installed and loaded
 automatically the first time a query uses them. The first use downloads the
 extension into DuckDB's extension directory (`~/.duckdb` by default), so it
