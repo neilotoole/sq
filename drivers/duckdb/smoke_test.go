@@ -39,5 +39,5 @@ func TestSmokeStaticBundle(t *testing.T) {
 	require.NoError(t, err)
 	static, err := sqlz.RowsScanColumn[string](context.Background(), rows)
 	require.NoError(t, err)
-	require.Equal(t, []string{"autocomplete", "core_functions", "icu", "json", "parquet"}, static)
+	require.Equal(t, []string{"autocomplete", "core_functions", "icu", "json", "parquet", "tpcds", "tpch"}, static)
 }
