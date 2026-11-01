@@ -1,6 +1,7 @@
 package oracle
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"testing"
@@ -329,6 +330,72 @@ func TestParseSemver(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// TestDeclaredColumnType verifies that the column type is built from the
+// declared parameters in USER_TAB_COLS rather than from DATA_LENGTH, which is
+// often a storage size. See https://github.com/neilotoole/sq/issues/1286.
+func TestDeclaredColumnType(t *testing.T) {
+	t.Parallel()
+
+	n := func(v int64) sql.NullInt64 { return sql.NullInt64{Int64: v, Valid: true} }
+	s := func(v string) sql.NullString { return sql.NullString{String: v, Valid: true} }
+	var null sql.NullInt64
+	var nullStr sql.NullString
+
+	testCases := []struct {
+		name       string
+		dataType   string
+		precision  sql.NullInt64
+		scale      sql.NullInt64
+		charLength sql.NullInt64
+		dataLength sql.NullInt64
+		charUsed   sql.NullString
+		vectorInfo sql.NullString
+		want       string
+	}{
+		{"timestamp", "TIMESTAMP(6)", null, n(6), n(0), n(11), nullStr, nullStr, "TIMESTAMP(6)"},
+		{
+			"timestamp_tz", "TIMESTAMP(6) WITH TIME ZONE", null, n(6), n(0), n(13), nullStr, nullStr,
+			"TIMESTAMP(6) WITH TIME ZONE",
+		},
+		{
+			"timestamp_ltz", "TIMESTAMP(3) WITH LOCAL TIME ZONE", null, n(3), n(0), n(11), nullStr, nullStr,
+			"TIMESTAMP(3) WITH LOCAL TIME ZONE",
+		},
+		{
+			"interval_ds", "INTERVAL DAY(2) TO SECOND(6)", n(2), n(6), n(0), n(11), nullStr, nullStr,
+			"INTERVAL DAY(2) TO SECOND(6)",
+		},
+		{"date", "DATE", null, null, n(0), n(7), nullStr, nullStr, "DATE"},
+		{"number_bare", "NUMBER", null, null, n(0), n(22), nullStr, nullStr, "NUMBER"},
+		{"number_ps", "NUMBER", n(10), n(2), n(0), n(22), nullStr, nullStr, "NUMBER(10,2)"},
+		{"number_negative_scale", "NUMBER", n(10), n(-2), n(0), n(22), nullStr, nullStr, "NUMBER(10,-2)"},
+		{"float", "FLOAT", n(126), null, n(0), n(22), nullStr, nullStr, "FLOAT(126)"},
+		{"blob", "BLOB", null, null, n(0), n(4000), nullStr, nullStr, "BLOB"},
+		{"varchar2_char", "VARCHAR2", null, null, n(10), n(40), s("C"), nullStr, "VARCHAR2(10 CHAR)"},
+		{"varchar2_byte", "VARCHAR2", null, null, n(10), n(10), s("B"), nullStr, "VARCHAR2(10 BYTE)"},
+		{"char_char", "CHAR", null, null, n(1), n(4), s("C"), nullStr, "CHAR(1 CHAR)"},
+		{"char_byte", "CHAR", null, null, n(1), n(1), s("B"), nullStr, "CHAR(1 BYTE)"},
+		{"nchar", "NCHAR", null, null, n(5), n(10), s("C"), nullStr, "NCHAR(5)"},
+		{"nvarchar2", "NVARCHAR2", null, null, n(20), n(40), s("C"), nullStr, "NVARCHAR2(20)"},
+		{"raw", "RAW", null, null, n(0), n(16), nullStr, nullStr, "RAW(16)"},
+		{"urowid", "UROWID", null, null, n(0), n(100), nullStr, nullStr, "UROWID(100)"},
+		{
+			"vector", "VECTOR", null, null, n(0), n(8200), nullStr, s("VECTOR(3,FLOAT32,DENSE)"),
+			"VECTOR(3,FLOAT32,DENSE)",
+		},
+		{"vector_no_info", "VECTOR", null, null, n(0), n(8200), nullStr, nullStr, "VECTOR"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := declaredColumnType(tc.dataType, tc.precision, tc.scale,
+				tc.charLength, tc.dataLength, tc.charUsed, tc.vectorInfo)
 			require.Equal(t, tc.want, got)
 		})
 	}
