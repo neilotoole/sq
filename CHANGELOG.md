@@ -22,8 +22,19 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   image also now ships with SLSA build provenance and an SPDX SBOM, in addition
   to the existing cosign signature.
 
+- SQLite vector support. [`sq inspect`](https://sq.io/docs/inspect) and
+  [`sq sql`](https://sq.io/docs/cmd/sql) now work with `vec0` tables from
+  [sqlite-vec](https://github.com/asg017/sqlite-vec), and with libSQL/Turso vector columns
+  (`F32_BLOB(N)` and friends). `sq` bundles the
+  [vlasky community fork](https://github.com/vlasky/sqlite-vec) of sqlite-vec. Vector columns have the new
+  kind `vector`, and `inspect` reports their dimension, element type and distance metric.
+  Query results show a summary such as `[384 × f32]` in text output and the full array
+  of numbers in JSON and YAML. See the [driver docs](https://sq.io/docs/drivers/sqlite#vectors).
+
 ### Changed
 
+- libSQL/Turso vector columns now render as arrays of numbers in JSON and YAML output.
+  Previously they were base64-encoded bytes.
 - [#1013]: Querying a remote source now makes one fewer server round-trip per `sq`
   invocation. The server version, needed for version-aware SQL rendering, is read
   during the connectivity check when the source is opened, instead of in a
@@ -64,8 +75,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   via [`sq add`](https://sq.io/docs/cmd/add).
 - [#1225]: A malformed selector inside `order_by()` is now reported, instead of
   being silently dropped and the query running unordered.
+- [#1298]: A libSQL table with a `libsql_vector_idx` index was reported as having
+  0 rows by `sq inspect`, and returned no rows from SLQ queries.
 - [#1300]: [`sq inspect`](https://sq.io/docs/inspect) now counts virtual tables, such as
   SQLite FTS5 tables, in a source's table count. They were listed but not counted.
+- A libSQL vector column declared with a `FLOAT32(N)` style type no longer makes
+  queries against its table fail. This is one case of [#1299].
+- `sq inspect` no longer fails for a whole SQLite source when it contains a
+  virtual table that `sq` can't serve, such as one using an unknown module or a
+  newer sqlite-vec feature. The table is listed with an error and `sq inspect`
+  prints a warning for it. For a `vec0` table, the columns parsed from its
+  declaration are shown along with the error. For any other module, the table's
+  declaration is shown.
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1830,6 +1851,8 @@ make working with lots of sources much easier.
 [#1225]: https://github.com/neilotoole/sq/issues/1225
 [#1220]: https://github.com/neilotoole/sq/issues/1220
 [#1285]: https://github.com/neilotoole/sq/issues/1285
+[#1298]: https://github.com/neilotoole/sq/issues/1298
+[#1299]: https://github.com/neilotoole/sq/issues/1299
 [#1300]: https://github.com/neilotoole/sq/issues/1300
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

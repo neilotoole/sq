@@ -12,7 +12,6 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
 	"github.com/neilotoole/sq/libsq/core/lg/lgm"
@@ -45,6 +44,10 @@ type pipeline struct {
 
 	// targetSQL is the ultimate SQL query to be executed against targetGrip.
 	targetSQL string
+
+	// table is the table name of a single-table query, i.e. one with a
+	// "FROM table" clause and no join. It's empty otherwise.
+	table string
 
 	// tasks contains tasks that must be completed before targetSQL
 	// is executed against targetGrip. Typically tasks is used to
@@ -127,12 +130,15 @@ func (p *pipeline) execute(ctx context.Context, recw RecordWriter) error {
 		}
 	}
 
-	// Pass any result-column kind hints recorded during rendering (e.g.
-	// SQLite/rqlite pinning sum() to kind.Decimal) so the driver can apply them
-	// when building record metadata. See issues #839 and #848.
-	var hints map[int]kind.Kind
+	// Pass any result-column hints recorded during rendering (e.g.
+	// SQLite/rqlite pinning sum() to kind.Decimal, or a vec0 vector column's
+	// type) so the driver can apply them when building record metadata. See
+	// issues #839 and #848.
+	hints := driver.ResultHints{RawVectors: p.qc.RawVectors}
 	if p.rc != nil {
-		hints = p.rc.ResultColumnKinds
+		hints.Kinds = p.rc.ResultColumnKinds
+		hints.Vectors = p.rc.ResultColumnVectors
+		hints.Table = p.table
 	}
 
 	if err := QuerySQL(ctx, p.targetGrip, conn, recw, hints, p.targetSQL); err != nil {
@@ -315,12 +321,64 @@ func (p *pipeline) prepareFromTable(ctx context.Context, tblSel *ast.TblSelector
 		DBSemver: dbSemverOf(ctx, fromGrip),
 	}
 
+	if err = p.loadTableHints(ctx, fromGrip, tblSel); err != nil {
+		return "", nil, err
+	}
+
+	// Only a single-table query gets a vector table: with a join, a result
+	// column can't reliably be traced back to its source table.
+	if name := tblSel.Table().Table; name != "" {
+		p.table = name
+		if h := p.rc.TableHints[name]; h != nil && len(h.Vectors) > 0 {
+			p.rc.VectorTable = name
+		}
+	}
+
 	fromClause, err = rndr.FromTable(p.rc, tblSel)
 	if err != nil {
 		return "", nil, err
 	}
 
 	return fromClause, fromGrip, nil
+}
+
+// loadTableHints populates p.rc.TableHints for tblSels if grip's SQL driver
+// implements driver.TableHinter. It must be called after p.rc is set, and
+// before the FROM or JOIN clause is rendered.
+func (p *pipeline) loadTableHints(ctx context.Context, grip driver.Grip, tblSels ...*ast.TblSelectorNode) error {
+	hinter, ok := grip.SQLDriver().(driver.TableHinter)
+	if !ok {
+		return nil
+	}
+
+	db, err := grip.DB(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, tblSel := range tblSels {
+		name := tblSel.Table().Table
+		if name == "" {
+			continue
+		}
+		if _, ok = p.rc.TableHints[name]; ok {
+			continue
+		}
+
+		hints, err := hinter.TableHints(ctx, db, name)
+		if err != nil {
+			return err
+		}
+		if hints == nil {
+			continue
+		}
+		if p.rc.TableHints == nil {
+			p.rc.TableHints = map[string]*render.TableHints{}
+		}
+		p.rc.TableHints[name] = hints
+	}
+
+	return nil
 }
 
 // dbSemverOf returns grip's canonical semver, or "" if it can't be determined.
@@ -418,6 +476,15 @@ func (p *pipeline) joinSingleSource(ctx context.Context, jc *joinClause) (fromCl
 		Args:     p.qc.Args,
 		Dialect:  fromGrip.SQLDriver().Dialect(),
 		DBSemver: dbSemverOf(ctx, fromGrip),
+	}
+
+	tblSels := make([]*ast.TblSelectorNode, 0, len(jc.joins)+1)
+	tblSels = append(tblSels, jc.leftTbl)
+	for _, join := range jc.joins {
+		tblSels = append(tblSels, join.Table())
+	}
+	if err = p.loadTableHints(ctx, fromGrip, tblSels...); err != nil {
+		return "", nil, err
 	}
 
 	fromClause, err = rndr.Join(p.rc, jc.leftTbl, jc.joins)
@@ -621,7 +688,7 @@ func execCopyTable(ctx context.Context, fromDB driver.Grip, fromTbl tablefq.T,
 	)
 
 	query := "SELECT * FROM " + fromTbl.Render(fromDB.SQLDriver().Dialect().Enquote)
-	err := QuerySQL(ctx, fromDB, nil, inserter, nil, query)
+	err := QuerySQL(ctx, fromDB, nil, inserter, driver.ResultHints{RawVectors: true}, query)
 	if err != nil {
 		return errz.Wrapf(err, "insert %s.%s failed", destGrip.Source().Handle, destTbl)
 	}

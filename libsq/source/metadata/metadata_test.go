@@ -12,6 +12,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
@@ -1251,6 +1252,29 @@ func TestIndex_Clone(t *testing.T) {
 	})
 }
 
+func TestIndex_Clone_Vector(t *testing.T) {
+	idx := &metadata.Index{
+		Name:  "t_idx",
+		Table: "t",
+		Vector: &metadata.IndexVector{
+			Method: "diskann",
+			Metric: "cosine",
+			Params: map[string]string{"max_neighbors": "8"},
+		},
+	}
+	got := idx.Clone()
+	require.Equal(t, idx, got)
+	require.NotSame(t, idx.Vector, got.Vector)
+
+	got.Vector.Params["max_neighbors"] = "99"
+	got.Vector.Metric = "l2"
+	require.Equal(t, "8", idx.Vector.Params["max_neighbors"])
+	require.Equal(t, "cosine", idx.Vector.Metric)
+
+	idx.Vector.Params = nil
+	require.Nil(t, idx.Clone().Vector.Params)
+}
+
 func TestSchema_Clone(t *testing.T) {
 	t.Run("nil_schema", func(t *testing.T) {
 		var s *metadata.Schema
@@ -1737,6 +1761,8 @@ func TestTable_Clone_AllFieldsCovered(t *testing.T) {
 		TableType:      "table",
 		DBTableType:    "BASE TABLE",
 		ViewDefinition: "SELECT 1",
+		Error:          "no such module: x",
+		Definition:     "CREATE VIRTUAL TABLE film USING x(a)",
 		RowCount:       200,
 		Size:           &sz,
 		Comment:        "Film table",
@@ -1810,4 +1836,18 @@ func TestSource_Clone_NilLoggerSilencesWarnings(t *testing.T) {
 	require.Empty(t, buf.String(),
 		"Source.Clone must not emit log entries — programmatic callers wanting "+
 			"validation should call LinkForeignKeys with a real logger")
+}
+
+func TestColumn_Clone_Vector(t *testing.T) {
+	orig := &metadata.Column{
+		Name:   "e",
+		Role:   "metadata",
+		Vector: &vector.Type{Dim: 4, Elem: vector.F32, Metric: "cosine"},
+	}
+	clone := orig.Clone()
+	require.Equal(t, orig, clone)
+	require.NotSame(t, orig.Vector, clone.Vector)
+
+	clone.Vector.Dim = 99
+	require.Equal(t, 4, orig.Vector.Dim)
 }

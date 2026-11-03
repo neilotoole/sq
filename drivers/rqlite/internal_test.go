@@ -94,6 +94,7 @@ func TestDBTypeForKind(t *testing.T) {
 		kind.Text:     "TEXT",
 		kind.Int:      "INTEGER",
 		kind.Float:    "REAL",
+		kind.Vector:   "BLOB",
 		kind.Bytes:    "BLOB",
 		kind.Decimal:  "NUMERIC",
 		kind.Bool:     "BOOLEAN",

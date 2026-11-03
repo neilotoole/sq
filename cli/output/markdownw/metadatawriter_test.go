@@ -574,3 +574,28 @@ func TestMetadataWriter_mermaidQuoting(t *testing.T) {
 	require.NotContains(t, got, `"id col"`)
 	require.NotContains(t, got, `"zip code"`)
 }
+
+// TestMetadataWriter_tableError verifies that a table with an Error shows
+// the error under its heading, in both source and single-table output.
+func TestMetadataWriter_tableError(t *testing.T) {
+	bad := &metadata.Table{Name: "fx_other", TableType: "virtual", Error: "no such module: vectorlite"}
+	ok := &metadata.Table{
+		Name: "ok", TableType: "table",
+		Columns: []*metadata.Column{{Name: "id", ColumnType: "INTEGER"}},
+	}
+	const want = "virtual · 0 rows\n\n**Error:** no such module: vectorlite\n"
+
+	buf := &bytes.Buffer{}
+	w := markdownw.NewMetadataWriter(buf, output.NewPrinting())
+	require.NoError(t, w.TableMetadata(bad))
+	require.Contains(t, buf.String(), want)
+
+	buf.Reset()
+	src := &metadata.Source{
+		Handle: "@test", Name: "db", Driver: drivertype.Type("sqlite3"),
+		Tables: []*metadata.Table{bad, ok},
+	}
+	require.NoError(t, w.SourceMetadata(src, true))
+	require.Contains(t, buf.String(), want)
+	require.Equal(t, 1, bytes.Count(buf.Bytes(), []byte("**Error:**")))
+}

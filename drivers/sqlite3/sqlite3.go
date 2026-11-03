@@ -12,12 +12,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3" // Import for side effect of loading the driver
 	"github.com/shopspring/decimal"
 
+	"github.com/neilotoole/sq/drivers/sqlite3/internal/sqlitevec"
 	"github.com/neilotoole/sq/drivers/sqlite3/sqlparser"
+	"github.com/neilotoole/sq/drivers/sqlite3/vecdecl"
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/ast/render"
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -155,7 +158,15 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessM
 	return g, nil
 }
 
+// registerVec registers sqlite-vec with SQLite once per process, before the
+// first connection is opened.
+var registerVec = sync.OnceValue(sqlitevec.Register)
+
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
+	if err := registerVec(); err != nil {
+		return nil, errz.Err(err)
+	}
+
 	dsn, err := dsnFromLocation(src.Location)
 	if err != nil {
 		return nil, err
@@ -266,6 +277,55 @@ func placeholders(numCols, numRows int) string {
 		rows[i] = "(" + stringz.RepeatJoin("?", numCols, driver.Comma) + ")"
 	}
 	return strings.Join(rows, driver.Comma)
+}
+
+// TableHints implements driver.TableHinter. A table with a libSQL vector
+// index gets NotIndexed, because stock SQLite would otherwise use that
+// index's empty b-tree as a covering index (gh1298). A sqlite-vec vec0 table
+// gets Vectors and Columns, because sqlite-vec declares its columns with no
+// type, so the result metadata can't identify the vector columns.
+func (d *driveri) TableHints(ctx context.Context, db sqlz.DB, tbl string) (*render.TableHints, error) {
+	log := lg.FromContext(ctx)
+
+	// A single read gets the table's DDL and any libSQL vector index on it.
+	const q = `SELECT type, sql FROM sqlite_master WHERE tbl_name = ? COLLATE NOCASE
+AND (type = 'table' OR (type = 'index' AND sql LIKE ?))`
+	rows, err := db.QueryContext(ctx, q, tbl, libsqlVectorIdxPattern)
+	if err != nil {
+		return nil, errw(err)
+	}
+	defer sqlz.CloseRows(log, rows)
+
+	var (
+		hints render.TableHints
+		ddl   string
+	)
+	for rows.Next() {
+		var typ string
+		var stmt sql.NullString
+		if err = rows.Scan(&typ, &stmt); err != nil {
+			return nil, errw(err)
+		}
+		if typ == "index" {
+			hints.NotIndexed = true
+		} else {
+			ddl = stmt.String
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
+
+	if vecdecl.VirtualTableModule(ddl) == "vec0" {
+		if hints.Vectors, hints.Columns, err = vec0TableHints(ctx, db, tbl, ddl); err != nil {
+			return nil, err
+		}
+	}
+
+	if !hints.NotIndexed && len(hints.Vectors) == 0 {
+		return nil, nil //nolint:nilnil
+	}
+	return &hints, nil
 }
 
 // Renderer implements driver.SQLDriver.
@@ -483,8 +543,13 @@ func copyTableCompanionDDL(ctx context.Context, db sqlz.DB,
 	return stmts, nil
 }
 
-// RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints map[int]kind.Kind) (
+// RecordMeta implements driver.SQLDriver. Vector columns decode to
+// vector.Vector: a column with a hints.Vectors entry is a sqlite-vec vec0
+// column, and a column with a libSQL declared vector type (e.g. F32_BLOB(4))
+// is a libSQL column. A value that doesn't decode fails the query. If
+// hints.RawVectors is true, vector values aren't decoded: each is its stored
+// bytes.
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints driver.ResultHints) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes, hints)
@@ -492,8 +557,31 @@ func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hi
 		return nil, nil, errw(err)
 	}
 
+	decoders := newVectorDecoders(recMeta, hints)
+	if len(decoders) == 0 {
+		mungeFn := func(vals []any) (record.Record, error) {
+			return newRecordFromScanRow(recMeta, vals), nil
+		}
+		return recMeta, mungeFn, nil
+	}
+
+	var row int
 	mungeFn := func(vals []any) (record.Record, error) {
+		row++
+		// newRecordFromScanRow doesn't modify vals, so the vector columns
+		// decode from the raw scanned values.
 		rec := newRecordFromScanRow(recMeta, vals)
+		for _, dec := range decoders {
+			if hints.RawVectors {
+				rec[dec.idx] = dec.raw(vals[dec.idx])
+				continue
+			}
+			v, decErr := dec.decode(vals[dec.idx], row)
+			if decErr != nil {
+				return nil, decErr
+			}
+			rec[dec.idx] = v
+		}
 		return rec, nil
 	}
 
@@ -1115,7 +1203,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, driver.ResultHints{})
 	if err != nil {
 		return nil, err
 	}

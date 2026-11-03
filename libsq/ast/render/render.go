@@ -10,6 +10,7 @@ import (
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 )
 
@@ -36,13 +37,51 @@ type Context struct {
 	// #839. It's nil unless at least one result column has a forced kind.
 	ResultColumnKinds map[int]kind.Kind
 
+	// ResultColumnVectors records the vector type of result columns, by their
+	// zero-based output position, that select a vector column of VectorTable.
+	// It's populated during column rendering from TableHints, and lets the
+	// driver decode vector columns whose type the backend doesn't report
+	// (sqlite-vec's vec0 columns). It's nil unless VectorTable is set and at
+	// least one result column selects a vector column.
+	ResultColumnVectors map[int]vector.Type
+
 	// DBSemver is the canonical semver of the target server (e.g. "v8.0.36"),
 	// or "" if unknown. Lets a FunctionOverride emit version-appropriate SQL.
 	// Populated by the pipeline from the grip's DBSemver.
 	DBSemver string
 
+	// TableHints holds per-table rendering hints, keyed by table name (not
+	// alias). It's populated by the pipeline from driver.TableHinter. It's
+	// nil if no table has hints.
+	TableHints map[string]*TableHints
+
+	// VectorTable is the table name for a single-table query that has vector
+	// columns. It's empty otherwise.
+	VectorTable string
+
 	// Dialect is the driver dialect.
 	Dialect dialect.Dialect
+}
+
+// TableHints holds driver-supplied hints for rendering references to a
+// table.
+type TableHints struct {
+	// Vectors maps the names of the table's vector columns to their types.
+	Vectors map[string]vector.Type
+
+	// Columns is the visible columns in SELECT * order. It's set along with
+	// Vectors.
+	Columns []string
+
+	// NotIndexed, if true, renders "NOT INDEXED" after the table (and its
+	// alias), forcing a table scan.
+	NotIndexed bool
+}
+
+// notIndexed returns true if tbl has a hint to render NOT INDEXED.
+func (rc *Context) notIndexed(tbl string) bool {
+	h := rc.TableHints[tbl]
+	return h != nil && h.NotIndexed
 }
 
 // Renderer is a set of functions for rendering ast elements into SQL.

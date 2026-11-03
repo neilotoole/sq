@@ -22,6 +22,7 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive // kind.Nu
 	kind.Date:     "DEFAULT '1970-01-01'::DATE",
 	kind.Time:     "DEFAULT '00:00:00'::TIME",
 	kind.Bytes:    `DEFAULT ''::BLOB`,
+	kind.Vector:   `DEFAULT ''::BLOB`,
 	kind.Unknown:  `DEFAULT ''`,
 }
 

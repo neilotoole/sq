@@ -17,11 +17,40 @@ import (
 	"github.com/neilotoole/sq/libsq/core/schema"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
+
+// ResultHints carries hints about a query's result columns, keyed by
+// zero-based output position, recorded during SLQ rendering. They inform a
+// driver's SQLDriver.RecordMeta about columns whose type the backend can't
+// report. The zero value means no hints.
+type ResultHints struct {
+	// Kinds holds forced result-column kinds, e.g. SQLite/rqlite pinning sum()
+	// to kind.Decimal, or Oracle pinning count()/rownum() to kind.Int. See
+	// issues #839 and #848.
+	Kinds map[int]kind.Kind
+
+	// Vectors holds the vector types of result columns that select a vector
+	// column of a sqlite-vec vec0 table. sqlite-vec declares those columns
+	// with no type, so the result metadata alone can't identify them.
+	Vectors map[int]vector.Type
+
+	// Table is the name of the table that every result column comes from,
+	// for a single-table SLQ query. It's empty when the table isn't known,
+	// as for a join or a raw SQL query. A driver may use it in error
+	// messages about a result value.
+	Table string
+
+	// RawVectors is true when the results are copied into a table, rather
+	// than output. A driver then passes vector values through as their stored
+	// bytes, without decoding them, so a malformed value copies unchanged
+	// instead of failing the query.
+	RawVectors bool
+}
 
 // Provider is a factory that returns Driver instances.
 type Provider interface {
@@ -67,6 +96,15 @@ type Driver interface {
 	// the return value (the original source is not changed). An error
 	// is returned if the source is invalid.
 	ValidateSource(src *source.Source) (*source.Source, error)
+}
+
+// TableHinter is an optional interface implemented by a SQLDriver that
+// needs to adjust how a table is referenced in a rendered query.
+type TableHinter interface {
+	// TableHints returns rendering hints for tbl, or nil if there are none.
+	// The pipeline calls it for each table referenced in a query, before
+	// rendering the FROM or JOIN clause.
+	TableHints(ctx context.Context, db sqlz.DB, tbl string) (*render.TableHints, error)
 }
 
 // SQLDriver is implemented by Driver instances for SQL databases.
@@ -133,14 +171,13 @@ type SQLDriver interface {
 	// RecordMeta also returns a NewRecordFunc which can be
 	// applied to the scan row from sql.Rows.
 	//
-	// The hints arg carries forced result-column kinds, keyed by zero-based
-	// output position, recorded during SLQ rendering (e.g. SQLite/rqlite pinning
-	// sum() to kind.Decimal, or Oracle pinning count()/rownum() to kind.Int). A
-	// hint overrides the kind derived from colTypes, which in turn selects the
-	// scan target, so it must be applied before any row is scanned. Callers
-	// outside the SLQ query path (table metadata, ingest/copy) pass nil; drivers
-	// that surface no such hints ignore the arg.
-	RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints map[int]kind.Kind) (
+	// The hints arg carries result-column hints recorded during SLQ rendering;
+	// see ResultHints. A kind hint overrides the kind derived from colTypes,
+	// which in turn selects the scan target, so it must be applied before any
+	// row is scanned. Callers outside the SLQ query path (raw SQL, table
+	// metadata, ingest/copy) pass the zero value; drivers that surface no such
+	// hints ignore the arg.
+	RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints ResultHints) (
 		record.Meta, NewRecordFunc, error)
 
 	// PrepareInsertStmt prepares a statement for inserting

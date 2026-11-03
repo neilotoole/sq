@@ -271,7 +271,7 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, len(colNames), len(colTypes))
 
-			recMeta, _, err := drvr.RecordMeta(th.Context, colTypes, nil)
+			recMeta, _, err := drvr.RecordMeta(th.Context, colTypes, driver.ResultHints{})
 			require.NoError(t, err)
 
 			gotNames := recMeta.Names()

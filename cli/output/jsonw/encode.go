@@ -2,6 +2,7 @@ package jsonw
 
 import (
 	"encoding/base64"
+	"math"
 	"strconv"
 	"time"
 	"unicode/utf8"
@@ -14,6 +15,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/vector"
 )
 
 // monoEncoder provides methods for encoding JSON values
@@ -88,6 +90,9 @@ func (e monoEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 			return b, errz.Err(err)
 		}
 		return b, nil
+
+	case vector.Vector:
+		return v.AppendJSON(b), nil
 
 	case string:
 		var err error
@@ -212,6 +217,9 @@ func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 		b = append(b, e.clrs.Bytes.Suffix...)
 		return b, nil
 
+	case vector.Vector:
+		return e.appendVector(b, v), nil
+
 	case string:
 		b = append(b, e.clrs.String.Prefix...)
 		var err error
@@ -239,6 +247,26 @@ func (e *colorEncoder) encodeAny(b []byte, v any) ([]byte, error) {
 		// hit encodeTime.
 		return e.doEncodeTime(b, v, e.formatDatetime, e.formatDatetimeAsNumber)
 	}
+}
+
+// appendVector appends v as a JSON array of numbers, coloring each number
+// with the number color and the brackets and commas as punctuation. Non-finite
+// elements are written as null.
+func (e *colorEncoder) appendVector(b []byte, v vector.Vector) []byte {
+	b = e.clrs.AppendPunc(b, '[')
+	for i, f := range v.Values {
+		if i > 0 {
+			b = e.clrs.AppendPunc(b, ',')
+		}
+		if math.IsNaN(f) || math.IsInf(f, 0) {
+			b = e.clrs.AppendNull(b)
+			continue
+		}
+		b = append(b, e.clrs.Number.Prefix...)
+		b = append(b, vector.FormatElem(v.Elem, f)...)
+		b = append(b, e.clrs.Number.Suffix...)
+	}
+	return e.clrs.AppendPunc(b, ']')
 }
 
 // punc holds the byte values of JSON punctuation chars
