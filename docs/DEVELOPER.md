@@ -48,7 +48,7 @@ Mark long-running tests with [`tu.SkipShort`](../testh/tu/skip.go) so they stay 
 The website under [`site/`](../site) builds [sq.io](https://sq.io). It has its own Bun/Hugo tooling
 and `Makefile`. `make site-local` (from the repo root) delegates to it; for the
 full set of site commands (dev server, link checking, Netlify validation) see
-[`site/README.md`](../site/README.md) and [`site/CLAUDE.md`](../site/CLAUDE.md).
+[`site/README.md`](../site/README.md) and [`site/AGENTS.md`](../site/AGENTS.md).
 
 ## Dev container
 

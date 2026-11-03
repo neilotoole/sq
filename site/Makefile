@@ -42,7 +42,7 @@ CHECKENV_SCRIPT := ./scripts/checkenv.bash
 # heavily across majors, so an unpinned run is not comparable to a deploy preview. lighthouse
 # arrives as a dependency of @netlify/plugin-lighthouse and is pinned by `overrides` in
 # package.json, so the plugin and this harness always run the same version. When bumping that
-# plugin, move the override with it. See site/CLAUDE.md for the differences that remain.
+# plugin, move the override with it. See site/AGENTS.md for the differences that remain.
 #
 # Port used by the Lighthouse harness (prod build + gzip/brotli static server).
 # Chosen to avoid :8080 (Docker via `make run`) and :1313 (Hugo dev via `make site-local`).
