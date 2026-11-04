@@ -209,7 +209,6 @@ func ingestSheetToTable(ctx context.Context, destGrip driver.Grip, sheetTbl *she
 	var cells []string
 
 	i := -1
-LOOP:
 	for iter.Next() {
 		i++
 		if hasHeader && i == 0 {
@@ -237,13 +236,14 @@ LOOP:
 			close(bi.RecordCh)
 			return ctx.Err()
 		case err = <-bi.ErrCh:
+			close(bi.RecordCh)
 			if err != nil {
-				close(bi.RecordCh)
 				return err
 			}
 
-			// The batch inserter successfully completed
-			break LOOP
+			// The inserter only finishes cleanly after RecordCh is closed, and
+			// that hasn't happened yet, so rows from the sheet are being dropped.
+			return errz.New("excel: batch insert finished before all rows were sent")
 		case bi.RecordCh <- rec:
 		}
 	}
