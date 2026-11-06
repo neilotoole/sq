@@ -143,7 +143,8 @@ func TestInspectColumnFlags_Oracle(t *testing.T) {
 			"id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "+
 			"first_name VARCHAR2(50), "+
 			"last_name VARCHAR2(50), "+
-			"full_name VARCHAR2(120) GENERATED ALWAYS AS (first_name || ' ' || last_name) VIRTUAL)")
+			"full_name VARCHAR2(120) GENERATED ALWAYS AS (first_name || ' ' || last_name) VIRTUAL, "+
+			"created_at TIMESTAMP(6) WITH TIME ZONE)")
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
 
@@ -166,9 +167,14 @@ func TestInspectColumnFlags_Oracle(t *testing.T) {
 	require.NotEmpty(t, first.Collation,
 		"a VARCHAR2 column should report Oracle's default collation")
 
+	// BaseType is the type name without length, precision or scale.
+	require.Equal(t, "NUMBER", id.BaseType)
+	require.Equal(t, "VARCHAR2", first.BaseType)
+	require.Equal(t, "TIMESTAMP WITH TIME ZONE", findColumn(t, md, "created_at").BaseType)
+
 	// Hidden/system columns (e.g. the identity sequence's backing column)
-	// must not surface; HIDDEN_COLUMN='NO' filter keeps only the 4 declared.
-	require.Len(t, md.Columns, 4, "only the declared, non-hidden columns")
+	// must not surface; HIDDEN_COLUMN='NO' filter keeps only the 5 declared.
+	require.Len(t, md.Columns, 5, "only the declared, non-hidden columns")
 
 	// Negative path: a plain base table has no view definition and no
 	// triggers, so both must be empty (not errored). CheckConstraints is not
