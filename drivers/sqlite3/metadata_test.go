@@ -706,3 +706,39 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 		})
 	}
 }
+
+// TestTableMetadata_CaseInsensitiveName verifies gh1311: SQLite resolves
+// table names case-insensitively, so metadata lookup for a name given in a
+// different case must find the table and report the catalog's name.
+func TestTableMetadata_CaseInsensitiveName(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@tblcase_sl3",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "tblcase.db"),
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(th.Context, `CREATE TABLE t (id INTEGER PRIMARY KEY);
+INSERT INTO t VALUES (1);
+CREATE TRIGGER t_ai AFTER INSERT ON t BEGIN SELECT 1; END`)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(th.Context, "T")
+	require.NoError(t, err)
+	require.Equal(t, "t", md.Name)
+	require.Equal(t, "main.t", md.FQName)
+	require.Equal(t, int64(1), md.RowCount)
+	require.Equal(t, sqlz.TableTypeTable, md.TableType)
+	require.Len(t, md.Columns, 1)
+	require.Len(t, md.Triggers, 1)
+
+	_, err = grip.TableMetadata(th.Context, "not_exist")
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "Scan error")
+}
