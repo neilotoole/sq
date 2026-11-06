@@ -121,6 +121,9 @@ type Printing struct {
 	// Warning is the color for warning elements.
 	Warning *color.Color
 
+	// UpdateAvailable highlights a newer sq release (e.g. sq version -v).
+	UpdateAvailable *color.Color
+
 	// NewBufferFn returns a new [ioz.Buffer] instance; it should be preferred
 	// over [bytes.Buffer] when dealing large/unbounded data.
 	NewBufferFn func() ioz.Buffer
@@ -233,6 +236,7 @@ func NewPrinting() *Printing {
 		StackErrorType:         color.New(color.FgGreen, color.Faint),
 		Success:                color.New(color.FgGreen, color.Bold),
 		Warning:                color.New(color.FgYellow),
+		UpdateAvailable:        color.New(color.BgHiYellow, color.FgBlack, color.Bold),
 	}
 
 	pr.EnableColor(true)
@@ -290,6 +294,7 @@ func (pr *Printing) Clone() *Printing {
 	pr2.StackError = new(*pr.StackError)
 	pr2.StackErrorType = new(*pr.StackErrorType)
 	pr2.Warning = new(*pr.Warning)
+	pr2.UpdateAvailable = new(*pr.UpdateAvailable)
 
 	return pr2
 }
@@ -344,6 +349,7 @@ func (pr *Printing) colors() []*color.Color {
 		pr.Subdued,
 		pr.Success,
 		pr.Warning,
+		pr.UpdateAvailable,
 	}
 }
 
