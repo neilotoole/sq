@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/mod/semver"
 
+	"github.com/neilotoole/sq/drivers/oracle/orshared"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -1076,12 +1077,37 @@ func getColumnsMetadata(ctx context.Context, db *sql.DB, tblName string) ([]*met
 	// DATA_DEFAULT is a LONG column; for a virtual column it holds the
 	// generation expression (mapped to GeneratedExpr below). go-ora reads
 	// it cleanly, so no TO_LOB/CLOB cast is needed.
-	const query = `SELECT
+	const queryWithVectorInfo = `SELECT
     c.column_name,
     c.data_type,
-    c.data_length,
     c.data_precision,
     c.data_scale,
+    c.char_length,
+    c.char_used,
+    c.data_length,
+    c.vector_info,
+    c.nullable,
+    c.column_id,
+    c.identity_column,
+    c.virtual_column,
+    c.collation,
+    c.data_default,
+    cc.comments
+FROM user_tab_cols c
+LEFT JOIN user_col_comments cc
+    ON c.table_name = cc.table_name
+    AND c.column_name = cc.column_name
+WHERE c.table_name = :1
+  AND c.hidden_column = 'NO'
+ORDER BY c.column_id`
+	const queryWithoutVectorInfo = `SELECT
+    c.column_name,
+    c.data_type,
+    c.data_precision,
+    c.data_scale,
+    c.char_length,
+    c.char_used,
+    c.data_length,
     c.nullable,
     c.column_id,
     c.identity_column,
@@ -1106,7 +1132,12 @@ ORDER BY c.column_id`
 		return nil, err
 	}
 
-	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tblName))
+	rows, err := db.QueryContext(ctx, queryWithVectorInfo, strings.ToUpper(tblName))
+	hasVectorInfo := true
+	if err != nil && hasErrCode(err, orshared.ErrCodeInvalidIdentifier) {
+		hasVectorInfo = false
+		rows, err = db.QueryContext(ctx, queryWithoutVectorInfo, strings.ToUpper(tblName))
+	}
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -1115,30 +1146,27 @@ ORDER BY c.column_id`
 	var cols []*metadata.Column
 	for rows.Next() {
 		var colName, dataType, nullable string
-		var dataLength sql.NullInt64
-		var dataPrecision, dataScale sql.NullInt64
+		var dataPrecision, dataScale, charLength, dataLength sql.NullInt64
 		var columnID int
 		var identityCol, virtualCol string
-		var collation, dataDefault, comment sql.NullString
+		var charUsed, vectorInfo, collation, dataDefault, comment sql.NullString
 
-		err = rows.Scan(&colName, &dataType, &dataLength, &dataPrecision,
-			&dataScale, &nullable, &columnID, &identityCol, &virtualCol,
-			&collation, &dataDefault, &comment)
+		if hasVectorInfo {
+			err = rows.Scan(&colName, &dataType, &dataPrecision, &dataScale,
+				&charLength, &charUsed, &dataLength, &vectorInfo, &nullable,
+				&columnID, &identityCol, &virtualCol, &collation, &dataDefault,
+				&comment)
+		} else {
+			err = rows.Scan(&colName, &dataType, &dataPrecision, &dataScale,
+				&charLength, &charUsed, &dataLength, &nullable, &columnID,
+				&identityCol, &virtualCol, &collation, &dataDefault, &comment)
+		}
 		if err != nil {
 			return nil, errw(err)
 		}
 
-		// Build full type name
-		fullTypeName := dataType
-		if dataPrecision.Valid {
-			if dataScale.Valid && dataScale.Int64 > 0 {
-				fullTypeName = fmt.Sprintf("%s(%d,%d)", dataType, dataPrecision.Int64, dataScale.Int64)
-			} else if dataPrecision.Int64 > 0 {
-				fullTypeName = fmt.Sprintf("%s(%d)", dataType, dataPrecision.Int64)
-			}
-		} else if dataLength.Valid && dataLength.Int64 > 0 {
-			fullTypeName = fmt.Sprintf("%s(%d)", dataType, dataLength.Int64)
-		}
+		fullTypeName := declaredColumnType(dataType, dataPrecision, dataScale,
+			charLength, dataLength, charUsed, vectorInfo)
 
 		col := &metadata.Column{
 			Name:       colName,
@@ -1166,6 +1194,53 @@ ORDER BY c.column_id`
 	}
 
 	return cols, errw(rows.Err())
+}
+
+// declaredColumnType returns the column type as declared, built from the
+// USER_TAB_COLS fields. DATA_LENGTH is the storage length in bytes for types
+// such as NUMBER and BLOB, so those stay bare. RAW(n) and UROWID(n) declare
+// that length, so they keep it. Datetime and interval types already carry
+// their parameters in DATA_TYPE, for example TIMESTAMP(6) WITH TIME ZONE.
+// VECTOR_INFO, when present, already contains the declared vector form.
+func declaredColumnType(dataType string, dataPrecision, dataScale, charLength,
+	dataLength sql.NullInt64, charUsed, vectorInfo sql.NullString,
+) string {
+	switch {
+	case vectorInfo.Valid && strings.TrimSpace(vectorInfo.String) != "":
+		return strings.TrimSpace(vectorInfo.String)
+	case strings.Contains(dataType, "("):
+		return dataType
+	case (dataType == "NCHAR" || dataType == "NVARCHAR2") && charLength.Valid:
+		// National character types always use character semantics, and
+		// their declared form takes no BYTE/CHAR qualifier.
+		return fmt.Sprintf("%s(%d)", dataType, charLength.Int64)
+	case isOracleCharacterType(dataType) && charLength.Valid:
+		semantics := "BYTE"
+		if charUsed.String == "C" {
+			semantics = "CHAR"
+		}
+		return fmt.Sprintf("%s(%d %s)", dataType, charLength.Int64, semantics)
+	case dataPrecision.Valid:
+		if dataScale.Valid && dataScale.Int64 != 0 {
+			return fmt.Sprintf("%s(%d,%d)", dataType, dataPrecision.Int64, dataScale.Int64)
+		}
+		if dataPrecision.Int64 > 0 {
+			return fmt.Sprintf("%s(%d)", dataType, dataPrecision.Int64)
+		}
+	case (dataType == "RAW" || dataType == "UROWID") &&
+		dataLength.Valid && dataLength.Int64 > 0:
+		return fmt.Sprintf("%s(%d)", dataType, dataLength.Int64)
+	}
+	return dataType
+}
+
+func isOracleCharacterType(dataType string) bool {
+	switch dataType {
+	case "CHAR", "VARCHAR", "VARCHAR2":
+		return true
+	default:
+		return false
+	}
 }
 
 // getOraclePKColumnNames returns the primary-key column names for

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -25,6 +26,73 @@ func upperAll(ss []string) []string {
 		out[i] = strings.ToUpper(s)
 	}
 	return out
+}
+
+// TestInspectDeclaredColumnTypes_Oracle verifies that inspect reports declared
+// type parameters rather than storage lengths from USER_TAB_COLS.
+func TestInspectDeclaredColumnTypes_Oracle(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+	src := th.Source(sakila.Ora)
+	db := th.OpenDB(src)
+
+	tbl := stringz.UniqTableName("decl_types")
+	_, err := db.ExecContext(th.Context,
+		"CREATE TABLE "+tbl+" ("+
+			"ts TIMESTAMP(6), n NUMBER, b BLOB, "+
+			"char_len VARCHAR2(10 CHAR), byte_len VARCHAR2(10 BYTE), "+
+			"nchar_len NCHAR(5), nvarchar_len NVARCHAR2(20), "+
+			"raw_len RAW(16), urowid_len UROWID(100))")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, strings.ToUpper(tbl))
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		wantType string
+		wantKind kind.Kind
+	}{
+		{"ts", "TIMESTAMP(6)", kind.Datetime},
+		{"n", "NUMBER", kind.Decimal},
+		{"b", "BLOB", kind.Bytes},
+		{"char_len", "VARCHAR2(10 CHAR)", kind.Text},
+		{"byte_len", "VARCHAR2(10 BYTE)", kind.Text},
+		{"nchar_len", "NCHAR(5)", kind.Text},
+		{"nvarchar_len", "NVARCHAR2(20)", kind.Text},
+		{"raw_len", "RAW(16)", kind.Bytes},
+		{"urowid_len", "UROWID(100)", kind.Text},
+	}
+	for _, tc := range tests {
+		col := findColumn(t, md, tc.name)
+		require.Equal(t, tc.wantType, col.ColumnType, tc.name)
+		require.Equal(t, tc.wantKind, col.Kind, tc.name)
+	}
+
+	// VECTOR columns require Oracle 23ai (23.4+). Older servers skip only
+	// this subtest; the declared-type assertions above still pass.
+	t.Run("vector", func(t *testing.T) {
+		t.Parallel()
+		if !th.DBSemverAtLeast(sakila.Ora, "v23.4.0") {
+			t.Skip("VECTOR columns require Oracle >= 23.4")
+		}
+		_, err := db.ExecContext(th.Context,
+			"ALTER TABLE "+tbl+" ADD (vec VECTOR(3, FLOAT32))")
+		require.NoError(t, err)
+
+		md, err := th.Open(src).TableMetadata(th.Context, strings.ToUpper(tbl))
+		require.NoError(t, err)
+		vec := findColumn(t, md, "vec")
+		// VECTOR_INFO keeps the dictionary form, including the default density.
+		require.Equal(t, "VECTOR(3,FLOAT32,DENSE)", vec.ColumnType)
+		require.Equal(t, kind.Unknown, vec.Kind)
+	})
 }
 
 // TestForeignKey_CompositeOrdering_Oracle verifies that a composite FK
