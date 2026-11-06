@@ -45,6 +45,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   Homebrew no longer builds bottles for Intel Macs, so `brew install sq` builds
   from source there. Intel Mac users can instead download the `macos-amd64` binary
   from [GitHub releases](https://github.com/neilotoole/sq/releases).
+- [`sq version -v`](https://sq.io/docs/cmd/version) now highlights the latest version when a
+  newer release is available. If the Homebrew lookup is slow or unreachable, `sq version` falls
+  back to the last successful result, if it is less than 24 hours old.
 
 ### Fixed
 
