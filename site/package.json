@@ -49,7 +49,7 @@
     "gen:syntax-css": "./generate-syntax-css.sh"
   },
   "devDependencies": {
-    "@babel/cli": "^8.0",
+    "@babel/cli": "^8.1",
     "@babel/core": "^8.0",
     "@babel/preset-env": "^8.0",
     "@fullhuman/postcss-purgecss": "^8.0",
