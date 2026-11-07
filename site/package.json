@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@babel/cli": "^8.1",
-    "@babel/core": "^8.0",
+    "@babel/core": "^8.1",
     "@babel/preset-env": "^8.0",
     "@fullhuman/postcss-purgecss": "^8.0",
     "@hyas/images": "^3",
