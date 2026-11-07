@@ -80,7 +80,7 @@ require (
 	// is significant functionality in usql that sq may take advantag eof in the
 	// future.
 	github.com/xo/usql v0.21.6
-	github.com/xuri/excelize/v2 v2.11.0
+	github.com/xuri/excelize/v2 v2.11.1
 	github.com/zalando/go-keyring v0.2.9-0.20260616202443-860ea660ec62
 	go.uber.org/atomic v1.12.0
 	go.uber.org/goleak v1.3.0
@@ -148,7 +148,7 @@ require (
 	github.com/otiai10/mint v1.6.3 // indirect
 	github.com/paulmach/orb v0.13.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.29 // indirect
-	github.com/richardlehane/mscfb v1.0.8 // indirect
+	github.com/richardlehane/mscfb v1.0.9 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
@@ -159,7 +159,7 @@ require (
 	github.com/vbauerster/cupwriter v0.0.5 // indirect
 	github.com/xo/tblfmt v0.18.3 // indirect
 	github.com/xo/terminfo v1.0.0 // indirect
-	github.com/xuri/efp v0.0.1 // indirect
+	github.com/xuri/efp v0.0.3-0.20260924042702-217b81952dec // indirect
 	github.com/xuri/nfp v0.0.2-0.20250530014748-2ddeb826f9a9 // indirect
 	github.com/yookoala/realpath v1.0.0 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
@@ -173,5 +173,5 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/image v0.46.0 // indirect
-	golang.org/x/net v0.61.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 )
