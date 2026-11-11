@@ -8,6 +8,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/timez"
+	"github.com/neilotoole/sq/libsq/core/vector"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -62,4 +63,17 @@ func TestEqual(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestVector(t *testing.T) {
+	v := vector.Vector{Elem: vector.F32, Values: []float64{1, 2}}
+	rec := record.Record{v}
+	_, err := record.Valid(rec)
+	require.NoError(t, err)
+
+	clone := record.Clone(rec)
+	require.True(t, record.Equal(rec, clone))
+	clone[0] = vector.Vector{Elem: vector.F32, Values: []float64{1, 3}}
+	require.False(t, record.Equal(rec, clone))
+	require.False(t, record.Equal(rec, record.Record{[]byte{1}}))
 }

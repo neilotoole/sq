@@ -85,7 +85,7 @@ func dbTypeNameFromKind(k kind.Kind) string {
 		return "DECIMAL(38,9)"
 	case kind.Text:
 		return "VARCHAR"
-	case kind.Bytes:
+	case kind.Bytes, kind.Vector:
 		return "BLOB"
 	case kind.Date:
 		return "DATE"

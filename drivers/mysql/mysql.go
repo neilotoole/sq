@@ -178,7 +178,7 @@ func (d *driveri) Renderer() *render.Renderer {
 }
 
 // RecordMeta implements driver.SQLDriver.
-func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ map[int]kind.Kind) (
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, _ driver.ResultHints) (
 	record.Meta, driver.NewRecordFunc, error,
 ) {
 	recMeta, err := recordMetaFromColumnTypes(ctx, colTypes)
@@ -586,7 +586,7 @@ func (d *driveri) getTableRecordMeta(ctx context.Context, db sqlz.DB, tblName st
 		return nil, err
 	}
 
-	destCols, _, err := d.RecordMeta(ctx, colTypes, nil)
+	destCols, _, err := d.RecordMeta(ctx, colTypes, driver.ResultHints{})
 	if err != nil {
 		return nil, err
 	}

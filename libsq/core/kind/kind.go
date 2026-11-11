@@ -42,6 +42,9 @@ const (
 
 	// Time indicates a time-only kind.
 	Time
+
+	// Vector indicates a vector kind: a fixed-dimension array of numbers.
+	Vector
 )
 
 // Kind models a generic data kind, which ultimately maps
@@ -95,6 +98,8 @@ func (k Kind) MarshalText() ([]byte, error) {
 		name = "time"
 	case Bytes:
 		name = "bytes"
+	case Vector:
+		name = "vector"
 	default:
 		return nil, errz.Errorf("invalid data kind '%d'", k)
 	}
@@ -139,6 +144,8 @@ func parse(text string) (Kind, error) {
 		return Time, nil
 	case "bytes":
 		return Bytes, nil
+	case "vector":
+		return Vector, nil
 	case "null":
 		return Null, nil
 	}

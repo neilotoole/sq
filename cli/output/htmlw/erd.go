@@ -188,6 +188,9 @@ func (w *metadataWriter) writeTableHeading(buf *bytes.Buffer, tbl *metadata.Tabl
 		summary += " · " + stringz.ByteSized(*tbl.Size, 1, "")
 	}
 	fmt.Fprintf(buf, "<p class=\"summary\">%s</p>\n", html.EscapeString(summary))
+	if tbl.Error != "" {
+		fmt.Fprintf(buf, "<p class=\"error\"><strong>Error:</strong> %s</p>\n", html.EscapeString(tbl.Error))
+	}
 	if tbl.Comment != "" {
 		fmt.Fprintf(buf, "<p class=\"comment\"><em>%s</em></p>\n", html.EscapeString(tbl.Comment))
 	}

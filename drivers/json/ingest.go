@@ -117,7 +117,7 @@ func getRecMeta(ctx context.Context, grip driver.Grip, tblDef *schema.Table) (re
 		return nil, err
 	}
 
-	destMeta, _, err := grip.SQLDriver().RecordMeta(ctx, colTypes, nil)
+	destMeta, _, err := grip.SQLDriver().RecordMeta(ctx, colTypes, driver.ResultHints{})
 	if err != nil {
 		return nil, err
 	}

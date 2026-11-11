@@ -78,6 +78,11 @@ make test-short
 
 Review `go mod why` / diff for unexpected indirect churn.
 
+A `mattn/go-sqlite3` bump fails `TestHeaderMatchesRuntime` in
+`drivers/sqlite3/internal/sqlitevec` until the vendored `sqlite3.h` is
+refreshed: rerun `scripts/update-sqlite-vec.sh <commit>` (use the current
+commit from that package's `README.md`) and commit the result.
+
 ## Phase 4 — Merge (consent-gated)
 
 After required checks pass:

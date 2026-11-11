@@ -221,7 +221,8 @@ func (w *metadataWriter) writeSourceOverview(buf *bytes.Buffer, md *metadata.Sou
 }
 
 // writeTableHeading writes a heading (at the given '#' level) for tbl,
-// followed by a one-line summary and the table comment (if any).
+// followed by a one-line summary, the table's error (if any), and the table
+// comment (if any).
 func writeTableHeading(buf *bytes.Buffer, tbl *metadata.Table, level int) {
 	fmt.Fprintf(buf, "%s %s\n\n", strings.Repeat("#", level), mdCode(tbl.Name))
 
@@ -234,6 +235,10 @@ func writeTableHeading(buf *bytes.Buffer, tbl *metadata.Table, level int) {
 		summary += " · " + stringz.ByteSized(*tbl.Size, 1, "")
 	}
 	buf.WriteString(summary + "\n")
+
+	if tbl.Error != "" {
+		fmt.Fprintf(buf, "\n**Error:** %s\n", escapeMarkdown(tbl.Error))
+	}
 
 	if tbl.Comment != "" {
 		fmt.Fprintf(buf, "\n_%s_\n", escapeMarkdown(tbl.Comment))

@@ -31,7 +31,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 		return "TIME"
 	case kind.Date:
 		return "DATE"
-	case kind.Bytes:
+	case kind.Bytes, kind.Vector:
 		return "BLOB"
 	default:
 		panic(fmt.Sprintf("unsupported data kind {%s}", knd))
@@ -54,6 +54,7 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 	kind.Date:     `DEFAULT '1970-01-01'`,
 	kind.Time:     `DEFAULT '00:00:00'`,
 	kind.Bytes:    ``,
+	kind.Vector:   ``,
 	kind.Unknown:  ``,
 }
 

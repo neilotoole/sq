@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -210,7 +211,17 @@ func execInspect(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		return ru.Writers.Metadata.TableMetadata(tblMeta)
+		if err = ru.Writers.Metadata.TableMetadata(tblMeta); err != nil {
+			return err
+		}
+
+		if tblMeta.Error != "" {
+			// The metadata was written; now signal failure via exit code.
+			writeTableWarnings(ru, src.Handle, []*metadata.Table{tblMeta})
+			return errz.WithExitCode(errz.ErrNoMsg, 1)
+		}
+
+		return nil
 	}
 
 	if cmdFlagIsSetTrue(cmd, flag.InspectCatalogs) {
@@ -291,7 +302,25 @@ func execInspect(cmd *cobra.Command, args []string) error {
 		srcMeta.DBProperties = nil
 	}
 
-	return ru.Writers.Metadata.SourceMetadata(srcMeta, !overviewOnly)
+	if err = ru.Writers.Metadata.SourceMetadata(srcMeta, !overviewOnly); err != nil {
+		return err
+	}
+
+	writeTableWarnings(ru, src.Handle, srcMeta.Tables)
+	return nil
+}
+
+// writeTableWarnings writes a "warning: @handle.table: error" line to stderr
+// for each table in tbls that has a non-empty Error. It is called after the
+// metadata is written, so that stdout stays clean for scripts.
+func writeTableWarnings(ru *run.Run, handle string, tbls []*metadata.Table) {
+	for _, tbl := range tbls {
+		if tbl == nil || tbl.Error == "" {
+			continue
+		}
+		fmt.Fprintf(ru.ErrOut, "%s %s.%s: %s\n",
+			ru.Writers.PrErr.Warning.Sprint("warning:"), handle, tbl.Name, tbl.Error)
+	}
 }
 
 // errBinaryFormatToTerminal returns a guard error when fm is a binary image

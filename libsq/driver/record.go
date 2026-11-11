@@ -20,6 +20,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/templatez"
+	"github.com/neilotoole/sq/libsq/core/vector"
 )
 
 // NewRecordFunc is invoked on a query result row (scanRow) to
@@ -27,9 +28,10 @@ import (
 // The provided scanRow arg is available for reuse after this
 // func returns.
 //
-// Ultimately rec should only contain:
+// Ultimately rec should only contain the types accepted by
+// record.Valid:
 //
-//	nil, *int64, *bool, *float64, *string, *[]byte, *time.Time
+//	nil, int64, float64, decimal.Decimal, bool, string, []byte, time.Time, vector.Vector
 //
 // Thus a func instance might unbox sql.NullString et al, or deal
 // with any driver specific quirks.
@@ -370,6 +372,11 @@ func DefaultInsertMungeFunc(destTbl string, destMeta record.Meta) InsertMungeFun
 			nullable, _ := destMeta[i].Nullable()
 			if rec[i] == nil && !nullable {
 				mungeSetZeroValue(i, rec, destMeta)
+				continue
+			}
+
+			if vec, ok := rec[i].(vector.Vector); ok {
+				rec[i] = vec.Raw
 				continue
 			}
 

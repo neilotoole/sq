@@ -14,6 +14,7 @@ import (
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/cli/output/commonw"
 	"github.com/neilotoole/sq/cli/output/yamlw"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/driver"
@@ -83,7 +84,7 @@ func (w *mdWriter) doTableMeta(md *metadata.Table) error {
 		md.Name,
 		md.TableType,
 		strconv.FormatInt(md.RowCount, 10),
-		strings.Join(colNames, ", "),
+		w.colsCell(md, strings.Join(colNames, ", ")),
 	}
 	rows = append(rows, row)
 
@@ -228,7 +229,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 				tbl.Name,
 				tbl.TableType,
 				strconv.FormatInt(tbl.RowCount, 10),
-				"0",
+				w.colsCell(tbl, "0"),
 				"", "", "", "", "", "", "",
 			})
 			continue
@@ -238,9 +239,9 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 			tbl.Name,
 			tbl.TableType,
 			strconv.FormatInt(tbl.RowCount, 10),
-			strconv.Itoa(len(tbl.Columns)),
+			w.colsCell(tbl, strconv.Itoa(len(tbl.Columns))),
 			tbl.Columns[0].Name,
-			tbl.Columns[0].BaseType,
+			colTypeCell(tbl.Columns[0]),
 			getPK(tbl.Columns[0]),
 			getAuto(tbl.Columns[0]),
 			formatFKRefs(fkByCol[tbl.Columns[0].Name]),
@@ -257,7 +258,7 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 				"",
 				"",
 				tbl.Columns[i].Name,
-				tbl.Columns[i].BaseType,
+				colTypeCell(tbl.Columns[i]),
 				getPK(tbl.Columns[i]),
 				getAuto(tbl.Columns[i]),
 				formatFKRefs(fkByCol[tbl.Columns[i].Name]),
@@ -268,7 +269,27 @@ func (w *mdWriter) printTablesVerbose(tbls []*metadata.Table) error {
 		}
 	}
 
-	return w.tbl.appendRowsAndRenderAll(context.TODO(), rows)
+	if err := w.tbl.appendRowsAndRenderAll(context.TODO(), rows); err != nil {
+		return err
+	}
+	return w.printErrorDefinitions(tbls)
+}
+
+// printErrorDefinitions prints the declaration of each table in tbls that
+// could not be read (see metadata.Table.Error), after the table output. For
+// such a table, such as a virtual table of an unknown module, the
+// declaration may be the only description sq has.
+func (w *mdWriter) printErrorDefinitions(tbls []*metadata.Table) error {
+	for _, tbl := range tbls {
+		if tbl.Error == "" || tbl.Definition == "" {
+			continue
+		}
+		if _, err := fmt.Fprintf(w.tbl.out, "\n%s: %s\n",
+			w.tbl.pr.String.Sprint(tbl.Name), w.tbl.pr.Faint.Sprint(tbl.Definition)); err != nil {
+			return errz.Err(err)
+		}
+	}
+	return nil
 }
 
 // outgoingFKByColumn returns a column-name → []*ForeignKey lookup for
@@ -436,6 +457,29 @@ func uniqueNamesByColumn(tbl *metadata.Table) map[string][]string {
 	return out
 }
 
+// colTypeCell returns the column TYPE cell for col: its base type, followed
+// by a vector column's distance metric, if any, and the column's role in
+// parentheses, if any. For example "float[384] cosine" or "text (auxiliary)".
+func colTypeCell(col *metadata.Column) string {
+	s := col.BaseType
+	if col.Vector != nil && col.Vector.Metric != "" {
+		s += " " + col.Vector.Metric
+	}
+	if col.Role != "" {
+		s += " (" + col.Role + ")"
+	}
+	return s
+}
+
+// colsCell returns the COLS cell for tbl: the error text styled with the
+// error color if the table has an Error, otherwise normal.
+func (w *mdWriter) colsCell(tbl *metadata.Table, normal string) string {
+	if tbl.Error == "" {
+		return normal
+	}
+	return w.tbl.pr.Error.Sprint(tbl.Error)
+}
+
 func (w *mdWriter) printTables(tables []*metadata.Table) error {
 	w.tbl.reset()
 
@@ -461,6 +505,9 @@ func (w *mdWriter) printTables(tables []*metadata.Table) error {
 			tbl.TableType,
 			strconv.FormatInt(tbl.RowCount, 10),
 			w.tbl.pr.String.Sprint(strings.Join(colNames, ", ")),
+		}
+		if tbl.Error != "" {
+			row[3] = w.colsCell(tbl, "")
 		}
 
 		rows = append(rows, row)

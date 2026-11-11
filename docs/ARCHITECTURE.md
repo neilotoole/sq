@@ -842,7 +842,7 @@ type SQLDriver interface {
 
     // Metadata operations
     TableColumnTypes(ctx context.Context, db sqlz.DB, tblName string) ([]*sql.ColumnType, error)
-    RecordMeta(ctx context.Context, colTypes []*sql.ColumnType) (record.Meta, NewRecordFunc, error)
+    RecordMeta(ctx context.Context, colTypes []*sql.ColumnType, hints ResultHints) (record.Meta, NewRecordFunc, error)
 
     // DDL operations
     CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Table) error
@@ -1406,8 +1406,8 @@ If the new type requires special scanning logic, update:
 **File:** `drivers/postgres/metadata.go` (or respective driver)
 
 ```go
-func (d *driveri) RecordMeta(ctx context.Context,
-                             colTypes []*sql.ColumnType) (record.Meta, NewRecordFunc, error) {
+func (d *driveri) RecordMeta(ctx context.Context, colTypes []*sql.ColumnType,
+                             hints driver.ResultHints) (record.Meta, NewRecordFunc, error) {
     // ... existing code
 
     for i, colType := range colTypes {

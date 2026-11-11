@@ -40,7 +40,7 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 		return "TIME"
 	case kind.Date:
 		return "DATE"
-	case kind.Bytes:
+	case kind.Bytes, kind.Vector:
 		return "BYTEA"
 	}
 }
@@ -57,6 +57,7 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive
 	kind.Date:     "DEFAULT 'epoch'::date",
 	kind.Time:     "DEFAULT '00:00:00'::time",
 	kind.Bytes:    "DEFAULT ''::bytea",
+	kind.Vector:   "DEFAULT ''::bytea",
 	kind.Unknown:  `DEFAULT ''`,
 }
 
