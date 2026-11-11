@@ -16,7 +16,7 @@ import (
 func NewRegistry(log *slog.Logger) *Registry {
 	return &Registry{
 		log:       log,
-		providers: map[drivertype.Type]Provider{},
+		providers: make(map[drivertype.Type]Provider),
 	}
 }
 

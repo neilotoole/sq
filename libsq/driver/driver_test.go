@@ -627,7 +627,7 @@ func TestRegistry_DriversMetadata_All(t *testing.T) {
 	metas := reg.DriversMetadata()
 	require.Equal(t, len(metas), len(reg.Drivers()))
 
-	m := map[drivertype.Type]driver.Metadata{}
+	m := make(map[drivertype.Type]driver.Metadata, len(metas))
 	for i := range metas {
 		m[metas[i].Type] = metas[i]
 	}
