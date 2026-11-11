@@ -42,8 +42,7 @@ import (
 //     defense against a false tls=true.
 func probeIndicatesTLS(resp *http.Response, body []byte, err error) bool {
 	if err != nil {
-		var rec tls.RecordHeaderError
-		if errors.As(err, &rec) {
+		if _, ok := errors.AsType[tls.RecordHeaderError](err); ok {
 			return true
 		}
 		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {

@@ -77,6 +77,7 @@ import (
 	"github.com/neilotoole/sq/libsq/driver/dialect"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
+	"github.com/neilotoole/sq/libsq/source/location"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 )
 
@@ -250,10 +251,10 @@ func placeholders(numCols, numRows int) string {
 	rows := make([]string, numRows)
 
 	var sb strings.Builder
-	for i := 0; i < numRows; i++ {
+	for i := range numRows {
 		sb.Reset()
 		sb.WriteRune('(')
-		for j := 0; j < numCols; j++ {
+		for j := range numCols {
 			sb.WriteRune('?')
 			if j < numCols-1 {
 				sb.WriteString(driver.Comma)
@@ -386,8 +387,8 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, erro
 		log.Debug(
 			"Applied default ClickHouse port at connection time",
 			lga.Src, src.Handle,
-			lga.Before, src.Location,
-			lga.After, loc,
+			lga.Before, location.Redact(src.Location),
+			lga.After, location.Redact(loc),
 			lga.Default, defaultPort,
 		)
 	}
@@ -437,8 +438,8 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 		d.log.Debug(
 			"Applied default ClickHouse port to source location",
 			lga.Src, src.Handle,
-			lga.Before, src.Location,
-			lga.After, loc,
+			lga.Before, location.Redact(src.Location),
+			lga.After, location.Redact(loc),
 			lga.Default, defaultPort,
 		)
 		src = src.Clone()

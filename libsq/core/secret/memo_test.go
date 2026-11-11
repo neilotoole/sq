@@ -95,11 +95,9 @@ func TestRegistry_ConcurrentResolveSingleflight(t *testing.T) {
 	errs := make([]error, goroutines)
 	vals := make([]string, goroutines)
 	for i := range goroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			vals[i], errs[i] = reg.Expand(ctx, "${test:pw}")
-		}()
+		})
 	}
 	wg.Wait()
 

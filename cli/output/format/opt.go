@@ -38,31 +38,17 @@ func (op Opt) Process(o options.Options) (options.Options, error) {
 		return o, nil
 	}
 
-	// v should be a string
-	switch v := v.(type) {
-	case string:
-		// continue below
-	case Format:
+	if _, isFormat := v.(Format); isFormat {
 		return o, nil
-	default:
-		return nil, errz.Errorf("option {%s} should be {%T} or {%T} but got {%T}: %v",
-			key, Format(""), "", v, v)
 	}
 
-	var s string
-	s, ok = v.(string)
-	if !ok {
-		return nil, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
-			key, s, v, v)
-	}
-
-	var f Format
-	if err := f.UnmarshalText([]byte(s)); err != nil {
-		return nil, errz.Wrapf(err, "option {%s} is not a valid {%T}", key, f)
+	f, err := op.convert(v)
+	if err != nil {
+		return nil, err
 	}
 
 	if op.validFn != nil {
-		if err := op.validFn(f); err != nil {
+		if err = op.validFn(f); err != nil {
 			return nil, err
 		}
 	}
@@ -70,6 +56,26 @@ func (op Opt) Process(o options.Options) (options.Options, error) {
 	o = o.Clone()
 	o[key] = f
 	return o, nil
+}
+
+// convert coerces v into a Format. A Format reaches the config only as its
+// string form, so Get needs this to avoid silently returning op's default for
+// an Options that has not been through Registry.Process. See #1209.
+func (op Opt) convert(v any) (Format, error) {
+	key := op.Key()
+	switch v := v.(type) {
+	case Format:
+		return v, nil
+	case string:
+		var f Format
+		if err := f.UnmarshalText([]byte(v)); err != nil {
+			return "", errz.Wrapf(err, "option {%s} is not a valid {%T}", key, f)
+		}
+		return f, nil
+	default:
+		return "", errz.Errorf("option {%s} should be {%T} or {%T} but got {%T}: %v",
+			key, Format(""), "", v, v)
+	}
 }
 
 // GetAny implements options.Opt.
@@ -95,13 +101,12 @@ func (op Opt) Get(o options.Options) Format {
 	}
 
 	v, ok := o[op.Key()]
-	if !ok {
+	if !ok || v == nil {
 		return op.defaultVal
 	}
 
-	var f Format
-	f, ok = v.(Format)
-	if !ok {
+	f, err := op.convert(v)
+	if err != nil {
 		return op.defaultVal
 	}
 

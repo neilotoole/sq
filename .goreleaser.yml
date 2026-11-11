@@ -56,27 +56,6 @@ release:
   draft: false
   prerelease: auto
 
-brews:
-  - homepage: "https://github.com/neilotoole/sq"
-    description: "sq data wrangler"
-    license: MIT
-    repository:
-      owner: neilotoole
-      name: homebrew-sq
-
-    commit_author:
-      name: neilotoole
-      email: neilotoole@apache.org
-
-    install: |
-      bin.install "sq"
-      bash_completion.install "completions/sq.bash" => "sq"
-      zsh_completion.install "completions/sq.zsh" => "_sq"
-      fish_completion.install "completions/sq.fish"
-      man1.install "manpages/sq.1.gz"
-    test: |
-      system "#{bin}/sq --version"
-
 scoops:
   - repository:
       owner: neilotoole
@@ -126,7 +105,7 @@ nfpms:
         file_info:
           mode: 0644
 
-furies:
+gemfury:
   # Upload deb and rpm to fury.io. Requires that envar $FURY_TOKEN be set.
   - account: neilotoole
 

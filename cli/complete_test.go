@@ -453,7 +453,7 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 			tr := testrun.New(context.Background(), t, nil).Hush()
 
 			for _, handle := range tc.srcs {
-				src := testh.NewActorSource(t, handle, true)
+				src := testh.NewActorSource(t, handle)
 				tr.Add(*src)
 			}
 

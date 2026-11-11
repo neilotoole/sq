@@ -22,10 +22,16 @@
 package clickhouse
 
 import (
+	"bytes"
+	"context"
+	"log/slog"
 	"testing"
 
 	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neilotoole/sq/libsq/core/lg"
+	"github.com/neilotoole/sq/libsq/source"
 )
 
 // Exported variables for testing unexported functions from external test packages.
@@ -393,4 +399,60 @@ func TestParseSemver(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+// TestValidateSource_DoesNotLogPassword verifies that applying the default
+// ClickHouse port does not emit the source location's inline password to the
+// log. ValidateSource logs the before/after locations, and an inline password
+// survives locationWithDefaultPort, so both values must be redacted.
+//
+// See CodeQL go/clear-text-logging alerts 992 and 993.
+func TestValidateSource_DoesNotLogPassword(t *testing.T) {
+	const passwd = "hunter2"
+
+	buf := &bytes.Buffer{}
+	d := &driveri{log: slog.New(slog.NewJSONHandler(buf, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))}
+
+	src := &source.Source{
+		Handle:   "@ch",
+		Type:     Type,
+		Location: "clickhouse://alice:" + passwd + "@localhost/sakila",
+	}
+
+	got, err := d.ValidateSource(src)
+	require.NoError(t, err)
+	// Sanity check: the default port was applied, so the log call ran.
+	require.Contains(t, got.Location, ":9000")
+	require.NotContains(t, buf.String(), passwd, "password leaked to log")
+}
+
+// TestDoOpen_DoesNotLogPassword verifies that the connection-time
+// default-port fallback in doOpen does not emit the source location's inline
+// password to the log. This is the same leak as
+// [TestValidateSource_DoesNotLogPassword], on the path taken by legacy sources
+// stored before ValidateSource applied the default port.
+func TestDoOpen_DoesNotLogPassword(t *testing.T) {
+	const passwd = "hunter2"
+
+	buf := &bytes.Buffer{}
+	log := slog.New(slog.NewJSONHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	ctx := lg.NewContext(context.Background(), log)
+
+	d := &driveri{log: log}
+	src := &source.Source{
+		Handle:   "@ch",
+		Type:     Type,
+		Location: "clickhouse://alice:" + passwd + "@localhost/sakila",
+	}
+
+	// sql.Open is lazy, so this does not contact a server.
+	db, err := d.doOpen(ctx, src)
+	if db != nil {
+		t.Cleanup(func() { _ = db.Close() })
+	}
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), "Applied default ClickHouse port at connection time")
+	require.NotContains(t, buf.String(), passwd, "password leaked to log")
 }

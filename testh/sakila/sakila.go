@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/testh/fixtsrv"
 )
 
 // Sakila source handles.
@@ -224,17 +225,23 @@ func AllTblsViews() []string {
 	}
 }
 
-// URLs for sakila resources. These point at the repository on GitHub rather
-// than sq.io so that CI depends only on GitHub being reachable; sq.io serves
-// the same files from site/static/testdata for user-facing examples.
-const (
-	testdataBaseURL = "https://raw.githubusercontent.com/neilotoole/sq/master/site/static/testdata"
+// URLs for sakila resources. These are served by the local fixture server
+// (testh/fixtsrv) over 127.0.0.1, not by a live host, so the suite does not
+// depend on network reachability. See gh #1158.
 
-	ActorCSVURL    = testdataBaseURL + "/actor.csv"
-	ActorCSVSize   = 7641
-	ExcelSubsetURL = testdataBaseURL + "/sakila_subset.xlsx"
-	ExcelURL       = testdataBaseURL + "/sakila.xlsx"
-)
+// ActorCSVURL returns the fixture server URL for actor.csv.
+func ActorCSVURL() string { return fixtsrv.URL("actor.csv") }
+
+// ActorCSVSize returns the size in bytes of the served actor.csv. It stats
+// the file rather than returning a constant, so regenerating the fixture
+// needs no edit here.
+func ActorCSVSize() int { return fixtsrv.Size("actor.csv") }
+
+// ExcelSubsetURL returns the fixture server URL for sakila_subset.xlsx.
+func ExcelSubsetURL() string { return fixtsrv.URL("sakila_subset.xlsx") }
+
+// ExcelURL returns the fixture server URL for sakila.xlsx.
+func ExcelURL() string { return fixtsrv.URL("sakila.xlsx") }
 
 // Paths for sakila resources.
 const (

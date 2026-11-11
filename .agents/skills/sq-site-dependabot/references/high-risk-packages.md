@@ -46,6 +46,11 @@ ecosystem**, not this site flow, so they are out of scope here.
 
 - `@netlify/plugin-lighthouse` — failed plugin can fail deploy preview checks
   even when `make ci` passes.
+- Bumping `@netlify/plugin-lighthouse` may change the `lighthouse` version it
+  depends on. `site/package.json` pins `lighthouse` via `overrides` so that
+  `make site-lighthouse` runs what Netlify runs; move the override to match, or
+  the override silently holds the plugin on an older Lighthouse. Scores are not
+  comparable across majors (same page: SEO 93 on 9.6.3, 69 on 13.4.1).
 - `netlify-plugin-submit-sitemap` — production-oriented; preview still runs
   plugin hooks — watch build log for plugin errors.
 

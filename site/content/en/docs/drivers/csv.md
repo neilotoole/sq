@@ -65,8 +65,8 @@ the source's data is accessed via the synthetic `.data` table. For example:
 ```shell
 $ sq @actor_csv.data
 actor_id  first_name   last_name     last_update
-1         PENELOPE     GUINESS       2020-02-15T06:59:28Z
-2         NICK         WAHLBERG      2020-02-15T06:59:28Z
+1         PENELOPE     GUINESS       2006-02-15T04:34:33Z
+2         NICK         WAHLBERG      2006-02-15T04:34:33Z
 ```
 
 ## Delimiters

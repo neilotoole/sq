@@ -14,7 +14,7 @@ import (
 // AUTO_INCREMENT, comment) is preserved verbatim.
 func extractColumnDef(showCreate, col string) (string, error) {
 	prefix := stringz.BacktickQuote(col) // `col`
-	for _, line := range strings.Split(showCreate, "\n") {
+	for line := range strings.SplitSeq(showCreate, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if !strings.HasPrefix(trimmed, prefix+" ") {
 			continue

@@ -1,10 +1,31 @@
 # Architecture
 
-This document provides high-level guidance on the key `sq` concepts.
+This document describes how `sq` is put together, with particular attention to SQL dialects and
+the type system, which are the primary extension points for adding new database support.
 
-This is effectively an ERD (Entity Relationship Diagram).
+`sq` supports eight SQL drivers (`sqlite3`, `rqlite`, `duckdb`, `postgres`, `sqlserver`, `mysql`,
+`clickhouse`, `oracle`) and six document types (`csv`, `tsv`, `json`, `jsona`, `jsonl`, `xlsx`).
+The full set is enumerated in
+[`libsq/source/drivertype`](../libsq/source/drivertype/drivertype.go).
+
+## Table of Contents
+
+1. [Object Model](#object-model)
+2. [Project Structure](#project-structure)
+3. [SQL Dialects](#sql-dialects)
+4. [Data Type System](#data-type-system)
+5. [Driver Framework](#driver-framework)
+6. [Query Building & Rendering](#query-building--rendering)
+7. [Extension Guide](#extension-guide)
+8. [Key Design Patterns](#key-design-patterns)
+9. [File Reference](#file-reference)
 
 ---
+
+## Object Model
+
+The diagram below is effectively an ERD (Entity Relationship Diagram) of the key `sq` types and
+how they relate.
 
 ```mermaid
 classDiagram
@@ -126,25 +147,36 @@ classDiagram
             +Placeholders func
             +Enquote func
             +int MaxBatchValues
+            +bool SingleWriter
             +bool IntBool
             +bool Catalog
+            +bool IsRowsAffectedUnsupported
         }
     }
 
     namespace drivers {
-        class `postgres.driveri` {
-            <<SQLDriver>>
-        }
-        class `mysql.driveri` {
-            <<SQLDriver>>
-        }
         class `sqlite3.driveri` {
+            <<SQLDriver>>
+        }
+        class `rqlite.driveri` {
+            <<SQLDriver>>
+        }
+        class `duckdb.driveri` {
+            <<SQLDriver>>
+        }
+        class `postgres.driveri` {
             <<SQLDriver>>
         }
         class `sqlserver.driveri` {
             <<SQLDriver>>
         }
+        class `mysql.driveri` {
+            <<SQLDriver>>
+        }
         class `clickhouse.driveri` {
+            <<SQLDriver>>
+        }
+        class `oracle.driveri` {
             <<SQLDriver>>
         }
         class `csv.driveri` {
@@ -352,11 +384,14 @@ classDiagram
     `driver.Grip` ..> `metadata.Source` : returns
 
     %% Driver implementation relationships
-    `postgres.driveri` ..|> `driver.SQLDriver` : implements
-    `mysql.driveri` ..|> `driver.SQLDriver` : implements
     `sqlite3.driveri` ..|> `driver.SQLDriver` : implements
+    `rqlite.driveri` ..|> `driver.SQLDriver` : implements
+    `duckdb.driveri` ..|> `driver.SQLDriver` : implements
+    `postgres.driveri` ..|> `driver.SQLDriver` : implements
     `sqlserver.driveri` ..|> `driver.SQLDriver` : implements
+    `mysql.driveri` ..|> `driver.SQLDriver` : implements
     `clickhouse.driveri` ..|> `driver.SQLDriver` : implements
+    `oracle.driveri` ..|> `driver.SQLDriver` : implements
     `csv.driveri` ..|> `driver.Driver` : implements
     `json.driveri` ..|> `driver.Driver` : implements
     `xlsx.Driver` ..|> `driver.Driver` : implements
@@ -407,34 +442,12 @@ classDiagram
 
 ---
 
-## SQ Architecture Documentation
-
-## Overview
-
-**SQ** is a data wrangler CLI tool that provides jq-style access to structured data sources
-including SQL databases (PostgreSQL, MySQL, SQLite, SQL Server) and document formats
-(CSV, JSON, Excel, etc.). It supports cross-source joins and query execution.
-
-This document focuses on the architecture with special attention to SQL dialects and data
-types, which are the primary extension points for adding new database support.
-
-## Table of Contents
-
-1. [Project Structure](#project-structure)
-2. [SQL Dialects](#sql-dialects)
-3. [Data Type System](#data-type-system)
-4. [Driver Framework](#driver-framework)
-5. [Query Building & Rendering](#query-building--rendering)
-6. [Extension Guide](#extension-guide)
-
----
-
 ## Project Structure
 
 ```text
 sq/
 ├── cli/                          # Command-line interface & commands
-│   ├── run.go                    # Bootstrap & driver initialization (lines 276-341)
+│   ├── run.go                    # Bootstrap & driver registration (FinishRunInit)
 │   ├── cmd_*.go                  # Individual command implementations
 │   ├── config/                   # Configuration management
 │   └── output/                   # Output formatting
@@ -463,36 +476,61 @@ sq/
 │   │
 │   └── source/                   # Source definitions
 │       └── drivertype/           # Driver type constants
-│           └── drivertype.go     # Defines: SQLite, Pg, MySQL, MSSQL, etc.
+│           └── drivertype.go     # Defines: SQLite, Rqlite, DuckDB, Pg, MSSQL, etc.
 │
-├── drivers/                      # Database driver implementations
+├── drivers/                      # Driver implementations
+│   ├── sqlite3/                  # SQLite driver (embedded SQL)
+│   │   ├── sqlite3.go            # Provider, driver & Dialect
+│   │   └── metadata.go           # Both type mappings (kindFromDBTypeName, DBTypeForKind)
+│   │
+│   ├── duckdb/                   # DuckDB driver (embedded SQL)
+│   │   ├── duckdb.go             # Provider & driver
+│   │   ├── render.go             # Dialect
+│   │   ├── metadata.go           # DBType→Kind (kindFromDBTypeName)
+│   │   └── alter.go              # Kind→DBType (dbTypeNameFromKind)
+│   │
+│   ├── rqlite/                   # rqlite driver (SQLite SQL over HTTP)
+│   │   ├── rqlite.go             # Provider, driver & Dialect
+│   │   └── metadata.go           # Both type mappings (mirrors sqlite3)
+│   │
 │   ├── postgres/                 # PostgreSQL driver
-│   │   ├── postgres.go           # Main driver & dialect (lines 91-102)
-│   │   ├── metadata.go           # Schema extraction & type mapping (lines 29-91)
-│   │   └── render.go             # Kind→DBType conversion (lines 22-47)
+│   │   ├── postgres.go           # Provider, driver & Dialect
+│   │   ├── metadata.go           # DBType→Kind (kindFromDBTypeName)
+│   │   └── render.go             # Kind→DBType (dbTypeNameFromKind)
 │   │
 │   ├── mysql/                    # MySQL driver
-│   │   ├── mysql.go              # Main driver & dialect (lines 111-123)
-│   │   ├── metadata.go           # Type mapping
-│   │   └── render.go             # Kind→DBType conversion (lines 16-39)
-│   │
-│   ├── sqlite3/                  # SQLite driver
-│   │   ├── sqlite3.go            # Main driver & dialect
-│   │   └── metadata.go           # Type mapping & conversion (lines 100-265)
+│   │   ├── mysql.go              # Provider, driver & Dialect
+│   │   ├── metadata.go           # DBType→Kind
+│   │   └── render.go             # Kind→DBType
 │   │
 │   ├── sqlserver/                # SQL Server driver
-│   │   ├── sqlserver.go          # Main driver & dialect
-│   │   ├── metadata.go           # Type mapping
-│   │   └── render.go             # Kind→DBType conversion
+│   │   ├── sqlserver.go          # Provider, driver & Dialect
+│   │   ├── metadata.go           # DBType→Kind
+│   │   └── render.go             # Kind→DBType
 │   │
-│   ├── csv/                      # CSV/TSV driver (non-SQL)
-│   ├── json/                     # JSON driver (non-SQL)
-│   ├── xlsx/                     # Excel driver (non-SQL)
+│   ├── clickhouse/               # ClickHouse driver
+│   │   ├── clickhouse.go         # Provider, driver & Dialect
+│   │   ├── metadata.go           # DBType→Kind (kindFromClickHouseType)
+│   │   └── render.go             # Kind→DBType
+│   │
+│   ├── oracle/                   # Oracle driver
+│   │   ├── oracle.go             # Provider, driver & Dialect
+│   │   ├── render.go             # Both type mappings & SQL rendering
+│   │   └── metadata.go           # Schema extraction (data dictionary queries)
+│   │
+│   ├── csv/                      # CSV/TSV driver (document)
+│   ├── json/                     # JSON/JSONA/JSONL driver (document)
+│   ├── xlsx/                     # Excel driver (document)
 │   └── userdriver/               # User-defined driver framework
 │       └── xmlud/                # XML user driver implementation
 │
 └── testh/                        # Test helpers
 ```
+
+> [!NOTE]
+> SQLite and DuckDB are the two embedded SQL drivers: they read a local file and need no server.
+> rqlite executes SQLite SQL but is a network service, so it is a client/server driver. See
+> [DRIVERS.md](./DRIVERS.md).
 
 ---
 
@@ -500,152 +538,107 @@ sq/
 
 ### Dialect Definition
 
-**Location:** `libsq/driver/dialect/dialect.go`
+**Location:** [`libsq/driver/dialect/dialect.go`](../libsq/driver/dialect/dialect.go)
 
-The `Dialect` struct defines SQL dialect-specific behavior for each database:
+The `Dialect` struct defines SQL dialect-specific behavior for each database. Each SQL driver
+returns one from its `Dialect()` method.
 
 ```go
 type Dialect struct {
-    // Type identifies the database (Pg, MySQL, SQLite, etc.)
-    Type drivertype.Type
-
-    // Placeholders generates SQL placeholder strings
-    // e.g., PostgreSQL: ($1, $2, $3), MySQL: (?, ?, ?)
+    // Placeholders returns a string a SQL placeholders string.
+    // For example "(?, ?, ?)" or "($1, $2, $3), ($4, $5, $6)".
     Placeholders func(numCols, numRows int) string
 
-    // Enquote quotes/escapes identifiers
-    // PostgreSQL: double-quote, MySQL: backtick
+    // Enquote quotes and escapes an identifier (such as a table or
+    // column name). Typically double-quote, although MySQL and
+    // ClickHouse use backtick.
     Enquote func(string) string
 
-    // Ops maps SLQ operators to SQL equivalents
-    // e.g., "==" -> "=", "&&" -> "AND"
+    // ExecModeFor returns the ExecMode for a SQL string. The default
+    // implementation is DefaultExecModeFor, which handles standard SQL.
+    ExecModeFor func(sql string) (ExecMode, error)
+
+    // Ops maps an SLQ operator (e.g. "==" or "!=") to its SQL rendering.
+    // The default implementation is DefaultOps.
     Ops map[string]string
 
-    // Joins defines supported JOIN types
+    // Type is the dialect's driver type.
+    Type drivertype.Type
+
+    // Joins is the set of JOIN types that the dialect supports. Not all
+    // drivers support each join type: MySQL lacks jointype.FullOuter.
     Joins []jointype.Type
 
-    // MaxBatchValues limits values in batch insert
+    // MaxBatchValues is the maximum number of values in a batch insert.
     MaxBatchValues int
 
-    // IntBool indicates if BOOLEAN is handled as INT
+    // SingleWriter indicates that a database of this dialect permits only
+    // one write transaction at a time, so writers must be serialized.
+    SingleWriter bool
+
+    // IntBool is true if BOOLEAN is handled as an INT by the DB driver.
     IntBool bool
 
-    // Catalog indicates if DB supports catalog concept
+    // Catalog indicates that the database supports the catalog concept,
+    // in addition to schema.
     Catalog bool
+
+    // IsRowsAffectedUnsupported indicates that this dialect does not
+    // reliably report rows affected via sql.Result.RowsAffected().
+    IsRowsAffectedUnsupported bool
 }
 ```
 
 ### Dialect Implementations
 
-#### PostgreSQL
+Every SQL driver implements `Dialect()`. The PostgreSQL implementation is representative:
 
-**Location:** `drivers/postgres/postgres.go:91-102`
-
-```go
-func (d *driveri) Dialect() dialect.Dialect {
-    return dialect.Dialect{
-        Type:           drivertype.Pg,
-        Placeholders:   placeholders,        // Uses $1, $2, $3...
-        Enquote:        stringz.DoubleQuote, // "identifier"
-        MaxBatchValues: 1000,
-        Ops:            dialect.DefaultOps(),
-        Joins:          jointype.All(),      // All join types supported
-        Catalog:        true,                // Supports catalog
-    }
-}
-
-func placeholders(numCols, numRows int) string {
-    // Generates: ($1, $2, $3), ($4, $5, $6), ...
-    rows := make([]string, numRows)
-    n := 1
-    for i := 0; i < numRows; i++ {
-        cols := make([]string, numCols)
-        for j := 0; j < numCols; j++ {
-            cols[j] = "$" + strconv.Itoa(n)
-            n++
-        }
-        rows[i] = "(" + strings.Join(cols, ", ") + ")"
-    }
-    return strings.Join(rows, ", ")
-}
-```
-
-#### MySQL
-
-**Location:** `drivers/mysql/mysql.go:111-123`
+**Location:** [`drivers/postgres/postgres.go`](../drivers/postgres/postgres.go), `driveri.Dialect`
 
 ```go
 func (d *driveri) Dialect() dialect.Dialect {
-    return dialect.Dialect{
-        Type:           drivertype.MySQL,
-        Placeholders:   placeholders,          // Uses ?
-        Enquote:        stringz.BacktickQuote, // `identifier`
-        IntBool:        true,                  // BOOLEAN as INT
-        MaxBatchValues: 250,
-        Ops:            dialect.DefaultOps(),
-        Joins:          lo.Without(jointype.All(), jointype.FullOuter),
-        Catalog:        false,                 // No catalog concept
-    }
-}
-
-func placeholders(numCols, numRows int) string {
-    // Generates: (?, ?, ?), (?, ?, ?), ...
-    rows := make([]string, numRows)
-    for i := 0; i < numRows; i++ {
-        rows[i] = "(" + stringz.RepeatJoin("?", numCols, ",") + ")"
-    }
-    return strings.Join(rows, ",")
+	return dialect.Dialect{
+		Type:           drivertype.Pg,
+		Placeholders:   placeholders,
+		Enquote:        stringz.DoubleQuote,
+		MaxBatchValues: 1000,
+		Ops:            dialect.DefaultOps(),
+		ExecModeFor:    dialect.DefaultExecModeFor,
+		Joins:          jointype.All(),
+		Catalog:        true,
+	}
 }
 ```
 
-#### SQLite
-
-**Location:** `drivers/sqlite3/sqlite3.go`
-
-```go
-func (d *driveri) Dialect() dialect.Dialect {
-    return dialect.Dialect{
-        Type:           drivertype.SQLite,
-        Placeholders:   placeholders,          // Uses ?
-        Enquote:        stringz.DoubleQuote,   // "identifier"
-        MaxBatchValues: 500,
-        Ops:            dialect.DefaultOps(),
-        Joins:          lo.Without(jointype.All(), jointype.FullOuter),
-        Catalog:        false,                 // No catalog support
-    }
-}
-```
-
-#### SQL Server
-
-**Location:** `drivers/sqlserver/sqlserver.go`
-
-```go
-func (d *driveri) Dialect() dialect.Dialect {
-    return dialect.Dialect{
-        Type:           drivertype.MSSQL,
-        Placeholders:   placeholders,          // Uses @p1, @p2...
-        Enquote:        enquote,               // [identifier]
-        MaxBatchValues: 1000,
-        Ops:            dialect.DefaultOps(),
-        Joins:          jointype.All(),
-        Catalog:        true,
-    }
-}
-
-func enquote(s string) string {
-    return "[" + s + "]"
-}
-```
+The other seven follow the same shape; read them in `drivers/{driver}/`. The table below is the
+authoritative cross-driver comparison.
 
 ### Dialect Comparison Table
 
-| Database   | Location             | Type Const          | Placeholders  | Quote   | IntBool | Catalog | Full Outer Join |
-| ---------- | -------------------- | ------------------- | ------------- | ------- | ------- | ------- | --------------- |
-| PostgreSQL | `drivers/postgres/`  | `drivertype.Pg`     | `$1, $2...`   | `"`     | No      | Yes     | Yes             |
-| MySQL      | `drivers/mysql/`     | `drivertype.MySQL`  | `?`           | `` ` `` | Yes     | No      | No              |
-| SQLite     | `drivers/sqlite3/`   | `drivertype.SQLite` | `?`           | `"`     | No      | No      | No              |
-| SQL Server | `drivers/sqlserver/` | `drivertype.MSSQL`  | `@p1, @p2...` | `[ ]`   | No      | Yes     | Yes             |
+| Driver     | Package               | Type Const              | Placeholders  | Enquote | Max Batch | IntBool | Catalog | Full Outer Join |
+| ---------- | --------------------- | ----------------------- | ------------- | ------- | --------- | ------- | ------- | --------------- |
+| SQLite     | `drivers/sqlite3/`    | `drivertype.SQLite`     | `?`           | `"`     | 500       | No      | No      | Yes             |
+| rqlite     | `drivers/rqlite/`     | `drivertype.Rqlite`     | `?`           | `"`     | 500       | No      | No      | Yes             |
+| DuckDB     | `drivers/duckdb/`     | `drivertype.DuckDB`     | `$1, $2...`   | `"`     | 1000      | No      | Yes     | Yes             |
+| PostgreSQL | `drivers/postgres/`   | `drivertype.Pg`         | `$1, $2...`   | `"`     | 1000      | No      | Yes     | Yes             |
+| SQL Server | `drivers/sqlserver/`  | `drivertype.MSSQL`      | `@p1, @p2...` | `"`     | 1000      | No      | Yes     | Yes             |
+| MySQL      | `drivers/mysql/`      | `drivertype.MySQL`      | `?`           | `` ` `` | 250       | Yes     | No      | No              |
+| ClickHouse | `drivers/clickhouse/` | `drivertype.ClickHouse` | `?`           | `` ` `` | 10000     | No      | No      | Yes             |
+| Oracle     | `drivers/oracle/`     | `drivertype.Oracle`     | `:1, :2...`   | `"`     | 1000      | Yes     | No      | Yes             |
+
+#### Dialect outliers
+
+Three fields are set by exactly one driver each. They are easy to miss when adding a driver:
+
+- **`SingleWriter`** is true only for **SQLite**. Its rollback journal serializes writers, so
+  concurrent table copies (such as those populating a cross-source join DB) otherwise contend on
+  the file lock and fail with "database is locked" ([#975](https://github.com/neilotoole/sq/issues/975)).
+- **`IsRowsAffectedUnsupported`** is true only for **ClickHouse**, which always returns 0 from
+  `sql.Result.RowsAffected()` for INSERT, UPDATE and DELETE because of protocol-level limits.
+  Callers must read a 0 from `ExecSQL` as "unknown", not "zero rows".
+- **`Enquote`** is a plain `stringz.DoubleQuote` for every driver except MySQL and ClickHouse
+  (backtick) and **Oracle**, which double-quotes _and_ uppercases, because Oracle stores quoted
+  identifiers case-sensitively while folding unquoted ones to uppercase.
 
 ---
 
@@ -653,268 +646,130 @@ func enquote(s string) string {
 
 ### Generic Type Abstraction (Kind)
 
-**Location:** `libsq/core/kind/kind.go`
+**Location:** [`libsq/core/kind/kind.go`](../libsq/core/kind/kind.go)
 
-The `Kind` type provides a generic abstraction over all data types. This is the canonical
-type system that all drivers map to/from:
+The `Kind` type provides a generic abstraction over all data types. This is the canonical type
+system that all drivers map to and from:
 
 ```go
 type Kind int
 
 const (
-    Unknown   Kind = 0  // Unknown type
-    Null             1  // NULL
-    Text             2  // Text/String
-    Int              3  // Integer
-    Float            4  // Floating point
-    Decimal          5  // Decimal/BigDecimal
-    Bool             6  // Boolean
-    Datetime         7  // Date + Time
-    Date             8  // Date only
-    Time             9  // Time only
-    Bytes           10  // Bytes/BLOB
+    Unknown  Kind = iota // 0: unknown kind
+    Null                 // 1: NULL
+    Text                 // 2: text/string
+    Int                  // 3: integer
+    Float                // 4: floating point
+    Decimal              // 5: decimal
+    Bool                 // 6: boolean
+    Bytes                // 7: bytes/BLOB
+    Datetime             // 8: date + time
+    Date                 // 9: date only
+    Time                 // 10: time only
 )
 ```
 
 ### Type Mapping Architecture
 
-Each driver implements **bidirectional type mapping**:
+Each SQL driver implements **bidirectional type mapping**:
 
-1. **DB Type → Kind**: Used during schema inspection
-2. **Kind → DB Type**: Used during table creation
+1. **DB Type → Kind**: used during schema inspection, typically `kindFromDBTypeName`.
+2. **Kind → DB Type**: used during table creation, typically `dbTypeNameFromKind`.
 
-#### PostgreSQL Type Mapping
+Two drivers deviate from those names: ClickHouse uses `kindFromClickHouseType`, and SQLite and
+rqlite both export `DBTypeForKind` (the sqlite3 one is called by other packages). See the
+[file reference](#file-reference) for where each lives.
 
-##### DB Type → Kind
+#### Worked example: PostgreSQL
 
-**Location:** `drivers/postgres/metadata.go:29-91`
+**DB Type → Kind.** The driver receives a database type name from the `database/sql` column
+metadata and maps it onto a `Kind`. Excerpt from
+[`drivers/postgres/metadata.go`](../drivers/postgres/metadata.go), `kindFromDBTypeName`:
 
 ```go
 func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind {
-    switch strings.ToUpper(dbTypeName) {
-    case "INT", "INTEGER", "INT2", "INT4", "INT8", "SMALLINT", "BIGINT":
-        return kind.Int
-    case "VARCHAR", "TEXT", "CHAR", "CHARACTER", "CHARACTER VARYING", "BPCHAR":
-        return kind.Text
-    case "BOOLEAN", "BOOL":
-        return kind.Bool
-    case "TIMESTAMP", "TIMESTAMPTZ", "TIMESTAMP WITH TIME ZONE",
-         "TIMESTAMP WITHOUT TIME ZONE":
-        return kind.Datetime
-    case "DATE":
-        return kind.Date
-    case "TIME", "TIMETZ", "TIME WITH TIME ZONE", "TIME WITHOUT TIME ZONE":
-        return kind.Time
-    case "BYTEA":
-        return kind.Bytes
-    case "DECIMAL", "NUMERIC", "MONEY":
-        return kind.Decimal
-    case "FLOAT", "FLOAT4", "FLOAT8", "DOUBLE PRECISION", "REAL":
-        return kind.Float
-    case "JSON", "JSONB":
-        return kind.Text
-    case "UUID":
-        return kind.Text
-    case "INTERVAL":
-        return kind.Int
-    default:
-        log.Warn("unknown postgres data type", "type", dbTypeName, "column", colName)
-        return kind.Unknown
-    }
+	var knd kind.Kind
+	dbTypeName = strings.ToUpper(dbTypeName)
+
+	switch dbTypeName {
+	default:
+		log.Warn(
+			"Unknown Postgres column type: using alt type",
+			lga.DBType, dbTypeName,
+			lga.Col, colName,
+			lga.Alt, kind.Unknown,
+		)
+		knd = kind.Unknown
+	case "INT", "INTEGER", "INT2", "INT4", "INT8", "SMALLINT", "BIGINT":
+		knd = kind.Int
+	case "CHAR", "CHARACTER", "VARCHAR", "TEXT", "BPCHAR", "CHARACTER VARYING":
+		knd = kind.Text
+	case "BOOL", "BOOLEAN":
+		knd = kind.Bool
+	// ... remaining cases
+	}
+
+	return knd
 }
 ```
 
-##### Kind → DB Type
-
-**Location:** `drivers/postgres/render.go:22-47`
+**Kind → DB Type.** The reverse direction is a total function over `Kind`, used to emit DDL.
+From [`drivers/postgres/render.go`](../drivers/postgres/render.go), `dbTypeNameFromKind`:
 
 ```go
 func dbTypeNameFromKind(knd kind.Kind) string {
-    switch knd {
-    case kind.Text:
-        return "TEXT"
-    case kind.Int:
-        return "BIGINT"
-    case kind.Float:
-        return "DOUBLE PRECISION"
-    case kind.Decimal:
-        return "DECIMAL"
-    case kind.Bool:
-        return "BOOLEAN"
-    case kind.Datetime:
-        return "TIMESTAMP"
-    case kind.Date:
-        return "DATE"
-    case kind.Time:
-        return "TIME"
-    case kind.Bytes:
-        return "BYTEA"
-    case kind.Null, kind.Unknown:
-        return "TEXT"
-    default:
-        return "TEXT"
-    }
+	switch knd { //nolint:exhaustive
+	default:
+		panic(fmt.Sprintf("unsupported datatype {%s}", knd))
+	case kind.Unknown:
+		return "TEXT"
+	case kind.Text:
+		return "TEXT"
+	case kind.Int:
+		return "BIGINT"
+	case kind.Float:
+		return "DOUBLE PRECISION"
+	// ... remaining cases
+	}
 }
 ```
 
-#### MySQL Type Mapping
+Alongside it, each driver keeps a `createTblKindDefaults` map supplying the `DEFAULT` clause per
+`Kind`, because the sensible default is dialect-specific (Postgres uses `DEFAULT 'epoch'::date`
+for `kind.Date`; Oracle cannot use `EMPTY_BLOB()` as a default at all).
 
-##### DB Type → Kind
+#### Kind → native type, all drivers
 
-**Location:** `drivers/mysql/metadata.go`
+This is what `dbTypeNameFromKind` (or `DBTypeForKind`) returns for each `Kind`:
 
-```go
-func kindFromDBTypeName(colName, dbTypeName string) kind.Kind {
-    dbTypeName = strings.ToUpper(dbTypeName)
+| Kind       | SQLite     | rqlite     | DuckDB          | PostgreSQL         | SQL Server       | MySQL        | ClickHouse      | Oracle           |
+| ---------- | ---------- | ---------- | --------------- | ------------------ | ---------------- | ------------ | --------------- | ---------------- |
+| `Text`     | `TEXT`     | `TEXT`     | `VARCHAR`       | `TEXT`             | `NVARCHAR(MAX)`  | `TEXT`       | `String`        | `VARCHAR2(4000)` |
+| `Int`      | `INTEGER`  | `INTEGER`  | `BIGINT`        | `BIGINT`           | `BIGINT`         | `INT`        | `Int64`         | `NUMBER(19,0)`   |
+| `Float`    | `REAL`     | `REAL`     | `DOUBLE`        | `DOUBLE PRECISION` | `FLOAT`          | `DOUBLE`     | `Float64`       | `BINARY_DOUBLE`  |
+| `Decimal`  | `NUMERIC`  | `NUMERIC`  | `DECIMAL(38,9)` | `DECIMAL`          | `DECIMAL`        | `DECIMAL`    | `Decimal(18,4)` | `NUMBER`         |
+| `Bool`     | `BOOLEAN`  | `BOOLEAN`  | `BOOLEAN`       | `BOOLEAN`          | `BIT`            | `TINYINT(1)` | `Bool`          | `NUMBER(1,0)`    |
+| `Bytes`    | `BLOB`     | `BLOB`     | `BLOB`          | `BYTEA`            | `VARBINARY(MAX)` | `BLOB`       | `String`        | `BLOB`           |
+| `Datetime` | `DATETIME` | `DATETIME` | `TIMESTAMP`     | `TIMESTAMP`        | `DATETIME`       | `DATETIME`   | `DateTime`      | `TIMESTAMP`      |
+| `Date`     | `DATE`     | `DATE`     | `DATE`          | `DATE`             | `DATE`           | `DATE`       | `Date`          | `DATE`           |
+| `Time`     | `TIME`     | `TIME`     | `TIME`          | `TIME`             | `TIME`           | `TIME`       | `DateTime`      | `TIMESTAMP`      |
 
-    switch {
-    case strings.HasPrefix(dbTypeName, "TINYINT(1)"):
-        return kind.Bool
-    case strings.HasPrefix(dbTypeName, "TINYINT"),
-         strings.HasPrefix(dbTypeName, "SMALLINT"),
-         strings.HasPrefix(dbTypeName, "MEDIUMINT"),
-         strings.HasPrefix(dbTypeName, "INT"),
-         strings.HasPrefix(dbTypeName, "BIGINT"):
-        return kind.Int
-    case strings.HasPrefix(dbTypeName, "FLOAT"),
-         strings.HasPrefix(dbTypeName, "DOUBLE"):
-        return kind.Float
-    case strings.HasPrefix(dbTypeName, "DECIMAL"),
-         strings.HasPrefix(dbTypeName, "NUMERIC"):
-        return kind.Decimal
-    case strings.HasPrefix(dbTypeName, "VARCHAR"),
-         strings.HasPrefix(dbTypeName, "TEXT"),
-         strings.HasPrefix(dbTypeName, "CHAR"),
-         strings.HasPrefix(dbTypeName, "JSON"):
-        return kind.Text
-    case strings.HasPrefix(dbTypeName, "DATETIME"),
-         strings.HasPrefix(dbTypeName, "TIMESTAMP"):
-        return kind.Datetime
-    case strings.HasPrefix(dbTypeName, "DATE"):
-        return kind.Date
-    case strings.HasPrefix(dbTypeName, "TIME"):
-        return kind.Time
-    case strings.HasPrefix(dbTypeName, "BLOB"),
-         strings.HasPrefix(dbTypeName, "BINARY"),
-         strings.HasPrefix(dbTypeName, "VARBINARY"):
-        return kind.Bytes
-    default:
-        return kind.Unknown
-    }
-}
-```
+Notes on the gaps that table papers over:
 
-##### Kind → DB Type
-
-**Location:** `drivers/mysql/render.go:16-39`
-
-```go
-func dbTypeNameFromKind(knd kind.Kind) string {
-    switch knd {
-    case kind.Text:
-        return "TEXT"
-    case kind.Int:
-        return "INT"
-    case kind.Float:
-        return "DOUBLE"
-    case kind.Decimal:
-        return "DECIMAL"
-    case kind.Bool:
-        return "TINYINT(1)"  // MySQL-specific: BOOLEAN as TINYINT
-    case kind.Datetime:
-        return "DATETIME"
-    case kind.Date:
-        return "DATE"
-    case kind.Time:
-        return "TIME"
-    case kind.Bytes:
-        return "BLOB"
-    case kind.Null, kind.Unknown:
-        return "TEXT"
-    default:
-        return "TEXT"
-    }
-}
-```
-
-#### SQLite Type Mapping
-
-SQLite uses **type affinity** rules for flexible type handling.
-
-##### DB Type → Kind
-
-**Location:** `drivers/sqlite3/metadata.go:211-237`
-
-```go
-func determineKind(colName, typeName string, hasDefault bool) kind.Kind {
-    typeName = strings.ToUpper(typeName)
-
-    // SQLite type affinity rules
-    if strings.Contains(typeName, "INT") {
-        return kind.Int
-    }
-    if strings.Contains(typeName, "TEXT") ||
-       strings.Contains(typeName, "CHAR") ||
-       strings.Contains(typeName, "CLOB") {
-        return kind.Text
-    }
-    if strings.Contains(typeName, "BLOB") {
-        return kind.Bytes
-    }
-    if strings.Contains(typeName, "REAL") ||
-       strings.Contains(typeName, "FLOA") ||
-       strings.Contains(typeName, "DOUB") {
-        return kind.Float
-    }
-
-    // Exact matches
-    switch typeName {
-    case "BOOLEAN":
-        return kind.Bool
-    case "DATETIME":
-        return kind.Datetime
-    case "DATE":
-        return kind.Date
-    case "TIME":
-        return kind.Time
-    case "NUMERIC", "DECIMAL":
-        return kind.Decimal
-    default:
-        return kind.Text  // Default affinity
-    }
-}
-```
-
-##### Kind → DB Type
-
-**Location:** `drivers/sqlite3/metadata.go:240-265`
-
-```go
-func DBTypeForKind(knd kind.Kind) string {
-    switch knd {
-    case kind.Text, kind.Null, kind.Unknown:
-        return "TEXT"
-    case kind.Int:
-        return "INTEGER"
-    case kind.Float:
-        return "REAL"
-    case kind.Bytes:
-        return "BLOB"
-    case kind.Decimal:
-        return "NUMERIC"
-    case kind.Bool:
-        return "BOOLEAN"
-    case kind.Datetime:
-        return "DATETIME"
-    case kind.Date:
-        return "DATE"
-    case kind.Time:
-        return "TIME"
-    default:
-        return "TEXT"
-    }
-}
-```
+- **No native `Time`.** ClickHouse and Oracle have no standalone time type, so both widen
+  `kind.Time` to a datetime. Round-tripping a time-only value through either engine is lossy.
+- **No native `Bool`.** SQL Server uses `BIT`; MySQL uses `TINYINT(1)`; Oracle emulates with
+  `NUMBER(1,0)`. MySQL and Oracle therefore set `IntBool: true` in their dialect so that value
+  scanning reads the column as an integer.
+- **No native `Bytes`.** ClickHouse stores binary data as `String`.
+- **`Unknown` and `Null`** are handled inconsistently by design. SQLite, rqlite, DuckDB,
+  ClickHouse and Oracle fall back to their text type; PostgreSQL and SQL Server map `Unknown` to
+  text but panic on `Null`; MySQL panics on both. A driver only meets `Null` or `Unknown` here if
+  an earlier stage failed to resolve a column's kind, so the panic is a deliberate assertion.
+- **Oracle `NUMBER`** is ambiguous on the wire: a computed `NUMBER` carries no precision or scale,
+  so `kindFromDBTypeName` cannot tell an integer from a fractional value and returns
+  `kind.Decimal`. See `kindFromOracleNumber` and
+  [#844](https://github.com/neilotoole/sq/issues/844).
 
 ### Type System Integration Points
 
@@ -938,7 +793,7 @@ func DBTypeForKind(knd kind.Kind) string {
 
 ### Core Interfaces
 
-**Location:** `libsq/driver/driver.go`
+**Location:** [`libsq/driver/driver.go`](../libsq/driver/driver.go)
 
 #### Provider Interface (Factory Pattern)
 
@@ -1006,46 +861,68 @@ type SQLDriver interface {
 
 ### Driver Registration
 
-**Location:** `cli/run.go:276-341`
+**Location:** [`cli/run.go`](../cli/run.go), `FinishRunInit`
 
-Driver providers are registered during application bootstrap in `FinishRunInit()`:
+Driver providers are registered during application bootstrap. Every driver `sq` ships is wired up
+here, so this function is the definitive list:
 
 ```go
-func FinishRunInit(cfg *config.Config, ru *Run, ...) error {
-    dr := driver.NewRegistry(log)  // Create registry
+func FinishRunInit(ctx context.Context, ru *run.Run) error {
+	// ... setup elided
 
-    // Register SQL drivers
-    dr.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: log})
-    dr.AddProvider(drivertype.Pg, &postgres.Provider{Log: log})
-    dr.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: log})
-    dr.AddProvider(drivertype.MySQL, &mysql.Provider{Log: log})
+	ru.DriverRegistry = driver.NewRegistry(log)
+	dr := ru.DriverRegistry
 
-    // Register document drivers
-    csvp := &csv.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files}
-    dr.AddProvider(drivertype.CSV, csvp)
-    dr.AddProvider(drivertype.TSV, csvp)
+	ru.Grips = driver.NewGrips(dr, ru.Files, ru.SecretRegistry, scratchSrcFunc)
 
-    jsonp := &json.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files}
-    dr.AddProvider(drivertype.JSON, jsonp)
-    dr.AddProvider(drivertype.JSONA, jsonp)
-    dr.AddProvider(drivertype.JSONL, jsonp)
+	// SQL drivers.
+	dr.AddProvider(drivertype.SQLite, &sqlite3.Provider{Log: log})
+	dr.AddProvider(drivertype.Rqlite, &rqlite.Provider{Log: log})
+	dr.AddProvider(drivertype.DuckDB, &duckdb.Provider{Log: log})
+	dr.AddProvider(drivertype.Pg, &postgres.Provider{Log: log})
+	dr.AddProvider(drivertype.MSSQL, &sqlserver.Provider{Log: log})
+	dr.AddProvider(drivertype.MySQL, &mysql.Provider{Log: log})
+	dr.AddProvider(drivertype.ClickHouse, &clickhouse.Provider{Log: log})
+	dr.AddProvider(drivertype.Oracle, &oracle.Provider{Log: log})
 
-    dr.AddProvider(drivertype.XLSX, &xlsx.Provider{...})
+	// Document drivers. Note that one provider can serve several types,
+	// and that each registers a detector so that `sq add` can infer the
+	// type from the file itself.
+	csvp := &csv.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files}
+	dr.AddProvider(drivertype.CSV, csvp)
+	dr.AddProvider(drivertype.TSV, csvp)
+	ru.Files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 
-    // Register user-defined drivers (from config)
-    for _, udd := range cfg.Ext.UserDrivers {
-        udp := &userdriver.Provider{...}
-        dr.AddProvider(drivertype.Type(udd.Name), udp)
-    }
+	jsonp := &json.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files}
+	dr.AddProvider(drivertype.JSON, jsonp)
+	dr.AddProvider(drivertype.JSONA, jsonp)
+	dr.AddProvider(drivertype.JSONL, jsonp)
+	sampleSize := driver.OptIngestSampleSize.Get(cfg.Options)
+	ru.Files.AddDriverDetectors(
+		json.DetectJSON(sampleSize),
+		json.DetectJSONA(sampleSize),
+		json.DetectJSONL(sampleSize),
+	)
 
-    ru.DriverRegistry = dr
-    return nil
+	dr.AddProvider(drivertype.XLSX, &xlsx.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files})
+	ru.Files.AddDriverDetectors(xlsx.DetectXLSX)
+
+	// User-defined drivers, from config.
+	for _, udd := range cfg.Ext.UserDrivers {
+		// ...
+		ru.DriverRegistry.AddProvider(drivertype.Type(udd.Name), udp)
+	}
+
+	return nil
 }
 ```
 
+SQL drivers take only a logger. Document drivers additionally take an `Ingester` and `Files`,
+because they ingest into a scratch database rather than querying in place.
+
 ### Example: PostgreSQL Driver Structure
 
-**Location:** `drivers/postgres/postgres.go`
+**Location:** [`drivers/postgres/postgres.go`](../drivers/postgres/postgres.go)
 
 ```go
 // Provider is the factory
@@ -1070,8 +947,9 @@ func (d *driveri) DriverMetadata() driver.Metadata {
     return driver.Metadata{
         Type:        drivertype.Pg,
         Description: "PostgreSQL",
-        Doc:         "https://pkg.go.dev/github.com/lib/pq",
+        Doc:         "https://github.com/jackc/pgx",
         IsSQL:       true,
+        DefaultPort: 5432,
     }
 }
 
@@ -1087,7 +965,8 @@ func (d *driveri) Renderer() *render.Renderer {
     return r
 }
 
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
+func (d *driveri) Open(ctx context.Context, src *source.Source,
+    _ driver.AccessMode) (driver.Grip, error) {
     // Opens PostgreSQL connection
 }
 
@@ -1106,7 +985,7 @@ func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB, tblDef *schema.Ta
 
 **Location:** `libsq/ast/ast.go`
 
-SQ parses queries into an AST structure:
+`sq` parses queries into an AST structure:
 
 ```text
 SelectNode (root)
@@ -1172,32 +1051,48 @@ type FuncRenderer func(ctx *Context, fn *ast.FuncNode) (string, error)
 
 #### Custom Rendering per Driver
 
-Each driver can customize the renderer:
+Each driver can customize the renderer by overriding function names or supplying a render func.
 
-**PostgreSQL** (`postgres.go:127-133`):
-
-```go
-func (d *driveri) Renderer() *render.Renderer {
-    r := render.NewDefaultRenderer()
-    r.FunctionNames[ast.FuncNameSchema] = "current_schema"
-    r.FunctionNames[ast.FuncNameCatalog] = "current_database"
-    return r
-}
-```
-
-**MySQL** (`mysql.go:134-140`):
+**PostgreSQL** ([`drivers/postgres/postgres.go`](../drivers/postgres/postgres.go), `driveri.Renderer`):
 
 ```go
 func (d *driveri) Renderer() *render.Renderer {
-    r := render.NewDefaultRenderer()
-    r.FunctionNames[ast.FuncNameSchema] = "DATABASE"
-    r.FunctionOverrides[ast.FuncNameCatalog] = doRenderFuncCatalog
-    r.FunctionOverrides[ast.FuncNameRowNum] = renderFuncRowNum
-    return r
+	r := render.NewDefaultRenderer()
+	r.FunctionNames[ast.FuncNameSchema] = "current_schema"
+	r.FunctionNames[ast.FuncNameCatalog] = "current_database"
+	// avg() returns a portable float64 instead of Postgres's native numeric
+	// (which sq surfaces as a decimal.Decimal). See issue #594.
+	r.FunctionOverrides[ast.FuncNameAvg] = render.FuncOverrideCastResult("DOUBLE PRECISION")
+	// ... further overrides
+	return r
 }
 ```
 
-This allows each database to have its own SQL generation logic while sharing the common AST structure.
+**MySQL** ([`drivers/mysql/mysql.go`](../drivers/mysql/mysql.go), `driveri.Renderer`):
+
+```go
+func (d *driveri) Renderer() *render.Renderer {
+	r := render.NewDefaultRenderer()
+	r.FunctionNames[ast.FuncNameSchema] = "DATABASE"
+	r.FunctionOverrides[ast.FuncNameAvg] = renderFuncAvg
+	// ... further overrides
+	return r
+}
+```
+
+**SQLite** and **rqlite** go further: neither engine has a real schema or catalog concept, so both
+substitute a SQL fragment for `schema()` rather than renaming a function:
+
+```go
+const schemaFrag = `(SELECT name FROM pragma_database_list ORDER BY seq limit 1)`
+r.FunctionOverrides[ast.FuncNameSchema] = render.FuncOverrideString(schemaFrag)
+```
+
+This lets each database have its own SQL generation logic while sharing the common AST structure.
+Overrides also carry cross-driver harmonization: `avg()` is cast to a float and `sum()` to a
+decimal on the engines whose native return type would otherwise differ (issues
+[#594](https://github.com/neilotoole/sq/issues/594) and
+[#839](https://github.com/neilotoole/sq/issues/839)).
 
 ---
 
@@ -1205,340 +1100,191 @@ This allows each database to have its own SQL generation logic while sharing the
 
 ### Adding a New SQL Database Driver
 
-This guide uses Oracle as an example.
+This guide walks the [`oracle`](../drivers/oracle) driver, which is a good reference because it is
+the most recently added SQL driver and has to work around more engine quirks than most. Read it
+alongside the source; every excerpt below is real code, so when the two disagree, the source wins.
 
-#### Step 1: Create Driver Package
+For the full list of artifacts a new driver must ship (not just code), see the
+[driver ship checklist](DRIVERS.md#driver-ship-checklist) in DRIVERS.md.
 
-Create a new directory: `drivers/oracle/`
+#### Step 1: Create the driver package
 
-Files to create:
-
-- `oracle.go` - Provider, driver implementation, dialect
-- `metadata.go` - Schema inspection, type mapping (DB Type → Kind)
-- `render.go` - Type conversion (Kind → DB Type)
-- `errors.go` - Error handling
-- `oracle_test.go` - Tests
-
-#### Step 2: Define Driver Type
-
-**File:** `libsq/source/drivertype/drivertype.go`
-
-```go
-const (
-    // ... existing types
-    Oracle = Type("oracle")
-)
+```text
+drivers/oracle/
+├── oracle.go      # Provider, driveri, DriverMetadata, Dialect, Open
+├── grip.go        # Grip implementation (connection wrapper)
+├── metadata.go    # Schema introspection via the data dictionary
+├── render.go      # Both type mappings & SQL rendering
+├── errors.go      # Driver-specific error wrapping
+├── internal_test.go # Exports unexported funcs to the external test package
+└── oracle_test.go   # Integration tests
 ```
 
-#### Step 3: Implement Provider & Driver
+See [DRIVERS.md](DRIVERS.md#package-structure) for the conventional package layout and the
+`internal_test.go` export pattern.
 
-> **Note**: The code snippets below are illustrative pseudocode showing the
-> general pattern. The actual implementation in `drivers/oracle/` may differ
-> in details such as connection handling, schema function names, and dialect
-> configuration.
+#### Step 2: Define the driver type
 
-**File:** `drivers/oracle/oracle.go`
+**File:** [`libsq/source/drivertype/drivertype.go`](../libsq/source/drivertype/drivertype.go)
 
 ```go
-package oracle
+// Oracle is for Oracle Database.
+Oracle = Type("oracle")
+```
 
-import (
-    "context"
-    "database/sql"
-    "github.com/neilotoole/sq/libsq/driver"
-    "github.com/neilotoole/sq/libsq/driver/dialect"
-    "github.com/neilotoole/sq/libsq/source/drivertype"
-    "github.com/neilotoole/sq/libsq/core/stringz"
-    "log/slog"
+The string value is load-bearing: it is the value shown by `sq driver ls`, the connection URL
+scheme, and the `sakiladb/{driver}` Docker image name.
 
-    _ "github.com/sijms/go-ora/v2" // Oracle driver (database/sql name "oracle").
-)
+#### Step 3: Implement Provider and Driver
 
-// Provider is the Oracle driver provider
+**File:** [`drivers/oracle/oracle.go`](../drivers/oracle/oracle.go)
+
+The `Provider` is a factory that returns a driver for its one type:
+
+```go
 type Provider struct {
-    Log *slog.Logger
+	Log *slog.Logger
 }
 
+// DriverFor implements driver.Provider.
 func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
-    if typ != drivertype.Oracle {
-        return nil, errz.Errorf("unsupported driver type {%s}", typ)
-    }
-    return &driveri{log: p.Log}, nil
+	if typ != drivertype.Oracle {
+		return nil, errz.Errorf("unsupported driver type {%s}", typ)
+	}
+
+	return &driveri{log: p.Log}, nil
 }
 
+var _ driver.SQLDriver = (*driveri)(nil)
+
+// driveri is the Oracle implementation of driver.Driver.
 type driveri struct {
-    log *slog.Logger
+	log *slog.Logger
 }
+```
 
+`DriverMetadata` describes the driver to `sq driver ls`:
+
+```go
 func (d *driveri) DriverMetadata() driver.Metadata {
-    return driver.Metadata{
-        Type:        drivertype.Oracle,
-        Description: "Oracle Database",
-        Doc:         "https://github.com/sijms/go-ora",
-        IsSQL:       true,
-    }
+	return driver.Metadata{
+		Type:        drivertype.Oracle,
+		Description: "Oracle",
+		Doc:         "https://github.com/sijms/go-ora",
+		IsSQL:       true,
+		DefaultPort: 1521,
+	}
 }
-
-func (d *driveri) Dialect() dialect.Dialect {
-    return dialect.Dialect{
-        Type:           drivertype.Oracle,
-        Placeholders:   placeholders,        // :1, :2, :3...
-        Enquote:        stringz.DoubleQuote, // "identifier"
-        Joins:          jointype.All(),
-        MaxBatchValues: 1000,
-        Ops:            dialect.DefaultOps(),
-        Catalog:        false,   // Oracle uses schemas, not catalogs
-        IntBool:        true,    // BOOLEAN emulated as NUMBER(1,0)
-    }
-}
-
-func placeholders(numCols, numRows int) string {
-    // Oracle uses :1, :2, :3... style placeholders
-    rows := make([]string, numRows)
-    n := 1
-    for i := 0; i < numRows; i++ {
-        cols := make([]string, numCols)
-        for j := 0; j < numCols; j++ {
-            cols[j] = ":" + strconv.Itoa(n)
-            n++
-        }
-        rows[i] = "(" + strings.Join(cols, ", ") + ")"
-    }
-    return strings.Join(rows, ", ")
-}
-
-func (d *driveri) Renderer() *render.Renderer {
-    r := render.NewDefaultRenderer()
-    // Customize for Oracle
-    r.FunctionNames[ast.FuncNameSchema] = "USER"
-    r.FunctionOverrides[ast.FuncNameRowNum] = renderRowNum
-    return r
-}
-
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
-    // Open Oracle connection
-    db, err := sql.Open("oracle", src.Location)
-    if err != nil {
-        return nil, errz.Wrap(err, "open oracle connection")
-    }
-    return &grip{log: d.log, db: db, src: src}, nil
-}
-
-// Implement all other SQLDriver methods...
 ```
 
-#### Step 4: Define Type Mapping
-
-**File:** `drivers/oracle/metadata.go`
+`Dialect` is covered in [SQL Dialects](#sql-dialects) above. `Open` connects, pings to capture the
+server version, and wraps the handle in a `Grip`:
 
 ```go
-package oracle
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
+	lg.FromContext(ctx).Debug(lgm.OpenSrc, lga.Src, src)
 
-import (
-    "github.com/neilotoole/sq/libsq/core/kind"
-    "log/slog"
-    "strings"
-)
+	db, err := d.doOpen(ctx, src)
+	if err != nil {
+		return nil, err
+	}
 
-// kindFromDBTypeName maps Oracle data types to generic Kind
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
+		return nil, err
+	}
+
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
+}
+```
+
+> [!NOTE]
+> `Open` takes a `driver.AccessMode`. The Oracle driver ignores it (hence the `_`), but embedded
+> file-based drivers such as DuckDB use it to open read-only versus read-write.
+
+#### Step 4: Define the type mapping
+
+**File:** [`drivers/oracle/render.go`](../drivers/oracle/render.go)
+
+Implement both directions, as described in
+[Type Mapping Architecture](#type-mapping-architecture). Oracle shows why this is rarely a flat
+lookup: `NUMBER` carries no precision or scale when it is computed, so `kindFromDBTypeName`
+delegates to `kindFromOracleNumber` and falls back to `kind.Decimal`
+([#844](https://github.com/neilotoole/sq/issues/844)).
+
+```go
 func kindFromDBTypeName(log *slog.Logger, colName, dbTypeName string) kind.Kind {
-    typeName := strings.ToUpper(dbTypeName)
+	dbTypeName = strings.ToUpper(dbTypeName)
 
-    switch {
-    // Numeric types
-    case strings.HasPrefix(typeName, "NUMBER"):
-        // Oracle NUMBER can be INT, DECIMAL, or FLOAT
-        // Check precision/scale if available
-        return kind.Decimal  // Conservative default
+	// NUMBER's kind depends on its precision/scale, so it's parsed
+	// specially before the generic param-strip below.
+	if strings.HasPrefix(dbTypeName, "NUMBER(") {
+		return kindFromOracleNumber(dbTypeName)
+	}
 
-    case typeName == "BINARY_FLOAT", typeName == "BINARY_DOUBLE":
-        return kind.Float
+	// Strip parameter parens so e.g. "VARCHAR2(91)" or
+	// "TIMESTAMP(6) WITH TIME ZONE" match their bare form below.
+	dbTypeName = stripTypeParams(dbTypeName)
 
-    case typeName == "INTEGER", typeName == "INT", typeName == "SMALLINT":
-        return kind.Int
-
-    // String types
-    case strings.HasPrefix(typeName, "VARCHAR"),
-         strings.HasPrefix(typeName, "CHAR"),
-         strings.HasPrefix(typeName, "NVARCHAR"),
-         strings.HasPrefix(typeName, "NCHAR"),
-         typeName == "CLOB", typeName == "NCLOB":
-        return kind.Text
-
-    // Date/Time types
-    case typeName == "DATE":
-        return kind.Datetime  // Oracle DATE includes time
-
-    case strings.HasPrefix(typeName, "TIMESTAMP"):
-        return kind.Datetime
-
-    // Binary types
-    case typeName == "BLOB", typeName == "RAW", typeName == "LONG RAW":
-        return kind.Bytes
-
-    // Other types
-    case typeName == "XMLTYPE":
-        return kind.Text
-
-    default:
-        log.Warn("unknown oracle data type", "type", dbTypeName, "column", colName)
-        return kind.Unknown
-    }
-}
-
-// Implement schema inspection methods
-func (d *driveri) ListSchemaMetadata(ctx context.Context, db sqlz.DB,
-                                     schemaPattern string) ([]*schema.Table, error) {
-    // Query Oracle data dictionary (USER_TABLES, ALL_TABLES, etc.)
-    // Use kindFromDBTypeName() to convert column types
+	switch dbTypeName {
+	case "VARCHAR2", "NVARCHAR2", "CHAR", "NCHAR", "VARCHAR", "LONG", "LONGVARCHAR":
+		return kind.Text
+	// ... remaining cases
+	}
 }
 ```
 
-**File:** `drivers/oracle/render.go`
+The reverse direction must cover every `Kind`, substituting where the engine has no native type:
 
 ```go
-package oracle
-
-import (
-    "github.com/neilotoole/sq/libsq/core/kind"
-)
-
-// dbTypeNameFromKind maps generic Kind to Oracle data types
 func dbTypeNameFromKind(knd kind.Kind) string {
-    switch knd {
-    case kind.Text:
-        return "VARCHAR2(4000)"
-
-    case kind.Int:
-        return "NUMBER(18,0)"
-
-    case kind.Float:
-        return "BINARY_DOUBLE"
-
-    case kind.Decimal:
-        return "NUMBER"
-
-    case kind.Bool:
-        return "NUMBER(1,0)"  // 0 or 1
-
-    case kind.Datetime:
-        return "TIMESTAMP"
-
-    case kind.Date:
-        return "DATE"
-
-    case kind.Time:
-        return "TIMESTAMP"  // Oracle doesn't have TIME type
-
-    case kind.Bytes:
-        return "BLOB"
-
-    case kind.Null, kind.Unknown:
-        return "VARCHAR2(4000)"
-
-    default:
-        return "VARCHAR2(4000)"
-    }
-}
-
-// Use in CreateTable implementation
-func (d *driveri) CreateTable(ctx context.Context, db sqlz.DB,
-                              tblDef *schema.Table) error {
-    var sb strings.Builder
-    sb.WriteString("CREATE TABLE ")
-    sb.WriteString(d.Dialect().Enquote(tblDef.Name))
-    sb.WriteString(" (")
-
-    for i, col := range tblDef.Cols {
-        if i > 0 {
-            sb.WriteString(", ")
-        }
-        sb.WriteString(d.Dialect().Enquote(col.Name))
-        sb.WriteString(" ")
-        sb.WriteString(dbTypeNameFromKind(col.Kind))
-
-        if !col.Nullable {
-            sb.WriteString(" NOT NULL")
-        }
-    }
-
-    sb.WriteString(")")
-
-    _, err := db.ExecContext(ctx, sb.String())
-    return err
+	switch knd {
+	case kind.Bool:
+		// Oracle has no native BOOLEAN type, use NUMBER(1,0)
+		return "NUMBER(1,0)"
+	case kind.Time:
+		// Oracle has no standalone TIME type, use TIMESTAMP
+		return "TIMESTAMP"
+	// ... remaining cases
+	}
+	return "VARCHAR2(4000)"
 }
 ```
 
-#### Step 5: Register the Driver
+When you substitute like this, check whether the dialect needs a matching flag. Because Oracle
+emulates `BOOLEAN` as `NUMBER(1,0)`, its dialect sets `IntBool: true` so value scanning reads the
+column as an integer.
 
-**File:** `cli/run.go` (in `FinishRunInit()`)
+#### Step 5: Register the driver
+
+**File:** [`cli/run.go`](../cli/run.go), in `FinishRunInit`
 
 ```go
-import (
-    "github.com/neilotoole/sq/drivers/oracle"
-)
+import "github.com/neilotoole/sq/drivers/oracle"
 
-func FinishRunInit(cfg *config.Config, ru *Run, ...) error {
-    dr := driver.NewRegistry(log)
-
-    // ... existing registrations
-
-    // Add Oracle driver
-    dr.AddProvider(drivertype.Oracle, &oracle.Provider{Log: log})
-
-    // ... rest of function
-}
+dr.AddProvider(drivertype.Oracle, &oracle.Provider{Log: log})
 ```
+
+Unlike document drivers, a SQL driver's provider needs no `Ingester` or `Files`, because it
+queries the source in place rather than ingesting it into a scratch database.
 
 #### Step 6: Testing
 
-Create comprehensive tests:
+Drivers are tested through the `testh` harness. See [DRIVERS.md](DRIVERS.md) and
+[SAKILA.md](SAKILA.md); for SQL drivers this means a `sakiladb/{driver}` image carrying the Sakila
+dataset, so the same integration suite runs against every engine.
 
-**File:** `drivers/oracle/oracle_test.go`
-
-```go
-func TestOracle_TypeMapping(t *testing.T) {
-    // Test DB Type → Kind conversion
-    testCases := []struct {
-        dbType   string
-        expected kind.Kind
-    }{
-        {"NUMBER(18,0)", kind.Int},
-        {"VARCHAR2(100)", kind.Text},
-        {"TIMESTAMP", kind.Datetime},
-        // ... more cases
-    }
-
-    for _, tc := range testCases {
-        result := kindFromDBTypeName(log, "col", tc.dbType)
-        assert.Equal(t, tc.expected, result)
-    }
-}
-
-func TestOracle_KindToDBType(t *testing.T) {
-    // Test Kind → DB Type conversion
-    testCases := []struct {
-        kind     kind.Kind
-        expected string
-    }{
-        {kind.Int, "NUMBER(18,0)"},
-        {kind.Text, "VARCHAR2(4000)"},
-        {kind.Datetime, "TIMESTAMP"},
-        // ... more cases
-    }
-
-    for _, tc := range testCases {
-        result := dbTypeNameFromKind(tc.kind)
-        assert.Equal(t, tc.expected, result)
-    }
-}
-```
+Unexported functions such as `kindFromDBTypeName` are reached from the external test package via
+the `internal_test.go` export pattern documented in
+[DRIVERS.md](DRIVERS.md#test-file-organization).
 
 #### Step 7: Documentation and agent skill
 
-Complete the [driver ship checklist](DRIVERS.md#driver-ship-checklist):
-sq.io page under `site/content/en/docs/drivers/`, plus
-`skills/sq/references/{driver}.md` and an entry in `skills/sq/SKILL.md`.
+Complete the [driver ship checklist](DRIVERS.md#driver-ship-checklist): an sq.io page under
+`site/content/en/docs/drivers/`, plus `skills/sq/references/{driver}.md` and an entry in
+`skills/sq/SKILL.md`.
 
 ### Adding a New Data Type
 
@@ -1550,12 +1296,11 @@ To add support for a new data type (e.g., `UUID`, `JSON`, `Geometry`):
 
 ```go
 const (
-    Unknown   Kind = 0
-    Null           = 1
-    Text           = 2
-    // ... existing types
-    UUID           = 11  // New type
-    Geometry       = 12  // Another new type
+    Unknown Kind = iota // 0
+    Null                // 1
+    // ... existing kinds, through Time (10)
+    UUID                // 11: new kind
+    Geometry            // 12: another new kind
 )
 
 func (k Kind) String() string {
@@ -1649,7 +1394,10 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 }
 ```
 
-Repeat for SQLite, SQL Server, and any other SQL drivers.
+Repeat for every SQL driver: `sqlite3`, `rqlite`, `duckdb`, `postgres`, `sqlserver`, `mysql`,
+`clickhouse` and `oracle`. A new `Kind` is only as good as its least-complete driver, so an engine
+with no native equivalent still needs a deliberate substitution (as Oracle does for `kind.Bool`)
+rather than being skipped.
 
 #### Step 3: Update Value Scanning
 
@@ -1680,121 +1428,140 @@ func (d *driveri) RecordMeta(ctx context.Context,
 
 ### Adding a Non-SQL Document Driver
 
-To add support for a new document format (e.g., Parquet, Avro):
+Document drivers do not execute queries against the source. They **ingest** it into a scratch
+database and hand back a `Grip` pointing at that. This guide walks the [`csv`](../drivers/csv)
+driver, which is the simplest complete example; [`json`](../drivers/json) and
+[`xlsx`](../drivers/xlsx) follow the same shape.
 
-#### Step 1: Create Driver Package
+#### Step 1: Create the driver package
 
 ```text
-drivers/parquet/
-├── parquet.go       # Provider, driver implementation
-├── ingest.go        # Data ingestion logic
-├── detect.go        # File type detection
-└── parquet_test.go  # Tests
+drivers/csv/
+├── csv.go                  # Provider, driveri, DriverMetadata, Open
+├── ingest.go               # Reads the source into the scratch DB
+├── insert.go               # Batch insert machinery
+├── detect_type.go          # DetectCSV / DetectTSV (files.TypeDetectFunc)
+├── detect_header.go        # Header-row heuristic
+├── detect_field_kinds.go   # Per-column kind.Kind inference
+└── csv_test.go             # Tests
 ```
 
-#### Step 2: Implement Driver
+#### Step 2: Implement the driver
 
-**File:** `drivers/parquet/parquet.go`
+**File:** [`drivers/csv/csv.go`](../drivers/csv/csv.go)
+
+A document `Provider` takes an `Ingester` and `Files` in addition to the logger. One provider can
+serve several driver types; the CSV provider serves both `csv` and `tsv`:
 
 ```go
-package parquet
-
 type Provider struct {
-    Log      *slog.Logger
-    Ingester driver.GripOpenIngester  // For ingesting into scratch DB
-    Files    *files.Files
+	Log      *slog.Logger
+	Ingester driver.GripOpenIngester
+	Files    *files.Files
 }
 
-func (p *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
-    if typ != drivertype.Parquet {
-        return nil, errz.Errorf("unsupported type {%s}", typ)
-    }
-    return &driveri{
-        log:      p.Log,
-        ingester: p.Ingester,
-        files:    p.Files,
-    }, nil
-}
+// DriverFor implements driver.Provider.
+func (d *Provider) DriverFor(typ drivertype.Type) (driver.Driver, error) {
+	switch typ { //nolint:exhaustive
+	case drivertype.CSV:
+		return &driveri{log: d.Log, typ: drivertype.CSV, ingester: d.Ingester, files: d.Files}, nil
+	case drivertype.TSV:
+		return &driveri{log: d.Log, typ: drivertype.TSV, ingester: d.Ingester, files: d.Files}, nil
+	}
 
-type driveri struct {
-    log      *slog.Logger
-    ingester driver.GripOpenIngester
-    files    *files.Files
+	return nil, errz.Errorf("unsupported driver type {%s}", typ)
 }
+```
 
+Because one `driveri` serves two types, it carries its type and branches in `DriverMetadata`.
+Note `Monotable: true`: a CSV file is a single table, unlike a SQL source or an XLSX workbook.
+
+```go
 func (d *driveri) DriverMetadata() driver.Metadata {
-    return driver.Metadata{
-        Type:        drivertype.Parquet,
-        Description: "Apache Parquet",
-        Doc:         "https://parquet.apache.org/",
-        IsSQL:       false,  // Document driver
-        Monotable:   true,   // Single table per file
-    }
-}
-
-func (d *driveri) Open(ctx context.Context, src *source.Source) (driver.Grip, error) {
-    // 1. Open Parquet file
-    // 2. Read schema
-    // 3. Ingest data into scratch database (SQLite)
-    // 4. Return Grip to scratch DB
-
-    return d.ingester.OpenIngest(ctx, src, func(ctx context.Context, destGrip driver.Grip) error {
-        // Read Parquet data and insert into destGrip
-        return ingestParquet(ctx, src, destGrip)
-    })
+	md := driver.Metadata{Type: d.typ, Monotable: true}
+	if d.typ == drivertype.CSV {
+		md.Description = "Comma-Separated Values"
+		md.Doc = "https://en.wikipedia.org/wiki/Comma-separated_values"
+	} else {
+		md.Description = "Tab-Separated Values"
+		md.Doc = "https://en.wikipedia.org/wiki/Tab-separated_values"
+	}
+	return md
 }
 ```
 
-#### Step 3: Implement Detection
-
-**File:** `drivers/parquet/detect.go`
+`Open` is where document drivers diverge from SQL drivers. Rather than connecting, it hands an
+ingest func to `OpenIngest`, which manages the scratch database and the ingest cache:
 
 ```go
-func DetectParquet(ctx context.Context, log *slog.Logger,
-                   openFn files.FileOpenFunc) (drivertype.Type, error) {
-    r, err := openFn()
-    if err != nil {
-        return drivertype.None, err
-    }
-    defer r.Close()
+func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessMode) (driver.Grip, error) {
+	log := lg.FromContext(ctx)
+	log.Debug(lgm.OpenSrc, lga.Src, src)
 
-    // Check for Parquet magic bytes: "PAR1"
-    magic := make([]byte, 4)
-    if _, err := io.ReadFull(r, magic); err != nil {
-        return drivertype.None, nil
-    }
+	g := &grip{
+		log:   d.log,
+		src:   src,
+		files: d.files,
+	}
 
-    if string(magic) == "PAR1" {
-        return drivertype.Parquet, nil
-    }
+	allowCache := driver.OptIngestCache.Get(options.FromContext(ctx))
 
-    return drivertype.None, nil
+	ingestFn := func(ctx context.Context, destGrip driver.Grip) error {
+		log.Debug("Ingest func invoked", lga.Src, src)
+		return d.ingestCSV(ctx, src, destGrip)
+	}
+
+	var err error
+	if g.impl, err = d.ingester.OpenIngest(ctx, src, allowCache, ingestFn); err != nil {
+		return nil, err
+	}
+
+	return g, nil
 }
 ```
 
-#### Step 4: Register Driver
+Note that a document driver implements `driver.Driver`, not `driver.SQLDriver`: it has no
+`Dialect` and no `Kind`→DB-type mapping of its own. The scratch database it ingests into supplies
+those. What it does need is the opposite inference, guessing a `kind.Kind` per column from the
+raw data, which is what `detect_field_kinds.go` does.
 
-**File:** `cli/run.go`
+#### Step 3: Implement detection
+
+**File:** [`drivers/csv/detect_type.go`](../drivers/csv/detect_type.go)
+
+Detection lets `sq add` infer a source's type from the file itself. A detector implements
+`files.TypeDetectFunc` and returns a type plus a confidence score, so that competing detectors can
+be ranked:
 
 ```go
-import "github.com/neilotoole/sq/drivers/parquet"
+var (
+	_ files.TypeDetectFunc = DetectCSV
+	_ files.TypeDetectFunc = DetectTSV
+)
 
-func FinishRunInit(cfg *config.Config, ru *Run, ...) error {
-    // ... existing code
-
-    // Register Parquet driver
-    parquetp := &parquet.Provider{
-        Log:      log,
-        Ingester: ru.Grips,
-        Files:    ru.Files,
-    }
-    dr.AddProvider(drivertype.Parquet, parquetp)
-
-    // Register file detector
-    ru.Files.AddDriverDetectors(parquet.DetectParquet)
-
-    // ... rest of function
+// DetectCSV implements files.TypeDetectFunc.
+func DetectCSV(ctx context.Context, newRdrFn files.NewReaderFunc) (detected drivertype.Type, score float32,
+	err error,
+) {
+	return detectType(ctx, drivertype.CSV, newRdrFn)
 }
+```
+
+The shared `detectType` opens a reader, parses a sample with the appropriate delimiter, and scores
+the result. A format with magic bytes (as XLSX has) can be far more decisive than CSV, which has
+to guess from structure.
+
+#### Step 4: Register the driver
+
+**File:** [`cli/run.go`](../cli/run.go), in `FinishRunInit`
+
+Register the provider for each type it serves, then register its detectors:
+
+```go
+csvp := &csv.Provider{Log: log, Ingester: ru.Grips, Files: ru.Files}
+dr.AddProvider(drivertype.CSV, csvp)
+dr.AddProvider(drivertype.TSV, csvp)
+ru.Files.AddDriverDetectors(csv.DetectCSV, csv.DetectTSV)
 ```
 
 ---
@@ -1833,52 +1600,46 @@ func FinishRunInit(cfg *config.Config, ru *Run, ...) error {
 
 ---
 
-## Critical File Reference
+## File Reference
 
-### SQL Dialects
+Symbol names are given instead of line numbers, because line numbers go stale on the next edit.
 
-| Component          | File Location                     | Lines   |
-| ------------------ | --------------------------------- | ------- |
-| Dialect struct     | `libsq/driver/dialect/dialect.go` | -       |
-| PostgreSQL dialect | `drivers/postgres/postgres.go`    | 91-102  |
-| MySQL dialect      | `drivers/mysql/mysql.go`          | 111-123 |
-| SQLite dialect     | `drivers/sqlite3/sqlite3.go`      | -       |
-| SQL Server dialect | `drivers/sqlserver/sqlserver.go`  | -       |
+### Core framework
 
-### Data Types
+| Component           | File                                                                                | Symbol                |
+| ------------------- | ----------------------------------------------------------------------------------- | --------------------- |
+| Dialect struct      | [`libsq/driver/dialect/dialect.go`](../libsq/driver/dialect/dialect.go)             | `Dialect`             |
+| Kind enum           | [`libsq/core/kind/kind.go`](../libsq/core/kind/kind.go)                             | `Kind`                |
+| Driver interfaces   | [`libsq/driver/driver.go`](../libsq/driver/driver.go)                               | `Driver`, `SQLDriver` |
+| Driver registry     | [`libsq/driver/registry.go`](../libsq/driver/registry.go)                           | `Registry`            |
+| Driver types enum   | [`libsq/source/drivertype/drivertype.go`](../libsq/source/drivertype/drivertype.go) | `Type`                |
+| Driver registration | [`cli/run.go`](../cli/run.go)                                                       | `FinishRunInit`       |
+| Renderer struct     | [`libsq/ast/render/render.go`](../libsq/ast/render/render.go)                       | `Renderer`            |
+| AST definitions     | [`libsq/ast/ast.go`](../libsq/ast/ast.go)                                           | `AST`                 |
+| Query parser        | [`libsq/ast/parser.go`](../libsq/ast/parser.go)                                     | `parseSLQ`            |
 
-| Component           | File Location                  | Lines   |
-| ------------------- | ------------------------------ | ------- |
-| Kind enum           | `libsq/core/kind/kind.go`      | -       |
-| PostgreSQL: DB→Kind | `drivers/postgres/metadata.go` | 29-91   |
-| PostgreSQL: Kind→DB | `drivers/postgres/render.go`   | 22-47   |
-| MySQL: DB→Kind      | `drivers/mysql/metadata.go`    | -       |
-| MySQL: Kind→DB      | `drivers/mysql/render.go`      | 16-39   |
-| SQLite: DB→Kind     | `drivers/sqlite3/metadata.go`  | 211-237 |
-| SQLite: Kind→DB     | `drivers/sqlite3/metadata.go`  | 240-265 |
+### Per-driver: dialect and type mapping
 
-### Driver Framework
+`Dialect` is always the `driveri.Dialect` method in the listed file.
 
-| Component           | File Location                           | Lines   |
-| ------------------- | --------------------------------------- | ------- |
-| Driver interfaces   | `libsq/driver/driver.go`                | -       |
-| Driver registry     | `libsq/driver/registry.go`              | -       |
-| Driver types enum   | `libsq/source/drivertype/drivertype.go` | -       |
-| Driver registration | `cli/run.go`                            | 276-341 |
+| Driver     | Dialect                            | DBType→Kind                             | Kind→DBType                       |
+| ---------- | ---------------------------------- | --------------------------------------- | --------------------------------- |
+| SQLite     | `drivers/sqlite3/sqlite3.go`       | `metadata.go`, `kindFromDBTypeName`     | `metadata.go`, `DBTypeForKind`    |
+| rqlite     | `drivers/rqlite/rqlite.go`         | `metadata.go`, `kindFromDBTypeName`     | `metadata.go`, `DBTypeForKind`    |
+| DuckDB     | `drivers/duckdb/render.go`         | `metadata.go`, `kindFromDBTypeName`     | `alter.go`, `dbTypeNameFromKind`  |
+| PostgreSQL | `drivers/postgres/postgres.go`     | `metadata.go`, `kindFromDBTypeName`     | `render.go`, `dbTypeNameFromKind` |
+| SQL Server | `drivers/sqlserver/sqlserver.go`   | `metadata.go`, `kindFromDBTypeName`     | `render.go`, `dbTypeNameFromKind` |
+| MySQL      | `drivers/mysql/mysql.go`           | `metadata.go`, `kindFromDBTypeName`     | `render.go`, `dbTypeNameFromKind` |
+| ClickHouse | `drivers/clickhouse/clickhouse.go` | `metadata.go`, `kindFromClickHouseType` | `render.go`, `dbTypeNameFromKind` |
+| Oracle     | `drivers/oracle/oracle.go`         | `render.go`, `kindFromDBTypeName`       | `render.go`, `dbTypeNameFromKind` |
 
-### Rendering
-
-| Component       | File Location                | Lines |
-| --------------- | ---------------------------- | ----- |
-| Renderer struct | `libsq/ast/render/render.go` | -     |
-| AST definitions | `libsq/ast/ast.go`           | -     |
-| Query parser    | `libsq/ast/parser.go`        | -     |
+Paths in the last two columns are relative to the driver's own package directory.
 
 ---
 
 ## Summary
 
-The SQ architecture is built on several key principles:
+The `sq` architecture is built on several key principles:
 
 1. **Universal Type Abstraction**: The `Kind` enum provides a common type system that all
    drivers map to, enabling cross-database compatibility.
@@ -1898,6 +1659,6 @@ The SQ architecture is built on several key principles:
    - **Driver**: Database-specific implementation
    - **Renderer**: SQL code generation
 
-To extend SQ with new databases or types, follow the patterns established in existing drivers,
+To extend `sq` with new databases or types, follow the patterns established in existing drivers,
 focusing on the three critical components: **Dialect definition**, **Type mapping**, and
 **Driver implementation**.

@@ -99,9 +99,7 @@ func newRun(ctx context.Context, tb testing.TB,
 	var cfg *config.Config
 	var err error
 	if cfgStore == nil {
-		var cfgDir string
-		cfgDir, err = os.MkdirTemp("", "sq_test")
-		require.NoError(tb, err)
+		cfgDir := tu.TempDir(tb)
 		cfgStore = &yamlstore.Store{
 			Path:            filepath.Join(cfgDir, "sq.yml"),
 			OptionsRegistry: optsReg,

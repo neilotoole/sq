@@ -72,7 +72,7 @@ func TestState_String(t *testing.T) {
 }
 
 // TestDownloader is an integration test that exercises the complete download
-// and caching lifecycle using a real HTTP resource (sakila.ActorCSVURL).
+// and caching lifecycle using the local fixture server.
 //
 // The test verifies the following behaviors:
 //
@@ -96,9 +96,11 @@ func TestState_String(t *testing.T) {
 //  6. Cache clearing: Calling Clear() resets the Downloader to Uncached state
 //     and removes the cached checksum.
 //
-// This test requires network access to download the sakila actor CSV file.
+// This test runs against the local fixture server (testh/fixtsrv), so it
+// needs no network access. TestDownloader_liveNetwork covers the real-remote
+// path.
 func TestDownloader(t *testing.T) {
-	const dlURL = sakila.ActorCSVURL
+	dlURL := sakila.ActorCSVURL()
 	log := lgt.New(t)
 	ctx := lg.NewContext(context.Background(), log)
 
@@ -137,10 +139,10 @@ func TestDownloader(t *testing.T) {
 	var gotN int
 	gotN, gotErr = ioz.DrainClose(r)
 	require.NoError(t, gotErr)
-	require.Equal(t, sakila.ActorCSVSize, gotN)
+	require.Equal(t, sakila.ActorCSVSize(), gotN)
 	tu.RequireTake(t, gotStream.Filled())
 	tu.RequireTake(t, gotStream.Done())
-	require.Equal(t, sakila.ActorCSVSize, gotStream.Size())
+	require.Equal(t, sakila.ActorCSVSize(), gotStream.Size())
 	require.Equal(t, downloader.Fresh, dl.State(ctx))
 
 	// Now we should be able to access the cache.
@@ -152,7 +154,7 @@ func TestDownloader(t *testing.T) {
 	require.NotEmpty(t, gotFile)
 	gotSize, gotErr := ioz.Filesize(gotFile)
 	require.NoError(t, gotErr)
-	require.Equal(t, sakila.ActorCSVSize, int(gotSize))
+	require.Equal(t, sakila.ActorCSVSize(), int(gotSize))
 
 	// Let's download again, and verify that the cache is used.
 	gotFile, gotStream, gotErr = dl.Get(ctx)
@@ -162,7 +164,7 @@ func TestDownloader(t *testing.T) {
 
 	gotFileBytes, gotErr := os.ReadFile(gotFile)
 	require.NoError(t, gotErr)
-	require.Equal(t, sakila.ActorCSVSize, len(gotFileBytes))
+	require.Equal(t, sakila.ActorCSVSize(), len(gotFileBytes))
 	require.Equal(t, downloader.Fresh, dl.State(ctx))
 	sum, ok = dl.Checksum(ctx)
 	require.True(t, ok)
@@ -503,4 +505,61 @@ func TestCachePreservedOnFailedRefresh(t *testing.T) {
 	require.True(t, ioz.FileInfoEqual(fiBody1, fiBody2))
 	require.True(t, ioz.FileInfoEqual(fiHeader1, fiHeader2))
 	require.True(t, ioz.FileInfoEqual(fiChecksums1, fiChecksums2))
+}
+
+// liveActorCSVURL is a real remote URL, deliberately hardcoded rather than
+// taken from testh/sakila: sakila's accessors now return fixture server URLs,
+// and the point of this test is to exercise a real host.
+const liveActorCSVURL = "https://raw.githubusercontent.com/neilotoole/sq/master/site/static/testdata/actor.csv"
+
+// TestDownloader_liveNetwork exercises the same download and caching lifecycle
+// as TestDownloader, but against a real remote host, so that real TLS,
+// redirects and a real server's revalidation stay covered somewhere.
+//
+// It is gated by tu.SkipNoNetwork; main.yml sets SQ_TEST_NETWORK on the
+// nightly schedule only, so PRs, master merges, release tags and the DB matrix
+// never run it.
+//
+// It asserts no byte count. master's copy of actor.csv can differ from the
+// branch under test, and coupling to that is exactly what gh #1158 removed.
+func TestDownloader_liveNetwork(t *testing.T) {
+	tu.SkipNoNetwork(t)
+
+	log := lgt.New(t)
+	ctx := lg.NewContext(context.Background(), log)
+	cacheDir := tu.TempDir(t)
+
+	dl, gotErr := downloader.New(t.Name(), httpz.NewDefaultClient(), liveActorCSVURL, cacheDir)
+	require.NoError(t, gotErr)
+	require.NoError(t, dl.Clear(ctx))
+	require.Equal(t, downloader.Uncached, dl.State(ctx))
+
+	// First download: uncached, so we get a stream, not a file.
+	gotFile, gotStream, gotErr := dl.Get(ctx)
+	require.NoError(t, gotErr)
+	require.Empty(t, gotFile)
+	require.NotNil(t, gotStream)
+
+	r := gotStream.NewReader(ctx)
+	gotStream.Seal()
+
+	gotN, gotErr := ioz.DrainClose(r)
+	require.NoError(t, gotErr)
+	require.Positive(t, gotN, "live fetch should return a non-empty body")
+	tu.RequireTake(t, gotStream.Filled())
+	tu.RequireTake(t, gotStream.Done())
+	require.Equal(t, downloader.Fresh, dl.State(ctx))
+
+	sum, ok := dl.Checksum(ctx)
+	require.True(t, ok)
+	require.NotEmpty(t, sum)
+
+	// Second Get: served from cache, so a file path and no stream.
+	gotFile, gotStream, gotErr = dl.Get(ctx)
+	require.NoError(t, gotErr)
+	require.Nil(t, gotStream)
+	require.NotEmpty(t, gotFile)
+
+	require.NoError(t, dl.Clear(ctx))
+	require.Equal(t, downloader.Uncached, dl.State(ctx))
 }

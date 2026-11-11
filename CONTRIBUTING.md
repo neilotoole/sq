@@ -13,10 +13,11 @@ For AI coding assistants working in this repo:
 - [AGENTS.md](./AGENTS.md) is the cross-agent guide (shared rules plus
   contributor [Agent Skills](https://agentskills.io/specification) under
   [`.agents/skills/`](./.agents/skills/)).
-- [CLAUDE.md](./CLAUDE.md) is the Claude Code entry point and links to AGENTS.md
-  for shared rules. Claude Code also discovers skills via
-  [`.claude/skills`](./.claude/skills) (a symlink to `.agents/skills` when
-  checked out).
+- Claude Code reads AGENTS.md directly (v2.1.277 or later), and discovers
+  skills via [`.claude/skills`](./.claude/skills) (a symlink to
+  `.agents/skills` when checked out). If you keep a gitignored `CLAUDE.local.md`,
+  it stops Claude Code from reading AGENTS.md; set **Project instructions** to
+  `claude-md-and-agents-md` in `/config`.
 - Install a skill into your agent with
   `npx skills add neilotoole/sq --skill <name>` (see
   [AGENTS.md](./AGENTS.md#installing-and-verifying-skills-npx-skills)).
@@ -51,7 +52,9 @@ Actions pins under `.github/workflows/`. See
 
 ## Tooling
 
-This documentation presumes you are on macOS. If not, adapt appropriately.
+This documentation presumes you are on macOS. If not, the repo's
+[dev container](./docs/DEVELOPER.md#dev-container) (from the command line, GoLand,
+VS Code or GitHub Codespaces) has everything below except Docker.
 This section also presumes you want to do full-stack `sq` development; if not,
 you may not need all of these tools. You'll definitely need `go`.
 

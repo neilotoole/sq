@@ -19,24 +19,41 @@ These are defined by whether they implement just the
 [`driver.Driver`](../libsq/driver/driver.go) interface, or also the
 [`driver.SQLDriver`](../libsq/driver/driver.go) interface.
 
-For the SQL drivers, it is expected that there exists a `sakiladb/DRIVER_NAME`
-docker image, where `DRIVER_NAME` matches the driver type string (e.g.,
-`sakiladb/postgres`, `sakiladb/mysql`, `sakiladb/clickhouse`). See the
-[sakiladb images](https://hub.docker.com/u/sakiladb). These images contain the
-Sakila dataset, enabling uniform integration tests across SQL drivers.
+The SQL drivers divide again, by how the engine is reached:
 
-> Note that `SQLite` is a special case, because, although it is a SQL-based
-> driver, it is also file-based. That is to say, SQLite implements the
-> `driver.SQLDriver` interface, but it does not need a standalone docker
-> container to serve up its SQL interface.
+- **Embedded**: the engine is a library, and the source is a local file. `sq`
+  has two, [`sqlite3`](../drivers/sqlite3) and [`duckdb`](../drivers/duckdb).
+  They implement `driver.SQLDriver` like any other SQL driver, but need no
+  server, and so no docker image, to serve up their SQL interface.
+- **Client/server**: the engine is a separate process reached over the network.
+  `sq` has six: `postgres`, `mysql`, `sqlserver`, `clickhouse`, `oracle` and
+  `rqlite`.
+
+> [!NOTE]
+> [`rqlite`](../drivers/rqlite) sits on the line but lands on the server side.
+> It executes SQLite SQL, so its dialect and type mapping mirror the `sqlite3`
+> driver's, but it is reached over HTTP and does have a docker image.
+
+For each client/server SQL driver, it is expected that there exists a
+`sakiladb/DRIVER_NAME` docker image, where `DRIVER_NAME` matches the driver
+type string (e.g., `sakiladb/postgres`, `sakiladb/mysql`,
+`sakiladb/clickhouse`). See the
+[sakiladb images](https://hub.docker.com/u/sakiladb). These images contain the
+Sakila dataset, enabling uniform integration tests across SQL drivers. The
+engines, versions and DSNs are declared in
+[`.github/sakila-db.json`](../.github/sakila-db.json); see
+[SAKILA.md](./SAKILA.md) and [CI.md](./CI.md).
 
 **Getting started:** Examine an existing driver implementation as a reference.
 
-For SQL drivers, [`postgres`](../drivers/postgres) or [`mysql`](../drivers/mysql) are good templates.
+For client/server SQL drivers, [`postgres`](../drivers/postgres) or
+[`mysql`](../drivers/mysql) are good templates. For an embedded SQL driver, see
+[`duckdb`](../drivers/duckdb), which also shows how `driver.AccessMode` is used
+to open a file read-only versus read-write.
 
-> As mentioned above, for SQL drivers, you'll need a `sakiladb/DRIVER_NAME`
+> As mentioned above, a client/server SQL driver needs a `sakiladb/DRIVER_NAME`
 > docker image: [open a `sq` issue](https://github.com/neilotoole/sq/issues)
-> when you need that docker image.
+> when you need that docker image. Embedded drivers do not.
 
 For document drivers, see [`csv`](../drivers/csv) or [`json`](../drivers/json).
 
@@ -50,7 +67,10 @@ documentation as incomplete work. This is what keeps [sq.io](https://sq.io),
 1. **Driver package**: `drivers/{driver}/` (and registration in
    [`cli/run.go`](../cli/run.go); see [ARCHITECTURE.md](./ARCHITECTURE.md#extension-guide)).
 2. **Driver type**: constant in
-   [`libsq/source/drivertype/drivertype.go`](../libsq/source/drivertype/drivertype.go).
+   [`libsq/source/drivertype/drivertype.go`](../libsq/source/drivertype/drivertype.go),
+   plus a matching `typeCases` entry in
+   [`drivertype_test.go`](../libsq/source/drivertype/drivertype_test.go);
+   `TestType_Coverage` fails until you add it.
 3. **Tests**: integration tests; for SQL drivers, a `sakiladb/{driver}` image
    and handle in [`testh/sakila/sakila.go`](../testh/sakila/sakila.go) when
    applicable.
@@ -203,8 +223,12 @@ type system. Key considerations:
   these to determine the underlying kind.
 - **Parameterized types**: Types like `Decimal(18,4)`, `FixedString(255)`, or
   `VARCHAR(100)` need prefix matching, not exact string comparison.
-- **Default to `kind.Text`**: Unknown types should map to `kind.Text` as a safe
-  fallback.
+- **Unrecognized types**: return `kind.Unknown` and log a warning naming the
+  type and column. Seven of the eight SQL drivers do this; ClickHouse is the
+  exception, falling back to `kind.Text` because its unrecognized types are
+  usually composites it serializes as text anyway. Prefer `kind.Unknown`: it
+  tells the rest of `sq` that the kind was not resolved, whereas `kind.Text`
+  asserts something that may be wrong.
 
 Example pattern for handling wrapped types:
 
@@ -273,10 +297,20 @@ if orderByCol != "" {
 SQL drivers must return a properly configured `dialect.Dialect` from the
 `Dialect()` method. Key settings include:
 
-- **Enquote function**: How to quote identifiers (backticks, double quotes,
-  brackets).
-- **Placeholder style**: `?` for positional, `$1` for numbered.
+- **Enquote function**: How to quote identifiers. Most drivers use
+  `stringz.DoubleQuote`; MySQL and ClickHouse use `stringz.BacktickQuote`;
+  Oracle double-quotes and uppercases, because it folds unquoted identifiers to
+  uppercase but stores quoted ones as written.
+- **Placeholder style**: `?` positional (SQLite, rqlite, MySQL, ClickHouse),
+  `$1` numbered (DuckDB, Postgres), `@p1` (SQL Server), or `:1` (Oracle).
 - **IntBool**: Whether the database uses integers (0/1) for boolean values.
+  Set by MySQL (`TINYINT(1)`) and Oracle (`NUMBER(1,0)`).
+- **SingleWriter**: Set when the engine permits only one write transaction at a
+  time. SQLite sets it; nothing else does.
+
+See the
+[dialect comparison table](./ARCHITECTURE.md#dialect-comparison-table) in
+ARCHITECTURE.md for all eight drivers side by side.
 
 ### Non-SQL drivers
 

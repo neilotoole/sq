@@ -52,7 +52,7 @@ HANDLE        ACTIVE  DRIVER   LOCATION                                         
 # Now, let's have a look at our new source. Output abbreviated for brevity.
 $ sq inspect @tutorial_db
 SOURCE        DRIVER   NAME       FQ NAME         SIZE   TABLES  VIEWS  LOCATION
-@tutorial_db  sqlite3  sakila.db  sakila.db/main  5.6MB  16      5      sqlite3:///Users/neilotoole/work/sq/sq/scratch/tutorial/sakila.db
+@tutorial_db  sqlite3  sakila.db  sakila.db.main  5.9MB  16      7      sqlite3:///Users/neilotoole/work/sq/sq/scratch/tutorial/sakila.db
 
 NAME                    TYPE   ROWS   COLS
 actor                   table  200    actor_id, first_name, last_name, last_update
@@ -89,16 +89,16 @@ everything from the `actor` table.
 ```shell
 $ sq @tutorial_db.actor
 actor_id  first_name   last_name     last_update
-1         PENELOPE     GUINESS       2020-02-15T06:59:28Z
-2         NICK         WAHLBERG      2020-02-15T06:59:28Z
-3         ED           CHASE         2020-02-15T06:59:28Z
+1         PENELOPE     GUINESS       2006-02-15T04:34:33Z
+2         NICK         WAHLBERG      2006-02-15T04:34:33Z
+3         ED           CHASE         2006-02-15T04:34:33Z
 
 # Being that "@tutorial_db" is the active source, you can omit the handle:
 $ sq .actor
 actor_id  first_name   last_name     last_update
-1         PENELOPE     GUINESS       2020-02-15T06:59:28Z
-2         NICK         WAHLBERG      2020-02-15T06:59:28Z
-3         ED           CHASE         2020-02-15T06:59:28Z
+1         PENELOPE     GUINESS       2006-02-15T04:34:33Z
+2         NICK         WAHLBERG      2006-02-15T04:34:33Z
+3         ED           CHASE         2006-02-15T04:34:33Z
 ```
 
 That listed the contents of the `actor` table.
@@ -108,9 +108,9 @@ The same query can be executed in [native SQL](/docs/cmd/sql/):
 ```shell
 $ sq sql "SELECT * FROM actor"
 actor_id  first_name   last_name     last_update
-1         PENELOPE     GUINESS       2020-02-15T06:59:28Z
-2         NICK         WAHLBERG      2020-02-15T06:59:28Z
-3         ED           CHASE         2020-02-15T06:59:28Z
+1         PENELOPE     GUINESS       2006-02-15T04:34:33Z
+2         NICK         WAHLBERG      2006-02-15T04:34:33Z
+3         ED           CHASE         2006-02-15T04:34:33Z
 ```
 
 Let's look at some examples of using the _SLQ_ query language. See
@@ -119,8 +119,8 @@ the [query guide](/docs/query) for in-depth documentation.
 ```shell
 $ sq '.actor | where(.first_name == "MARY")'
 actor_id  first_name  last_name  last_update
-66        MARY        TANDY      2020-02-15T06:59:28Z
-198       MARY        KEITEL     2020-02-15T06:59:28Z
+66        MARY        TANDY      2006-02-15T04:34:33Z
+198       MARY        KEITEL     2006-02-15T04:34:33Z
 ```
 
 It should be obvious that the above query effectively performs a `WHERE first_name = 'MARY'`.

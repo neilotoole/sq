@@ -254,41 +254,62 @@ func (op String) Get(o Options) string {
 	}
 
 	v, ok := o[op.key]
-	if !ok {
+	if !ok || v == nil {
 		return op.defaultVal
 	}
 
-	var s string
-	s, ok = v.(string)
-	if !ok {
+	s, err := op.convert(v)
+	if err != nil {
 		return op.defaultVal
 	}
 
 	return s
 }
 
-// Process implements options.Opt. If the String was constructed
-// with validator function, it is invoked on the value of the Opt,
-// if it is set. Otherwise the method is no-op.
-func (op String) Process(o Options) (Options, error) {
-	if op.validFn == nil {
-		return o, nil
+// convert coerces v into a string. A scalar of some other type is rendered in
+// its natural string form, so that a raw config value that has not been
+// through Registry.Process still yields the configured value rather than
+// op's default. See #1209.
+func (op String) convert(v any) (string, error) {
+	switch v := v.(type) {
+	case string:
+		return v, nil
+	case bool, int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64,
+		float32, float64:
+		return fmt.Sprintf("%v", v), nil
+	default:
+		return "", errz.Errorf("expected string value for {%s} but got %T: %v", op.key, v, v)
 	}
+}
 
+// Process implements options.Opt. A value that is not already a string is
+// coerced into its string form, and the Options is cloned and updated. If the
+// String was constructed with a validator function, it is invoked on the
+// value. If no value is set, the input arg is returned unchanged.
+func (op String) Process(o Options) (Options, error) {
 	v, ok := o[op.key]
 	if !ok || v == nil {
 		return o, nil
 	}
 
-	var s string
-	if s, ok = v.(string); !ok {
-		return nil, errz.Errorf("expected string value for {%s} but got %T: %v", op.key, v, v)
-	}
-
-	if err := op.validFn(s); err != nil {
+	str, err := op.convert(v)
+	if err != nil {
 		return nil, err
 	}
 
+	if op.validFn != nil {
+		if err = op.validFn(str); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, isString := v.(string); isString {
+		return o, nil
+	}
+
+	o = o.Clone()
+	o[op.key] = str
 	return o, nil
 }
 
@@ -339,17 +360,56 @@ func (op Int) Get(o Options) int {
 		return op.defaultVal
 	}
 
-	switch i := v.(type) {
-	case int:
-		return i
-	case int64:
-		return int(i)
-	case uint64:
-		return int(i) //nolint:gosec
-	case uint:
-		return int(i)
-	default:
+	i, err := op.convert(v)
+	if err != nil {
 		return op.defaultVal
+	}
+
+	return i
+}
+
+// convert coerces v into an int, including from the string form that a config
+// file yields. See [String.convert] for why Get needs this.
+func (op Int) convert(v any) (int, error) {
+	switch v := v.(type) {
+	case int:
+		return v, nil
+	case float32:
+		return int(v), nil
+	case float64:
+		return int(v), nil
+	case uint:
+		return int(v), nil
+	case uint8:
+		return int(v), nil
+	case uint16:
+		return int(v), nil
+	case uint32:
+		return int(v), nil
+	case uint64:
+		return int(v), nil //nolint:gosec
+	case int8:
+		return int(v), nil
+	case int16:
+		return int(v), nil
+	case int32:
+		return int(v), nil
+	case int64:
+		return int(v), nil
+	case string:
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			return 0, errz.Wrapf(err, "invalid int value for {%s}: %v", op.key, v)
+		}
+		return i, nil
+	default:
+		// This shouldn't happen, but it's a last-ditch effort.
+		// Print v as a string, and try to parse it.
+		i, err := strconv.Atoi(fmt.Sprintf("%v", v))
+		if err != nil {
+			return 0, errz.Wrapf(err, "invalid int value for {%s}: %v", op.key, v)
+		}
+		return i, nil
 	}
 }
 
@@ -367,58 +427,24 @@ func (op Int) Process(o Options) (Options, error) {
 		return o, nil
 	}
 
-	if _, ok = v.(int); ok {
+	if _, isInt := v.(int); isInt {
 		// Happy path
 		return o, nil
 	}
 
-	o = o.Clone()
-
-	var i int
-	switch v := v.(type) {
-	case float32:
-		i = int(v)
-	case float64:
-		i = int(v)
-	case uint:
-		i = int(v)
-	case uint8:
-		i = int(v)
-	case uint16:
-		i = int(v)
-	case uint32:
-		i = int(v)
-	case uint64:
-		i = int(v) //nolint:gosec
-	case int8:
-		i = int(v)
-	case int16:
-		i = int(v)
-	case int32:
-		i = int(v)
-	case int64:
-		i = int(v)
-	case string:
-		if v == "" {
-			// Empty string is effectively nil
-			delete(o, op.key)
-			return o, nil
-		}
-
-		var err error
-		if i, err = strconv.Atoi(v); err != nil {
-			return nil, errz.Wrapf(err, "invalid int value for {%s}: %v", op.key, v)
-		}
-	default:
-		// This shouldn't happen, but it's a last-ditch effort.
-		// Print v as a string, and try to parse it.
-		s := fmt.Sprintf("%v", v)
-		var err error
-		if i, err = strconv.Atoi(s); err != nil {
-			return nil, errz.Wrapf(err, "invalid int value for {%s}: %v", op.key, v)
-		}
+	if s, isString := v.(string); isString && s == "" {
+		// Empty string is effectively nil
+		o = o.Clone()
+		delete(o, op.key)
+		return o, nil
 	}
 
+	i, err := op.convert(v)
+	if err != nil {
+		return nil, err
+	}
+
+	o = o.Clone()
 	o[op.key] = i
 	return o, nil
 }
@@ -468,13 +494,37 @@ func (op Bool) Get(o Options) bool {
 		return op.defaultVal
 	}
 
-	var b bool
-	b, ok = v.(bool)
-	if !ok {
+	b, err := op.convert(v)
+	if err != nil {
 		return op.defaultVal
 	}
 
 	return b
+}
+
+// convert coerces v into a bool, including from the string form that a config
+// file yields. See [String.convert] for why Get needs this.
+func (op Bool) convert(v any) (bool, error) {
+	switch v := v.(type) {
+	case bool:
+		return v, nil
+	case string:
+		// It could be a string like "true"
+		b, err := stringz.ParseBool(v)
+		if err != nil {
+			return false, errz.Wrapf(err, "invalid bool value for {%s}: %v", op.key, v)
+		}
+		return b, nil
+	default:
+		// Well, we don't know what this is... maybe a number like "1"?
+		// Last-ditch effort. Print the value to a string, and check
+		// if we can parse the string into a bool.
+		b, err := stringz.ParseBool(fmt.Sprintf("%v", v))
+		if err != nil {
+			return false, errz.Wrapf(err, "invalid bool value for {%s}: %v", op.key, v)
+		}
+		return b, nil
+	}
 }
 
 // Default returns the default value of op.
@@ -496,39 +546,25 @@ func (op Bool) Process(o Options) (Options, error) {
 		return o, nil
 	}
 
-	if _, ok = v.(bool); ok {
+	if _, isBool := v.(bool); isBool {
 		// Happy path
 		return o, nil
 	}
 
-	o = o.Clone()
-
-	switch v := v.(type) {
-	case string:
-		if v == "" {
-			// Empty string is effectively nil
-			delete(o, op.key)
-			return o, nil
-		}
-
-		// It could be a string like "true"
-		b, err := stringz.ParseBool(v)
-		if err != nil {
-			return nil, errz.Wrapf(err, "invalid bool value for {%s}: %v", op.key, v)
-		}
-		o[op.key] = b
-	default:
-		// Well, we don't know what this is... maybe a number like "1"?
-		// Last-ditch effort. Print the value to a string, and check
-		// if we can parse the string into a bool.
-		s := fmt.Sprintf("%v", v)
-		b, err := stringz.ParseBool(s)
-		if err != nil {
-			return nil, errz.Wrapf(err, "invalid bool value for {%s}: %v", op.key, v)
-		}
-		o[op.key] = b
+	if s, isString := v.(string); isString && s == "" {
+		// Empty string is effectively nil
+		o = o.Clone()
+		delete(o, op.key)
+		return o, nil
 	}
 
+	b, err := op.convert(v)
+	if err != nil {
+		return nil, err
+	}
+
+	o = o.Clone()
+	o[op.key] = b
 	return o, nil
 }
 
@@ -568,22 +604,14 @@ func (op Duration) Process(o Options) (Options, error) {
 		return o, nil
 	}
 
-	if _, ok = v.(time.Duration); ok {
+	if _, isDur := v.(time.Duration); isDur {
 		// v is already a duration, nothing to do here.
 		return o, nil
 	}
 
-	// v should be a string
-	var s string
-	s, ok = v.(string)
-	if !ok {
-		return nil, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
-			op.key, s, v, v)
-	}
-
-	d, err := time.ParseDuration(s)
+	d, err := op.convert(v)
 	if err != nil {
-		return nil, errz.Wrapf(err, "options {%s} is not a valid duration", op.key)
+		return nil, err
 	}
 
 	o = o.Clone()
@@ -614,15 +642,34 @@ func (op Duration) Get(o Options) time.Duration {
 	}
 
 	v, ok := o[op.key]
-	if !ok {
+	if !ok || v == nil {
 		return op.defaultVal
 	}
 
-	var d time.Duration
-	d, ok = v.(time.Duration)
-	if !ok {
+	d, err := op.convert(v)
+	if err != nil {
 		return op.defaultVal
 	}
 
 	return d
+}
+
+// convert coerces v into a time.Duration, including from the string form that
+// a config file yields, e.g. "1m30s". See [String.convert] for why Get needs
+// this.
+func (op Duration) convert(v any) (time.Duration, error) {
+	switch v := v.(type) {
+	case time.Duration:
+		return v, nil
+	case string:
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return 0, errz.Wrapf(err, "options {%s} is not a valid duration", op.key)
+		}
+		return d, nil
+	default:
+		var s string
+		return 0, errz.Errorf("option {%s} should be {%T} but got {%T}: %v",
+			op.key, s, v, v)
+	}
 }

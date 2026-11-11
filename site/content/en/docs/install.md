@@ -71,10 +71,13 @@ brew install sq
 ```
 
 {{< alert icon="👉" >}}
-`sq` is now a [core brew formula](https://formulae.brew.sh/formula/sq#default). Previously,
-`sq` was available via `brew install neilotoole/sq/sq`. If you have installed `sq` this way,
-you should uninstall it (`brew uninstall neilotoole/sq/sq`) before installing the new formula
-via `brew install sq`.
+`sq` is a [core brew formula](https://formulae.brew.sh/formula/sq#default). The old
+`neilotoole/sq` tap is retired. If you installed `sq` from it (`brew install neilotoole/sq/sq`),
+the next `brew update` switches that install to the core formula.
+
+Homebrew no longer builds bottles for Intel Macs, so on an Intel Mac, `brew install sq` builds
+from source. To skip the build, download the `macos-amd64` binary from
+[GitHub releases](https://github.com/neilotoole/sq/releases).
 {{< /alert >}}
 
 ## Windows
@@ -100,7 +103,10 @@ consult the [install.sh source code](https://raw.githubusercontent.com/neilotool
 ## Docker
 
 The [`ghcr.io/neilotoole/sq`](https://github.com/neilotoole/sq/pkgs/container/sq)
-image is preloaded with `sq` and a handful of related tools like `jq`.
+image is preloaded with `sq` and a handful of related tools like `jq`. The same
+image is published to Docker Hub as
+[`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq). Both are cosign-signed
+and carry SLSA build provenance and an SPDX SBOM.
 
 ### Local
 

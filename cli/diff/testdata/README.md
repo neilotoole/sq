@@ -12,6 +12,18 @@ to compare the output of `sq` with the `diff`'s output.
 - https://www.cloudbees.com/blog/git-diff-a-complete-comparison-tutorial-for-git
 
 
+## Sakila diff fixtures
+
+[`sakila_a.db`](sakila_a.db) and [`sakila_b.db`](sakila_b.db) are two SQLite Sakila
+databases that differ from each other, used by `cli/diff/diff_test.go` to exercise
+`sq diff` end to end (schema diffs, the exit-code-1-on-difference contract, and
+output-format rejection).
+
+[`sakila_a.actor.txt`](sakila_a.actor.txt) and [`sakila_b.actor.txt`](sakila_b.actor.txt)
+are the `actor` table from each, rendered as text, so the same difference can be fed to
+GNU `diff` for comparison against `sq`'s own output. The visible difference is in the
+second row: `WAHLBERG` in `a`, `BERGER` in `b`.
+
 ## diffdirs
 
 [`diffdirs.sh`](diffdirs.sh) executes `diff` against two dirs.
