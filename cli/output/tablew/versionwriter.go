@@ -64,7 +64,7 @@ func (w *versionWriter) Version(bi buildinfo.Info, latestVersion string, hi host
 		w.pr.Error.Fprintf(w.out, "unknown\n")
 	} else {
 		if newerAvailable {
-			w.pr.Hilite.Fprintln(w.out, latestVersion)
+			w.pr.UpdateAvailable.Fprintln(w.out, latestVersion)
 		} else {
 			w.pr.Faint.Fprintln(w.out, latestVersion)
 		}
