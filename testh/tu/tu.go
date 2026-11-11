@@ -21,7 +21,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/otiai10/copy"
+	cp "github.com/otiai10/copy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -250,7 +250,7 @@ func DirCopy(tb testing.TB, sourceDir string) (tmpDir string) {
 	tb.Helper()
 
 	tmpDir = TempDir(tb)
-	err := copy.Copy(sourceDir, tmpDir)
+	err := cp.Copy(sourceDir, tmpDir)
 	require.NoError(tb, err)
 	tb.Logf("Copied %s -> %s", sourceDir, tmpDir)
 	return tmpDir

@@ -147,11 +147,11 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.Ac
 		return nil, err
 	}
 	// No per-connection init function. In particular, extensions are not
-	// installed or loaded here. Only json, parquet, icu, autocomplete and
-	// core_functions are statically linked into the duckdb-go-bindings
-	// engine; every other extension is a separate shared library that DuckDB
-	// installs into its extension directory (~/.duckdb by default) and loads
-	// on first use via autoinstall_known_extensions and
+	// installed or loaded here. Only json, parquet, icu, autocomplete,
+	// core_functions, tpch and tpcds are statically linked into the
+	// duckdb-go-bindings engine; every other extension is a separate shared
+	// library that DuckDB installs into its extension directory (~/.duckdb by
+	// default) and loads on first use via autoinstall_known_extensions and
 	// autoload_known_extensions, both of which default to true.
 	//
 	// The driver used to run INSTALL for a fixed set once per process and

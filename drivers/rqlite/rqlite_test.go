@@ -72,6 +72,36 @@ func TestSourceMetadata(t *testing.T) {
 	require.Nil(t, md.Size, "rqlite source size should not be reported")
 }
 
+// TestSourceMetadata_VirtualTableCounted verifies that a virtual table is
+// counted in TableCount (gh1300).
+func TestSourceMetadata_VirtualTableCounted(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.RQ)
+	grip := th.Open(src)
+	ctx := th.Context
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	tblName := "vtab_fts_" + stringz.Uniq8()
+	_, err = db.ExecContext(ctx, fmt.Sprintf(`CREATE VIRTUAL TABLE %q USING fts5(body)`, tblName))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %q", tblName))
+	})
+
+	md, err := grip.SourceMetadata(ctx, false)
+	require.NoError(t, err)
+	tblMd := md.Table(tblName)
+	require.NotNil(t, tblMd)
+	require.Equal(t, sqlz.TableTypeVirtual, tblMd.TableType)
+	// Other tests create and drop tables in parallel, so assert the
+	// invariant within this snapshot rather than exact counts.
+	require.Equal(t, int64(len(md.Tables)), md.TableCount+md.ViewCount)
+}
+
 // TestInspect_DDLMetadata exercises the DDL-derived inspect metadata that
 // SQLite/rqlite exposes only in the CREATE statements in sqlite_master:
 // generated columns, AUTOINCREMENT, CHECK constraints, triggers (timing +
