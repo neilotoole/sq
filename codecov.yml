@@ -1,10 +1,19 @@
 # Codecov configuration.
 # See https://docs.codecov.com/docs/codecov-yaml for all options.
 #
-# Coverage is uploaded from the dedicated coverage workflow
-# (.github/workflows/coverage.yml), which runs the full suite on ubuntu nightly
-# and tags the upload with the "nightly" flag. Checks are informational so
-# they report status without blocking PR merges.
+# Coverage is uploaded from two places, and Codecov merges the uploads:
+#
+#   - .github/workflows/coverage.yml runs the full suite on ubuntu nightly and
+#     tags the upload with the "nightly" flag. External DB engine tests skip
+#     there, because no engine is running.
+#   - .github/workflows/db-integration.yml, when called by db-scheduled.yml,
+#     uploads each engine leg with a "db-<engine>" flag (e.g. "db-postgres").
+#     These cover the server-driver code paths that "nightly" cannot reach.
+#
+# The uploads run at different times, so they can land on different master
+# commits; carryforward fills in a flag a commit did not receive from its
+# nearest ancestor that did. Checks are informational so they report status
+# without blocking PR merges.
 
 coverage:
   status:
@@ -14,6 +23,13 @@ coverage:
     patch:
       default:
         informational: true
+
+# Generated ANTLR parsers: tens of thousands of lines of state-machine code
+# that no test is expected to cover exhaustively. Counting them only buries
+# the signal from hand-written code.
+ignore:
+  - "drivers/sqlite3/sqlparser/sqlite"
+  - "libsq/ast/internal/slq"
 
 comment:
   layout: "reach, diff, flags, files"

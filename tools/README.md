@@ -53,6 +53,7 @@ By placing each tool in its own subdirectory with a separate `go.mod`:
 ```text
 tools/
 ├── README.md
+├── antlr-4.13.0-complete.jar   # not a Go tool; see below
 ├── betteralign/
 │   ├── go.mod
 │   └── go.sum
@@ -73,6 +74,11 @@ Each subdirectory contains a minimal `go.mod` with:
 - A `go` version directive
 - A `tool` directive pointing to the tool's main package
 - The tool's dependencies (managed automatically by Go)
+
+`antlr-4.13.0-complete.jar` is the exception: it is a committed Java JAR, not a Go
+tool module. [`grammar/generate.sh`](../grammar/generate.sh) runs it to regenerate
+the SLQ parser, so contributors need Java but no separate ANTLR install. See
+[`docs/GRAMMAR.md`](../docs/GRAMMAR.md#regenerating-the-parser).
 
 ## Usage
 
@@ -120,6 +126,10 @@ See the project [`Makefile`](../Makefile) for real-world usage examples.
    ```
 
 5. Add a Makefile target if needed (see existing targets for examples).
+
+6. Add the tool's module path to the `allow` list of the `/tools/*` entry in
+   [`.github/dependabot.yml`](../.github/dependabot.yml). Dependabot skips
+   tool modules unless they're listed there.
 
 ## References
 

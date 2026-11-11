@@ -818,7 +818,7 @@ func TestCmdInspect_stdin(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			f, err := os.Open(tc.fpath) // No need to close f
+			f, err := os.Open(tc.fpath) // Files.AddStdin takes ownership; Files.Close closes f
 			require.NoError(t, err)
 
 			tr := testrun.New(ctx, t, nil)

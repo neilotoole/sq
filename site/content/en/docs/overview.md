@@ -59,7 +59,7 @@ Read more in [Concepts](/docs/concepts).
    ```shell
    $ sq inspect @demo
    SOURCE  DRIVER   NAME       FQ NAME         SIZE   TABLES  VIEWS  LOCATION
-   @demo   sqlite3  sakila.db  sakila.db/main  5.6MB  16      5      sqlite3:///Users/neilotoole/work/sq/sq/sakila.db
+   @demo   sqlite3  sakila.db  sakila.db.main  5.9MB  16      7      sqlite3:///Users/neilotoole/work/sq/sq/sakila.db
 
    NAME                    TYPE   ROWS   COLS
    actor                   table  200    actor_id, first_name, last_name, last_update
@@ -73,18 +73,18 @@ Read more in [Concepts](/docs/concepts).
    ```shell
    $ sq '@demo.actor | .[0:3]'
    actor_id  first_name  last_name  last_update
-   1         PENELOPE    GUINESS    2020-02-15T06:59:28Z
-   2         NICK        WAHLBERG   2020-02-15T06:59:28Z
-   3         ED          CHASE      2020-02-15T06:59:28Z
+   1         PENELOPE    GUINESS    2006-02-15T04:34:33Z
+   2         NICK        WAHLBERG   2006-02-15T04:34:33Z
+   3         ED          CHASE      2006-02-15T04:34:33Z
    ```
 
 1. Run the query again, but output in a different format:
 
    ```shell
    $ sq '@demo.actor | .[0:3]' --jsonl
-   {"actor_id": "1", "first_name": "PENELOPE", "last_name": "GUINESS", "last_update": "2020-02-15T06:59:28Z"}
-   {"actor_id": "2", "first_name": "NICK", "last_name": "WAHLBERG", "last_update": "2020-02-15T06:59:28Z"}
-   {"actor_id": "3", "first_name": "ED", "last_name": "CHASE", "last_update": "2020-02-15T06:59:28Z"}
+   {"actor_id": "1", "first_name": "PENELOPE", "last_name": "GUINESS", "last_update": "2006-02-15T04:34:33Z"}
+   {"actor_id": "2", "first_name": "NICK", "last_name": "WAHLBERG", "last_update": "2006-02-15T04:34:33Z"}
+   {"actor_id": "3", "first_name": "ED", "last_name": "CHASE", "last_update": "2006-02-15T04:34:33Z"}
    ```
 
 Next, read the [tutorial](/docs/tutorial).

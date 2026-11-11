@@ -1,0 +1,45 @@
+# Builds the contributor dev container (.devcontainer/) and runs the fast local
+# loop inside it. Maintainers develop natively, so this workflow is what keeps
+# the image from rotting unnoticed. The weekly run catches drift that no repo
+# change triggers: the base image, apt packages, and the Go and bun downloads.
+name: Dev Container
+
+on:
+  pull_request:
+    paths:
+      - ".devcontainer/**"
+      - "Makefile"
+      - ".github/workflows/devcontainer.yml"
+  push:
+    branches: [master]
+    paths:
+      - ".devcontainer/**"
+      - "Makefile"
+      - ".github/workflows/devcontainer.yml"
+  schedule:
+    - cron: "23 6 * * 2" # Tuesday 06:23 UTC.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      # Runs the container's postCreateCommand (make init) first, so this also
+      # checks the onboarding path a new contributor takes.
+      - name: Build dev container and run the fast loop
+        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
+        with:
+          push: never
+          runCmd: make gen && make lint && make test-short

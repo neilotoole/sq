@@ -367,7 +367,6 @@ func TestIsValidHandle(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			got := source.IsValidHandle(tc.in)
 			require.Equal(t, tc.valid, got)
@@ -395,7 +394,6 @@ func TestValidGroup(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.in), func(t *testing.T) {
 			err := source.ValidGroup(tc.in)
 			if tc.wantErr {
@@ -439,7 +437,6 @@ func TestHandle2SafePath(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tu.Name(i, tc.handle), func(t *testing.T) {
 			got := source.Handle2SafePath(tc.handle)
 			require.Equal(t, tc.want, got)

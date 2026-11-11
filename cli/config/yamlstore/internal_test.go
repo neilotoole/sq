@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -700,6 +701,170 @@ func Test_Store_doLoad_EmptyVersionStampsBuildVersion(t *testing.T) {
 		"an empty version stamps the build version when no registry is configured")
 }
 
+// Test_Store_doLoad_ProcessesSourceOptions verifies that per-source options are
+// run through the registry on load, the same as the base config options.
+// Without this a source option loaded from YAML keeps its raw string form, so
+// options.Duration.Get's type assertion fails and every consumer silently falls
+// back to the option's default.
+func Test_Store_doLoad_ProcessesSourceOptions(t *testing.T) {
+	opt := options.NewDuration("conn.max-idle-time", nil, 2*time.Second, "", "")
+	reg := &options.Registry{}
+	reg.Add(opt)
+
+	const cfgYAML = `config.version: v0.55.0
+collection:
+  active.source: '@src'
+  sources:
+    - handle: '@src'
+      driver: sqlite3
+      location: 'sqlite3://test.db'
+      options:
+        conn.max-idle-time: 100s
+`
+	_, cfgPath := writeTestConfig(t, cfgYAML)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath, OptionsRegistry: reg}
+
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+
+	src, err := cfg.Collection.Get("@src")
+	require.NoError(t, err)
+	// On unmodified master src.Options holds the string "100s", so Get returns the
+	// 2s default instead of the configured value.
+	require.Equal(t, 100*time.Second, opt.Get(src.Options),
+		"a source option must be processed into its typed form on load")
+}
+
+// Test_Store_doLoad_KeepsUnprocessableSourceOption verifies that a source
+// option whose value can't be processed is left verbatim, and that the load
+// still succeeds. Rejecting the config here would abort bootstrap for every
+// command, including the config commands needed to repair the value.
+func Test_Store_doLoad_KeepsUnprocessableSourceOption(t *testing.T) {
+	optIdle := options.NewDuration("conn.max-idle-time", nil, 2*time.Second, "", "")
+	optLife := options.NewDuration("conn.max-lifetime", nil, 10*time.Minute, "", "")
+	reg := &options.Registry{}
+	reg.Add(optIdle, optLife)
+
+	const cfgYAML = `config.version: v0.55.0
+collection:
+  active.source: '@src'
+  sources:
+    - handle: '@src'
+      driver: sqlite3
+      location: 'sqlite3://test.db'
+      options:
+        conn.max-idle-time: 5 minutes
+        conn.max-lifetime: 5m
+`
+	_, cfgPath := writeTestConfig(t, cfgYAML)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath, OptionsRegistry: reg}
+
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err, "an unprocessable source option must not fail the load")
+
+	src, err := cfg.Collection.Get("@src")
+	require.NoError(t, err)
+	require.Equal(t, "5 minutes", src.Options[optIdle.Key()],
+		"the unprocessable value is kept verbatim for Save to reject")
+	require.Equal(t, 5*time.Minute, optLife.Get(src.Options),
+		"a sibling option is still processed")
+}
+
+// Test_Store_doLoad_KeepsUnregisteredSourceOption verifies that a source
+// option key that isn't in the registry survives the load. Registry.Process
+// rebuilds the map from registered keys only, which would make an unknown
+// key (a typo, or one written by a newer sq) vanish before the user sees it.
+func Test_Store_doLoad_KeepsUnregisteredSourceOption(t *testing.T) {
+	opt := options.NewDuration("conn.max-idle-time", nil, 2*time.Second, "", "")
+	reg := &options.Registry{}
+	reg.Add(opt)
+
+	const cfgYAML = `config.version: v0.55.0
+collection:
+  active.source: '@src'
+  sources:
+    - handle: '@src'
+      driver: sqlite3
+      location: 'sqlite3://test.db'
+      options:
+        conn.max-idle-time: 100s
+        unregistered.key: hello
+`
+	_, cfgPath := writeTestConfig(t, cfgYAML)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath, OptionsRegistry: reg}
+
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+
+	src, err := cfg.Collection.Get("@src")
+	require.NoError(t, err)
+	require.Equal(t, "hello", src.Options["unregistered.key"],
+		"an unregistered source option key must survive the load")
+	require.Equal(t, 100*time.Second, opt.Get(src.Options),
+		"a registered option is still processed alongside it")
+}
+
+// Test_Store_doLoad_SourceWithoutOptions verifies that a source carrying no
+// options at all loads cleanly, leaving Source.Options nil.
+func Test_Store_doLoad_SourceWithoutOptions(t *testing.T) {
+	reg := &options.Registry{}
+	reg.Add(options.NewDuration("conn.max-idle-time", nil, 2*time.Second, "", ""))
+
+	const cfgYAML = `config.version: v0.55.0
+collection:
+  active.source: '@src'
+  sources:
+    - handle: '@src'
+      driver: sqlite3
+      location: 'sqlite3://test.db'
+`
+	_, cfgPath := writeTestConfig(t, cfgYAML)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath, OptionsRegistry: reg}
+
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+
+	src, err := cfg.Collection.Get("@src")
+	require.NoError(t, err)
+	require.Nil(t, src.Options, "a source with no options keeps nil Options")
+}
+
+// Test_Store_doLoad_SourceOptionUnsetByProcess verifies that when an Opt's
+// Process treats a value as unset and removes the key, the load honors that
+// removal rather than leaving a nil entry behind. options.Bool does this for
+// an empty string.
+func Test_Store_doLoad_SourceOptionUnsetByProcess(t *testing.T) {
+	opt := options.NewBool("ingest.header", nil, false, "", "")
+	reg := &options.Registry{}
+	reg.Add(opt)
+
+	const cfgYAML = `config.version: v0.55.0
+collection:
+  active.source: '@src'
+  sources:
+    - handle: '@src'
+      driver: csv
+      location: '/tmp/test.csv'
+      options:
+        ingest.header: ""
+`
+	_, cfgPath := writeTestConfig(t, cfgYAML)
+	ctx := lg.NewContext(context.Background(), lgt.New(t))
+	store := &Store{Path: cfgPath, OptionsRegistry: reg}
+
+	cfg, err := store.Load(ctx)
+	require.NoError(t, err)
+
+	src, err := cfg.Collection.Get("@src")
+	require.NoError(t, err)
+	require.NotContains(t, src.Options, opt.Key(),
+		"a value that Process treats as unset is removed, not left as nil")
+}
+
 // Test_Store_writeConfigBackupOnce_DirError verifies that an unusable
 // backup directory (here a non-directory in the path, ENOTDIR) aborts the
 // backup rather than silently proceeding without one.
@@ -813,8 +978,7 @@ func Test_Store_writeConfigBackupOnce_ConcurrentAtMostOnce(t *testing.T) {
 	var wg sync.WaitGroup
 	var wroteCount atomic.Int32
 	wg.Add(n)
-	for i := 0; i < n; i++ {
-		i := i
+	for i := range n {
 		go func() {
 			defer wg.Done()
 			ctx := lg.NewContext(context.Background(), lgt.New(t))

@@ -5,6 +5,8 @@ import (
 	"os"
 	"runtime"
 	"testing"
+
+	"github.com/neilotoole/sq/testh/proj"
 )
 
 // SkipShort skips tb if testing.Short and arg skip are both true.
@@ -12,6 +14,27 @@ func SkipShort(tb testing.TB, skip bool) {
 	tb.Helper()
 	if skip && testing.Short() {
 		tb.Skip("Skip long-running test because -short is true.")
+	}
+}
+
+// EnvNetwork is the envar that opts a test into using the real network.
+const EnvNetwork = "SQ_TEST_NETWORK"
+
+// SkipNoNetwork skips tb unless the EnvNetwork envar is set to a true value.
+//
+// Almost every fixture fetch is served by the local fixture server
+// (testh/fixtsrv). The handful of tests that deliberately exercise a real
+// remote host use this gate, so the CI dev loop, release tags and the DB
+// matrix never depend on that host being reachable. main.yml sets EnvNetwork
+// on the nightly schedule only. See gh #1158.
+//
+// tu.SkipShort is deliberately NOT used for this: main.yml passes -short only
+// on the PR and master dev loop, so a -short gate would still leave the fetch
+// running on release tags.
+func SkipNoNetwork(tb testing.TB) {
+	tb.Helper()
+	if !proj.BoolEnvar(EnvNetwork) {
+		tb.Skipf("Skip live-network test because %s is not true.", EnvNetwork)
 	}
 }
 

@@ -22,8 +22,8 @@ func BenchmarkExecTableDiff(b *testing.B) {
 
 	ru := th.Run()
 	require.NoError(b, cli.FinishRunInit(th.Context, ru))
-	srcA := testh.NewSakilaSource(b, "@a", false)
-	srcB := testh.NewSakilaSource(b, "@b", false)
+	srcA := testh.NewSakilaSource(b, "@a")
+	srcB := testh.NewSakilaSource(b, "@b")
 	require.NoError(b, ru.Config.Collection.Add(srcA))
 	require.NoError(b, ru.Config.Collection.Add(srcB))
 

@@ -66,15 +66,15 @@ the header row isn't treated as a data row. Take two distinct CSV files, `actor_
 
 ```text
 actor_id,first_name,last_name,last_update
-1,PENELOPE,GUINESS,2020-02-15T06:59:28Z
-2,NICK,WAHLBERG,2020-02-15T06:59:28Z
+1,PENELOPE,GUINESS,2006-02-15T04:34:33Z
+2,NICK,WAHLBERG,2006-02-15T04:34:33Z
 ```
 
 and `actor_no_header.csv`:
 
 ```text
-1,PENELOPE,GUINESS,2020-02-15T06:59:28Z
-2,NICK,WAHLBERG,2020-02-15T06:59:28Z
+1,PENELOPE,GUINESS,2006-02-15T04:34:33Z
+2,NICK,WAHLBERG,2006-02-15T04:34:33Z
 ```
 
 For the latter case, `sq` automatically assigns generated
@@ -119,8 +119,8 @@ Let's go back to the CSV example:
 
 ```text
 actor_id,first_name,last_name,last_update
-1,PENELOPE,GUINESS,2020-02-15T06:59:28Z
-2,NICK,WAHLBERG,2020-02-15T06:59:28Z
+1,PENELOPE,GUINESS,2006-02-15T04:34:33Z
+2,NICK,WAHLBERG,2006-02-15T04:34:33Z
 ```
 
 And [inspect](/docs/inspect) that source:

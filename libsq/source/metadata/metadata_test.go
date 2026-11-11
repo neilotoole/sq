@@ -1693,8 +1693,8 @@ func TestSource_RecomputeTableCounts(t *testing.T) {
 		{TableType: sqlz.TableTypeVirtual},
 	}}
 	s.RecomputeTableCounts()
-	require.Equal(t, int64(2), s.TableCount)
-	require.Equal(t, int64(2), s.ViewCount) // view + matview
+	require.Equal(t, int64(3), s.TableCount) // table + table + virtual
+	require.Equal(t, int64(2), s.ViewCount)  // view + matview
 }
 
 // TestColumn_Clone_AllFieldsCovered is a reflective guard: every exported
@@ -1703,8 +1703,7 @@ func TestSource_RecomputeTableCounts(t *testing.T) {
 func TestColumn_Clone_AllFieldsCovered(t *testing.T) {
 	orig := &metadata.Column{}
 	v := reflect.ValueOf(orig).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		f := v.Field(i)
+	for _, f := range v.Fields() {
 		if !f.CanSet() {
 			continue
 		}

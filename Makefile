@@ -90,7 +90,15 @@ gen: ## Run code generation (go generate + betteralign on generated code).
 	@go generate ./...
 	@# betteralign re-orders struct fields in generated code for optimal memory
 	@# layout. https://github.com/dkorunic/betteralign
-	@go tool -modfile=tools/betteralign/go.mod betteralign -apply ./libsq/ast/internal/slq >/dev/null 2>&1 || true
+	@# It skips generated files unless -generated_files is set. It exits 3 when
+	@# it finds misaligned structs, even with -apply, which is the normal result
+	@# right after regeneration, so only other exit codes are failures.
+	@out=$$(go tool -modfile=tools/betteralign/go.mod betteralign -apply -generated_files ./libsq/ast/internal/slq 2>&1); \
+		rc=$$?; \
+		if [ $$rc -ne 0 ] && [ $$rc -ne 3 ]; then \
+			printf '%s\n' "$$out" >&2; \
+			exit $$rc; \
+		fi
 
 .PHONY: fmt
 fmt: ## Format the whole repo (Go imports + dprint for everything else).
@@ -113,7 +121,7 @@ fmt-check: ## Check dprint formatting repo-wide (read-only; does not modify file
 lint: deps ## Run linters: golangci-lint, shellcheck, dprint check, biome.
 	go tool -modfile=tools/golangci-lint/go.mod golangci-lint version
 	go tool -modfile=tools/golangci-lint/go.mod golangci-lint run --output.tab.path stdout
-	@shellcheck ./install.sh .githooks/pre-commit scripts/build-db-matrix.sh scripts/dedup-db-matrix.sh scripts/build-db-matrix_test.sh scripts/dedup-db-matrix_test.sh
+	@shellcheck ./install.sh .githooks/pre-commit sakila-start-local.sh sakila-stop-local.sh scripts/build-db-matrix.sh scripts/dedup-db-matrix.sh scripts/build-db-matrix_test.sh scripts/dedup-db-matrix_test.sh
 	@bash scripts/build-db-matrix_test.sh
 	@bash scripts/dedup-db-matrix_test.sh
 	@# Repo-wide formatting gate (markdown, JSON, YAML, TOML, SCSS, Go, JS).
@@ -131,6 +139,7 @@ goreleaser-verify-config: ## Validate the goreleaser config files (no build/publ
 	goreleaser check -f .goreleaser-linux-amd64.yml
 	goreleaser check -f .goreleaser-linux-arm64.yml
 	goreleaser check -f .goreleaser-windows.yml
+	goreleaser check -f .goreleaser-docker.yml
 
 .PHONY: goreleaser-build-local-arch
 goreleaser-build-local-arch: ## Build via goreleaser for the local arch (snapshot; no publish).
@@ -150,9 +159,39 @@ else
 	goreleaser build --snapshot --clean --single-target -f .goreleaser-windows.yml
 endif
 
+# ---- Dev container (run on the host) --------------------------------------
+#
+# Wrappers around the Dev Container CLI (https://github.com/devcontainers/cli);
+# see docs/DEVELOPER.md#dev-container. --mount-git-worktree-common-dir lets git
+# work inside the container when this checkout is a worktree (with relative
+# paths); in a regular clone it does nothing.
+
+# Silence Docker's "What's next" hints, which the host docker CLI prints after
+# an interactive exec or a failed command. The CLI passes its environment on to
+# the docker commands it runs.
+devcontainer-up devcontainer-rebuild devcontainer-shell devcontainer-down: export DOCKER_CLI_HINTS := false
+
+.PHONY: devcontainer-up
+devcontainer-up: ## Start the dev container, reusing an existing one.
+	devcontainer up --mount-git-worktree-common-dir
+
+.PHONY: devcontainer-rebuild
+devcontainer-rebuild: ## Recreate the dev container from scratch (cache volumes survive).
+	devcontainer up --mount-git-worktree-common-dir --remove-existing-container
+
+.PHONY: devcontainer-shell
+devcontainer-shell: ## Open a shell in the running dev container.
+	devcontainer exec bash
+
+.PHONY: devcontainer-down
+devcontainer-down: ## Stop and remove the dev container (cache volumes survive).
+	@# The CLI has no "down" command; it finds its container by this label.
+	@ids=$$(docker ps -aq --filter label=devcontainer.local_folder=$(CURDIR)); \
+		if [ -n "$$ids" ]; then docker rm -f $$ids; else echo "No dev container for $(CURDIR)."; fi
+
 # ---- Site (sq.io) ---------------------------------------------------------
 
 .PHONY: site-local
 site-local: ## Start the local sq.io dev server (delegates to site/Makefile).
-	@# See site/Makefile and site/CLAUDE.md for the full set of site targets.
+	@# See site/Makefile and site/AGENTS.md for the full set of site targets.
 	$(MAKE) -C site site-local
