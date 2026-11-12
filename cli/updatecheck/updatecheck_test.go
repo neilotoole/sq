@@ -15,7 +15,7 @@ import (
 )
 
 func TestVersionFromBrewFormula(t *testing.T) {
-	f, err := os.ReadFile(filepath.Join("..", "testdata", "sq-0.20.0.rb"))
+	f, err := os.ReadFile(filepath.Join("testdata", "sq-0.20.0.rb"))
 	require.NoError(t, err)
 
 	vers, err := versionFromBrewFormula(f)
@@ -164,6 +164,20 @@ func TestReadFreshCache_stale(t *testing.T) {
 	require.Empty(t, latest)
 }
 
+func TestReadFreshCache_futureCheckedAt(t *testing.T) {
+	t.Parallel()
+
+	cacheDir := t.TempDir()
+	require.NoError(t, writeCache(cacheDir, cacheEntry{
+		LatestVersion: "v9.9.9",
+		CheckedAt:     time.Now().UTC().Add(time.Hour),
+	}))
+
+	latest, ok := readFreshCache(cacheDir)
+	require.False(t, ok)
+	require.Empty(t, latest)
+}
+
 func TestWriteCache_roundTrip(t *testing.T) {
 	t.Parallel()
 
@@ -238,6 +252,12 @@ func TestFetchLatestWithWait(t *testing.T) {
 			want:  "v9.9.9",
 		},
 		{
+			name:  "fetch_error_stale_cache",
+			cache: &stale,
+			fetch: func(*testing.T) func(context.Context) (string, error) { return fetchErr },
+			want:  "",
+		},
+		{
 			name:  "fetch_error_no_cache",
 			fetch: func(*testing.T) func(context.Context) (string, error) { return fetchErr },
 			want:  "",
@@ -247,6 +267,12 @@ func TestFetchLatestWithWait(t *testing.T) {
 			cache: &fresh,
 			fetch: func(*testing.T) func(context.Context) (string, error) { return fetchInvalid },
 			want:  "v9.9.9",
+		},
+		{
+			name:  "invalid_version_stale_cache",
+			cache: &stale,
+			fetch: func(*testing.T) func(context.Context) (string, error) { return fetchInvalid },
+			want:  "",
 		},
 		{
 			name:  "invalid_version_no_cache",

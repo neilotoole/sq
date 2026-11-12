@@ -58,26 +58,29 @@ func fetchLatestWithWait(
 		resultCh <- fetchResult{raw: raw, err: err}
 	}()
 
+	log := lg.FromContext(ctx)
+
 	select {
 	case <-ctx.Done():
-		if latest, ok := readFreshCache(cacheDir); ok {
-			return latest
-		}
-		return ""
+		latest, ok := readFreshCache(cacheDir)
+		log.Debug("Update check did not complete in time",
+			lga.Timeout, timeout, "cache_hit", ok, lga.Val, latest)
+		return latest
 	case result := <-resultCh:
 		latest, err := result.raw, result.err
 		if err == nil {
 			latest, err = normalizeVersion(latest)
 		}
 		if err != nil {
-			lg.WarnIfError(lg.FromContext(ctx), "Get brew version", err)
+			lg.WarnIfError(log, "Get brew version", err)
 			if cached, ok := readFreshCache(cacheDir); ok {
 				return cached
 			}
 			return ""
 		}
 		if latest != "" && cacheDir != "" {
-			_ = writeCache(cacheDir, cacheEntry{LatestVersion: latest, CheckedAt: time.Now().UTC()})
+			lg.WarnIfError(log, "Write update check cache",
+				writeCache(cacheDir, cacheEntry{LatestVersion: latest, CheckedAt: time.Now().UTC()}))
 		}
 		return latest
 	}
@@ -118,12 +121,16 @@ func readCache(cacheDir string) (cacheEntry, bool) {
 	return c, true
 }
 
+// readFreshCache returns the cached latest version if the cache entry is
+// less than defaultCacheTTL old. An entry with a CheckedAt in the future
+// (e.g. written before the clock was set back) is treated as stale, so
+// that it can't stay fresh indefinitely.
 func readFreshCache(cacheDir string) (string, bool) {
 	c, ok := readCache(cacheDir)
 	if !ok || c.LatestVersion == "" {
 		return "", false
 	}
-	if time.Since(c.CheckedAt) >= defaultCacheTTL {
+	if age := time.Since(c.CheckedAt); age < 0 || age >= defaultCacheTTL {
 		return "", false
 	}
 	return c.LatestVersion, true
