@@ -1,6 +1,6 @@
 module github.com/neilotoole/sq/tools/tparse
 
-go 1.27.1
+go 1.27.4
 
 tool github.com/mfridman/tparse
 
