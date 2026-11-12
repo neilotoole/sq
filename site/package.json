@@ -49,8 +49,8 @@
     "gen:syntax-css": "./generate-syntax-css.sh"
   },
   "devDependencies": {
-    "@babel/cli": "^8.0",
-    "@babel/core": "^8.0",
+    "@babel/cli": "^8.1",
+    "@babel/core": "^8.1",
     "@babel/preset-env": "^8.0",
     "@fullhuman/postcss-purgecss": "^8.0",
     "@hyas/images": "^3",
@@ -65,7 +65,7 @@
     "instant.page": "^5.1",
     "katex": "^0.19",
     "lazysizes": "^5.3",
-    "netlify-cli": "^27.15.0",
+    "netlify-cli": "^27.16.2",
     "netlify-plugin-submit-sitemap": "^0.4.0",
     "node-fetch": "^3.3.1",
     "nord": "^0.2.1",
