@@ -290,7 +290,7 @@ func TestConcurrentOpen(t *testing.T) {
 			if err != nil {
 				return err
 			}
-			const static = "autocomplete,core_functions,icu,json,parquet"
+			const static = "autocomplete,core_functions,icu,json,parquet,tpcds,tpch"
 			if loaded != static {
 				return errz.Errorf("open loaded extensions beyond the static set: got %q, want %q", loaded, static)
 			}
