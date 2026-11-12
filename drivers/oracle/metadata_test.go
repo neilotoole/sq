@@ -44,7 +44,7 @@ func TestInspectDeclaredColumnTypes_Oracle(t *testing.T) {
 	tbl := stringz.UniqTableName("decl_types")
 	_, err := db.ExecContext(th.Context,
 		"CREATE TABLE "+tbl+" ("+
-			"ts TIMESTAMP(6), n NUMBER, b BLOB, "+
+			"ts TIMESTAMP(6), n NUMBER, i INTEGER, n_star NUMBER(*,2), b BLOB, "+
 			"char_len VARCHAR2(10 CHAR), byte_len VARCHAR2(10 BYTE), "+
 			"nchar_len NCHAR(5), nvarchar_len NVARCHAR2(20), "+
 			"raw_len RAW(16), urowid_len UROWID(100))")
@@ -61,6 +61,8 @@ func TestInspectDeclaredColumnTypes_Oracle(t *testing.T) {
 	}{
 		{"ts", "TIMESTAMP(6)", kind.Datetime},
 		{"n", "NUMBER", kind.Decimal},
+		{"i", "NUMBER(*,0)", kind.Decimal},
+		{"n_star", "NUMBER(*,2)", kind.Decimal},
 		{"b", "BLOB", kind.Bytes},
 		{"char_len", "VARCHAR2(10 CHAR)", kind.Text},
 		{"byte_len", "VARCHAR2(10 BYTE)", kind.Text},

@@ -354,48 +354,48 @@ func TestDeclaredColumnType(t *testing.T) {
 		charLength sql.NullInt64
 		dataLength sql.NullInt64
 		charUsed   sql.NullString
-		vectorInfo sql.NullString
 		want       string
 	}{
-		{"timestamp", "TIMESTAMP(6)", null, n(6), n(0), n(11), nullStr, nullStr, "TIMESTAMP(6)"},
+		{"timestamp", "TIMESTAMP(6)", null, n(6), n(0), n(11), nullStr, "TIMESTAMP(6)"},
 		{
-			"timestamp_tz", "TIMESTAMP(6) WITH TIME ZONE", null, n(6), n(0), n(13), nullStr, nullStr,
+			"timestamp_tz", "TIMESTAMP(6) WITH TIME ZONE", null, n(6), n(0), n(13), nullStr,
 			"TIMESTAMP(6) WITH TIME ZONE",
 		},
 		{
-			"timestamp_ltz", "TIMESTAMP(3) WITH LOCAL TIME ZONE", null, n(3), n(0), n(11), nullStr, nullStr,
+			"timestamp_ltz", "TIMESTAMP(3) WITH LOCAL TIME ZONE", null, n(3), n(0), n(11), nullStr,
 			"TIMESTAMP(3) WITH LOCAL TIME ZONE",
 		},
 		{
-			"interval_ds", "INTERVAL DAY(2) TO SECOND(6)", n(2), n(6), n(0), n(11), nullStr, nullStr,
+			"interval_ds", "INTERVAL DAY(2) TO SECOND(6)", n(2), n(6), n(0), n(11), nullStr,
 			"INTERVAL DAY(2) TO SECOND(6)",
 		},
-		{"date", "DATE", null, null, n(0), n(7), nullStr, nullStr, "DATE"},
-		{"number_bare", "NUMBER", null, null, n(0), n(22), nullStr, nullStr, "NUMBER"},
-		{"number_ps", "NUMBER", n(10), n(2), n(0), n(22), nullStr, nullStr, "NUMBER(10,2)"},
-		{"number_negative_scale", "NUMBER", n(10), n(-2), n(0), n(22), nullStr, nullStr, "NUMBER(10,-2)"},
-		{"float", "FLOAT", n(126), null, n(0), n(22), nullStr, nullStr, "FLOAT(126)"},
-		{"blob", "BLOB", null, null, n(0), n(4000), nullStr, nullStr, "BLOB"},
-		{"varchar2_char", "VARCHAR2", null, null, n(10), n(40), s("C"), nullStr, "VARCHAR2(10 CHAR)"},
-		{"varchar2_byte", "VARCHAR2", null, null, n(10), n(10), s("B"), nullStr, "VARCHAR2(10 BYTE)"},
-		{"char_char", "CHAR", null, null, n(1), n(4), s("C"), nullStr, "CHAR(1 CHAR)"},
-		{"char_byte", "CHAR", null, null, n(1), n(1), s("B"), nullStr, "CHAR(1 BYTE)"},
-		{"nchar", "NCHAR", null, null, n(5), n(10), s("C"), nullStr, "NCHAR(5)"},
-		{"nvarchar2", "NVARCHAR2", null, null, n(20), n(40), s("C"), nullStr, "NVARCHAR2(20)"},
-		{"raw", "RAW", null, null, n(0), n(16), nullStr, nullStr, "RAW(16)"},
-		{"urowid", "UROWID", null, null, n(0), n(100), nullStr, nullStr, "UROWID(100)"},
-		{
-			"vector", "VECTOR", null, null, n(0), n(8200), nullStr, s("VECTOR(3,FLOAT32,DENSE)"),
-			"VECTOR(3,FLOAT32,DENSE)",
-		},
-		{"vector_no_info", "VECTOR", null, null, n(0), n(8200), nullStr, nullStr, "VECTOR"},
+		{"date", "DATE", null, null, n(0), n(7), nullStr, "DATE"},
+		{"number_bare", "NUMBER", null, null, n(0), n(22), nullStr, "NUMBER"},
+		{"number_ps", "NUMBER", n(10), n(2), n(0), n(22), nullStr, "NUMBER(10,2)"},
+		{"number_negative_scale", "NUMBER", n(10), n(-2), n(0), n(22), nullStr, "NUMBER(10,-2)"},
+		{"float", "FLOAT", n(126), null, n(0), n(22), nullStr, "FLOAT(126)"},
+		{"blob", "BLOB", null, null, n(0), n(4000), nullStr, "BLOB"},
+		{"varchar2_char", "VARCHAR2", null, null, n(10), n(40), s("C"), "VARCHAR2(10 CHAR)"},
+		{"varchar2_byte", "VARCHAR2", null, null, n(10), n(10), s("B"), "VARCHAR2(10 BYTE)"},
+		{"char_char", "CHAR", null, null, n(1), n(4), s("C"), "CHAR(1 CHAR)"},
+		{"char_byte", "CHAR", null, null, n(1), n(1), s("B"), "CHAR(1 BYTE)"},
+		{"nchar", "NCHAR", null, null, n(5), n(10), s("C"), "NCHAR(5)"},
+		{"nvarchar2", "NVARCHAR2", null, null, n(20), n(40), s("C"), "NVARCHAR2(20)"},
+		{"raw", "RAW", null, null, n(0), n(16), nullStr, "RAW(16)"},
+		{"urowid", "UROWID", null, null, n(0), n(100), nullStr, "UROWID(100)"},
+		// INTEGER is stored as NUMBER with scale 0 and no precision.
+		{"number_star_0", "NUMBER", null, n(0), n(0), n(22), nullStr, "NUMBER(*,0)"},
+		{"number_star_2", "NUMBER", null, n(2), n(0), n(22), nullStr, "NUMBER(*,2)"},
+		// VECTOR stays bare here; applyVectorColumnTypes sets the
+		// declared form from VECTOR_INFO.
+		{"vector", "VECTOR", null, null, n(0), n(8200), nullStr, "VECTOR"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got := declaredColumnType(tc.dataType, tc.precision, tc.scale,
-				tc.charLength, tc.dataLength, tc.charUsed, tc.vectorInfo)
+				tc.charLength, tc.dataLength, tc.charUsed)
 			require.Equal(t, tc.want, got)
 		})
 	}

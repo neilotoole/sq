@@ -1077,30 +1077,7 @@ func getColumnsMetadata(ctx context.Context, db *sql.DB, tblName string) ([]*met
 	// DATA_DEFAULT is a LONG column; for a virtual column it holds the
 	// generation expression (mapped to GeneratedExpr below). go-ora reads
 	// it cleanly, so no TO_LOB/CLOB cast is needed.
-	const queryWithVectorInfo = `SELECT
-    c.column_name,
-    c.data_type,
-    c.data_precision,
-    c.data_scale,
-    c.char_length,
-    c.char_used,
-    c.data_length,
-    c.vector_info,
-    c.nullable,
-    c.column_id,
-    c.identity_column,
-    c.virtual_column,
-    c.collation,
-    c.data_default,
-    cc.comments
-FROM user_tab_cols c
-LEFT JOIN user_col_comments cc
-    ON c.table_name = cc.table_name
-    AND c.column_name = cc.column_name
-WHERE c.table_name = :1
-  AND c.hidden_column = 'NO'
-ORDER BY c.column_id`
-	const queryWithoutVectorInfo = `SELECT
+	const query = `SELECT
     c.column_name,
     c.data_type,
     c.data_precision,
@@ -1132,41 +1109,33 @@ ORDER BY c.column_id`
 		return nil, err
 	}
 
-	rows, err := db.QueryContext(ctx, queryWithVectorInfo, strings.ToUpper(tblName))
-	hasVectorInfo := true
-	if err != nil && hasErrCode(err, orshared.ErrCodeInvalidIdentifier) {
-		hasVectorInfo = false
-		rows, err = db.QueryContext(ctx, queryWithoutVectorInfo, strings.ToUpper(tblName))
-	}
+	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tblName))
 	if err != nil {
 		return nil, errw(err)
 	}
 	defer rows.Close()
 
 	var cols []*metadata.Column
+	var hasVector bool
 	for rows.Next() {
 		var colName, dataType, nullable string
 		var dataPrecision, dataScale, charLength, dataLength sql.NullInt64
 		var columnID int
 		var identityCol, virtualCol string
-		var charUsed, vectorInfo, collation, dataDefault, comment sql.NullString
+		var charUsed, collation, dataDefault, comment sql.NullString
 
-		if hasVectorInfo {
-			err = rows.Scan(&colName, &dataType, &dataPrecision, &dataScale,
-				&charLength, &charUsed, &dataLength, &vectorInfo, &nullable,
-				&columnID, &identityCol, &virtualCol, &collation, &dataDefault,
-				&comment)
-		} else {
-			err = rows.Scan(&colName, &dataType, &dataPrecision, &dataScale,
-				&charLength, &charUsed, &dataLength, &nullable, &columnID,
-				&identityCol, &virtualCol, &collation, &dataDefault, &comment)
-		}
+		err = rows.Scan(&colName, &dataType, &dataPrecision, &dataScale,
+			&charLength, &charUsed, &dataLength, &nullable, &columnID,
+			&identityCol, &virtualCol, &collation, &dataDefault, &comment)
 		if err != nil {
 			return nil, errw(err)
 		}
 
 		fullTypeName := declaredColumnType(dataType, dataPrecision, dataScale,
-			charLength, dataLength, charUsed, vectorInfo)
+			charLength, dataLength, charUsed)
+		if dataType == "VECTOR" {
+			hasVector = true
+		}
 
 		col := &metadata.Column{
 			Name:       colName,
@@ -1192,8 +1161,68 @@ ORDER BY c.column_id`
 
 		cols = append(cols, col)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
 
-	return cols, errw(rows.Err())
+	if hasVector {
+		if err = applyVectorColumnTypes(ctx, db, tblName, cols); err != nil {
+			return nil, err
+		}
+	}
+
+	return cols, nil
+}
+
+// applyVectorColumnTypes sets ColumnType for each VECTOR column in cols to
+// its declared form from USER_TAB_COLS.VECTOR_INFO, e.g.
+// VECTOR(3,FLOAT32,DENSE). DATA_LENGTH for a VECTOR column is a storage size,
+// so without VECTOR_INFO the type is reported as bare VECTOR.
+//
+// VECTOR_INFO is queried separately, and only when the table has a VECTOR
+// column. Servers before Oracle 23ai have neither VECTOR columns nor the
+// VECTOR_INFO column, so they never pay for this query, and no version check
+// is needed. If the server has VECTOR columns but not VECTOR_INFO, the
+// columns keep the bare VECTOR type.
+func applyVectorColumnTypes(ctx context.Context, db *sql.DB, tblName string, cols []*metadata.Column) error {
+	const query = `SELECT column_name, vector_info
+FROM user_tab_cols
+WHERE table_name = :1
+  AND hidden_column = 'NO'
+  AND data_type = 'VECTOR'`
+
+	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tblName))
+	if err != nil {
+		if hasErrCode(err, orshared.ErrCodeInvalidIdentifier) {
+			lg.FromContext(ctx).Debug("VECTOR_INFO not available, reporting bare VECTOR type",
+				lga.Table, tblName, lga.Err, err)
+			return nil
+		}
+		return errw(err)
+	}
+	defer rows.Close()
+
+	infos := map[string]string{}
+	for rows.Next() {
+		var colName string
+		var info sql.NullString
+		if err = rows.Scan(&colName, &info); err != nil {
+			return errw(err)
+		}
+		if s := strings.TrimSpace(info.String); s != "" {
+			infos[colName] = s
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return errw(err)
+	}
+
+	for _, col := range cols {
+		if info, ok := infos[col.Name]; ok {
+			col.ColumnType = info
+		}
+	}
+	return nil
 }
 
 // declaredColumnType returns the column type as declared, built from the
@@ -1201,13 +1230,11 @@ ORDER BY c.column_id`
 // such as NUMBER and BLOB, so those stay bare. RAW(n) and UROWID(n) declare
 // that length, so they keep it. Datetime and interval types already carry
 // their parameters in DATA_TYPE, for example TIMESTAMP(6) WITH TIME ZONE.
-// VECTOR_INFO, when present, already contains the declared vector form.
+// VECTOR is returned bare; see applyVectorColumnTypes.
 func declaredColumnType(dataType string, dataPrecision, dataScale, charLength,
-	dataLength sql.NullInt64, charUsed, vectorInfo sql.NullString,
+	dataLength sql.NullInt64, charUsed sql.NullString,
 ) string {
 	switch {
-	case vectorInfo.Valid && strings.TrimSpace(vectorInfo.String) != "":
-		return strings.TrimSpace(vectorInfo.String)
 	case strings.Contains(dataType, "("):
 		return dataType
 	case (dataType == "NCHAR" || dataType == "NVARCHAR2") && charLength.Valid:
@@ -1227,6 +1254,11 @@ func declaredColumnType(dataType string, dataPrecision, dataScale, charLength,
 		if dataPrecision.Int64 > 0 {
 			return fmt.Sprintf("%s(%d)", dataType, dataPrecision.Int64)
 		}
+	case dataType == "NUMBER" && dataScale.Valid:
+		// INTEGER, and NUMBER(*,s) generally, has a scale but no
+		// precision. Unconstrained NUMBER has neither, so the scale is
+		// what tells the two apart.
+		return fmt.Sprintf("NUMBER(*,%d)", dataScale.Int64)
 	case (dataType == "RAW" || dataType == "UROWID") &&
 		dataLength.Valid && dataLength.Int64 > 0:
 		return fmt.Sprintf("%s(%d)", dataType, dataLength.Int64)
