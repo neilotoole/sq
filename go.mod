@@ -1,6 +1,6 @@
 module github.com/neilotoole/sq
 
-go 1.27.1
+go 1.27.4
 
 // godebug x509negativeserial=1 is set here because of an issue with older
 // SQL Server versions not doing the right thing with X509 certs (see RFC 5280).
@@ -84,12 +84,12 @@ require (
 	github.com/zalando/go-keyring v0.2.9-0.20260616202443-860ea660ec62
 	go.uber.org/atomic v1.12.0
 	go.uber.org/goleak v1.3.0
-	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba
-	golang.org/x/mod v0.42.0
-	golang.org/x/sync v0.24.0
-	golang.org/x/sys v0.49.0
-	golang.org/x/term v0.47.0
-	golang.org/x/text v0.43.0
+	golang.org/x/exp v0.0.0-20261109185158-a52e3aef5920
+	golang.org/x/mod v0.43.0
+	golang.org/x/sync v0.25.0
+	golang.org/x/sys v0.50.0
+	golang.org/x/term v0.48.0
+	golang.org/x/text v0.44.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
