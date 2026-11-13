@@ -299,21 +299,30 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	// The type filter matters: a trigger (or index) may share a table's
 	// name in sqlite_master, and without the filter the first matching
 	// row could misreport the table's type.
+	// Resolve the catalog name case-insensitively, like SQLite identifiers,
+	// and use its stored spelling for subsequent metadata lookups.
 	const tpl = `SELECT
 (SELECT COUNT(*) FROM %s),
-(SELECT type FROM sqlite_master WHERE name = ? AND type IN ('table','view') LIMIT 1),
-(SELECT 1 FROM sqlite_master WHERE name = ?
+(SELECT name FROM sqlite_master WHERE name = ? COLLATE NOCASE AND type IN ('table','view') LIMIT 1),
+(SELECT type FROM sqlite_master WHERE name = ? COLLATE NOCASE AND type IN ('table','view') LIMIT 1),
+(SELECT 1 FROM sqlite_master WHERE name = ? COLLATE NOCASE
  AND type = 'table' AND substr("sql",0,21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
 (SELECT name FROM pragma_database_list ORDER BY seq LIMIT 1)`
 
 	var schema string
+	var catalogName, dbTableType sql.NullString
 	var isVirtualTbl sql.NullBool
 	query := fmt.Sprintf(tpl, stringz.DoubleQuote(tblMeta.Name))
-	err := db.QueryRowContext(ctx, query, tblMeta.Name, tblMeta.Name).
-		Scan(&tblMeta.RowCount, &tblMeta.DBTableType, &isVirtualTbl, &schema)
+	err := db.QueryRowContext(ctx, query, tblMeta.Name, tblMeta.Name, tblMeta.Name).
+		Scan(&tblMeta.RowCount, &catalogName, &dbTableType, &isVirtualTbl, &schema)
 	if err != nil {
 		return nil, errw(err)
 	}
+	if !catalogName.Valid || !dbTableType.Valid {
+		return nil, driver.NewNotExistError(errz.Errorf("sqlite3: table {%s} not found", tblName))
+	}
+	tblMeta.Name = catalogName.String
+	tblMeta.DBTableType = dbTableType.String
 	progress.Incr(ctx, 1)
 
 	switch {
@@ -326,7 +335,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	default:
 	}
 
-	tblMeta.FQName = schema + "." + tblName
+	tblMeta.FQName = schema + "." + tblMeta.Name
 
 	// cid	name		type		notnull	dflt_value	pk	hidden
 	// 0	actor_id	INT			1		<null>		1	0
