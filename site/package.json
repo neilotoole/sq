@@ -52,7 +52,7 @@
     "@babel/cli": "^8.1",
     "@babel/core": "^8.1",
     "@babel/preset-env": "^8.0",
-    "@fullhuman/postcss-purgecss": "^8.0",
+    "@fullhuman/postcss-purgecss": "^9.1",
     "@hyas/images": "^3",
     "@netlify/plugin-lighthouse": "^6.0.4",
     "asciinema-player": "^3.17.0",
