@@ -22,7 +22,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
-	github.com/djherbis/buffer v1.2.0
+	github.com/djherbis/buffer v1.2.1
 	// duckdb-go bundles the DuckDB engine itself, as prebuilt static libraries
 	// pulled in via the duckdb-go-bindings modules below. Its version encodes the
 	// engine version as v2.MMmmPP.x, so v2.10505.0 is DuckDB 1.5.5. Bumping this
