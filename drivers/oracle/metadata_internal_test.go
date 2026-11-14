@@ -34,6 +34,9 @@ func TestMetadataHelpers_ErrorPaths(t *testing.T) {
 	_, err = getColumnsMetadata(ctx, db, tbl)
 	require.Error(t, err)
 
+	err = applyVectorColumnTypes(ctx, db, tbl, nil)
+	require.Error(t, err)
+
 	_, err = getOraclePKColumnNames(ctx, db, tbl)
 	require.Error(t, err)
 

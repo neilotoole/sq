@@ -61,6 +61,11 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   dropped and the query running unordered.
 - [#1300]: [`sq inspect`](https://sq.io/docs/inspect) now counts virtual tables, such as SQLite FTS5
   tables, in a source's table count. They were listed but not counted.
+- [#1286]: On [Oracle](https://sq.io/docs/drivers/oracle), `sq inspect` reported some column types
+  with their storage size appended, such as `TIMESTAMP(6)(11)`, `NUMBER(22)` and `BLOB(4000)`.
+  Column types now match the declaration: `TIMESTAMP(6)`, `NUMBER`, `NUMBER(*,0)` for `INTEGER`, and
+  `VECTOR(3,FLOAT32,DENSE)`. Character types now include their length semantics, as in
+  `VARCHAR2(45 BYTE)` or `VARCHAR2(10 CHAR)`.
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1810,6 +1815,7 @@ change to the `sq` CLI in some time, and should make working with lots of source
 [#1225]: https://github.com/neilotoole/sq/issues/1225
 [#1220]: https://github.com/neilotoole/sq/issues/1220
 [#1285]: https://github.com/neilotoole/sq/issues/1285
+[#1286]: https://github.com/neilotoole/sq/issues/1286
 [#1300]: https://github.com/neilotoole/sq/issues/1300
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

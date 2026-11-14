@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/mod/semver"
 
+	"github.com/neilotoole/sq/drivers/oracle/orshared"
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/lg"
 	"github.com/neilotoole/sq/libsq/core/lg/lga"
@@ -1079,9 +1080,11 @@ func getColumnsMetadata(ctx context.Context, db *sql.DB, tblName string) ([]*met
 	const query = `SELECT
     c.column_name,
     c.data_type,
-    c.data_length,
     c.data_precision,
     c.data_scale,
+    c.char_length,
+    c.char_used,
+    c.data_length,
     c.nullable,
     c.column_id,
     c.identity_column,
@@ -1113,31 +1116,25 @@ ORDER BY c.column_id`
 	defer rows.Close()
 
 	var cols []*metadata.Column
+	var hasVector bool
 	for rows.Next() {
 		var colName, dataType, nullable string
-		var dataLength sql.NullInt64
-		var dataPrecision, dataScale sql.NullInt64
+		var dataPrecision, dataScale, charLength, dataLength sql.NullInt64
 		var columnID int
 		var identityCol, virtualCol string
-		var collation, dataDefault, comment sql.NullString
+		var charUsed, collation, dataDefault, comment sql.NullString
 
-		err = rows.Scan(&colName, &dataType, &dataLength, &dataPrecision,
-			&dataScale, &nullable, &columnID, &identityCol, &virtualCol,
-			&collation, &dataDefault, &comment)
+		err = rows.Scan(&colName, &dataType, &dataPrecision, &dataScale,
+			&charLength, &charUsed, &dataLength, &nullable, &columnID,
+			&identityCol, &virtualCol, &collation, &dataDefault, &comment)
 		if err != nil {
 			return nil, errw(err)
 		}
 
-		// Build full type name
-		fullTypeName := dataType
-		if dataPrecision.Valid {
-			if dataScale.Valid && dataScale.Int64 > 0 {
-				fullTypeName = fmt.Sprintf("%s(%d,%d)", dataType, dataPrecision.Int64, dataScale.Int64)
-			} else if dataPrecision.Int64 > 0 {
-				fullTypeName = fmt.Sprintf("%s(%d)", dataType, dataPrecision.Int64)
-			}
-		} else if dataLength.Valid && dataLength.Int64 > 0 {
-			fullTypeName = fmt.Sprintf("%s(%d)", dataType, dataLength.Int64)
+		fullTypeName := declaredColumnType(dataType, dataPrecision, dataScale,
+			charLength, dataLength, charUsed)
+		if dataType == "VECTOR" {
+			hasVector = true
 		}
 
 		col := &metadata.Column{
@@ -1164,8 +1161,118 @@ ORDER BY c.column_id`
 
 		cols = append(cols, col)
 	}
+	if err = rows.Err(); err != nil {
+		return nil, errw(err)
+	}
 
-	return cols, errw(rows.Err())
+	if hasVector {
+		if err = applyVectorColumnTypes(ctx, db, tblName, cols); err != nil {
+			return nil, err
+		}
+	}
+
+	return cols, nil
+}
+
+// applyVectorColumnTypes sets ColumnType for each VECTOR column in cols to
+// its declared form from USER_TAB_COLS.VECTOR_INFO, e.g.
+// VECTOR(3,FLOAT32,DENSE). DATA_LENGTH for a VECTOR column is a storage size,
+// so without VECTOR_INFO the type is reported as bare VECTOR.
+//
+// VECTOR_INFO is queried separately, and only when the table has a VECTOR
+// column. Servers before Oracle 23ai have neither VECTOR columns nor the
+// VECTOR_INFO column, so they never pay for this query, and no version check
+// is needed. If the server has VECTOR columns but not VECTOR_INFO, the
+// columns keep the bare VECTOR type.
+func applyVectorColumnTypes(ctx context.Context, db *sql.DB, tblName string, cols []*metadata.Column) error {
+	const query = `SELECT column_name, vector_info
+FROM user_tab_cols
+WHERE table_name = :1
+  AND hidden_column = 'NO'
+  AND data_type = 'VECTOR'`
+
+	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tblName))
+	if err != nil {
+		if hasErrCode(err, orshared.ErrCodeInvalidIdentifier) {
+			lg.FromContext(ctx).Debug("VECTOR_INFO not available, reporting bare VECTOR type",
+				lga.Table, tblName, lga.Err, err)
+			return nil
+		}
+		return errw(err)
+	}
+	defer rows.Close()
+
+	infos := map[string]string{}
+	for rows.Next() {
+		var colName string
+		var info sql.NullString
+		if err = rows.Scan(&colName, &info); err != nil {
+			return errw(err)
+		}
+		if s := strings.TrimSpace(info.String); s != "" {
+			infos[colName] = s
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return errw(err)
+	}
+
+	for _, col := range cols {
+		if info, ok := infos[col.Name]; ok {
+			col.ColumnType = info
+		}
+	}
+	return nil
+}
+
+// declaredColumnType returns the column type as declared, built from the
+// USER_TAB_COLS fields. DATA_LENGTH is the storage length in bytes for types
+// such as NUMBER and BLOB, so those stay bare. RAW(n) and UROWID(n) declare
+// that length, so they keep it. Datetime and interval types already carry
+// their parameters in DATA_TYPE, for example TIMESTAMP(6) WITH TIME ZONE.
+// VECTOR is returned bare; see applyVectorColumnTypes.
+func declaredColumnType(dataType string, dataPrecision, dataScale, charLength,
+	dataLength sql.NullInt64, charUsed sql.NullString,
+) string {
+	switch {
+	case strings.Contains(dataType, "("):
+		return dataType
+	case (dataType == "NCHAR" || dataType == "NVARCHAR2") && charLength.Valid:
+		// National character types always use character semantics, and
+		// their declared form takes no BYTE/CHAR qualifier.
+		return fmt.Sprintf("%s(%d)", dataType, charLength.Int64)
+	case isOracleCharacterType(dataType) && charLength.Valid:
+		semantics := "BYTE"
+		if charUsed.String == "C" {
+			semantics = "CHAR"
+		}
+		return fmt.Sprintf("%s(%d %s)", dataType, charLength.Int64, semantics)
+	case dataPrecision.Valid:
+		if dataScale.Valid && dataScale.Int64 != 0 {
+			return fmt.Sprintf("%s(%d,%d)", dataType, dataPrecision.Int64, dataScale.Int64)
+		}
+		if dataPrecision.Int64 > 0 {
+			return fmt.Sprintf("%s(%d)", dataType, dataPrecision.Int64)
+		}
+	case dataType == "NUMBER" && dataScale.Valid:
+		// INTEGER, and NUMBER(*,s) generally, has a scale but no
+		// precision. Unconstrained NUMBER has neither, so the scale is
+		// what tells the two apart.
+		return fmt.Sprintf("NUMBER(*,%d)", dataScale.Int64)
+	case (dataType == "RAW" || dataType == "UROWID") &&
+		dataLength.Valid && dataLength.Int64 > 0:
+		return fmt.Sprintf("%s(%d)", dataType, dataLength.Int64)
+	}
+	return dataType
+}
+
+func isOracleCharacterType(dataType string) bool {
+	switch dataType {
+	case "CHAR", "VARCHAR", "VARCHAR2":
+		return true
+	default:
+		return false
+	}
 }
 
 // getOraclePKColumnNames returns the primary-key column names for
