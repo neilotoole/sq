@@ -98,6 +98,9 @@ func TestFiles_DriverType(t *testing.T) {
 		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: drivertype.JSON},
 		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: drivertype.JSONA},
 		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: drivertype.JSONL},
+		{loc: proj.Abs(sakila.PathParquetActor), wantType: drivertype.Parquet},
+		{loc: proj.Abs("drivers/parquet/testdata/actor.pq"), wantType: drivertype.Parquet},
+		{loc: proj.Abs("drivers/parquet/testdata/actor_parquet"), wantType: drivertype.Parquet},
 	}
 
 	for _, tc := range testCases {

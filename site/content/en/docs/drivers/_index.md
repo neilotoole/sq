@@ -18,4 +18,5 @@ url: /docs/drivers
 [DuckDB](/docs/drivers/duckdb),
 [CSV](/docs/drivers/csv),
 [JSON](/docs/drivers/json),
-and [Excel](/docs/drivers/xlsx).
+[Excel](/docs/drivers/xlsx),
+and [Parquet](/docs/drivers/parquet).

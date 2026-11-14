@@ -15,6 +15,10 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
+- [#718]: [Parquet driver](https://sq.io/docs/drivers/parquet): add Apache Parquet as a first-class
+  document source. Reads via the bundled DuckDB `parquet` and `httpfs` extensions, so column and
+  predicate pushdown apply for local and remote files. Supports `sq add`, `sq inspect`, `sq diff`,
+  SLQ queries, and stdin piping (`cat events.parquet | sq '.data'`) on `.parquet` and `.pq` files.
 - [#1007]: The `sq` container image is now published to Docker Hub as
   [`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq), alongside the existing
   `ghcr.io/neilotoole/sq`. Both registries carry the same image. The image also now ships with SLSA
@@ -1760,6 +1764,7 @@ change to the `sq` CLI in some time, and should make working with lots of source
 [#699]: https://github.com/neilotoole/sq/issues/699
 [#716]: https://github.com/neilotoole/sq/issues/716
 [#717]: https://github.com/neilotoole/sq/issues/717
+[#718]: https://github.com/neilotoole/sq/issues/718
 [#714]: https://github.com/neilotoole/sq/issues/714
 [#720]: https://github.com/neilotoole/sq/issues/720
 [#728]: https://github.com/neilotoole/sq/issues/728
