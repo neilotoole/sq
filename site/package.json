@@ -57,7 +57,7 @@
     "@netlify/plugin-lighthouse": "^6.0.4",
     "asciinema-player": "^3.17.0",
     "autoprefixer": "^10.6.2",
-    "bootstrap": "^5.2.3",
+    "bootstrap": "^5.3.9",
     "esbuild": "^0.28.2",
     "exec-bin": "^1.0.0",
     "flexsearch": "^0.8",
