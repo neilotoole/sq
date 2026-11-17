@@ -1231,6 +1231,12 @@ WHERE table_name = :1
 // that length, so they keep it. Datetime and interval types already carry
 // their parameters in DATA_TYPE, for example TIMESTAMP(6) WITH TIME ZONE.
 // VECTOR is returned bare; see applyVectorColumnTypes.
+//
+// CHAR and VARCHAR2 lengths are reported bare for byte semantics, and with
+// a CHAR qualifier for character semantics: VARCHAR2(45) and
+// VARCHAR2(45 CHAR). This matches the DDL that DBMS_METADATA.GET_DDL
+// generates on a database with the default NLS_LENGTH_SEMANTICS of BYTE. A
+// bare length therefore always means bytes, whatever the database's setting.
 func declaredColumnType(dataType string, dataPrecision, dataScale, charLength,
 	dataLength sql.NullInt64, charUsed sql.NullString,
 ) string {
@@ -1242,11 +1248,10 @@ func declaredColumnType(dataType string, dataPrecision, dataScale, charLength,
 		// their declared form takes no BYTE/CHAR qualifier.
 		return fmt.Sprintf("%s(%d)", dataType, charLength.Int64)
 	case isOracleCharacterType(dataType) && charLength.Valid:
-		semantics := "BYTE"
 		if charUsed.String == "C" {
-			semantics = "CHAR"
+			return fmt.Sprintf("%s(%d CHAR)", dataType, charLength.Int64)
 		}
-		return fmt.Sprintf("%s(%d %s)", dataType, charLength.Int64, semantics)
+		return fmt.Sprintf("%s(%d)", dataType, charLength.Int64)
 	case dataPrecision.Valid:
 		if dataScale.Valid && dataScale.Int64 != 0 {
 			return fmt.Sprintf("%s(%d,%d)", dataType, dataPrecision.Int64, dataScale.Int64)

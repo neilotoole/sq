@@ -45,7 +45,8 @@ func TestInspectDeclaredColumnTypes_Oracle(t *testing.T) {
 	_, err := db.ExecContext(th.Context,
 		"CREATE TABLE "+tbl+" ("+
 			"ts TIMESTAMP(6), n NUMBER, i INTEGER, n_star NUMBER(*,2), b BLOB, "+
-			"char_len VARCHAR2(10 CHAR), byte_len VARCHAR2(10 BYTE), "+
+			"char_len VARCHAR2(10 CHAR), byte_len VARCHAR2(10 BYTE), default_len VARCHAR2(10), "+
+			"char_char CHAR(3 CHAR), "+
 			"nchar_len NCHAR(5), nvarchar_len NVARCHAR2(20), "+
 			"raw_len RAW(16), urowid_len UROWID(100))")
 	require.NoError(t, err)
@@ -65,7 +66,9 @@ func TestInspectDeclaredColumnTypes_Oracle(t *testing.T) {
 		{"n_star", "NUMBER(*,2)", kind.Decimal},
 		{"b", "BLOB", kind.Bytes},
 		{"char_len", "VARCHAR2(10 CHAR)", kind.Text},
-		{"byte_len", "VARCHAR2(10 BYTE)", kind.Text},
+		{"byte_len", "VARCHAR2(10)", kind.Text},
+		{"default_len", "VARCHAR2(10)", kind.Text},
+		{"char_char", "CHAR(3 CHAR)", kind.Text},
 		{"nchar_len", "NCHAR(5)", kind.Text},
 		{"nvarchar_len", "NVARCHAR2(20)", kind.Text},
 		{"raw_len", "RAW(16)", kind.Bytes},
@@ -94,6 +97,41 @@ func TestInspectDeclaredColumnTypes_Oracle(t *testing.T) {
 		// VECTOR_INFO keeps the dictionary form, including the default density.
 		require.Equal(t, "VECTOR(3,FLOAT32,DENSE)", vec.ColumnType)
 		require.Equal(t, kind.Unknown, vec.Kind)
+	})
+
+	// A length declared without BYTE or CHAR takes the semantics of
+	// NLS_LENGTH_SEMANTICS. On a database whose default is CHAR, a bare
+	// VARCHAR2(10) is a character-semantics column, and is reported with the
+	// CHAR qualifier.
+	t.Run("char_default_semantics", func(t *testing.T) {
+		t.Parallel()
+
+		charTbl := stringz.UniqTableName("decl_char_default")
+		// ALTER SESSION changes the pooled connection, which other tests
+		// reuse. The block runs on a single session, and restores the
+		// original setting whether or not CREATE TABLE succeeds.
+		_, err := db.ExecContext(th.Context, `DECLARE
+  orig VARCHAR2(10);
+BEGIN
+  SELECT value INTO orig FROM nls_session_parameters
+    WHERE parameter = 'NLS_LENGTH_SEMANTICS';
+  EXECUTE IMMEDIATE 'ALTER SESSION SET NLS_LENGTH_SEMANTICS = CHAR';
+  BEGIN
+    EXECUTE IMMEDIATE 'CREATE TABLE `+charTbl+` (vc VARCHAR2(10), ch CHAR(3))';
+  EXCEPTION
+    WHEN OTHERS THEN
+      EXECUTE IMMEDIATE 'ALTER SESSION SET NLS_LENGTH_SEMANTICS = ' || orig;
+      RAISE;
+  END;
+  EXECUTE IMMEDIATE 'ALTER SESSION SET NLS_LENGTH_SEMANTICS = ' || orig;
+END;`)
+		require.NoError(t, err)
+		t.Cleanup(func() { th.DropTable(src, tablefq.From(charTbl)) })
+
+		md, err := th.Open(src).TableMetadata(th.Context, strings.ToUpper(charTbl))
+		require.NoError(t, err)
+		require.Equal(t, "VARCHAR2(10 CHAR)", findColumn(t, md, "vc").ColumnType)
+		require.Equal(t, "CHAR(3 CHAR)", findColumn(t, md, "ch").ColumnType)
 	})
 }
 
