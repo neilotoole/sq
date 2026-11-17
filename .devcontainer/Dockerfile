@@ -4,7 +4,7 @@
 # which builds it and runs the fast local loop inside it.
 
 # Keep in sync with the bun-version in the site and format workflows.
-FROM oven/bun:1.4.3 AS bun
+FROM oven/bun:1.4.4 AS bun
 
 FROM mcr.microsoft.com/devcontainers/go:2-1.27-trixie
 
