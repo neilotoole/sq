@@ -150,9 +150,9 @@ END;`)
 }
 
 // TestInspectBaseType_Sakila_Oracle verifies that inspecting the Sakila
-// source sets base_type on every column of every table and view, as the type
-// name without parameters. It reads the existing schema and creates nothing.
-// See https://github.com/neilotoole/sq/issues/1287.
+// source sets base_type on every column of every Sakila table and view, as
+// the type name without parameters. It reads the existing schema and creates
+// nothing. See https://github.com/neilotoole/sq/issues/1287.
 func TestInspectBaseType_Sakila_Oracle(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -165,25 +165,29 @@ func TestInspectBaseType_Sakila_Oracle(t *testing.T) {
 
 	md, err := th.SourceMetadata(src)
 	require.NoError(t, err)
-	require.NotEmpty(t, md.Tables)
 
-	var gotView bool
+	// Check only the Sakila objects. Other tests in this package create and
+	// drop tables in the same schema concurrently, and a table dropped
+	// partway through the scan can come back with no columns.
+	byName := make(map[string]*metadata.Table, len(md.Tables))
 	for _, tbl := range md.Tables {
-		gotView = gotView || tbl.TableType == sqlz.TableTypeView
-		require.NotEmpty(t, tbl.Columns, "table %s", tbl.Name)
+		byName[strings.ToUpper(tbl.Name)] = tbl
+	}
+	for _, name := range sakila.AllTblsViews() {
+		tbl := byName[strings.ToUpper(name)]
+		require.NotNil(t, tbl, "Sakila object %s not found", name)
+		require.NotEmpty(t, tbl.Columns, "Sakila object %s", name)
 		for _, col := range tbl.Columns {
 			require.NotEmpty(t, col.BaseType, "%s.%s", tbl.Name, col.Name)
 			require.NotContains(t, col.BaseType, "(", "%s.%s", tbl.Name, col.Name)
 		}
 	}
-	require.True(t, gotView, "expected Sakila to include at least one view")
 
 	// Spot-check columns whose base type differs from the column type.
-	staff := md.Table("STAFF")
-	require.NotNil(t, staff)
-	require.Equal(t, "VARCHAR2", staff.Column("FIRST_NAME").BaseType)
-	require.Equal(t, "TIMESTAMP", staff.Column("LAST_UPDATE").BaseType)
-	require.Equal(t, "NUMBER", staff.Column("STAFF_ID").BaseType)
+	staff := byName["STAFF"]
+	require.Equal(t, "VARCHAR2", findColumn(t, staff, "FIRST_NAME").BaseType)
+	require.Equal(t, "TIMESTAMP", findColumn(t, staff, "LAST_UPDATE").BaseType)
+	require.Equal(t, "NUMBER", findColumn(t, staff, "STAFF_ID").BaseType)
 }
 
 // TestForeignKey_CompositeOrdering_Oracle verifies that a composite FK
