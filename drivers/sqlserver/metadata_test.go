@@ -59,6 +59,47 @@ func TestInspect_ColumnFlags_SQLServer(t *testing.T) {
 	require.NotEmpty(t, fqCol.GeneratedExpr, "full_name must have a non-empty GeneratedExpr")
 }
 
+// TestInspect_ColumnType_SQLServer verifies that declared parameters are kept
+// while INFORMATION_SCHEMA's fixed precision and storage values are omitted.
+func TestInspect_ColumnType_SQLServer(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.MS)
+	db := th.OpenDB(src)
+	tblName := stringz.UniqTableName("column_type_test")
+	_, err := db.ExecContext(th.Context, `CREATE TABLE `+tblName+` (
+		varchar_max   VARCHAR(MAX),
+		nvarchar_max  NVARCHAR(MAX),
+		varbinary_max VARBINARY(MAX),
+		amount        DECIMAL(10,2),
+		quantity      NUMERIC(5,0),
+		int_value     INT,
+		date_value    DATE,
+		datetime_value DATETIME,
+		fractional    DATETIME2(3),
+		legacy_text   TEXT,
+		float_value   FLOAT(53),
+		real_value    REAL
+	)`)
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+
+	md, err := th.Open(src).TableMetadata(th.Context, tblName)
+	require.NoError(t, err)
+	want := map[string]string{
+		"varchar_max": "varchar(max)", "nvarchar_max": "nvarchar(max)", "varbinary_max": "varbinary(max)",
+		"amount": "decimal(10,2)", "quantity": "numeric(5,0)", "int_value": "int", "date_value": "date",
+		"datetime_value": "datetime", "fractional": "datetime2(3)", "legacy_text": "text",
+		"float_value": "float(53)", "real_value": "real",
+	}
+	require.Len(t, md.Columns, len(want))
+	for _, col := range md.Columns {
+		require.Equal(t, want[col.Name], col.ColumnType, "column %q", col.Name)
+	}
+}
+
 // TestInspect_CheckConstraints_SQLServer verifies that CHECK constraints
 // are reported in table metadata with the engine-formatted clause text.
 func TestInspect_CheckConstraints_SQLServer(t *testing.T) {
