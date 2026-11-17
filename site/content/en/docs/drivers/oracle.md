@@ -139,6 +139,44 @@ required.
 | `size` (tables, materialized views)      | `SUM(bytes)` from `USER_SEGMENTS` for the matching segment name                                                                                                                |
 | `size` (views)                           | not reported — views have no underlying segment                                                                                                                                |
 
+#### Per-column fields
+
+A column's `column_type` is its declared type, rebuilt from `DATA_TYPE`, `DATA_PRECISION`,
+`DATA_SCALE`, `CHAR_LENGTH`, `CHAR_USED` and `DATA_LENGTH` in `USER_TAB_COLS`.
+
+- `CHAR` and `VARCHAR2` lengths are reported bare for byte semantics, and with a `CHAR` qualifier
+  for character semantics: `VARCHAR2(45)` and `VARCHAR2(45 CHAR)`. A bare length always means
+  bytes, whatever the database's `NLS_LENGTH_SEMANTICS`. This matches the DDL that Oracle's
+  `DBMS_METADATA.GET_DDL` generates on a database with the default byte semantics. `NCHAR` and
+  `NVARCHAR2` always use character semantics and take no qualifier.
+- `INTEGER` is stored as `NUMBER` with scale 0 and no precision, and is reported as
+  `NUMBER(*,0)`. An unconstrained `NUMBER` is reported as bare `NUMBER`.
+- Types whose `DATA_LENGTH` is only a storage size, such as `DATE` and the LOB types, are
+  reported without a length.
+- `VECTOR` columns use the form in `USER_TAB_COLS.VECTOR_INFO`, which includes the storage
+  format.
+
+| Declared type                  | `column_type`                  | `sq` kind  |
+| ------------------------------ | ------------------------------ | ---------- |
+| `VARCHAR2(45)`                 | `VARCHAR2(45)`                 | `text`     |
+| `VARCHAR2(45 BYTE)`            | `VARCHAR2(45)`                 | `text`     |
+| `VARCHAR2(10 CHAR)`            | `VARCHAR2(10 CHAR)`            | `text`     |
+| `NVARCHAR2(20)`                | `NVARCHAR2(20)`                | `text`     |
+| `NUMBER`                       | `NUMBER`                       | `decimal`  |
+| `NUMBER(5)`                    | `NUMBER(5)`                    | `int`      |
+| `NUMBER(10,2)`                 | `NUMBER(10,2)`                 | `decimal`  |
+| `INTEGER`                      | `NUMBER(*,0)`                  | `decimal`  |
+| `FLOAT`                        | `FLOAT(126)`                   | `float`    |
+| `DATE`                         | `DATE`                         | `datetime` |
+| `TIMESTAMP(6) WITH TIME ZONE`  | `TIMESTAMP(6) WITH TIME ZONE`  | `datetime` |
+| `INTERVAL DAY(2) TO SECOND(6)` | `INTERVAL DAY(2) TO SECOND(6)` | `text`     |
+| `BLOB`                         | `BLOB`                         | `bytes`    |
+| `RAW(16)`                      | `RAW(16)`                      | `bytes`    |
+| `VECTOR(3, FLOAT32)`           | `VECTOR(3,FLOAT32,DENSE)`      | `unknown`  |
+
+The `VARCHAR2(45)` row assumes the default `NLS_LENGTH_SEMANTICS` of `BYTE`. On a database whose
+default is `CHAR`, the same declaration is reported as `VARCHAR2(45 CHAR)`.
+
 ### SQL rendering
 
 Oracle SQL rendering differs from several other SQL drivers:
