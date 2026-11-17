@@ -66,6 +66,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   reported a character-semantics column such as `VARCHAR2(10 CHAR)` by its length in bytes, as
   `VARCHAR2(40)`. Column types now match the declaration: `TIMESTAMP(6)`, `NUMBER`,
   `VARCHAR2(10 CHAR)`, `NUMBER(*,0)` for `INTEGER`, and `VECTOR(3,FLOAT32,DENSE)`.
+- [#1287]: On [Oracle](https://sq.io/docs/drivers/oracle), `sq inspect` now reports each column's
+  `base_type`, the type name without length, precision or scale, such as `VARCHAR2` or
+  `TIMESTAMP WITH TIME ZONE`. It was always empty.
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1816,6 +1819,7 @@ change to the `sq` CLI in some time, and should make working with lots of source
 [#1220]: https://github.com/neilotoole/sq/issues/1220
 [#1285]: https://github.com/neilotoole/sq/issues/1285
 [#1286]: https://github.com/neilotoole/sq/issues/1286
+[#1287]: https://github.com/neilotoole/sq/issues/1287
 [#1300]: https://github.com/neilotoole/sq/issues/1300
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3

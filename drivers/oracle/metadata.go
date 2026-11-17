@@ -1138,8 +1138,13 @@ ORDER BY c.column_id`
 		}
 
 		col := &metadata.Column{
-			Name:       colName,
-			Position:   int64(columnID),
+			Name:     colName,
+			Position: int64(columnID),
+			// BaseType is the type name without length, precision or
+			// scale. DATA_TYPE already omits them for most types, but
+			// datetime and interval types carry their precision in it,
+			// e.g. TIMESTAMP(6) WITH TIME ZONE.
+			BaseType:   stripTypeParams(dataType),
 			Kind:       kindFromDBTypeName(lg.FromContext(ctx), colName, fullTypeName),
 			ColumnType: fullTypeName,
 			Nullable:   nullable == "Y",

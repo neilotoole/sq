@@ -141,8 +141,10 @@ required.
 
 #### Per-column fields
 
-A column's `column_type` is its declared type, rebuilt from `DATA_TYPE`, `DATA_PRECISION`,
-`DATA_SCALE`, `CHAR_LENGTH`, `CHAR_USED` and `DATA_LENGTH` in `USER_TAB_COLS`.
+A column's `base_type` is its type name without length, precision or scale, taken from `DATA_TYPE`
+in `USER_TAB_COLS`: `VARCHAR2`, `NUMBER`, `TIMESTAMP WITH TIME ZONE`. Its `column_type` is the
+declared type, rebuilt from `DATA_TYPE`, `DATA_PRECISION`, `DATA_SCALE`, `CHAR_LENGTH`, `CHAR_USED`
+and `DATA_LENGTH`.
 
 - `CHAR` and `VARCHAR2` lengths are reported bare for byte semantics, and with a `CHAR` qualifier
   for character semantics: `VARCHAR2(45)` and `VARCHAR2(45 CHAR)`. A bare length always means
@@ -156,23 +158,23 @@ A column's `column_type` is its declared type, rebuilt from `DATA_TYPE`, `DATA_P
 - `VECTOR` columns use the form in `USER_TAB_COLS.VECTOR_INFO`, which includes the storage
   format.
 
-| Declared type                  | `column_type`                  | `sq` kind  |
-| ------------------------------ | ------------------------------ | ---------- |
-| `VARCHAR2(45)`                 | `VARCHAR2(45)`                 | `text`     |
-| `VARCHAR2(45 BYTE)`            | `VARCHAR2(45)`                 | `text`     |
-| `VARCHAR2(10 CHAR)`            | `VARCHAR2(10 CHAR)`            | `text`     |
-| `NVARCHAR2(20)`                | `NVARCHAR2(20)`                | `text`     |
-| `NUMBER`                       | `NUMBER`                       | `decimal`  |
-| `NUMBER(5)`                    | `NUMBER(5)`                    | `int`      |
-| `NUMBER(10,2)`                 | `NUMBER(10,2)`                 | `decimal`  |
-| `INTEGER`                      | `NUMBER(*,0)`                  | `decimal`  |
-| `FLOAT`                        | `FLOAT(126)`                   | `float`    |
-| `DATE`                         | `DATE`                         | `datetime` |
-| `TIMESTAMP(6) WITH TIME ZONE`  | `TIMESTAMP(6) WITH TIME ZONE`  | `datetime` |
-| `INTERVAL DAY(2) TO SECOND(6)` | `INTERVAL DAY(2) TO SECOND(6)` | `text`     |
-| `BLOB`                         | `BLOB`                         | `bytes`    |
-| `RAW(16)`                      | `RAW(16)`                      | `bytes`    |
-| `VECTOR(3, FLOAT32)`           | `VECTOR(3,FLOAT32,DENSE)`      | `unknown`  |
+| Declared type                  | `base_type`                | `column_type`                  | `sq` kind  |
+| ------------------------------ | -------------------------- | ------------------------------ | ---------- |
+| `VARCHAR2(45)`                 | `VARCHAR2`                 | `VARCHAR2(45)`                 | `text`     |
+| `VARCHAR2(45 BYTE)`            | `VARCHAR2`                 | `VARCHAR2(45)`                 | `text`     |
+| `VARCHAR2(10 CHAR)`            | `VARCHAR2`                 | `VARCHAR2(10 CHAR)`            | `text`     |
+| `NVARCHAR2(20)`                | `NVARCHAR2`                | `NVARCHAR2(20)`                | `text`     |
+| `NUMBER`                       | `NUMBER`                   | `NUMBER`                       | `decimal`  |
+| `NUMBER(5)`                    | `NUMBER`                   | `NUMBER(5)`                    | `int`      |
+| `NUMBER(10,2)`                 | `NUMBER`                   | `NUMBER(10,2)`                 | `decimal`  |
+| `INTEGER`                      | `NUMBER`                   | `NUMBER(*,0)`                  | `decimal`  |
+| `FLOAT`                        | `FLOAT`                    | `FLOAT(126)`                   | `float`    |
+| `DATE`                         | `DATE`                     | `DATE`                         | `datetime` |
+| `TIMESTAMP(6) WITH TIME ZONE`  | `TIMESTAMP WITH TIME ZONE` | `TIMESTAMP(6) WITH TIME ZONE`  | `datetime` |
+| `INTERVAL DAY(2) TO SECOND(6)` | `INTERVAL DAY TO SECOND`   | `INTERVAL DAY(2) TO SECOND(6)` | `text`     |
+| `BLOB`                         | `BLOB`                     | `BLOB`                         | `bytes`    |
+| `RAW(16)`                      | `RAW`                      | `RAW(16)`                      | `bytes`    |
+| `VECTOR(3, FLOAT32)`           | `VECTOR`                   | `VECTOR(3,FLOAT32,DENSE)`      | `unknown`  |
 
 The `VARCHAR2(45)` row assumes the default `NLS_LENGTH_SEMANTICS` of `BYTE`. On a database whose
 default is `CHAR`, the same declaration is reported as `VARCHAR2(45 CHAR)`.

@@ -29,7 +29,10 @@ func upperAll(ss []string) []string {
 }
 
 // TestInspectDeclaredColumnTypes_Oracle verifies that inspect reports declared
-// type parameters rather than storage lengths from USER_TAB_COLS.
+// type parameters rather than storage lengths from USER_TAB_COLS, and the
+// type name without parameters as the base type. See
+// https://github.com/neilotoole/sq/issues/1286 and
+// https://github.com/neilotoole/sq/issues/1287.
 func TestInspectDeclaredColumnTypes_Oracle(t *testing.T) {
 	tu.SkipShort(t, true)
 	t.Parallel()
@@ -48,7 +51,9 @@ func TestInspectDeclaredColumnTypes_Oracle(t *testing.T) {
 			"char_len VARCHAR2(10 CHAR), byte_len VARCHAR2(10 BYTE), default_len VARCHAR2(10), "+
 			"char_char CHAR(3 CHAR), "+
 			"nchar_len NCHAR(5), nvarchar_len NVARCHAR2(20), "+
-			"raw_len RAW(16), urowid_len UROWID(100))")
+			"raw_len RAW(16), urowid_len UROWID(100), "+
+			"tstz TIMESTAMP(6) WITH TIME ZONE, tsltz TIMESTAMP(6) WITH LOCAL TIME ZONE, "+
+			"ids INTERVAL DAY(2) TO SECOND(6))")
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
 
@@ -57,25 +62,30 @@ func TestInspectDeclaredColumnTypes_Oracle(t *testing.T) {
 
 	tests := []struct {
 		name     string
+		wantBase string
 		wantType string
 		wantKind kind.Kind
 	}{
-		{"ts", "TIMESTAMP(6)", kind.Datetime},
-		{"n", "NUMBER", kind.Decimal},
-		{"i", "NUMBER(*,0)", kind.Decimal},
-		{"n_star", "NUMBER(*,2)", kind.Decimal},
-		{"b", "BLOB", kind.Bytes},
-		{"char_len", "VARCHAR2(10 CHAR)", kind.Text},
-		{"byte_len", "VARCHAR2(10)", kind.Text},
-		{"default_len", "VARCHAR2(10)", kind.Text},
-		{"char_char", "CHAR(3 CHAR)", kind.Text},
-		{"nchar_len", "NCHAR(5)", kind.Text},
-		{"nvarchar_len", "NVARCHAR2(20)", kind.Text},
-		{"raw_len", "RAW(16)", kind.Bytes},
-		{"urowid_len", "UROWID(100)", kind.Text},
+		{"ts", "TIMESTAMP", "TIMESTAMP(6)", kind.Datetime},
+		{"tstz", "TIMESTAMP WITH TIME ZONE", "TIMESTAMP(6) WITH TIME ZONE", kind.Datetime},
+		{"tsltz", "TIMESTAMP WITH LOCAL TIME ZONE", "TIMESTAMP(6) WITH LOCAL TIME ZONE", kind.Datetime},
+		{"ids", "INTERVAL DAY TO SECOND", "INTERVAL DAY(2) TO SECOND(6)", kind.Text},
+		{"n", "NUMBER", "NUMBER", kind.Decimal},
+		{"i", "NUMBER", "NUMBER(*,0)", kind.Decimal},
+		{"n_star", "NUMBER", "NUMBER(*,2)", kind.Decimal},
+		{"b", "BLOB", "BLOB", kind.Bytes},
+		{"char_len", "VARCHAR2", "VARCHAR2(10 CHAR)", kind.Text},
+		{"byte_len", "VARCHAR2", "VARCHAR2(10)", kind.Text},
+		{"default_len", "VARCHAR2", "VARCHAR2(10)", kind.Text},
+		{"char_char", "CHAR", "CHAR(3 CHAR)", kind.Text},
+		{"nchar_len", "NCHAR", "NCHAR(5)", kind.Text},
+		{"nvarchar_len", "NVARCHAR2", "NVARCHAR2(20)", kind.Text},
+		{"raw_len", "RAW", "RAW(16)", kind.Bytes},
+		{"urowid_len", "UROWID", "UROWID(100)", kind.Text},
 	}
 	for _, tc := range tests {
 		col := findColumn(t, md, tc.name)
+		require.Equal(t, tc.wantBase, col.BaseType, tc.name)
 		require.Equal(t, tc.wantType, col.ColumnType, tc.name)
 		require.Equal(t, tc.wantKind, col.Kind, tc.name)
 	}
@@ -95,6 +105,7 @@ func TestInspectDeclaredColumnTypes_Oracle(t *testing.T) {
 		require.NoError(t, err)
 		vec := findColumn(t, md, "vec")
 		// VECTOR_INFO keeps the dictionary form, including the default density.
+		require.Equal(t, "VECTOR", vec.BaseType)
 		require.Equal(t, "VECTOR(3,FLOAT32,DENSE)", vec.ColumnType)
 		require.Equal(t, kind.Unknown, vec.Kind)
 	})
@@ -130,9 +141,53 @@ END;`)
 
 		md, err := th.Open(src).TableMetadata(th.Context, strings.ToUpper(charTbl))
 		require.NoError(t, err)
-		require.Equal(t, "VARCHAR2(10 CHAR)", findColumn(t, md, "vc").ColumnType)
-		require.Equal(t, "CHAR(3 CHAR)", findColumn(t, md, "ch").ColumnType)
+		vc, ch := findColumn(t, md, "vc"), findColumn(t, md, "ch")
+		require.Equal(t, "VARCHAR2", vc.BaseType)
+		require.Equal(t, "VARCHAR2(10 CHAR)", vc.ColumnType)
+		require.Equal(t, "CHAR", ch.BaseType)
+		require.Equal(t, "CHAR(3 CHAR)", ch.ColumnType)
 	})
+}
+
+// TestInspectBaseType_Sakila_Oracle verifies that inspecting the Sakila
+// source sets base_type on every column of every Sakila table and view, as
+// the type name without parameters. It reads the existing schema and creates
+// nothing. See https://github.com/neilotoole/sq/issues/1287.
+func TestInspectBaseType_Sakila_Oracle(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.Ora) {
+		t.Skip("Oracle Sakila source not configured")
+	}
+	src := th.Source(sakila.Ora)
+
+	md, err := th.SourceMetadata(src)
+	require.NoError(t, err)
+
+	// Check only the Sakila objects. Other tests in this package create and
+	// drop tables in the same schema concurrently, and a table dropped
+	// partway through the scan can come back with no columns.
+	byName := make(map[string]*metadata.Table, len(md.Tables))
+	for _, tbl := range md.Tables {
+		byName[strings.ToUpper(tbl.Name)] = tbl
+	}
+	for _, name := range sakila.AllTblsViews() {
+		tbl := byName[strings.ToUpper(name)]
+		require.NotNil(t, tbl, "Sakila object %s not found", name)
+		require.NotEmpty(t, tbl.Columns, "Sakila object %s", name)
+		for _, col := range tbl.Columns {
+			require.NotEmpty(t, col.BaseType, "%s.%s", tbl.Name, col.Name)
+			require.NotContains(t, col.BaseType, "(", "%s.%s", tbl.Name, col.Name)
+		}
+	}
+
+	// Spot-check columns whose base type differs from the column type.
+	staff := byName["STAFF"]
+	require.Equal(t, "VARCHAR2", findColumn(t, staff, "FIRST_NAME").BaseType)
+	require.Equal(t, "TIMESTAMP", findColumn(t, staff, "LAST_UPDATE").BaseType)
+	require.Equal(t, "NUMBER", findColumn(t, staff, "STAFF_ID").BaseType)
 }
 
 // TestForeignKey_CompositeOrdering_Oracle verifies that a composite FK
