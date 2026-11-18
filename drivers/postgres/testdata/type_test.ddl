@@ -1,5 +1,6 @@
 -- Not used by tests: TestColumnTypes (coltype_test.go) builds its table from Go.
--- Kept for manual testing; see #1368.
+-- Kept for manual testing. It's hand-maintained and not kept in sync with the
+-- test's cases, so it may lack types the test covers; see #1368.
 create table type_test
 (
     col_id                  serial primary key                                                                  not null,

@@ -57,4 +57,4 @@ its name. Used by `libsq/files`.
 | [`misc.db`](./misc.db) | Assorted small tables, for general-purpose tests. Registered as a source in `testh/testdata/test.sq.yml`. |
 | [`empty.db`](./empty.db) | Valid SQLite file with no user tables, for empty-source edge cases. Registered in `test.sq.yml`. |
 | [`blob.db`](./blob.db) | BLOB-typed data, for byte round-trip tests. Registered in `test.sq.yml`; the path is also `testh/fixt.BlobDBPath`. |
-| [`type_test.ddl`](./type_test.ddl) | SQL-only file (not a binary DB). Defines and populates a `type_test` table exercising the SQLite types the driver maps to a `kind.Kind`. Executed by `db_type_test.go`. |
+| [`type_test.ddl`](./type_test.ddl) | SQL-only file (not a binary DB). Defines and populates a `type_test` table exercising the SQLite types the driver maps to a `kind.Kind`. Used by `createTypeTestTbls` in `type_test_fixture_test.go`, which the metadata benchmarks call to create many populated tables. `TestColumnTypes` (`coltype_test.go`) builds its own table from Go. |

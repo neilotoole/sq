@@ -3,7 +3,6 @@ package postgres_test
 import (
 	"context"
 	"math"
-	"strings"
 	"testing"
 	"time"
 
@@ -84,8 +83,8 @@ var pgTypeCases = []typetest.Case{
 
 	// CHARACTER pads values to its length with spaces.
 	typetest.NewCase("character_255", "CHARACTER(255)", fixt.TextZ, fixt.Text, "bpchar", "character", kind.Text).
-		WithWantZero(spacePadded(fixt.TextZ, 255)).
-		WithWantVal(spacePadded(fixt.Text, 255)).
+		WithWantZero(typetest.SpacePadded(fixt.TextZ, 255)).
+		WithWantVal(typetest.SpacePadded(fixt.Text, 255)).
 		WithIssue("#1365"),
 	typetest.NewCase("varchar", "VARCHAR", fixt.TextZ, fixt.Text, "varchar", "character varying", kind.Text),
 	typetest.NewCase("varchar_16", "VARCHAR(16)", fixt.TextZ, "0123456789abcdef", "varchar", "character varying",
@@ -144,9 +143,9 @@ var pgTypeCases = []typetest.Case{
 	typetest.NewCase("circle", "CIRCLE", "((0,0), 0)", "((0,0), 7)", "circle", "circle", kind.Text).
 		WithWantZero("<(0,0),0>").
 		WithWantVal("<(0,0),7>"),
-	typetest.NewCase("line", "LINE", "[(0,0),(1,0)]", "[(0,0),(7,0)]", "line", "line", kind.Text).
+	typetest.NewCase("line", "LINE", "[(0,0),(1,0)]", "[(0,0),(1,1)]", "line", "line", kind.Text).
 		WithWantZero("{0,-1,0}").
-		WithWantVal("{0,-1,0}"),
+		WithWantVal("{1,-1,0}"),
 	typetest.NewCase("lseg", "LSEG", "[(0,0),(0,0)]", "[(0,0),(7,0)]", "lseg", "lseg", kind.Text),
 	typetest.NewCase("path", "PATH", "[(0,0),(0,0)]", "[(0,0),(7,0)]", "path", "path", kind.Text),
 	typetest.NewCase("point", "POINT", "(0,0)", "(7,7)", "point", "point", kind.Text),
@@ -177,7 +176,9 @@ var pgTypeCases = []typetest.Case{
 	typetest.NewCase("pg_lsn", "PG_LSN", "0/0", "7/7", "pg_lsn", "pg_lsn", kind.Unknown),
 
 	// candidate issue: arrays and ranges have no kind. Their values come back
-	// as Postgres's text form.
+	// as Postgres's text form. An array's column_type is just ARRAY, without
+	// its element type: the information_schema data_type loss #1365
+	// describes.
 	typetest.NewCase("integer_array", "INTEGER[]", []int64{}, []int64{1, 7}, "_int4", "ARRAY", kind.Unknown).
 		WithWantZero("{}").
 		WithWantVal("{1,7}"),
@@ -192,11 +193,6 @@ var pgTypeCases = []typetest.Case{
 // given case name: a call to nextval on the sequence the column owns.
 func serialDefault(caseName string) string {
 	return "nextval('" + typetest.TableToken + "_col_" + caseName + "_seq'::regclass)"
-}
-
-// spacePadded returns s padded with spaces to length n.
-func spacePadded(s string, n int) string {
-	return s + strings.Repeat(" ", n-len(s))
 }
 
 // pgSettings are the session settings the expectations in pgTypeCases

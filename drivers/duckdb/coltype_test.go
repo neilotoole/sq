@@ -86,12 +86,12 @@ var duckTypeCases = []typetest.Case{
 
 	// TIME and TIMETZ values come back as a time.Time on 0001-01-01.
 	typetest.NewCase("time", "TIME", fixt.TimeOfDayZ, fixt.TimeOfDay, "TIME", "TIME", kind.Time).
-		WithWantZero(timeOfDay(0, 0, 0)).
-		WithWantVal(timeOfDay(7, 7, 7)),
+		WithWantZero(typetest.TimeOfDay(0, 0, 0, 0)).
+		WithWantVal(typetest.TimeOfDay(7, 7, 7, 0)),
 	typetest.NewCase("timetz", "TIMETZ", typetest.SQL("'00:00:00+00'::TIMETZ"), typetest.SQL("'07:07:07+00'::TIMETZ"),
 		"TIME WITH TIME ZONE", "TIME WITH TIME ZONE", kind.Time).
-		WithWantZero(timeOfDay(0, 0, 0)).
-		WithWantVal(timeOfDay(7, 7, 7)),
+		WithWantZero(typetest.TimeOfDay(0, 0, 0, 0)).
+		WithWantVal(typetest.TimeOfDay(7, 7, 7, 0)),
 	typetest.NewCase("timestamp", "TIMESTAMP", fixt.DatetimeZ, fixt.Datetime, "TIMESTAMP", "TIMESTAMP",
 		kind.Datetime),
 	typetest.NewCase("timestamp_ms", "TIMESTAMP_MS", fixt.DatetimeZ, duckTimestampMillis, "TIMESTAMP_MS",
@@ -152,10 +152,4 @@ var duckTypeCases = []typetest.Case{
 		WithWantZero("OrderedMap{}").
 		WithWantVal("OrderedMap{k: 7}").
 		WithIssue("#609"),
-}
-
-// timeOfDay returns the time.Time that a TIME column holding the given time
-// of day reads back as: that time on 0001-01-01 UTC.
-func timeOfDay(hour, minute, sec int) time.Time {
-	return time.Date(1, time.January, 1, hour, minute, sec, 0, time.UTC)
 }

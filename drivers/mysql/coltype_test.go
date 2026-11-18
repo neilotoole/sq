@@ -38,20 +38,23 @@ func TestColumnTypes(t *testing.T) {
 //
 // The reason is MySQL's handling of TIMESTAMP columns on the 5.x images,
 // where explicit_defaults_for_timestamp is off (checkMySQLSettings pins
-// this). With that setting off, MySQL gives a TIMESTAMP NOT NULL column that
-// declares no default an implicit one:
+// this). With that setting off, MySQL gives TIMESTAMP columns implicit
+// defaults, by position in the table:
 //
-//   - the first such column in a table gets
+//   - the first TIMESTAMP column in the table, unless it's declared NULL or
+//     declares a DEFAULT or ON UPDATE, gets
 //     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
-//   - every later one gets DEFAULT '0000-00-00 00:00:00'.
+//   - every later TIMESTAMP column, unless it's declared NULL or declares a
+//     DEFAULT, gets DEFAULT '0000-00-00 00:00:00'.
 //
-// TestColumnTypes's table already has a TIMESTAMP NOT NULL column,
-// col_timestamp, so a TIMESTAMP(6) NOT NULL column there would be the second,
-// and get the zero-date default. The 5.7 image's strict sql_mode
+// Only the first TIMESTAMP column can get CURRENT_TIMESTAMP: if it's declared
+// NULL, no column does. TestColumnTypes's first TIMESTAMP column is
+// col_timestamp, declared NOT NULL, so a TIMESTAMP(6) NOT NULL column in that
+// table would be a later one, and get the zero-date default. The 5.7 image's strict sql_mode
 // (NO_ZERO_DATE) rejects that, so CREATE TABLE fails for the whole table:
 // "Error 1067 (42000): Invalid default value for 'col_timestamp_6'". In a
-// table of its own, col_timestamp_6 is the first TIMESTAMP NOT NULL column,
-// gets the CURRENT_TIMESTAMP default instead, and the table can be created on
+// table of its own, col_timestamp_6 is the first TIMESTAMP column, gets the
+// CURRENT_TIMESTAMP default instead, and the table can be created on
 // every version. The nullable column, declared NULL explicitly, gets no
 // implicit default on any version.
 //
@@ -71,8 +74,8 @@ func TestColumnTypes_TIMESTAMP6(t *testing.T) {
 }
 
 // mysqlTimestamp6Case is the TIMESTAMP(6) case for TestColumnTypes_TIMESTAMP6.
-// On the 5.x images its NOT NULL column gets the implicit default that MySQL
-// gives the first TIMESTAMP NOT NULL column in a table.
+// On the 5.x images its NOT NULL column, the first TIMESTAMP column in its
+// table, gets the implicit default MySQL gives that column.
 var mysqlTimestamp6Case = typetest.NewCase("timestamp_6", "TIMESTAMP(6)", fixt.DatetimeZ, datetimeMicros,
 	"timestamp", "timestamp(6)", kind.Datetime).
 	WithVersionOverrides(typetest.Override{
@@ -154,8 +157,8 @@ var mysqlTypeCases = []typetest.Case{
 
 	// BINARY pads values to its length with zero bytes.
 	typetest.NewCase("binary_64", "BINARY(64)", fixt.BytesZ, fixt.Bytes, "binary", "binary(64)", kind.Bytes).
-		WithWantZero(zeroPadded(fixt.BytesZ, 64)).
-		WithWantVal(zeroPadded(fixt.Bytes, 64)),
+		WithWantZero(typetest.ZeroPadded(fixt.BytesZ, 64)).
+		WithWantVal(typetest.ZeroPadded(fixt.Bytes, 64)),
 
 	typetest.NewCase("varbinary_64", "VARBINARY(64)", fixt.BytesZ, fixt.Bytes, "varbinary", "varbinary(64)",
 		kind.Bytes),
@@ -169,7 +172,9 @@ var mysqlTypeCases = []typetest.Case{
 		kind.Datetime),
 
 	// With explicit_defaults_for_timestamp off (the 5.x images), the first
-	// TIMESTAMP NOT NULL column in a table gets an implicit default.
+	// TIMESTAMP column in a table, if it's NOT NULL and declares no default,
+	// gets an implicit one. col_timestamp is that column: keep it the first
+	// TIMESTAMP case. See TestColumnTypes_TIMESTAMP6.
 	typetest.NewCase("timestamp", "TIMESTAMP", fixt.DatetimeZ, fixt.Datetime, "timestamp", "timestamp",
 		kind.Datetime).
 		WithVersionOverrides(typetest.Override{
@@ -196,13 +201,15 @@ var mysqlTypeCases = []typetest.Case{
 	typetest.NewCase("json", "JSON", fixt.JSONZ, fixt.JSON, "json", "json", kind.Text).
 		WithMinVer("v5.7.8"),
 
-	// candidate issue: spatial types have no kind.
-	typetest.NewCase("geometry", "GEOMETRY", pointGeom, pointGeom, "geometry", "geometry", kind.Unknown).
-		WithWantZero(pointWKB).
-		WithWantVal(pointWKB),
-	typetest.NewCase("point", "POINT", pointGeom, pointGeom, "point", "point", kind.Unknown).
-		WithWantZero(pointWKB).
-		WithWantVal(pointWKB),
+	// candidate issue: spatial types have no kind, and their values come back
+	// as a string of MySQL's internal format (a 4-byte SRID, then WKB) rather
+	// than as WKB or text.
+	typetest.NewCase("geometry", "GEOMETRY", point11, point22, "geometry", "geometry", kind.Unknown).
+		WithWantZero(srid0 + point11WKB).
+		WithWantVal(srid0 + point22WKB),
+	typetest.NewCase("point", "POINT", point11, point22, "point", "point", kind.Unknown).
+		WithWantZero(srid0 + point11WKB).
+		WithWantVal(srid0 + point22WKB),
 }
 
 // mysqlSettings are the server settings the expectations in mysqlTypeCases
@@ -268,30 +275,33 @@ var (
 	decimal10Max   = decimal.RequireFromString("9999999999")
 )
 
-// pointGeom is a SQL input for the spatial columns: POINT(1 1).
-const pointGeom = typetest.SQL("ST_GeomFromText('POINT(1 1)')")
+// point11 and point22 are the SQL inputs for the spatial columns: POINT(1 1)
+// and POINT(2 2).
+const (
+	point11 = typetest.SQL("ST_GeomFromText('POINT(1 1)')")
+	point22 = typetest.SQL("ST_GeomFromText('POINT(2 2)')")
+)
 
-// pointWKB is how a spatial column holding POINT(1 1) reads back today: a
-// string of MySQL's internal format, a 4-byte SRID followed by the
-// little-endian WKB.
-const pointWKB = "\x00\x00\x00\x00" + // SRID 0
-	"\x01\x01\x00\x00\x00" + // little-endian, type 1 (point)
-	"\x00\x00\x00\x00\x00\x00\xf0?" + // x = 1.0
-	"\x00\x00\x00\x00\x00\x00\xf0?" // y = 1.0
+// A spatial column reads back today as a string of MySQL's internal format:
+// a 4-byte SRID (srid0), then the little-endian WKB of the value
+// (point11WKB, point22WKB).
+const (
+	srid0      = "\x00\x00\x00\x00"
+	point11WKB = "\x01\x01\x00\x00\x00" + // little-endian, type 1 (point)
+		"\x00\x00\x00\x00\x00\x00\xf0?" + // x = 1.0
+		"\x00\x00\x00\x00\x00\x00\xf0?" // y = 1.0
+	point22WKB = "\x01\x01\x00\x00\x00" + // little-endian, type 1 (point)
+		"\x00\x00\x00\x00\x00\x00\x00@" + // x = 2.0
+		"\x00\x00\x00\x00\x00\x00\x00@" // y = 2.0
+)
 
 // displayWidthBefore8019 returns the override for an integer or YEAR column
 // type on servers before 8.0.19, which still report the display width
-// (int(11), year(4)). 8.0.19 stopped reporting it, except for TINYINT(1).
+// (int(11), year(4)). 8.0.19 stopped reporting it, except for TINYINT(1) and
+// ZEROFILL columns (no case here covers ZEROFILL).
 func displayWidthBefore8019(colType string) typetest.Override {
 	return typetest.Override{
 		Before: "v8.0.19",
 		Want:   typetest.Want{ColumnType: typetest.Is(colType)},
 	}
-}
-
-// zeroPadded returns b padded with zero bytes to length n.
-func zeroPadded(b []byte, n int) []byte {
-	out := make([]byte, n)
-	copy(out, b)
-	return out
 }

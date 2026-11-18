@@ -76,11 +76,11 @@ var oraTypeCases = []typetest.Case{
 
 	// CHAR and NCHAR pad values to their length with spaces.
 	typetest.NewCase("char_255", "CHAR(255)", oraTextZ, fixt.Text, "CHAR", "CHAR(255)", kind.Text).
-		WithWantZero(spacePadded(oraTextZ, 255)).
-		WithWantVal(spacePadded(fixt.Text, 255)),
+		WithWantZero(typetest.SpacePadded(oraTextZ, 255)).
+		WithWantVal(typetest.SpacePadded(fixt.Text, 255)),
 	typetest.NewCase("char_10_char", "CHAR(10 CHAR)", oraTextZ, fixt.Text, "CHAR", "CHAR(10 CHAR)", kind.Text).
-		WithWantZero(spacePadded(oraTextZ, 10)).
-		WithWantVal(spacePadded(fixt.Text, 10)),
+		WithWantZero(typetest.SpacePadded(oraTextZ, 10)).
+		WithWantVal(typetest.SpacePadded(fixt.Text, 10)),
 	typetest.NewCase("varchar2_16", "VARCHAR2(16)", oraTextZ, "0123456789abcdef", "VARCHAR2", "VARCHAR2(16)",
 		kind.Text),
 	typetest.NewCase("varchar2_16_char", "VARCHAR2(16 CHAR)", oraTextZ, "0123456789abcdef", "VARCHAR2",
@@ -95,8 +95,8 @@ var oraTypeCases = []typetest.Case{
 		WithWantZero(nil),
 
 	typetest.NewCase("nchar_16", "NCHAR(16)", oraTextZ, fixt.Text, "NCHAR", "NCHAR(16)", kind.Text).
-		WithWantZero(spacePadded(oraTextZ, 16)).
-		WithWantVal(spacePadded(fixt.Text, 16)),
+		WithWantZero(typetest.SpacePadded(oraTextZ, 16)).
+		WithWantVal(typetest.SpacePadded(fixt.Text, 16)),
 	typetest.NewCase("nvarchar2_16", "NVARCHAR2(16)", oraTextZ, fixt.Text, "NVARCHAR2", "NVARCHAR2(16)",
 		kind.Text),
 	typetest.NewCase("clob", "CLOB", oraTextZ, fixt.Text, "CLOB", "CLOB", kind.Text),
@@ -114,7 +114,8 @@ var oraTypeCases = []typetest.Case{
 		"TIMESTAMP WITH TIME ZONE", "TIMESTAMP(6) WITH TIME ZONE", kind.Datetime),
 
 	// TIMESTAMP WITH LOCAL TIME ZONE values come back in a fixed zone named
-	// for the database time zone, +00:00.
+	// for the database time zone, +00:00 (DBTIMEZONE, which checkOraSettings
+	// pins).
 	typetest.NewCase("timestamp_ltz", "TIMESTAMP WITH LOCAL TIME ZONE", fixt.DatetimeZ, fixt.Datetime,
 		"TIMESTAMP WITH LOCAL TIME ZONE", "TIMESTAMP(6) WITH LOCAL TIME ZONE", kind.Datetime).
 		WithWantZero(fixt.DatetimeZ.In(time.FixedZone("+00:00", 0))).
@@ -164,35 +165,36 @@ var oraTypeCases = []typetest.Case{
 		WithIssue("#1303"),
 }
 
-// spacePadded returns s padded with spaces to length n.
-func spacePadded(s string, n int) string {
-	return s + strings.Repeat(" ", n-len(s))
-}
-
 // oraSettings are the session settings the expectations in oraTypeCases
 // assume: those of the sakiladb/oracle images.
 type oraSettings struct {
 	lengthSemantics string
+	dbTimeZone      string
 }
 
-// checkOraSettings verifies that the session's settings are those the
-// expectations assume. NLS_LENGTH_SEMANTICS decides whether a bare length
-// such as VARCHAR2(16) means bytes or characters, and so how column_type
-// reports it.
+// checkOraSettings verifies that the settings are those the expectations
+// assume. NLS_LENGTH_SEMANTICS decides whether a bare length such as
+// VARCHAR2(16) means bytes or characters, and so how column_type reports it.
+// DBTIMEZONE decides the zone that TIMESTAMP WITH LOCAL TIME ZONE values come
+// back in: go-ora labels them with the database time zone, which it reads
+// with SELECT DBTIMEZONE.
 //
 // The session time zone isn't checked: go-ora sets it from the local time
 // zone of the machine running the test, so it's a property of the client,
-// not the server. Expectations that depend on it use time.Local.
+// not the server. No expectation depends on it: go-ora binds a time.Time as
+// TIMESTAMP WITH TIME ZONE, carrying its own zone, so inserts don't depend on
+// the session zone either.
 func checkOraSettings(ctx context.Context, db sqlz.DB, serverVer string) error {
 	var got oraSettings
 	err := db.QueryRowContext(ctx,
-		"SELECT value FROM nls_session_parameters WHERE parameter = 'NLS_LENGTH_SEMANTICS'").
-		Scan(&got.lengthSemantics)
+		"SELECT (SELECT value FROM nls_session_parameters WHERE parameter = 'NLS_LENGTH_SEMANTICS'), "+
+			"DBTIMEZONE FROM dual").
+		Scan(&got.lengthSemantics, &got.dbTimeZone)
 	if err != nil {
 		return errz.Err(err)
 	}
 
-	want := oraSettings{lengthSemantics: "BYTE"}
+	want := oraSettings{lengthSemantics: "BYTE", dbTimeZone: "+00:00"}
 	if got != want {
 		return errz.Errorf("Oracle %s: settings are %+v, expected %+v", serverVer, got, want)
 	}

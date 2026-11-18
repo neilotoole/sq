@@ -28,9 +28,9 @@ func TestColumnTypes(t *testing.T) {
 	})
 }
 
-// rqMaxExactInt is 2^53 + 1, the smallest integer a float64 can't hold
+// rqFirstInexactInt is 2^53 + 1, the smallest integer a float64 can't hold
 // exactly: it reads back as 2^53. See the INTEGER case.
-const rqMaxExactInt = int64(1<<53 + 1)
+const rqFirstInexactInt = int64(1<<53 + 1)
 
 var rqTypeCases = []typetest.Case{
 	// candidate issue: rqlite's HTTP API returns integers as JSON numbers,
@@ -40,11 +40,11 @@ var rqTypeCases = []typetest.Case{
 	// of int64 range, and Go's conversion of an out-of-range float to int64 is
 	// implementation-dependent: it reads back as math.MinInt64 on amd64 and
 	// as math.MaxInt64 on arm64.
-	typetest.NewCase("integer", "INTEGER", fixt.IntZ, rqMaxExactInt, "INTEGER", "INTEGER", kind.Int).
+	typetest.NewCase("integer", "INTEGER", fixt.IntZ, rqFirstInexactInt, "INTEGER", "INTEGER", kind.Int).
 		WithWantVal(int64(1 << 53)),
 	typetest.NewCase("int", "INT", fixt.IntZ, int64(math.MaxInt32), "INT", "INT", kind.Int),
 	typetest.NewCase("tinyint", "TINYINT", fixt.IntZ, int64(math.MaxInt8), "TINYINT", "TINYINT", kind.Int),
-	typetest.NewCase("bigint", "BIGINT", fixt.IntZ, rqMaxExactInt, "BIGINT", "BIGINT", kind.Int).
+	typetest.NewCase("bigint", "BIGINT", fixt.IntZ, rqFirstInexactInt, "BIGINT", "BIGINT", kind.Int).
 		WithWantVal(int64(1 << 53)),
 	typetest.NewCase("boolean", "BOOLEAN", fixt.BoolZ, fixt.Bool, "BOOLEAN", "BOOLEAN", kind.Bool),
 	typetest.NewCase("real", "REAL", fixt.FloatZ, fixt.Float, "REAL", "REAL", kind.Float),

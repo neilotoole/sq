@@ -1,15 +1,17 @@
 package clickhouse_test
 
 import (
+	"context"
 	"math"
-	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
 
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/typetest"
@@ -26,21 +28,42 @@ func TestColumnTypes(t *testing.T) {
 	t.Parallel()
 
 	typetest.Run(t, typetest.Config{
-		Handle:      sakila.CH,
-		RowIDDecl:   "Int32",
-		ColumnDecl:  chColumnDecl,
-		TableSuffix: "ENGINE = MergeTree() ORDER BY row_id",
-		Cases:       withNullableColumnTypes(chTypeCases),
+		Handle:        sakila.CH,
+		RowIDDecl:     "Int32",
+		ColumnDecl:    chColumnDecl,
+		TableSuffix:   "ENGINE = MergeTree() ORDER BY row_id",
+		Cases:         withNullableColumnTypes(chTypeCases),
+		CheckSettings: checkCHSettings,
 	})
 }
 
-// chColumnDecl declares a column the ClickHouse way: columns are NOT NULL by
-// default, and a nullable column wraps its type in Nullable(T).
-func chColumnDecl(decl string, v typetest.Variant) string {
-	if v == typetest.Nullable {
-		return "Nullable(" + decl + ")"
+// checkCHSettings verifies that the server's time zone is UTC, as the
+// expectations assume: clickhouse-go returns a DateTime column declared
+// without a time zone in the server's time zone, and the comparison is
+// sensitive to the time.Time's location.
+func checkCHSettings(ctx context.Context, db sqlz.DB, serverVer string) error {
+	var tz string
+	if err := db.QueryRowContext(ctx, "SELECT timezone()").Scan(&tz); err != nil {
+		return errz.Err(err)
 	}
-	return decl
+	if tz != "UTC" {
+		return errz.Errorf("ClickHouse %s: server time zone is {%s}, expected {UTC}", serverVer, tz)
+	}
+	return nil
+}
+
+// chColumnDecl declares a column the ClickHouse way: columns are NOT NULL by
+// default, and a nullable column wraps its type in Nullable(T). For
+// LowCardinality(T), which can't be wrapped, the nullable form wraps the inner
+// type instead: LowCardinality(Nullable(T)).
+func chColumnDecl(decl string, v typetest.Variant) string {
+	if v != typetest.Nullable {
+		return decl
+	}
+	if inner, ok := strings.CutPrefix(decl, "LowCardinality("); ok {
+		return "LowCardinality(Nullable(" + inner + ")"
+	}
+	return "Nullable(" + decl + ")"
 }
 
 // withNullableColumnTypes returns cases with the expected column_type of each
@@ -51,7 +74,7 @@ func withNullableColumnTypes(cases []typetest.Case) []typetest.Case {
 	out := make([]typetest.Case, len(cases))
 	for i, c := range cases {
 		out[i] = c
-		if c.PerVariant.Nullable.ColumnType.Set || !slices.Contains(variantsOf(c), typetest.Nullable) {
+		if c.PerVariant.Nullable.ColumnType.Set || !c.Creates(typetest.Nullable) {
 			continue
 		}
 		out[i] = c.WithPerVariant(typetest.PerVariant{Nullable: typetest.Want{
@@ -59,14 +82,6 @@ func withNullableColumnTypes(cases []typetest.Case) []typetest.Case {
 		}})
 	}
 	return out
-}
-
-// variantsOf returns the variants c creates.
-func variantsOf(c typetest.Case) []typetest.Variant {
-	if c.Variants == nil {
-		return []typetest.Variant{typetest.NotNull, typetest.Nullable}
-	}
-	return c.Variants
 }
 
 // chNetIPScanErr is the error from querying an IPv4 or IPv6 column.
@@ -130,11 +145,24 @@ var chTypeCases = []typetest.Case{
 		"Enum8('alfa' = 1, 'bravo' = 2, 'charlie' = 3)", "Enum8('alfa' = 1, 'bravo' = 2, 'charlie' = 3)",
 		kind.Text),
 
-	// LowCardinality(T) can't be wrapped in Nullable, so it has only the NOT
-	// NULL variant. Its base_type is the wrapped type.
+	// LowCardinality(T) can't be wrapped in Nullable, so its nullable column
+	// is LowCardinality(Nullable(T)); see chColumnDecl.
+	//
+	// candidate issue: base_type is the wrapped type (String), while for
+	// other parameterized types it keeps the parameters (Decimal(9, 2),
+	// FixedString(16)).
+	//
+	// candidate issue: the nullable LowCardinality(Nullable(String)) column
+	// is reported as not nullable, since the driver only recognizes a
+	// leading Nullable(, and querying it fails: the driver returns a *string,
+	// which sq can't scan.
 	typetest.NewCase("low_cardinality_string", "LowCardinality(String)", fixt.TextZ, fixt.Text, "String",
 		"LowCardinality(String)", kind.Text).
-		WithVariants(typetest.NotNull),
+		WithPerVariant(typetest.PerVariant{Nullable: typetest.Want{
+			ColumnType: typetest.Is("LowCardinality(Nullable(String))"),
+			Nullable:   typetest.Is(false),
+			QueryErr:   typetest.Is("unsupported Scan, storing driver.Value type *string into type *string"),
+		}}),
 
 	typetest.NewCase("date", "Date", fixt.DateZ, fixt.Date, "Date", "Date", kind.Date),
 	typetest.NewCase("date32", "Date32", fixt.DateZ, fixt.Date, "Date32", "Date32", kind.Date),
