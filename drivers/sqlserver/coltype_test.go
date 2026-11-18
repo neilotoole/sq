@@ -266,6 +266,15 @@ var msTypeCases = []typetest.Case{
 	typetest.NewCase("xml", "XML", "", "<val>7</val>", "xml", "xml(-1)", kind.Text).
 		WithIssue("#1363"),
 
+	// SQL_VARIANT holds values of other types, each with its own base type.
+	// The Zero input is an integer and the Val input a string. candidate
+	// issue: the integer reads back as int64 from the NOT NULL column, but as
+	// the string "0" from the nullable column.
+	typetest.NewCase("sql_variant", "SQL_VARIANT", fixt.IntZ, fixt.Text, "sql_variant", "sql_variant(0)",
+		kind.Unknown).
+		WithPerVariant(typetest.PerVariant{Nullable: typetest.Want{Zero: typetest.Is[any]("0")}}).
+		WithIssue("#1363"),
+
 	// candidate issue: the CLR types HIERARCHYID, GEOMETRY and GEOGRAPHY have
 	// no kind, and their values come back as a string of their raw
 	// serialized bytes.
