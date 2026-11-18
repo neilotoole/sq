@@ -27,15 +27,15 @@ and does not require
 | --------------------------- | --------------------------------------------------------- |
 | 26ai (formerly 23ai), 23.26 | Tested in CI, against Oracle AI Database 26ai Free        |
 | 21c                         | Tested in CI, against Oracle Database 21c Express Edition |
-| 19c                         | Expected to work, not tested                              |
+| 19c                         | Not tested. 21c is the closest tested version.            |
 
 CI runs the Oracle test suite against both tested versions using the
 [`sakiladb/oracle`](https://github.com/sakiladb/oracle) images, tagged `23` and `21`.
 
-19c is the most widely deployed Oracle release, but it has no free edition, so it can't be
-tested directly. 21c is the closest version that can be. Like 19c, it lacks 26ai features such as
-the `VECTOR` type and SQL `BOOLEAN`, so behavior that works on 21c is expected to work on 19c.
-One known difference: 21c introduced the native `JSON` type, which 19c does not have.
+19c is the most widely deployed Oracle release, but it has no free edition, so there's no public
+image of it for sq's CI to test against. 21c is the closest version that has one. Like 19c, it
+lacks 26ai features such as the `VECTOR` type and SQL `BOOLEAN`. One known difference: 21c
+introduced the native `JSON` type, which 19c does not have.
 
 ## Add source
 
@@ -211,8 +211,8 @@ Oracle SQL rendering differs from several other SQL drivers:
   to a float so fractional values scan cleanly. Tradeoff: integer-valued
   sums lose precision past ~15-17 significant digits — use raw SQL for
   lossless big-integer aggregation.
-- Row ranges render using `OFFSET ... FETCH NEXT ... ROWS ONLY` for Oracle
-  12c and newer. When a row range has no explicit sort, `sq` adds an
+- Row ranges render using `OFFSET ... FETCH NEXT ... ROWS ONLY`, syntax that
+  Oracle added in 12c. When a row range has no explicit sort, `sq` adds an
   Oracle-compatible `ORDER BY` expression before the row range.
 - Scalar selections that need a table source use `FROM DUAL` where required.
 - The `AS` keyword is stripped from table-alias positions in `FROM`/`JOIN`

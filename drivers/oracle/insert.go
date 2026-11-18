@@ -14,7 +14,8 @@ import (
 // inserts a batch of rows with array binding (Oracle "array DML") instead:
 // a single-row INSERT executed once, with each bind parameter given a slice
 // holding that column's value for every row. go-ora sends the whole batch in
-// one round trip. This works on every Oracle version.
+// one round trip. Unlike a multi-row VALUES list, array binding doesn't need
+// 23ai. CI tests this path on 21c and 26ai.
 //
 // Two go-ora behaviors mean a column's values must be of a consistent type:
 //
