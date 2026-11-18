@@ -2,6 +2,7 @@ package typetest
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -19,8 +20,8 @@ func DiffMeta(path, serverVer string, got *metadata.Column, want Column) []strin
 		if wantVal == gotVal {
 			return
 		}
-		msgs = append(msgs, fmt.Sprintf("%s: column %s (%s) on server %s: %s: want %#v, got %#v",
-			path, want.Name, want.Case.Decl, serverVer, field, wantVal, gotVal))
+		msgs = append(msgs, fmt.Sprintf("%s: column %s (%s) on server %s: %s: want %s, got %s",
+			path, want.Name, want.Case.Decl, serverVer, field, fmtVal(wantVal), fmtVal(gotVal)))
 	}
 
 	diff("base_type", want.BaseType, got.BaseType)
@@ -47,4 +48,14 @@ func MatchQueryErr(err error, col Column) error {
 			col.Name, col.Case.Decl, col.QueryErr.Val, msg)
 	}
 	return nil
+}
+
+// fmtVal formats v for a failure message: strings quoted, so that an empty
+// value is visible, and everything else via its String method if it has one
+// (kind.Kind prints as "int", not 3).
+func fmtVal(v any) string {
+	if s, ok := v.(string); ok {
+		return strconv.Quote(s)
+	}
+	return fmt.Sprint(v)
 }

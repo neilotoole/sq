@@ -50,6 +50,14 @@ func TestDiffMeta(t *testing.T) {
 	}
 }
 
+func TestDiffMeta_KindByName(t *testing.T) {
+	want := mustResolve(t, intCase("int"))[0]
+	got := &metadata.Column{Name: "col_int", BaseType: "int", ColumnType: "int", Kind: kind.Decimal}
+	msgs := typetest.DiffMeta("TableMetadata", "v9.1.0", got, want)
+	require.Len(t, msgs, 1)
+	require.Contains(t, msgs[0], "want int, got decimal")
+}
+
 func TestMatchQueryErr(t *testing.T) {
 	c := intCase("x")
 	c.Vars = typetest.Vars{Nullable: typetest.Want{QueryErr: typetest.Is("sql.Null[uint64]")}}

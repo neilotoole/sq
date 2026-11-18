@@ -197,7 +197,8 @@ func checkSelectAll(t *testing.T, th *testh.Helper, src *source.Source, serverVe
 func checkRecords(t *testing.T, serverVer string, sink *testh.RecordSink, pos int, col Column) {
 	t.Helper()
 	require.Len(t, sink.Recs, 3, "column %s (%s) on server %s: record count", col.Name, col.Case.Decl, serverVer)
-	require.Equal(t, col.QueryKind, sink.RecMeta[pos].Kind(),
+	// Compared by name, so a failure reads "int" rather than 3.
+	require.Equal(t, col.QueryKind.String(), sink.RecMeta[pos].Kind().String(),
 		"column %s (%s) on server %s: query result kind", col.Name, col.Case.Decl, serverVer)
 	for row := range 3 {
 		require.Equal(t, col.Want[row], sink.Recs[row][pos],
