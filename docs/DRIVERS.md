@@ -300,6 +300,19 @@ Server versions and settings:
   (MySQL's `explicit_defaults_for_timestamp` and `sql_mode`, for example), so a
   differently configured server fails with a message naming the setting.
 
+An expected `default_value` that contains the generated table name (a Postgres
+serial column's `nextval('<table>_col_serial_seq'::regclass)`, for example)
+uses `typetest.TableToken` in its place.
+
+To write or update a case table, run the test with the `SQ_TYPETEST_DUMP`
+envar set. The harness then logs what every column actually reports (inspect
+fields, query kind, and values as Go literals) before checking anything. Run it
+against each server version and read the expectations off the log:
+
+```shell
+SQ_TYPETEST_DUMP=1 go test -v -run 'TestColumnTypes$' ./drivers/postgres/
+```
+
 #### Database-specific quirks
 
 Document any database-specific behaviors that affect driver implementation:

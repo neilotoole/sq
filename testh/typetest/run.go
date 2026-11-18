@@ -69,6 +69,11 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 	require.NotEmpty(t, cols)
 
 	tbl := setupTable(th, src, cfg, serverVer, cols)
+	cols = expandTableToken(cols, tbl)
+
+	if dumpEnabled() {
+		dumpActual(t, th, src, serverVer, tbl, cols)
+	}
 
 	t.Run("TableMetadata", func(t *testing.T) {
 		tblMeta, err := th.TableMetadata(src, tbl)
@@ -93,6 +98,22 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 	t.Run("select_all", func(t *testing.T) {
 		checkSelectAll(t, th, src, serverVer, tbl, cols)
 	})
+}
+
+// TableToken stands for the test table's name in an expected default_value,
+// whose text can include it: the table name is generated per run. For
+// example, a Postgres serial column's default is
+// "nextval('" + TableToken + "_col_serial_seq'::regclass)".
+const TableToken = "{table}"
+
+// expandTableToken returns a copy of cols with TableToken in each expected
+// default_value replaced by tbl.
+func expandTableToken(cols []Column, tbl string) []Column {
+	out := slices.Clone(cols)
+	for i := range out {
+		out[i].Default = strings.ReplaceAll(out[i].Default, TableToken, tbl)
+	}
+	return out
 }
 
 // setupTable checks the server settings, creates the table and inserts the
