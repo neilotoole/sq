@@ -60,7 +60,7 @@ func TestDiffMeta_KindByName(t *testing.T) {
 
 func TestMatchQueryErr(t *testing.T) {
 	c := intCase("x")
-	c.Vars = typetest.Vars{Nullable: typetest.Want{QueryErr: typetest.Is("sql.Null[uint64]")}}
+	c.PerVariant = typetest.PerVariant{Nullable: typetest.Want{QueryErr: typetest.Is("sql.Null[uint64]")}}
 	col := mustResolve(t, c)[1]
 	require.Equal(t, "col_x_n", col.Name)
 

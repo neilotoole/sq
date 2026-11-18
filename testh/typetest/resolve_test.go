@@ -90,13 +90,13 @@ func TestResolve_MinVer(t *testing.T) {
 
 func TestResolve_Layering(t *testing.T) {
 	c := intCase("x")
-	c.Vars = typetest.Vars{
+	c.PerVariant = typetest.PerVariant{
 		Nullable: typetest.Want{ColumnType: typetest.Is("int_v")},
 	}
-	c.Before = []typetest.Override{{
-		Ver:  "v8.0.19",
-		Want: typetest.Want{ColumnType: typetest.Is("int(11)")},
-		Vars: typetest.Vars{
+	c.VersionOverrides = []typetest.Override{{
+		Before: "v8.0.19",
+		Want:   typetest.Want{ColumnType: typetest.Is("int(11)")},
+		PerVariant: typetest.PerVariant{
 			Nullable: typetest.Want{Val: typetest.WantNull()},
 		},
 	}}
@@ -111,17 +111,17 @@ func TestResolve_Layering(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "int(11)", cols[0].ColumnType)
 	require.Equal(t, "int(11)", cols[1].ColumnType,
-		"the override's Want layers after Case.Vars")
+		"the override's Want layers after Case.PerVariant")
 	require.Equal(t, int64(7), cols[0].Want[1])
 	require.Nil(t, cols[1].Want[1])
 	require.Equal(t, int64(7), cols[1].In[1], "inputs never change")
 }
 
-func TestResolve_BeforeFirstMatchWins(t *testing.T) {
+func TestResolve_VersionOverridesFirstMatchWins(t *testing.T) {
 	c := intCase("x")
-	c.Before = []typetest.Override{
-		{Ver: "v5.7.0", Want: typetest.Want{ColumnType: typetest.Is("from_v5.7.0")}},
-		{Ver: "v8.0.19", Want: typetest.Want{ColumnType: typetest.Is("from_v8.0.19")}},
+	c.VersionOverrides = []typetest.Override{
+		{Before: "v5.7.0", Want: typetest.Want{ColumnType: typetest.Is("from_v5.7.0")}},
+		{Before: "v8.0.19", Want: typetest.Want{ColumnType: typetest.Is("from_v8.0.19")}},
 	}
 
 	testCases := []struct {
@@ -164,7 +164,7 @@ func TestResolve_WantNull(t *testing.T) {
 
 func TestResolve_QueryErrPerVariant(t *testing.T) {
 	c := intCase("x")
-	c.Vars = typetest.Vars{
+	c.PerVariant = typetest.PerVariant{
 		Nullable: typetest.Want{QueryErr: typetest.Is("sql.Null[uint64]")},
 	}
 
@@ -203,7 +203,7 @@ func TestResolve_Errors(t *testing.T) {
 		{"sql_input_with_expectation_for_one_variant_only", func() []typetest.Case {
 			c := intCase("bad")
 			c.Zero = typetest.SQL("1 - 1")
-			c.Vars = typetest.Vars{
+			c.PerVariant = typetest.PerVariant{
 				NotNull: typetest.Want{Zero: typetest.Is[any](int64(0))},
 			}
 			return []typetest.Case{c}
@@ -216,19 +216,19 @@ func TestResolve_Errors(t *testing.T) {
 		{"invalid_name", func() []typetest.Case {
 			return []typetest.Case{intCase("bad-name")}
 		}},
-		{"before_not_ascending", func() []typetest.Case {
+		{"version_overrides_not_ascending", func() []typetest.Case {
 			c := intCase("bad")
-			c.Before = []typetest.Override{{Ver: "v8.0.19"}, {Ver: "v5.7.0"}}
+			c.VersionOverrides = []typetest.Override{{Before: "v8.0.19"}, {Before: "v5.7.0"}}
 			return []typetest.Case{c}
 		}},
-		{"before_duplicate_ver", func() []typetest.Case {
+		{"version_overrides_duplicate_before", func() []typetest.Case {
 			c := intCase("bad")
-			c.Before = []typetest.Override{{Ver: "v5.7.0"}, {Ver: "v5.7.0"}}
+			c.VersionOverrides = []typetest.Override{{Before: "v5.7.0"}, {Before: "v5.7.0"}}
 			return []typetest.Case{c}
 		}},
-		{"before_invalid_semver", func() []typetest.Case {
+		{"version_overrides_invalid_semver", func() []typetest.Case {
 			c := intCase("bad")
-			c.Before = []typetest.Override{{Ver: "8.0.19"}}
+			c.VersionOverrides = []typetest.Override{{Before: "8.0.19"}}
 			return []typetest.Case{c}
 		}},
 		{"invalid_min_ver", func() []typetest.Case {

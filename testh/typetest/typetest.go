@@ -15,7 +15,14 @@ import (
 	"github.com/neilotoole/sq/libsq/core/kind"
 )
 
-// Variant is one column created for a case.
+// Variant identifies one of the columns created for a case. A case tests one
+// column type, but declares it as several columns that differ in a single
+// property, such as nullability, so that each variant's inspect fields and
+// values are checked separately. For example, the case "int" creates the
+// columns "col_int" (NotNull) and "col_int_n" (Nullable), both of type INT.
+//
+// Case.Variants selects which variants a case creates. Expectations that
+// apply to only one variant go in PerVariant.
 type Variant int
 
 const (
@@ -101,39 +108,48 @@ type Want struct {
 	QueryKind Opt[kind.Kind]
 }
 
-// Vars holds per-variant expectations, one field per Variant. Each overrides
-// the shared expectations for its variant, field by field. A struct rather
-// than a map keyed by Variant, so that a case sets only the variants it
-// needs; adding a variant adds a field here, and existing cases are
-// unaffected.
-type Vars struct {
+// PerVariant holds expectations that apply to only one Variant of a case,
+// with one field per Variant. Each field overrides, field by field, the Want
+// shared by every variant. For example, if only the nullable column fails to
+// query:
+//
+//	c.PerVariant = PerVariant{Nullable: Want{QueryErr: Is("sql.Null[uint64]")}}
+//
+// Fields left as the zero Want change nothing. PerVariant is a struct rather
+// than a map keyed by Variant, so that a case names only the variants it
+// overrides, and adding a Variant adds a field here without touching
+// existing cases.
+type PerVariant struct {
 	NotNull  Want
 	Nullable Want
 }
 
 // get returns the expectations for v.
-func (vs Vars) get(v Variant) Want {
+func (pv PerVariant) get(v Variant) Want {
 	switch v {
 	case NotNull:
-		return vs.NotNull
+		return pv.NotNull
 	case Nullable:
-		return vs.Nullable
+		return pv.Nullable
 	default:
 		return Want{}
 	}
 }
 
 // Override holds expectations for older servers: it applies when the server
-// version is less than Ver.
+// version is less than Before.
 type Override struct {
-	// Ver is a canonical semver, e.g. "v8.0.19".
-	Ver string
+	// Before is the first server version the override doesn't apply to, a
+	// canonical semver such as "v8.0.19". The override applies to servers
+	// older than Before.
+	Before string
 
 	// Want overrides Case.Want, field by field.
 	Want Want
 
-	// Vars overrides the expectations per variant, field by field.
-	Vars Vars
+	// PerVariant overrides this Override's Want for individual variants,
+	// field by field.
+	PerVariant PerVariant
 }
 
 // Case is one column type to test.
@@ -159,20 +175,29 @@ type Case struct {
 	// regardless.
 	Issue string
 
-	// Variants lists the columns to create. Nil means NotNull and Nullable.
+	// Variants selects which columns to create for the case, one per listed
+	// Variant, in the order listed. Leave it nil to create the usual pair,
+	// NotNull ("col_<name>") then Nullable ("col_<name>_n"). Set it only
+	// when the type can't be declared one of those ways, e.g.
+	// []Variant{Nullable} for a type the database won't accept as NOT NULL.
+	//
+	// A non-nil empty slice is an error, as is listing a Variant twice:
+	// Resolve reports both rather than silently testing nothing or creating
+	// a duplicate column.
 	Variants []Variant
 
-	// Before overrides expectations on older servers. Entries must be in
-	// strictly ascending order of Ver; the first entry whose Ver is greater
-	// than the server version applies.
-	Before []Override
+	// VersionOverrides overrides Want and PerVariant on older servers.
+	// Entries must be in strictly ascending order of Before. On a given
+	// server, the first entry whose Before is greater than the server version
+	// applies, and the rest are ignored.
+	VersionOverrides []Override
 
 	// Want holds the expectations shared by every variant, on the newest
 	// supported server version.
 	Want Want
 
-	// Vars overrides Want per variant, field by field.
-	Vars Vars
+	// PerVariant overrides Want for individual variants, field by field.
+	PerVariant PerVariant
 }
 
 // Column is one resolved column: one case, one variant, one server version.

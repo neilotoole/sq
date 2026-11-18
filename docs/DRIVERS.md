@@ -290,7 +290,8 @@ Server versions and settings:
 
 - `MinVer` excludes a case on servers that don't have the type, or can't create
   it as declared. Say why in a comment on the case.
-- `Before` overrides expectations on older servers, for example MySQL before
+- `VersionOverrides` overrides expectations on older servers. Each `Override`
+  applies to servers older than its `Before` version, for example MySQL before
   8.0.19 reporting `int(11)` where newer servers report `int`.
 - `Config.CheckSettings` verifies the server settings the expectations assume
   (MySQL's `explicit_defaults_for_timestamp` and `sql_mode`, for example), so a

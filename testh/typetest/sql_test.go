@@ -105,7 +105,7 @@ func TestSelectAll(t *testing.T) {
 	require.Equal(t, "SELECT * FROM t1 ORDER BY row_id", typetest.SelectAll("t1", cols))
 
 	c := intCase("int")
-	c.Vars = typetest.Vars{Nullable: typetest.Want{QueryErr: typetest.Is("boom")}}
+	c.PerVariant = typetest.PerVariant{Nullable: typetest.Want{QueryErr: typetest.Is("boom")}}
 	cols = mustResolve(t, c, intCase("x"))
 	require.Equal(t, "SELECT row_id, col_int, col_x, col_x_n FROM t1 ORDER BY row_id",
 		typetest.SelectAll("t1", cols))
@@ -113,7 +113,7 @@ func TestSelectAll(t *testing.T) {
 
 func TestSelectAllNames(t *testing.T) {
 	c := intCase("int")
-	c.Vars = typetest.Vars{Nullable: typetest.Want{QueryErr: typetest.Is("boom")}}
+	c.PerVariant = typetest.PerVariant{Nullable: typetest.Want{QueryErr: typetest.Is("boom")}}
 	cols := mustResolve(t, c, intCase("x"))
 	require.Equal(t, []string{"row_id", "col_int", "col_x", "col_x_n"}, typetest.SelectAllNames(cols))
 }

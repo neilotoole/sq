@@ -17,13 +17,13 @@ var caseNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 //
 // A column's expectations start from the built-in fallbacks (QueryKind from
 // Kind, Default "", Zero and Val from the inputs, no QueryErr), then layer,
-// field by field where set: Case.Want, Case.Vars for the variant, the first
-// Before entry whose Ver is greater than serverVer, then that entry's Vars
-// for the variant.
+// field by field where set: Case.Want, Case.PerVariant for the variant, the
+// first VersionOverrides entry whose Before is greater than serverVer, then
+// that entry's PerVariant for the variant.
 //
 // Resolve returns an error for a mistake in the case table, rather than
 // letting it surface as a confusing assertion failure: an invalid name or
-// semver, Before out of order, colliding column names, a required
+// semver, VersionOverrides out of order, colliding column names, a required
 // expectation left unset, a SQL input with no expected value, or an empty
 // QueryErr.
 func Resolve(cases []Case, serverVer string) ([]Column, error) {
@@ -82,14 +82,16 @@ func validateCase(c *Case) error {
 			c.Name, c.MinVer)
 	}
 
-	for i, o := range c.Before {
-		if !semver.IsValid(o.Ver) {
-			return errz.Errorf("typetest: case {%s}: Before[%d]: invalid Ver {%s}: must be a canonical semver",
-				c.Name, i, o.Ver)
+	for i, o := range c.VersionOverrides {
+		if !semver.IsValid(o.Before) {
+			return errz.Errorf("typetest: case {%s}: VersionOverrides[%d]: invalid Before {%s}: must be a canonical semver",
+				c.Name, i, o.Before)
 		}
-		if i > 0 && semver.Compare(c.Before[i-1].Ver, o.Ver) >= 0 {
-			return errz.Errorf("typetest: case {%s}: Before must be in strictly ascending order of Ver: {%s} then {%s}",
-				c.Name, c.Before[i-1].Ver, o.Ver)
+		if i > 0 && semver.Compare(c.VersionOverrides[i-1].Before, o.Before) >= 0 {
+			return errz.Errorf(
+				"typetest: case {%s}: VersionOverrides must be in strictly ascending order of Before: {%s} then {%s}",
+				c.Name, c.VersionOverrides[i-1].Before, o.Before,
+			)
 		}
 	}
 
@@ -100,11 +102,11 @@ func validateCase(c *Case) error {
 func resolveColumn(c *Case, v Variant, serverVer string) (Column, error) {
 	w := Want{}
 	layer(&w, c.Want)
-	layer(&w, c.Vars.get(v))
-	for _, o := range c.Before {
-		if semver.Compare(serverVer, o.Ver) < 0 {
+	layer(&w, c.PerVariant.get(v))
+	for _, o := range c.VersionOverrides {
+		if semver.Compare(serverVer, o.Before) < 0 {
 			layer(&w, o.Want)
-			layer(&w, o.Vars.get(v))
+			layer(&w, o.PerVariant.get(v))
 			break
 		}
 	}
