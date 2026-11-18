@@ -13,16 +13,29 @@ The `sq` Oracle driver implements connectivity for
 
 {{< alert icon="🧪" >}}
 The Oracle driver is experimental. Behavior may change as test coverage and
-edge-case support improve. So far the driver has been tested against a single
-Oracle version (Oracle Database 23ai Free, via the
-[`sakiladb/oracle`](https://github.com/sakiladb/oracle) image); broader
-version coverage may come over time.
+edge-case support improve. See [supported versions](#supported-versions).
 {{< /alert >}}
 
 The driver uses the pure-Go [go-ora](https://github.com/sijms/go-ora) driver
 and does not require
 [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html),
 [OCI](https://en.wikipedia.org/wiki/Oracle_Call_Interface), or [CGo](https://pkg.go.dev/cmd/cgo).
+
+## Supported versions
+
+| Version                     | Status                                                    |
+| --------------------------- | --------------------------------------------------------- |
+| 26ai (formerly 23ai), 23.26 | Tested in CI, against Oracle AI Database 26ai Free        |
+| 21c                         | Tested in CI, against Oracle Database 21c Express Edition |
+| 19c                         | Expected to work, not tested                              |
+
+CI runs the Oracle test suite against both tested versions using the
+[`sakiladb/oracle`](https://github.com/sakiladb/oracle) images, tagged `23` and `21`.
+
+19c is the most widely deployed Oracle release, but it has no free edition, so it can't be
+tested directly. 21c is the closest version that can be. Like 19c, it lacks 26ai features such as
+the `VECTOR` type and SQL `BOOLEAN`, so behavior that works on 21c is expected to work on 19c.
+One known difference: 21c introduced the native `JSON` type, which 19c does not have.
 
 ## Add source
 

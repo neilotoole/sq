@@ -7,9 +7,16 @@
 
 ## Experimental
 
-The Oracle driver is **experimental**; behavior may change. Tested primarily against Oracle
-Database 23ai Free ([sakiladb/oracle](https://github.com/sakiladb/oracle)). Prefer reporting
-issues via [sq issues](https://github.com/neilotoole/sq/issues/new/choose).
+The Oracle driver is **experimental**; behavior may change. Prefer reporting issues via
+[sq issues](https://github.com/neilotoole/sq/issues/new/choose).
+
+## Supported versions
+
+- **26ai** (formerly 23ai, version 23.26) and **21c**: tested in CI, using the
+  [sakiladb/oracle](https://github.com/sakiladb/oracle) images (tags `23` and `21`).
+- **19c**: expected to work, not tested (no free edition exists). 21c stands in for it: like 19c,
+  it lacks 26ai features such as `VECTOR` and SQL `BOOLEAN`. 21c does have the native `JSON`
+  type, which 19c lacks.
 
 ## Add a source
 
