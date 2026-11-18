@@ -70,6 +70,10 @@ func TestMatchQueryErr(t *testing.T) {
 		errors.New("column 1 col_x_n: unknown type db(*sql.Null[uint64])"), col, query,
 	))
 
+	require.NoError(t, typetest.MatchQueryErr(
+		errors.New("column 1 COL_X_N: unknown type db(*sql.Null[uint64])"), col, query,
+	), "the column name matches regardless of case: Oracle reports names in upper case")
+
 	require.Error(t, typetest.MatchQueryErr(nil, col, query), "no error at all")
 	require.Error(t, typetest.MatchQueryErr(
 		errors.New("column 1 col_y_n: unknown type db(*sql.Null[uint64])"), col, query,

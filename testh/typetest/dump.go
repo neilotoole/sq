@@ -20,9 +20,11 @@ import (
 const DumpEnvar = "SQ_TYPETEST_DUMP"
 
 // dumpActual logs formatActual for each column of tbl.
-func dumpActual(t *testing.T, th *testh.Helper, src *source.Source, serverVer, tbl string, cols []Column) {
+func dumpActual(t *testing.T, th *testh.Helper, src *source.Source, fold func(string) string, serverVer,
+	tbl string, cols []Column,
+) {
 	t.Helper()
-	tblMeta, err := th.TableMetadata(src, tbl)
+	tblMeta, err := th.TableMetadata(src, fold(tbl))
 	if err != nil {
 		t.Logf("dump: server %s: TableMetadata: %v", serverVer, err)
 		return
@@ -36,7 +38,7 @@ func dumpActual(t *testing.T, th *testh.Helper, src *source.Source, serverVer, t
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "dump: server %s:\n", serverVer)
 	for _, col := range cols {
-		md := byName[col.Name]
+		md := byName[fold(col.Name)]
 		if md == nil {
 			fmt.Fprintf(&sb, "%s: not in TableMetadata\n", col.Name)
 			continue

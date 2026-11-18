@@ -37,7 +37,9 @@ func DiffMeta(path, serverVer string, got *metadata.Column, want Column) []strin
 // and col.QueryErr.Val. Requiring the column name keeps an unrelated error,
 // or another column's, from satisfying the expectation. A mention of the
 // column inside the query text doesn't count: libsq.QuerySQL wraps an error
-// from sending the query with the query itself, which names the column.
+// from sending the query with the query itself, which names the column. The
+// name matches regardless of case, since some databases (Oracle) report names
+// in upper case.
 func MatchQueryErr(err error, col Column, query string) error {
 	if err == nil {
 		return errz.Errorf("column %s (%s): want query error containing {%s}, got no error",
@@ -45,8 +47,8 @@ func MatchQueryErr(err error, col Column, query string) error {
 	}
 
 	msg := err.Error()
-	withoutQuery := strings.ReplaceAll(msg, query, "")
-	if !strings.Contains(withoutQuery, col.Name) || !strings.Contains(msg, col.QueryErr.Val) {
+	withoutQuery := strings.ToLower(strings.ReplaceAll(msg, query, ""))
+	if !strings.Contains(withoutQuery, strings.ToLower(col.Name)) || !strings.Contains(msg, col.QueryErr.Val) {
 		return errz.Errorf("column %s (%s): want query error containing {%s} and the column name, got: %s",
 			col.Name, col.Case.Decl, col.QueryErr.Val, msg)
 	}

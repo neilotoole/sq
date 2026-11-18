@@ -33,6 +33,12 @@ type Config struct {
 	// Handle is the source handle, e.g. sakila.My.
 	Handle string
 
+	// FoldName maps a table or column name as the harness writes it (lower
+	// case, unquoted) to the name the database reports, e.g. strings.ToUpper
+	// for Oracle, which folds unquoted names to upper case. Nil means names are
+	// reported as written.
+	FoldName func(string) string
+
 	// RowIDDecl declares the row_id column, e.g. "INT NOT NULL PRIMARY KEY".
 	RowIDDecl string
 
@@ -68,25 +74,30 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 	require.NoError(t, err)
 	require.NotEmpty(t, cols)
 
+	fold := cfg.FoldName
+	if fold == nil {
+		fold = func(s string) string { return s }
+	}
+
 	tbl := setupTable(th, src, cfg, serverVer, cols)
-	cols = expandTableToken(cols, tbl)
+	cols = expandTableToken(cols, fold(tbl))
 
 	if dumpEnabled() {
-		dumpActual(t, th, src, serverVer, tbl, cols)
+		dumpActual(t, th, src, fold, serverVer, tbl, cols)
 	}
 
 	t.Run("TableMetadata", func(t *testing.T) {
-		tblMeta, err := th.TableMetadata(src, tbl)
+		tblMeta, err := th.TableMetadata(src, fold(tbl))
 		require.NoError(t, err)
-		checkMeta(t, "TableMetadata", serverVer, tblMeta, cols)
+		checkMeta(t, "TableMetadata", fold, serverVer, tblMeta, cols)
 	})
 
 	t.Run("SourceMetadata", func(t *testing.T) {
 		srcMeta, err := th.SourceMetadata(src)
 		require.NoError(t, err)
-		tblMeta := srcMeta.Table(tbl)
-		require.NotNil(t, tblMeta, "SourceMetadata: table %s not found", tbl)
-		checkMeta(t, "SourceMetadata", serverVer, tblMeta, cols)
+		tblMeta := srcMeta.Table(fold(tbl))
+		require.NotNil(t, tblMeta, "SourceMetadata: table %s not found", fold(tbl))
+		checkMeta(t, "SourceMetadata", fold, serverVer, tblMeta, cols)
 	})
 
 	for _, col := range cols {
@@ -96,7 +107,7 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 	}
 
 	t.Run("select_all", func(t *testing.T) {
-		checkSelectAll(t, th, src, serverVer, tbl, cols)
+		checkSelectAll(t, th, src, fold, serverVer, tbl, cols)
 	})
 }
 
@@ -156,12 +167,14 @@ func setupTable(th *testh.Helper, src *source.Source, cfg Config, serverVer stri
 
 // checkMeta checks tblMeta, from the inspect path named by path, against
 // cols: the column names in order, then each column's fields.
-func checkMeta(t *testing.T, path, serverVer string, tblMeta *metadata.Table, cols []Column) {
+func checkMeta(t *testing.T, path string, fold func(string) string, serverVer string, tblMeta *metadata.Table,
+	cols []Column,
+) {
 	t.Helper()
 
-	wantNames := []string{rowIDCol}
+	wantNames := []string{fold(rowIDCol)}
 	for _, col := range cols {
-		wantNames = append(wantNames, col.Name)
+		wantNames = append(wantNames, fold(col.Name))
 	}
 	gotNames := make([]string, len(tblMeta.Columns))
 	for i, c := range tblMeta.Columns {
@@ -202,7 +215,9 @@ func checkColumnQuery(t *testing.T, th *testh.Helper, src *source.Source, server
 
 // checkSelectAll reads every column without an expected query error in one
 // query, and checks each against its expectations.
-func checkSelectAll(t *testing.T, th *testh.Helper, src *source.Source, serverVer, tbl string, cols []Column) {
+func checkSelectAll(t *testing.T, th *testh.Helper, src *source.Source, fold func(string) string, serverVer,
+	tbl string, cols []Column,
+) {
 	t.Helper()
 	query := SelectAll(tbl, cols)
 	sink, err := th.QuerySQL(src, nil, query)
@@ -214,7 +229,11 @@ func checkSelectAll(t *testing.T, th *testh.Helper, src *source.Source, serverVe
 	for i, fm := range sink.RecMeta {
 		gotNames[i] = fm.Name()
 	}
-	require.Equal(t, SelectAllNames(cols), gotNames, "server %s: result column names: %s", serverVer, query)
+	wantNames := SelectAllNames(cols)
+	for i := range wantNames {
+		wantNames[i] = fold(wantNames[i])
+	}
+	require.Equal(t, wantNames, gotNames, "server %s: result column names: %s", serverVer, query)
 
 	pos := 1 // position 0 is row_id
 	for _, col := range cols {
