@@ -266,3 +266,14 @@ func TestResolve_InvalidServerVer(t *testing.T) {
 		})
 	}
 }
+
+func TestResolve_DuplicateVariant(t *testing.T) {
+	c := intCase("dup")
+	c.Variants = []typetest.Variant{typetest.NotNull, typetest.Nullable, typetest.NotNull}
+
+	cols, err := typetest.Resolve([]typetest.Case{c}, "v9.1.0")
+	require.Error(t, err)
+	require.Nil(t, cols)
+	require.Contains(t, err.Error(), "case {dup}")
+	require.Contains(t, err.Error(), "variant {not_null} is listed twice")
+}

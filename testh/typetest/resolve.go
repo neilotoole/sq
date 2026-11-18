@@ -2,6 +2,7 @@ package typetest
 
 import (
 	"regexp"
+	"slices"
 
 	"golang.org/x/mod/semver"
 
@@ -75,6 +76,12 @@ func validateCase(c *Case) error {
 
 	if c.Variants != nil && len(c.Variants) == 0 {
 		return errz.Errorf("typetest: case {%s}: Variants is empty: use nil for both variants", c.Name)
+	}
+
+	for i, v := range c.Variants {
+		if slices.Contains(c.Variants[:i], v) {
+			return errz.Errorf("typetest: case {%s}: variant {%s} is listed twice in Variants", c.Name, v)
+		}
 	}
 
 	if c.MinVer != "" && !semver.IsValid(c.MinVer) {
