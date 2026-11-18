@@ -20,16 +20,23 @@ func DefaultColumnDecl(decl string, v Variant) string {
 }
 
 // CreateTable returns the CREATE TABLE statement for tbl: the row_id column
-// declared as rowIDDecl, then cols in order, each declared via colDecl.
+// declared as rowIDDecl, then cols in order, each declared via colDecl, then
+// suffix if it's not empty (ClickHouse, for example, requires an ENGINE
+// clause).
 // Identifiers are not quoted: Resolve restricts column names to
 // [a-z0-9_], and tbl is expected to come from stringz.UniqTableName.
-func CreateTable(tbl, rowIDDecl string, cols []Column, colDecl func(decl string, v Variant) string) string {
+func CreateTable(tbl, rowIDDecl string, cols []Column, colDecl func(decl string, v Variant) string,
+	suffix string,
+) string {
 	var sb strings.Builder
 	sb.WriteString("CREATE TABLE " + tbl + " (" + rowIDCol + " " + rowIDDecl)
 	for _, col := range cols {
 		sb.WriteString(", " + col.Name + " " + colDecl(col.Case.Decl, col.Variant))
 	}
 	sb.WriteString(")")
+	if suffix != "" {
+		sb.WriteString(" " + suffix)
+	}
 	return sb.String()
 }
 

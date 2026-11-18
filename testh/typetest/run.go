@@ -39,6 +39,10 @@ type Config struct {
 	// reported as written.
 	FoldName func(string) string
 
+	// TableSuffix, if set, is appended to the CREATE TABLE statement, e.g.
+	// "ENGINE = MergeTree() ORDER BY row_id" for ClickHouse.
+	TableSuffix string
+
 	// RowIDDecl declares the row_id column, e.g. "INT NOT NULL PRIMARY KEY".
 	RowIDDecl string
 
@@ -151,7 +155,7 @@ func setupTable(th *testh.Helper, src *source.Source, cfg Config, serverVer stri
 	}
 
 	tbl := stringz.UniqTableName("type_test")
-	_, err = conn.ExecContext(ctx, CreateTable(tbl, cfg.RowIDDecl, cols, colDecl))
+	_, err = conn.ExecContext(ctx, CreateTable(tbl, cfg.RowIDDecl, cols, colDecl, cfg.TableSuffix))
 	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
 

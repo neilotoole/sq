@@ -58,9 +58,17 @@ func TestDefaultColumnDecl(t *testing.T) {
 
 func TestCreateTable(t *testing.T) {
 	cols := mustResolve(t, intCase("int"))
-	got := typetest.CreateTable("t1", "INT NOT NULL PRIMARY KEY", cols, typetest.DefaultColumnDecl)
+	got := typetest.CreateTable("t1", "INT NOT NULL PRIMARY KEY", cols, typetest.DefaultColumnDecl, "")
 	require.Equal(t,
 		"CREATE TABLE t1 (row_id INT NOT NULL PRIMARY KEY, col_int INT NOT NULL, col_int_n INT NULL)",
+		got)
+}
+
+func TestCreateTable_Suffix(t *testing.T) {
+	cols := mustResolve(t, intCase("int"))
+	got := typetest.CreateTable("t1", "Int32", cols, typetest.DefaultColumnDecl, "ENGINE = MergeTree() ORDER BY row_id")
+	require.Equal(t,
+		"CREATE TABLE t1 (row_id Int32, col_int INT NOT NULL, col_int_n INT NULL) ENGINE = MergeTree() ORDER BY row_id",
 		got)
 }
 
