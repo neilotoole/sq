@@ -76,8 +76,13 @@ func requireInsertTestRows(t *testing.T, th *testh.Helper, s *sakilaSource, tbl 
 		require.NoError(t, rows.Scan(&id, &name, &amount, &created, &data, &notes))
 
 		require.Equal(t, w.id, id)
-		requireNullable(t, w.name, name.Valid, name.String, "NAME of row %d", id)
-		var wantAmount any
+		// NAME and AMOUNT may be inserted as a number or a string, and
+		// Oracle converts to the column type, so compare as text.
+		var wantName, wantAmount any
+		if w.name != nil {
+			wantName = fmt.Sprint(w.name)
+		}
+		requireNullable(t, wantName, name.Valid, name.String, "NAME of row %d", id)
 		if w.amount != nil {
 			wantAmount = fmt.Sprint(w.amount)
 		}
@@ -165,12 +170,23 @@ func TestPrepareInsertStmt_ArrayBind(t *testing.T) {
 			},
 		},
 		{
-			// A string and a number in one column, which go-ora encodes as
-			// different Oracle types: bound one row at a time.
+			// A string then a number in a NUMBER column. Array-bound, this
+			// inserts without error but stores a value that can't be read
+			// back (ORA-03090). Bound one row at a time instead.
 			name: "string_and_number",
 			rows: []insertRow{
 				{1, "a", "2.5", created, nil, nil},
 				{2, "b", int64(10), created, nil, nil},
+			},
+		},
+		{
+			// A number then a string in a VARCHAR2 column. Array-bound, this
+			// inserts without error and stores 42's NUMBER bytes as the text
+			// "\xc1+". Bound one row at a time instead, storing "42".
+			name: "number_and_string_in_text_column",
+			rows: []insertRow{
+				{1, int64(42), nil, nil, nil, nil},
+				{2, "abc", nil, nil, nil, nil},
 			},
 		},
 		{

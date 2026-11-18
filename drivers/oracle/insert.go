@@ -16,11 +16,14 @@ import (
 // one round trip. This works on every Oracle version.
 //
 // go-ora encodes each slice element as its own Oracle type, but declares the
-// bind parameter with the type of the last non-nil element. A column whose
-// values would encode as different Oracle types would then send some values
-// under the wrong type: a string sent as NUMBER fails with ORA-03090.
-// arrayBindable detects that case, and the batch is executed one row at a
-// time instead.
+// bind parameter with the type of the last non-nil element, and the server
+// decodes every element as that type. A column whose values encode as
+// different Oracle types is then mis-sent, and the insert doesn't always
+// fail. An int64 followed by a string in a VARCHAR2 column inserts without
+// error, storing the int64's NUMBER bytes as text. A string followed by an
+// int64 in a NUMBER column also inserts, and reading the row fails with
+// ORA-03090. arrayBindable detects a mixed column, and the batch is then
+// executed one row at a time.
 //
 // go-ora also switches a long string or []byte value to LONG or LONG RAW,
 // but a column mixing those with short values binds correctly as one array,
