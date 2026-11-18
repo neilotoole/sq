@@ -13,6 +13,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/tu"
 )
@@ -216,25 +217,94 @@ func TestPrepareInsertStmt_ArrayBind(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			tbl := createInsertTestTable(t, th, s)
-
-			execer, err := s.drvr.PrepareInsertStmt(th.Context, s.db, tbl, insertTestCols, len(tc.rows))
-			require.NoError(t, err)
-			t.Cleanup(func() { assert.NoError(t, execer.Close()) })
-
-			var args []any
-			for _, row := range tc.rows {
-				vals := row.vals()
-				require.NoError(t, execer.Munge(vals))
-				args = append(args, vals...)
-			}
-
-			affected, err := execer.Exec(th.Context, args...)
-			require.NoError(t, err)
-			require.Equal(t, int64(len(tc.rows)), affected)
-
+			execer := prepareInsertTestStmt(t, th, s, tbl, len(tc.rows))
+			execInsertTestRows(t, th, execer, tc.rows)
 			requireInsertTestRows(t, th, s, tbl, tc.rows)
 		})
 	}
+}
+
+// prepareInsertTestStmt prepares an insert of numRows rows to tbl. It
+// prepares on a dedicated connection, as a batch insert does. On a *sql.DB,
+// database/sql prepares the statement again on whichever pooled connection
+// an Exec gets, which can hide bugs in reusing a prepared statement.
+func prepareInsertTestStmt(t *testing.T, th *testh.Helper, s *sakilaSource, tbl string,
+	numRows int,
+) *driver.StmtExecer {
+	t.Helper()
+	conn, err := s.db.Conn(th.Context)
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, conn.Close()) })
+
+	execer, err := s.drvr.PrepareInsertStmt(th.Context, conn, tbl, insertTestCols, numRows)
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, execer.Close()) })
+	return execer
+}
+
+// execInsertTestRows inserts rows in one execution of execer.
+func execInsertTestRows(t *testing.T, th *testh.Helper, execer *driver.StmtExecer, rows []insertRow) {
+	t.Helper()
+	var args []any
+	for _, row := range rows {
+		vals := row.vals()
+		require.NoError(t, execer.Munge(vals))
+		args = append(args, vals...)
+	}
+
+	affected, err := execer.Exec(th.Context, args...)
+	require.NoError(t, err)
+	require.Equal(t, int64(len(rows)), affected)
+}
+
+// TestPrepareInsertStmt_TypeChangeAcrossExecs executes one prepared insert
+// several times, with a column's value type changing between executions.
+// go-ora doesn't resend parameter definitions for a type change alone, so
+// these executions must not reuse the prepared statement.
+func TestPrepareInsertStmt_TypeChangeAcrossExecs(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+	th, s := requireOracle(t)
+
+	tbl := createInsertTestTable(t, th, s)
+	execer := prepareInsertTestStmt(t, th, s, tbl, 2)
+
+	execs := [][]insertRow{
+		// NAME as long strings first, so a later NUMBER definition is
+		// shorter and go-ora doesn't resend it.
+		{
+			{1, "a string longer than a NUMBER", nil, nil, nil, nil},
+			{2, "another long string value", nil, nil, nil, nil},
+		},
+		// NAME as numbers.
+		{
+			{3, int64(7), nil, nil, nil, nil},
+			{4, int64(8), nil, nil, nil, nil},
+		},
+		// DATA all NULL, then DATA as bytes no longer than the NULLs'
+		// definition.
+		{
+			{5, nil, nil, nil, nil, nil},
+			{6, nil, nil, nil, nil, nil},
+		},
+		{
+			{7, nil, nil, nil, []byte{1}, nil},
+			{8, nil, nil, nil, []byte{2}, nil},
+		},
+		// Back to the first execution's types, which reuses the statement.
+		{
+			{9, "back to strings", nil, nil, nil, nil},
+			{10, "x", nil, nil, nil, nil},
+		},
+	}
+
+	var want []insertRow
+	for _, rows := range execs {
+		execInsertTestRows(t, th, execer, rows)
+		want = append(want, rows...)
+	}
+
+	requireInsertTestRows(t, th, s, tbl, want)
 }
 
 // TestNewBatchInsert_MultiBatch inserts enough rows for several full

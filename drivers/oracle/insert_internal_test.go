@@ -1,6 +1,7 @@
 package oracle
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -38,49 +39,59 @@ func TestColumnsFromRows(t *testing.T) {
 	})
 }
 
-func TestArrayBindable(t *testing.T) {
+func TestColumnTypes(t *testing.T) {
 	now := time.Now()
+	tInt := reflect.TypeOf(int64(0))
+	tStr := reflect.TypeOf("")
+	tTime := reflect.TypeOf(now)
+	tBytes := reflect.TypeOf([]byte(nil))
+
 	testCases := []struct {
-		name string
-		cols [][]any
-		want bool
+		name   string
+		cols   [][]any
+		want   []reflect.Type
+		wantOK bool
 	}{
 		{
-			name: "uniform",
-			cols: [][]any{{int64(1), int64(2)}, {"a", "b"}, {now, now}, {[]byte("x"), []byte("y")}},
-			want: true,
+			name:   "uniform",
+			cols:   [][]any{{int64(1), int64(2)}, {"a", "b"}, {now, now}, {[]byte("x"), []byte("y")}},
+			want:   []reflect.Type{tInt, tStr, tTime, tBytes},
+			wantOK: true,
 		},
 		{
-			name: "nulls_anywhere",
-			cols: [][]any{{nil, int64(2), nil}, {"a", nil, "c"}},
-			want: true,
+			name:   "nulls_anywhere",
+			cols:   [][]any{{nil, int64(2), nil}, {"a", nil, "c"}},
+			want:   []reflect.Type{tInt, tStr},
+			wantOK: true,
 		},
 		{
-			name: "all_null",
-			cols: [][]any{{nil, nil}},
-			want: true,
+			name:   "all_null",
+			cols:   [][]any{{nil, nil}, {"a", "b"}},
+			want:   []reflect.Type{nil, tStr},
+			wantOK: true,
 		},
 		{
 			name: "mixed_go_types",
 			cols: [][]any{{int64(1), float64(2.5)}},
-			want: false,
 		},
 		{
 			name: "string_and_number",
 			cols: [][]any{{"2.5", int64(10)}},
-			want: false,
 		},
 		{
 			// Long values bind as LONG or LONG RAW next to short ones.
-			name: "long_and_short_values",
-			cols: [][]any{{strings.Repeat("a", 40000), "b"}, {make([]byte, 40000), []byte("b")}},
-			want: true,
+			name:   "long_and_short_values",
+			cols:   [][]any{{strings.Repeat("a", 40000), "b"}, {make([]byte, 40000), []byte("b")}},
+			want:   []reflect.Type{tStr, tBytes},
+			wantOK: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, arrayBindable(tc.cols))
+			got, ok := columnTypes(tc.cols)
+			require.Equal(t, tc.wantOK, ok)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }

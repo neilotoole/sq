@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"reflect"
+	"slices"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/driver"
+	"github.com/neilotoole/sq/libsq/core/sqlz"
 )
 
 // Oracle before 23ai doesn't accept a multi-row VALUES list, so the driver
@@ -15,46 +16,68 @@ import (
 // holding that column's value for every row. go-ora sends the whole batch in
 // one round trip. This works on every Oracle version.
 //
-// go-ora encodes each slice element as its own Oracle type, but declares the
-// bind parameter with the type of the last non-nil element, and the server
-// decodes every element as that type. A column whose values encode as
-// different Oracle types is then mis-sent, and the insert doesn't always
-// fail. An int64 followed by a string in a VARCHAR2 column inserts without
-// error, storing the int64's NUMBER bytes as text. A string followed by an
-// int64 in a NUMBER column also inserts, and reading the row fails with
-// ORA-03090. arrayBindable detects a mixed column, and the batch is then
-// executed one row at a time.
+// Two go-ora behaviors mean a column's values must be of a consistent type:
 //
-// go-ora also switches a long string or []byte value to LONG or LONG RAW,
-// but a column mixing those with short values binds correctly as one array,
-// so value length does not prevent array binding.
+//  1. go-ora encodes each slice element as its own Oracle type, but declares
+//     the bind parameter with the type of the last non-nil element, and the
+//     server decodes every element as that type.
+//  2. When a prepared statement is executed again, go-ora resends the
+//     parameter definitions only if a value's length grew or a string
+//     switched between its short and long forms. A change of type alone,
+//     such as NUMBER to VARCHAR2, is not resent, and the server decodes the
+//     new values as the old type.
+//
+// Either way, values are mis-sent, and the insert doesn't always fail. An
+// int64 followed by a string in a VARCHAR2 column can insert without error,
+// storing the int64's NUMBER bytes as text. A string followed by an int64 in
+// a NUMBER column can insert a value that fails with ORA-03090 when read.
+//
+// So arrayBinder reuses its prepared statement only for batches whose
+// columns have the same value types as the statement's first execution. Any
+// other batch runs as a one-off statement, which go-ora prepares afresh with
+// new parameter definitions. A batch with a column of mixed types runs as a
+// one-off statement per row.
+//
+// Value length doesn't matter: go-ora binds a long string or []byte as LONG
+// or LONG RAW, and a column mixing those with short values binds correctly.
 
-// newArrayBindExecFunc returns a driver.StmtExecFunc that executes stmt, a
-// prepared single-row INSERT of numCols columns, for a batch of rows. As
-// with a multi-row INSERT, args holds the rows' values back to back, so its
-// length must be a positive multiple of numCols.
-func newArrayBindExecFunc(stmt *sql.Stmt, numCols int) driver.StmtExecFunc {
-	return func(ctx context.Context, args ...any) (int64, error) {
-		cols, err := columnsFromRows(args, numCols)
-		if err != nil {
-			return 0, err
-		}
+// arrayBinder executes a single-row INSERT for batches of rows using array
+// binding. Its exec method is a driver.StmtExecFunc.
+type arrayBinder struct {
+	// db executes one-off statements. It is the sqlz.DB the statement was
+	// prepared on.
+	db sqlz.Execer
 
-		if arrayBindable(cols) {
-			return execArrayBind(ctx, stmt, cols)
-		}
+	// stmt is the prepared single-row INSERT.
+	stmt *sql.Stmt
 
-		// Execute one row at a time, still passing each value as a
-		// one-element slice: go-ora stops array binding on a statement
-		// for good once it is executed with a scalar arg.
+	// query is stmt's SQL text, for one-off statements.
+	query string
+
+	// stmtTypes holds each column's value type from stmt's first execution,
+	// as returned by columnTypes. It is nil until stmt is first executed.
+	stmtTypes []reflect.Type
+
+	numCols int
+}
+
+// exec executes the INSERT for a batch of rows. As with a multi-row INSERT,
+// args holds the rows' values back to back, so its length must be a
+// positive multiple of b.numCols.
+func (b *arrayBinder) exec(ctx context.Context, args ...any) (int64, error) {
+	cols, err := columnsFromRows(args, b.numCols)
+	if err != nil {
+		return 0, err
+	}
+
+	types, ok := columnTypes(cols)
+	if !ok {
+		// A column mixes value types: insert each row as its own
+		// one-off statement.
 		var total int64
-		for row := range len(args) / numCols {
-			rowCols := make([][]any, numCols)
-			for col := range numCols {
-				rowCols[col] = []any{args[row*numCols+col]}
-			}
-
-			affected, err := execArrayBind(ctx, stmt, rowCols)
+		for row := range len(args) / b.numCols {
+			affected, err := execResult(b.db.ExecContext(ctx, b.query,
+				args[row*b.numCols:(row+1)*b.numCols]...))
 			if err != nil {
 				return total, err
 			}
@@ -62,17 +85,24 @@ func newArrayBindExecFunc(stmt *sql.Stmt, numCols int) driver.StmtExecFunc {
 		}
 		return total, nil
 	}
-}
 
-// execArrayBind executes stmt once, binding each element of cols (one
-// column's values) to the corresponding parameter.
-func execArrayBind(ctx context.Context, stmt *sql.Stmt, cols [][]any) (int64, error) {
-	args := make([]any, len(cols))
+	bindArgs := make([]any, len(cols))
 	for i := range cols {
-		args[i] = cols[i]
+		bindArgs[i] = cols[i]
 	}
 
-	res, err := stmt.ExecContext(ctx, args...)
+	if b.stmtTypes == nil {
+		b.stmtTypes = types
+	} else if !slices.Equal(types, b.stmtTypes) {
+		// stmt's parameter definitions are for other types.
+		return execResult(b.db.ExecContext(ctx, b.query, bindArgs...))
+	}
+
+	return execResult(b.stmt.ExecContext(ctx, bindArgs...))
+}
+
+// execResult returns the rows affected by an exec that returned res and err.
+func execResult(res sql.Result, err error) (int64, error) {
 	if err != nil {
 		return 0, errw(err)
 	}
@@ -104,26 +134,27 @@ func columnsFromRows(args []any, numCols int) ([][]any, error) {
 	return cols, nil
 }
 
-// arrayBindable reports whether go-ora can bind every column of cols as a
-// single array parameter, which requires all non-nil values in a column to
-// be of the same Go type.
-func arrayBindable(cols [][]any) bool {
-	for _, col := range cols {
-		var typ reflect.Type
+// columnTypes returns the Go type of each column's non-nil values, with nil
+// for a column whose values are all nil. It returns false if any column's
+// non-nil values are not all of the same type, in which case go-ora can't
+// bind that column as a single array parameter.
+func columnTypes(cols [][]any) ([]reflect.Type, bool) {
+	types := make([]reflect.Type, len(cols))
+	for i, col := range cols {
 		for _, v := range col {
 			if v == nil {
 				continue
 			}
 
 			t := reflect.TypeOf(v)
-			if typ == nil {
-				typ = t
+			if types[i] == nil {
+				types[i] = t
 				continue
 			}
-			if t != typ {
-				return false
+			if t != types[i] {
+				return nil, false
 			}
 		}
 	}
-	return true
+	return types, true
 }
