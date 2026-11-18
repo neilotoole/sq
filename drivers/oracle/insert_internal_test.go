@@ -39,7 +39,7 @@ func TestColumnsFromRows(t *testing.T) {
 	})
 }
 
-func TestColumnTypes(t *testing.T) {
+func TestInsertColumnTypes(t *testing.T) {
 	now := time.Now()
 	tInt := reflect.TypeFor[int64]()
 	tStr := reflect.TypeFor[string]()
