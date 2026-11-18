@@ -48,13 +48,32 @@ func TestCase_WithVersionOverrides(t *testing.T) {
 	o2 := typetest.Override{Before: "v8.0.0", Want: typetest.Want{ColumnType: typetest.Is("b")}}
 	o3 := typetest.Override{Before: "v8.0.19", Want: typetest.Want{ColumnType: typetest.Is("c")}}
 
-	base := intCase("x").WithVersionOverrides(o1)
+	// base's slice has spare capacity, so an append that didn't copy it first
+	// would write a's and b's overrides into the same backing array.
+	base := intCase("x")
+	base.VersionOverrides = make([]typetest.Override, 1, 4)
+	base.VersionOverrides[0] = o1
+
 	a := base.WithVersionOverrides(o2)
 	b := base.WithVersionOverrides(o3)
 
 	require.Equal(t, []typetest.Override{o1}, base.VersionOverrides, "the receiver is not modified")
-	require.Equal(t, []typetest.Override{o1, o2}, a.VersionOverrides, "appends")
-	require.Equal(t, []typetest.Override{o1, o3}, b.VersionOverrides, "copies don't share a backing array")
+	require.Equal(t, []typetest.Override{o1, o2}, a.VersionOverrides, "appends, and b didn't overwrite a")
+	require.Equal(t, []typetest.Override{o1, o3}, b.VersionOverrides, "appends")
+}
+
+func TestCase_WithVariants_CopiesArgs(t *testing.T) {
+	vs := []typetest.Variant{typetest.NotNull, typetest.Nullable}
+	c := intCase("x").WithVariants(vs...)
+	vs[0] = typetest.Nullable
+	require.Equal(t, []typetest.Variant{typetest.NotNull, typetest.Nullable}, c.Variants,
+		"changing the caller's slice doesn't change the case")
+}
+
+func TestCase_WithVariants_NoArgs(t *testing.T) {
+	c := intCase("x").WithVariants()
+	_, err := typetest.Resolve([]typetest.Case{c}, "v9.1.0")
+	require.Error(t, err, "no variants is an error, not a request for the default variants")
 }
 
 func TestCase_WithMisc(t *testing.T) {
@@ -66,6 +85,12 @@ func TestCase_WithMisc(t *testing.T) {
 	require.Equal(t, "#1365", c.Issue)
 	require.Equal(t, "v5.7.8", c.MinVer)
 	require.Equal(t, []typetest.Variant{typetest.NotNull}, c.Variants)
+}
+
+func TestCase_WithWantZero_LeavesVal(t *testing.T) {
+	c := intCase("x").WithWantZero(int64(1))
+	require.Equal(t, typetest.Is[any](int64(1)), c.Want.Zero)
+	require.False(t, c.Want.Val.Set, "WithWantZero sets only Zero")
 }
 
 func TestCase_WithWantZeroVal(t *testing.T) {

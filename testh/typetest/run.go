@@ -10,6 +10,8 @@ import (
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/errz"
+	"github.com/neilotoole/sq/libsq/core/record"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
@@ -155,8 +157,9 @@ func setupTable(th *testh.Helper, src *source.Source, cfg Config, serverVer stri
 	}
 
 	tbl := stringz.UniqTableName("type_test")
-	_, err = conn.ExecContext(ctx, CreateTable(tbl, cfg.RowIDDecl, cols, colDecl, cfg.TableSuffix))
-	require.NoError(t, err)
+	createStmt := CreateTable(tbl, cfg.RowIDDecl, cols, colDecl, cfg.TableSuffix)
+	_, err = conn.ExecContext(ctx, createStmt)
+	require.NoError(t, err, "server %s: create table: %s", serverVer, createStmt)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
 
 	placeholders := th.SQLDriverFor(src).Dialect().Placeholders
@@ -249,11 +252,30 @@ func checkSelectAll(t *testing.T, th *testh.Helper, src *source.Source, fold fun
 	}
 }
 
+// diffRowIDs returns an error unless recs are the three rows in order: each
+// record's first field, row_id, is int64 1, 2 and 3. Every query orders by
+// row_id, and the value checks rely on it, so this makes that assumption
+// explicit: a failure here points at row order or row_id, not at a value.
+func diffRowIDs(recs []record.Record) error {
+	for i, rec := range recs {
+		if len(rec) == 0 || rec[0] != any(int64(i+1)) {
+			var got any
+			if len(rec) > 0 {
+				got = rec[0]
+			}
+			return errz.Errorf("record %d: want row_id int64(%d), got %T(%v)", i, i+1, got, got)
+		}
+	}
+	return nil
+}
+
 // checkRecords checks the field at position pos of sink's three records
 // against col's expected kind and values.
 func checkRecords(t *testing.T, serverVer string, sink *testh.RecordSink, pos int, col Column) {
 	t.Helper()
 	require.Len(t, sink.Recs, 3, "column %s (%s) on server %s: record count", col.Name, col.Case.Decl, serverVer)
+	require.NoError(t, diffRowIDs(sink.Recs), "column %s (%s) on server %s: row_id", col.Name, col.Case.Decl,
+		serverVer)
 	// Compared by name, so a failure reads "int" rather than 3.
 	require.Equal(t, col.QueryKind.String(), sink.RecMeta[pos].Kind().String(),
 		"column %s (%s) on server %s: query result kind", col.Name, col.Case.Decl, serverVer)

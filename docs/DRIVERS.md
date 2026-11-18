@@ -308,8 +308,8 @@ same `coltype_test.go`, named `TestColumnTypes_<TYPE>`:
   `TestColumnTypes_TIMESTAMP6` does this: on the 5.x images, a second
   `TIMESTAMP NOT NULL` column in a table gets an implicit default that
   `CREATE TABLE` rejects.
-- If the type breaks the harness's model (one per table, values the database
-  generates), the test is written by hand and reuses `typetest.DiffMeta` for
+- If the type breaks the harness's model (at most one such column per table,
+  values the database generates), the test is written by hand and reuses `typetest.DiffMeta` for
   its inspect checks. SQL Server's `TestColumnTypes_ROWVERSION` does this.
 
 An expected `default_value` that contains the generated table name (a Postgres

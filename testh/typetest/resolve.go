@@ -134,6 +134,9 @@ func resolveColumn(c *Case, v Variant, serverVer string) (Column, error) {
 	case !w.Kind.Set:
 		return Column{}, missingErr(c, v, "Kind")
 	}
+	if w.Nullable.Set {
+		col.Nullable = w.Nullable.Val
+	}
 	col.BaseType = w.BaseType.Val
 	col.ColumnType = w.ColumnType.Val
 	col.Kind = w.Kind.Val
@@ -199,6 +202,7 @@ func layer(dst *Want, src Want) {
 	setIf(&dst.Zero, src.Zero)
 	setIf(&dst.Val, src.Val)
 	setIf(&dst.QueryErr, src.QueryErr)
+	setIf(&dst.Nullable, src.Nullable)
 }
 
 func setIf[T any](dst *Opt[T], src Opt[T]) {

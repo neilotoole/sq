@@ -73,3 +73,15 @@ func TestRun_DuckDB(t *testing.T) {
 		Cases:     duckCases,
 	})
 }
+
+// TestRun_DuckDB_Dump runs the harness in dump mode, so that dumpActual runs
+// under test. It can't be parallel: t.Setenv forbids it.
+func TestRun_DuckDB_Dump(t *testing.T) {
+	t.Setenv(typetest.DumpEnvar, "1")
+
+	typetest.Run(t, typetest.Config{
+		Handle:    sakila.Duck,
+		RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
+		Cases:     duckCases,
+	})
+}

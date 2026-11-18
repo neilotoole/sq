@@ -43,8 +43,9 @@ func CreateTable(tbl, rowIDDecl string, cols []Column, colDecl func(decl string,
 // Insert returns the INSERT statement for row (0, 1 or 2) of tbl, with
 // row_id = row+1, and its bound args. A SQL input is written into the
 // statement as is; every other input is bound. placeholders is the
-// dialect's placeholder func (see dialect.Dialect.Placeholders), which
-// handles both "?" and "$n" styles.
+// dialect's placeholder func (see dialect.Dialect.Placeholders). Insert
+// relies on its format, a parenthesized list of tokens joined by
+// driver.Comma, which every dialect uses ("?", "$n", ":n", "@pN").
 func Insert(tbl string, cols []Column, row int, placeholders func(numCols, numRows int) string) (
 	query string, args []any,
 ) {

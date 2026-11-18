@@ -288,3 +288,31 @@ func TestResolve_NullInput(t *testing.T) {
 	require.IsType(t, []byte(nil), cols[1].In[2])
 	require.Nil(t, cols[1].Want[2], "row 3 of the nullable column still expects NULL")
 }
+
+func TestResolve_OverridePerVariantLayersAfterOverrideWant(t *testing.T) {
+	c := intCase("x").WithVersionOverrides(typetest.Override{
+		Before:     "v8.0.0",
+		Want:       typetest.Want{ColumnType: typetest.Is("from_override_want")},
+		PerVariant: typetest.PerVariant{Nullable: typetest.Want{ColumnType: typetest.Is("from_override_per_variant")}},
+	})
+
+	cols, err := typetest.Resolve([]typetest.Case{c}, "v5.7.44")
+	require.NoError(t, err)
+	require.Equal(t, "from_override_want", cols[0].ColumnType)
+	require.Equal(t, "from_override_per_variant", cols[1].ColumnType,
+		"the override's PerVariant layers after its Want")
+}
+
+func TestResolve_NullableOverride(t *testing.T) {
+	// A database can report a nullable column as not nullable: the
+	// expectation records what it reports.
+	c := intCase("x").WithPerVariant(typetest.PerVariant{
+		Nullable: typetest.Want{Nullable: typetest.Is(false)},
+	})
+
+	cols, err := typetest.Resolve([]typetest.Case{c}, "v9.1.0")
+	require.NoError(t, err)
+	require.False(t, cols[0].Nullable)
+	require.False(t, cols[1].Nullable, "the override replaces the variant's nullability")
+	require.Nil(t, cols[1].In[2], "the nullable column still gets NULL in row 3")
+}

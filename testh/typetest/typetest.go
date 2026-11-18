@@ -9,6 +9,30 @@
 // wrong. A known-wrong expectation carries the issue that tracks it in
 // Case.Issue, so that fixing the issue shows up as a reviewed change to the
 // expected value. See https://github.com/neilotoole/sq/issues/1368.
+//
+// # Rows
+//
+// Each case is declared as one column per variant: by default a NOT NULL
+// column and a nullable one. Run inserts three rows into the table, and every
+// column gets a value in each:
+//
+//	row_id | NotNull column | Nullable column
+//	-------+----------------+--------------------------
+//	1      | Case.Zero      | Case.Zero
+//	2      | Case.Val       | Case.Val
+//	3      | Case.Val       | NULL (bound as NullInput)
+//
+// Row 1 holds a zero value (0, "", the zero time) and row 2 a non-zero one,
+// usually an edge value such as the type's maximum, so a value that reads back
+// wrong shows up in one row or the other, and the two can't be confused.
+// Row 3 is where the nullable column reads back a real NULL. The NOT NULL
+// column can't hold NULL, so it repeats Val there.
+//
+// Every query orders by row_id, and Run checks that row_id reads back as 1,
+// 2 and 3, so a value check failure is about the value, not row order. A
+// column's expected values for the three rows are Want.Zero, Want.Val (each
+// defaulting to its input) and, in row 3, Want.Val for NotNull and NULL for
+// Nullable. Column.In and Column.Want hold them after Resolve.
 package typetest
 
 import (
@@ -106,6 +130,11 @@ type Want struct {
 	// QueryKind is the expected kind of the query result column. Defaults to
 	// Kind.
 	QueryKind Opt[kind.Kind]
+
+	// Nullable is the expected nullable. Defaults to what the variant
+	// declares: false for NotNull, true for Nullable. Set it to record a
+	// database reporting a column's nullability wrongly.
+	Nullable Opt[bool]
 }
 
 // PerVariant holds expectations that apply to only one Variant of a case,
@@ -154,9 +183,10 @@ type Override struct {
 
 // Case is one column type to test.
 type Case struct {
-	// Zero and Val are the inputs for rows 1 and 2: a Go value bound as a
-	// query parameter, or a SQL expression. Inputs are the same on every
-	// server version and every variant.
+	// Zero and Val are the inputs for rows 1 and 2, and Val also for row 3 of
+	// the NotNull column (see the package doc's Rows section): a Go value
+	// bound as a query parameter, or a SQL expression. Inputs are the same on
+	// every server version and every variant.
 	Zero, Val any
 
 	// NullInput is what's bound for NULL in row 3 of the Nullable column.
@@ -209,7 +239,8 @@ type Case struct {
 
 // Column is one resolved column: one case, one variant, one server version.
 type Column struct {
-	// In holds the inputs for rows 1 to 3. Row 3 of a Nullable column is nil.
+	// In holds the inputs for rows 1 to 3. Row 3 of a Nullable column is
+	// Case.NullInput (nil by default). See the package doc's Rows section.
 	In [3]any
 
 	// Want holds the expected record values for rows 1 to 3.

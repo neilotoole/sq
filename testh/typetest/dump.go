@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neilotoole/sq/cli/output"
+	"github.com/neilotoole/sq/libsq"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -44,27 +47,49 @@ func dumpActual(t *testing.T, th *testh.Helper, src *source.Source, fold func(st
 			continue
 		}
 
-		var (
-			queryKind kind.Kind
-			vals      []any
-		)
-		if sink, err := th.QuerySQL(src, nil, SelectColumn(tbl, col)); err == nil {
-			queryKind = sink.RecMeta[1].Kind()
-			for _, rec := range sink.Recs {
-				vals = append(vals, rec[1])
-			}
-		}
-		sb.WriteString(formatActual(col, md, queryKind, vals) + "\n")
+		queryKind, vals, queryErr := dumpQuery(th, src, SelectColumn(tbl, col))
+		sb.WriteString(formatActual(col, md, fold(tbl), queryKind, vals, queryErr) + "\n")
 	}
 	t.Log(sb.String())
 }
 
+// dumpQuery runs query and returns the result kind and values of its second
+// field, the column, in row order, or the query error. Like checkColumnQuery,
+// it waits for the record writer before reading the sink.
+func dumpQuery(th *testh.Helper, src *source.Source, query string) (kind.Kind, []any, error) {
+	sink := &testh.RecordSink{}
+	recw := output.NewRecordWriterAdapter(th.Context, sink)
+	err := libsq.QuerySQL(th.Context, th.Open(src), nil, recw, nil, query)
+	if _, waitErr := recw.Wait(); err == nil {
+		err = waitErr
+	}
+	if err != nil {
+		return kind.Unknown, nil, err
+	}
+	if len(sink.RecMeta) < 2 {
+		return kind.Unknown, nil, errz.Errorf("dump: want 2 result columns, got %d", len(sink.RecMeta))
+	}
+
+	vals := make([]any, 0, len(sink.Recs))
+	for _, rec := range sink.Recs {
+		vals = append(vals, rec[1])
+	}
+	return sink.RecMeta[1].Kind(), vals, nil
+}
+
 // formatActual formats what col actually reports: its inspect metadata md,
-// its query result kind, and its values in row order, as Go literals. A nil
-// vals means the query failed.
-func formatActual(col Column, md *metadata.Column, queryKind kind.Kind, vals []any) string {
+// its query result kind, and its values in row order as Go literals, or
+// queryErr if the query failed. In default_value, tbl, the table name as the
+// database reports it, is replaced by TableToken, so that the output can be
+// pasted as an expectation.
+func formatActual(col Column, md *metadata.Column, tbl string, queryKind kind.Kind, vals []any,
+	queryErr error,
+) string {
 	valStr := "<query failed>"
-	if vals != nil {
+	if queryErr != nil {
+		valStr = "<query failed: " + queryErr.Error() + ">"
+	}
+	if queryErr == nil && vals != nil {
 		parts := make([]string, len(vals))
 		for i, v := range vals {
 			switch v.(type) {
@@ -84,7 +109,16 @@ func formatActual(col Column, md *metadata.Column, queryKind kind.Kind, vals []a
 	return fmt.Sprintf("%s (%s, %s): base_type %q, column_type %q, kind %s, nullable %t, "+
 		"default_value %q, query kind %s, values %s",
 		col.Name, col.Case.Decl, col.Variant, md.BaseType, md.ColumnType, md.Kind, md.Nullable,
-		md.DefaultValue, queryKind, valStr)
+		defaultWithToken(md.DefaultValue, tbl), queryKind, valStr)
+}
+
+// defaultWithToken returns def with tbl replaced by TableToken. An empty tbl
+// leaves def unchanged.
+func defaultWithToken(def, tbl string) string {
+	if tbl == "" {
+		return def
+	}
+	return strings.ReplaceAll(def, tbl, TableToken)
 }
 
 // dumpEnabled reports whether dump mode is on.

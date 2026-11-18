@@ -53,9 +53,11 @@ func (c Case) WithVersionOverrides(overrides ...Override) Case {
 	return c
 }
 
-// WithVariants returns a copy of c with Variants set to vs.
+// WithVariants returns a copy of c with Variants set to vs. Calling it with no
+// arguments sets an empty, non-nil Variants, which Resolve rejects: to get
+// the default variants, don't call WithVariants.
 func (c Case) WithVariants(vs ...Variant) Case {
-	c.Variants = slices.Clone(vs)
+	c.Variants = append([]Variant{}, vs...)
 	return c
 }
 
@@ -70,6 +72,15 @@ func (c Case) WithMinVer(ver string) Case {
 func (c Case) WithNullInput(v any) Case {
 	c.NullInput = v
 	return c
+}
+
+// Creates reports whether c creates a column for variant v: whether v is in
+// c.Variants, or in the default variants when c.Variants is nil.
+func (c Case) Creates(v Variant) bool {
+	if c.Variants == nil {
+		return slices.Contains(defaultVariants, v)
+	}
+	return slices.Contains(c.Variants, v)
 }
 
 // WithIssue returns a copy of c with Issue set to issue.
