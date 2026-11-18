@@ -66,24 +66,15 @@ func TestArrayBindable(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "string_at_limit",
-			cols: [][]any{{strings.Repeat("a", maxArrayBindString), "b"}},
-			want: true,
-		},
-		{
-			name: "string_over_limit",
-			cols: [][]any{{strings.Repeat("a", maxArrayBindString+1), "b"}},
+			name: "string_and_number",
+			cols: [][]any{{"2.5", int64(10)}},
 			want: false,
 		},
 		{
-			name: "bytes_at_limit",
-			cols: [][]any{{make([]byte, maxArrayBindBytes), []byte("b")}},
+			// Long values bind as LONG or LONG RAW next to short ones.
+			name: "long_and_short_values",
+			cols: [][]any{{strings.Repeat("a", 40000), "b"}, {make([]byte, 40000), []byte("b")}},
 			want: true,
-		},
-		{
-			name: "bytes_over_limit",
-			cols: [][]any{{make([]byte, maxArrayBindBytes+1), []byte("b")}},
-			want: false,
 		},
 	}
 

@@ -18,20 +18,13 @@ import (
 // go-ora encodes each slice element as its own Oracle type, but declares the
 // bind parameter with the type of the last non-nil element. A column whose
 // values would encode as different Oracle types would then send some values
-// under the wrong type. arrayBindable detects that case, and the batch is
-// executed one row at a time instead.
-
-const (
-	// maxArrayBindString is the length in bytes beyond which go-ora may bind
-	// a string as LONG instead of VARCHAR2. It is the VARCHAR2 bind limit
-	// when MAX_STRING_SIZE is STANDARD, the smallest the limit can be.
-	maxArrayBindString = 4000
-
-	// maxArrayBindBytes is the length beyond which go-ora may bind a []byte
-	// as LONG RAW instead of RAW. It is the RAW bind limit when
-	// MAX_STRING_SIZE is STANDARD, the smallest the limit can be.
-	maxArrayBindBytes = 2000
-)
+// under the wrong type: a string sent as NUMBER fails with ORA-03090.
+// arrayBindable detects that case, and the batch is executed one row at a
+// time instead.
+//
+// go-ora also switches a long string or []byte value to LONG or LONG RAW,
+// but a column mixing those with short values binds correctly as one array,
+// so value length does not prevent array binding.
 
 // newArrayBindExecFunc returns a driver.StmtExecFunc that executes stmt, a
 // prepared single-row INSERT of numCols columns, for a batch of rows. As
@@ -109,24 +102,14 @@ func columnsFromRows(args []any, numCols int) ([][]any, error) {
 }
 
 // arrayBindable reports whether go-ora can bind every column of cols as a
-// single array parameter. That requires all non-nil values in a column to
-// be of the same Go type, and no string or []byte value to be long enough
-// for go-ora to switch it to the LONG or LONG RAW type.
+// single array parameter, which requires all non-nil values in a column to
+// be of the same Go type.
 func arrayBindable(cols [][]any) bool {
 	for _, col := range cols {
 		var typ reflect.Type
 		for _, v := range col {
-			switch v := v.(type) {
-			case nil:
+			if v == nil {
 				continue
-			case string:
-				if len(v) > maxArrayBindString {
-					return false
-				}
-			case []byte:
-				if len(v) > maxArrayBindBytes {
-					return false
-				}
 			}
 
 			t := reflect.TypeOf(v)

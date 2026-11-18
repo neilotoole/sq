@@ -174,8 +174,8 @@ func TestPrepareInsertStmt_ArrayBind(t *testing.T) {
 			},
 		},
 		{
-			// Values long enough for go-ora to bind as LONG and LONG RAW:
-			// bound one row at a time.
+			// Longer than the 4000-byte bind limit of MAX_STRING_SIZE
+			// STANDARD, next to short values in the same array.
 			name: "long_lob_values",
 			rows: []insertRow{
 				{1, "a", nil, nil, []byte{1}, "short"},
@@ -185,7 +185,8 @@ func TestPrepareInsertStmt_ArrayBind(t *testing.T) {
 		},
 		{
 			// Longer than the 32767-byte bind limit of MAX_STRING_SIZE
-			// EXTENDED, so LONG and LONG RAW on every server.
+			// EXTENDED, so go-ora binds them as LONG and LONG RAW on every
+			// server, next to short values in the same array.
 			name: "very_long_lob_values",
 			rows: []insertRow{
 				{1, "a", nil, nil, []byte{1}, "short"},
