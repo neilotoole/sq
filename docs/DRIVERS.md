@@ -269,6 +269,9 @@ the background.
 
 The driver declares a table of cases, one per type declaration (`VARCHAR(16)`,
 `DECIMAL(5,2)`, ...), and passes it to `typetest.Run` in a `typetest.Config`.
+Build each case with `typetest.NewCase`, which takes the inputs and the inspect
+expectations every case needs, then chain `With` methods for the rest
+(`WithWantVal`, `WithPerVariant`, `WithVersionOverrides`, `WithIssue`, ...).
 For each case the harness creates a `NOT NULL` and a nullable column, inserts
 three rows (a zero value, a non-zero or edge value, and NULL for the nullable
 column), and checks:
