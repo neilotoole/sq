@@ -27,7 +27,7 @@
     "port": 1521,
     "env": "SQ_TEST_SRC__SAKILA_OR",
     "dsn": "oracle://sakila:p_ssW0rd@localhost:1521/SAKILA",
-    "tags": ["23"]
+    "tags": ["23", "21"]
   },
   "rqlite": {
     "port": 4001,

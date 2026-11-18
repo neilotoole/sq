@@ -330,10 +330,23 @@ const Comma = ", "
 func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, destTbl string, destCols []string,
 	numRows int,
 ) (stmt *sql.Stmt, err error) {
+	query, err := InsertSQL(drvr, destTbl, destCols, numRows)
+	if err != nil {
+		return nil, err
+	}
+
+	stmt, err = db.PrepareContext(ctx, query)
+	return stmt, errz.Err(err)
+}
+
+// InsertSQL returns the INSERT statement that PrepareInsertStmt prepares:
+// an insert of numRows rows of values to destCols in destTbl, using
+// driver-specific syntax from drvr.
+func InsertSQL(drvr SQLDriver, destTbl string, destCols []string, numRows int) (string, error) {
 	const stmtTpl = `INSERT INTO %s (%s) VALUES %s`
 
 	if numRows <= 0 {
-		return nil, errz.Errorf("numRows must be a positive integer but got %d", numRows)
+		return "", errz.Errorf("numRows must be a positive integer but got %d", numRows)
 	}
 
 	dialect := drvr.Dialect()
@@ -342,9 +355,7 @@ func PrepareInsertStmt(ctx context.Context, drvr SQLDriver, db sqlz.Preparer, de
 	colsJoined := strings.Join(colNamesQuoted, Comma)
 	placeholders := dialect.Placeholders(len(colNamesQuoted), numRows)
 
-	query := fmt.Sprintf(stmtTpl, tblNameQuoted, colsJoined, placeholders)
-	stmt, err = db.PrepareContext(ctx, query)
-	return stmt, errz.Err(err)
+	return fmt.Sprintf(stmtTpl, tblNameQuoted, colsJoined, placeholders), nil
 }
 
 // DefaultInsertMungeFunc returns an InsertMungeFunc
