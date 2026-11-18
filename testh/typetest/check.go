@@ -32,18 +32,21 @@ func DiffMeta(path, serverVer string, got *metadata.Column, want Column) []strin
 	return msgs
 }
 
-// MatchQueryErr returns nil if err matches col's expected query error: err
-// is non-nil, and its text contains both col.Name and col.QueryErr.Val.
-// Requiring the column name keeps an unrelated error, or another column's,
-// from satisfying the expectation.
-func MatchQueryErr(err error, col Column) error {
+// MatchQueryErr returns nil if err, returned by query, matches col's
+// expected query error: err is non-nil, and its text contains both col.Name
+// and col.QueryErr.Val. Requiring the column name keeps an unrelated error,
+// or another column's, from satisfying the expectation. A mention of the
+// column inside the query text doesn't count: libsq.QuerySQL wraps an error
+// from sending the query with the query itself, which names the column.
+func MatchQueryErr(err error, col Column, query string) error {
 	if err == nil {
 		return errz.Errorf("column %s (%s): want query error containing {%s}, got no error",
 			col.Name, col.Case.Decl, col.QueryErr.Val)
 	}
 
 	msg := err.Error()
-	if !strings.Contains(msg, col.Name) || !strings.Contains(msg, col.QueryErr.Val) {
+	withoutQuery := strings.ReplaceAll(msg, query, "")
+	if !strings.Contains(withoutQuery, col.Name) || !strings.Contains(msg, col.QueryErr.Val) {
 		return errz.Errorf("column %s (%s): want query error containing {%s} and the column name, got: %s",
 			col.Name, col.Case.Decl, col.QueryErr.Val, msg)
 	}

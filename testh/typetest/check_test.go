@@ -64,13 +64,22 @@ func TestMatchQueryErr(t *testing.T) {
 	col := mustResolve(t, c)[1]
 	require.Equal(t, "col_x_n", col.Name)
 
+	query := typetest.SelectColumn("t1", col)
+
 	require.NoError(t, typetest.MatchQueryErr(
-		errors.New("column 1 col_x_n: unknown type db(*sql.Null[uint64])"), col,
+		errors.New("column 1 col_x_n: unknown type db(*sql.Null[uint64])"), col, query,
 	))
 
-	require.Error(t, typetest.MatchQueryErr(nil, col), "no error at all")
+	require.Error(t, typetest.MatchQueryErr(nil, col, query), "no error at all")
 	require.Error(t, typetest.MatchQueryErr(
-		errors.New("column 1 col_y_n: unknown type db(*sql.Null[uint64])"), col,
+		errors.New("column 1 col_y_n: unknown type db(*sql.Null[uint64])"), col, query,
 	), "another column's error")
-	require.Error(t, typetest.MatchQueryErr(errors.New("connection refused"), col), "unrelated error")
+	require.Error(t, typetest.MatchQueryErr(errors.New("connection refused"), col, query), "unrelated error")
+
+	// libsq.QuerySQL wraps an error from sending the query with the query
+	// text, which contains the column name. That mention must not count.
+	// The wrapped error carries the expected text, so only the column-name
+	// rule can reject it.
+	wrapped := errors.New("SQL query against @sakila_my failed: " + query + ": unknown type db(*sql.Null[uint64])")
+	require.Error(t, typetest.MatchQueryErr(wrapped, col, query), "query-send error naming the column only via the query")
 }

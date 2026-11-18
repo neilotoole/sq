@@ -73,6 +73,10 @@ func validateCase(c *Case) error {
 		return errz.Errorf("typetest: case {%s}: name must match %s", c.Name, caseNameRx)
 	}
 
+	if c.Variants != nil && len(c.Variants) == 0 {
+		return errz.Errorf("typetest: case {%s}: Variants is empty: use nil for both variants", c.Name)
+	}
+
 	if c.MinVer != "" && !semver.IsValid(c.MinVer) {
 		return errz.Errorf("typetest: case {%s}: invalid MinVer {%s}: must be a canonical semver",
 			c.Name, c.MinVer)

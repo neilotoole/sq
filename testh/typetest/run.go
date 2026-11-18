@@ -2,6 +2,7 @@ package typetest
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/metadata"
 	"github.com/neilotoole/sq/testh"
+	"github.com/neilotoole/sq/testh/sakila"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -44,10 +46,13 @@ type Config struct {
 // kind and values, read with one query per column and then with one query
 // over all columns together.
 //
-// Run skips under -short and when cfg.Handle isn't configured. It doesn't
-// call t.Parallel; the caller decides.
+// Run skips when cfg.Handle isn't configured, and under -short when it's an
+// external database. Embedded sources (SQLite, DuckDB) always run. It
+// doesn't call t.Parallel; the caller decides.
 func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; failures should point into it.
-	tu.SkipShort(t, true)
+	if slices.Contains(sakila.SQLAllExternal(), cfg.Handle) {
+		tu.SkipShort(t, true)
+	}
 
 	th := testh.New(t)
 	if !th.SourceConfigured(cfg.Handle) {
@@ -164,7 +169,7 @@ func checkColumnQuery(t *testing.T, th *testh.Helper, src *source.Source, server
 		recw := output.NewRecordWriterAdapter(th.Context, &testh.RecordSink{})
 		queryErr := libsq.QuerySQL(th.Context, th.Open(src), nil, recw, nil, query)
 		_, _ = recw.Wait()
-		require.NoError(t, MatchQueryErr(queryErr, col), "server %s", serverVer)
+		require.NoError(t, MatchQueryErr(queryErr, col, query), "server %s", serverVer)
 		return
 	}
 
@@ -181,6 +186,14 @@ func checkSelectAll(t *testing.T, th *testh.Helper, src *source.Source, serverVe
 	query := SelectAll(tbl, cols)
 	sink, err := th.QuerySQL(src, nil, query)
 	require.NoError(t, err, "server %s: %s", serverVer, query)
+
+	// Results are mapped to columns by position, so check the positions
+	// first: a mismatch fails here with the names, not as an index panic.
+	gotNames := make([]string, len(sink.RecMeta))
+	for i, fm := range sink.RecMeta {
+		gotNames[i] = fm.Name()
+	}
+	require.Equal(t, SelectAllNames(cols), gotNames, "server %s: result column names: %s", serverVer, query)
 
 	pos := 1 // position 0 is row_id
 	for _, col := range cols {

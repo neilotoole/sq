@@ -68,6 +68,18 @@ func Insert(tbl string, cols []Column, row int, placeholders func(numCols, numRo
 	return query, args
 }
 
+// SelectAllNames returns the result column names of SelectAll, in order:
+// row_id, then each column without QueryErr set.
+func SelectAllNames(cols []Column) []string {
+	names := []string{rowIDCol}
+	for _, col := range cols {
+		if !col.QueryErr.Set {
+			names = append(names, col.Name)
+		}
+	}
+	return names
+}
+
 // SelectColumn returns the query that reads col alone, with row_id, in row
 // order.
 func SelectColumn(tbl string, col Column) string {
@@ -79,13 +91,7 @@ func SelectColumn(tbl string, col Column) string {
 // Otherwise it's an explicit projection of row_id and the columns that
 // don't, in the order given, since SQL can't exclude columns from *.
 func SelectAll(tbl string, cols []Column) string {
-	names := []string{rowIDCol}
-	for _, col := range cols {
-		if !col.QueryErr.Set {
-			names = append(names, col.Name)
-		}
-	}
-
+	names := SelectAllNames(cols)
 	if len(names) == len(cols)+1 {
 		return "SELECT * FROM " + tbl + " ORDER BY " + rowIDCol
 	}

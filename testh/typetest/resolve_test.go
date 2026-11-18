@@ -236,6 +236,11 @@ func TestResolve_Errors(t *testing.T) {
 			c.MinVer = "5.7"
 			return []typetest.Case{c}
 		}},
+		{"empty_variants", func() []typetest.Case {
+			c := intCase("bad")
+			c.Variants = []typetest.Variant{}
+			return []typetest.Case{c}
+		}},
 		{"empty_query_err", func() []typetest.Case {
 			c := intCase("bad")
 			c.Want.QueryErr = typetest.Is("")
