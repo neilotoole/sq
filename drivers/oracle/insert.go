@@ -37,10 +37,22 @@ import (
 // columns have the same value types as the statement's first execution. Any
 // other batch runs as a one-off statement, which go-ora prepares afresh with
 // new parameter definitions. A batch with a column of mixed types runs as a
-// one-off statement per row.
+// one-off statement per row. Batch atomicity is left to the caller's
+// transaction: DBWriter wraps the whole insert in one.
 //
-// Value length doesn't matter: go-ora binds a long string or []byte as LONG
-// or LONG RAW, and a column mixing those with short values binds correctly.
+// A long []byte value also needs care. go-ora binds one longer than the
+// server's RAW limit as LONG RAW, so a column of long and short values mixes
+// RAW and LONG RAW, and fails with ORA-01461 whenever a long value isn't the
+// last, or the statement last declared the column as RAW (go-ora's resend
+// check misses RAW to LONG RAW). So a batch with a []byte value longer than
+// maxRawBind also runs as a one-off statement per row, where each value is
+// bound as its own type. Long strings don't need this: a column mixing LONG
+// and VARCHAR2 values binds correctly, in any order and across executions.
+
+// maxRawBind is the longest []byte that go-ora always binds as RAW. A longer
+// one is bound as LONG RAW if it exceeds the server's RAW bind limit, which
+// go-ora sets to 4000 bytes, or to 32767 when the server supports 32k binds.
+const maxRawBind = 4000
 
 // arrayBinder executes a single-row INSERT for batches of rows using array
 // binding. Its exec method is a driver.StmtExecFunc.
@@ -72,9 +84,9 @@ func (b *arrayBinder) exec(ctx context.Context, args ...any) (int64, error) {
 	}
 
 	types, ok := columnTypes(cols)
-	if !ok {
-		// A column mixes value types: insert each row as its own
-		// one-off statement.
+	if !ok || hasLongBytes(cols) {
+		// A column mixes value types or holds a long []byte: insert each
+		// row as its own one-off statement.
 		var total int64
 		for row := range len(args) / b.numCols {
 			affected, err := execResult(b.db.ExecContext(ctx, b.query,
@@ -92,14 +104,28 @@ func (b *arrayBinder) exec(ctx context.Context, args ...any) (int64, error) {
 		bindArgs[i] = cols[i]
 	}
 
-	if b.stmtTypes == nil {
-		b.stmtTypes = types
-	} else if !slices.Equal(types, b.stmtTypes) {
-		// stmt's parameter definitions are for other types.
+	if b.stmtTypes != nil && !slices.Equal(types, b.stmtTypes) {
+		// stmt's parameter definitions don't fit this batch.
 		return execResult(b.db.ExecContext(ctx, b.query, bindArgs...))
 	}
 
+	if b.stmtTypes == nil {
+		b.stmtTypes = types
+	}
 	return execResult(b.stmt.ExecContext(ctx, bindArgs...))
+}
+
+// hasLongBytes reports whether any value in cols is a []byte longer than
+// maxRawBind, which go-ora might bind as LONG RAW.
+func hasLongBytes(cols [][]any) bool {
+	for _, col := range cols {
+		for _, v := range col {
+			if b, ok := v.([]byte); ok && len(b) > maxRawBind {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // execResult returns the rows affected by an exec that returned res and err.

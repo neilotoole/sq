@@ -192,7 +192,7 @@ func TestPrepareInsertStmt_ArrayBind(t *testing.T) {
 		},
 		{
 			// Longer than the 4000-byte bind limit of MAX_STRING_SIZE
-			// STANDARD, next to short values in the same array.
+			// STANDARD, next to short values.
 			name: "long_lob_values",
 			rows: []insertRow{
 				{1, "a", nil, nil, []byte{1}, "short"},
@@ -203,12 +203,41 @@ func TestPrepareInsertStmt_ArrayBind(t *testing.T) {
 		{
 			// Longer than the 32767-byte bind limit of MAX_STRING_SIZE
 			// EXTENDED, so go-ora binds them as LONG and LONG RAW on every
-			// server, next to short values in the same array.
+			// server, next to short values.
 			name: "very_long_lob_values",
 			rows: []insertRow{
 				{1, "a", nil, nil, []byte{1}, "short"},
 				{2, "b", nil, nil, hugeBlob, hugeClob},
 				{3, "c", nil, nil, []byte{3}, "short"},
+			},
+		},
+		{
+			// The long values last, so go-ora would declare the parameters
+			// as LONG and LONG RAW.
+			name: "long_lob_values_last",
+			rows: []insertRow{
+				{1, "a", nil, nil, []byte{1}, "short"},
+				{2, "b", nil, nil, hugeBlob, hugeClob},
+			},
+		},
+		{
+			// A long []byte before a short one, alone in its row. Array-bound,
+			// go-ora declares the parameter RAW with the long value's length,
+			// which fails with ORA-01461. A long string in the same batch
+			// changes how go-ora sends it and hides the failure, so this case
+			// has none.
+			name: "long_bytes_first",
+			rows: []insertRow{
+				{1, nil, nil, nil, hugeBlob, nil},
+				{2, nil, nil, nil, []byte{2}, nil},
+			},
+		},
+		{
+			// The same for text, which array-binds correctly.
+			name: "long_text_first",
+			rows: []insertRow{
+				{1, nil, nil, nil, nil, hugeClob},
+				{2, nil, nil, nil, nil, "b"},
 			},
 		},
 	}
@@ -305,6 +334,65 @@ func TestPrepareInsertStmt_TypeChangeAcrossExecs(t *testing.T) {
 	}
 
 	requireInsertTestRows(t, th, s, tbl, want)
+}
+
+// TestPrepareInsertStmt_LongBindAcrossExecs executes one prepared insert
+// with a long value first in one execution and last in the next. Array-bound,
+// a long []byte fails with ORA-01461 in either position (see
+// TestPrepareInsertStmt_ArrayBind/long_bytes_first), and go-ora's resend
+// check also misses a parameter going from RAW to LONG RAW, so long []byte
+// values are bound one row at a time. Long strings array-bind correctly in
+// any order and across executions.
+//
+// The bytes and text cases use separate statements, because go-ora resends
+// every parameter's definition when it resends one: a string switching to
+// LONG in the same execution would hide a []byte problem.
+func TestPrepareInsertStmt_LongBindAcrossExecs(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+	th, s := requireOracle(t)
+
+	huge := bytes.Repeat([]byte{0xCD}, 40000)
+	hugeText := strings.Repeat("y", 40000)
+
+	testCases := []struct {
+		name  string
+		execs [][]insertRow
+	}{
+		{
+			name: "bytes",
+			execs: [][]insertRow{
+				{{1, nil, nil, nil, huge, nil}, {2, nil, nil, nil, []byte{2}, nil}},
+				{{3, nil, nil, nil, []byte{3}, nil}, {4, nil, nil, nil, huge, nil}},
+				// Short value last again, which reuses the statement.
+				{{5, nil, nil, nil, huge, nil}, {6, nil, nil, nil, []byte{6}, nil}},
+			},
+		},
+		{
+			name: "text",
+			execs: [][]insertRow{
+				{{1, nil, nil, nil, nil, hugeText}, {2, nil, nil, nil, nil, "b"}},
+				{{3, nil, nil, nil, nil, "c"}, {4, nil, nil, nil, nil, hugeText}},
+				{{5, nil, nil, nil, nil, hugeText}, {6, nil, nil, nil, nil, "f"}},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tbl := createInsertTestTable(t, th, s)
+			execer := prepareInsertTestStmt(t, th, s, tbl, 2)
+
+			var want []insertRow
+			for _, rows := range tc.execs {
+				execInsertTestRows(t, th, execer, rows)
+				want = append(want, rows...)
+			}
+
+			requireInsertTestRows(t, th, s, tbl, want)
+		})
+	}
 }
 
 // TestNewBatchInsert_MultiBatch inserts enough rows for several full

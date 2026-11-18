@@ -41,10 +41,10 @@ func TestColumnsFromRows(t *testing.T) {
 
 func TestColumnTypes(t *testing.T) {
 	now := time.Now()
-	tInt := reflect.TypeOf(int64(0))
-	tStr := reflect.TypeOf("")
-	tTime := reflect.TypeOf(now)
-	tBytes := reflect.TypeOf([]byte(nil))
+	tInt := reflect.TypeFor[int64]()
+	tStr := reflect.TypeFor[string]()
+	tTime := reflect.TypeFor[time.Time]()
+	tBytes := reflect.TypeFor[[]byte]()
 
 	testCases := []struct {
 		name   string
@@ -92,6 +92,30 @@ func TestColumnTypes(t *testing.T) {
 			got, ok := columnTypes(tc.cols)
 			require.Equal(t, tc.wantOK, ok)
 			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestHasLongBytes(t *testing.T) {
+	long := make([]byte, maxRawBind+1)
+	short := make([]byte, maxRawBind)
+
+	testCases := []struct {
+		name string
+		cols [][]any
+		want bool
+	}{
+		{name: "short_only", cols: [][]any{{short, short}}, want: false},
+		{name: "long_first", cols: [][]any{{long, short}}, want: true},
+		{name: "long_last", cols: [][]any{{short, long}}, want: true},
+		{name: "all_nil", cols: [][]any{{nil, nil}}, want: false},
+		{name: "long_string", cols: [][]any{{"a", strings.Repeat("a", maxRawBind+1)}}, want: false},
+		{name: "second_column", cols: [][]any{{int64(1), int64(2)}, {nil, long}}, want: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, hasLongBytes(tc.cols))
 		})
 	}
 }
