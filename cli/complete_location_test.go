@@ -24,6 +24,7 @@ import (
 
 var locSchemes = []string{
 	"clickhouse://",
+	"databricks://",
 	"duckdb://",
 	"mysql://",
 	"oracle://",
@@ -926,7 +927,7 @@ func TestCompleteAddLocation_DuckDB(t *testing.T) {
 	}{
 		{
 			args:       []string{"d"},
-			want:       []string{"duckdb://", "duck.duckdb"},
+			want:       []string{"databricks://", "duckdb://", "duck.duckdb"},
 			wantResult: stdDirective,
 		},
 		{
@@ -989,6 +990,86 @@ func TestCompleteAddLocation_DuckDB(t *testing.T) {
 		{
 			args:       []string{"duckdb://duck.duckdb?access_mode=READ_ONLY"},
 			want:       []string{"duckdb://duck.duckdb?access_mode=READ_ONLY&"},
+			wantResult: stdDirective,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tu.Name(i, strings.Join(tc.args, "_")), func(t *testing.T) {
+			args := append([]string{"add"}, tc.args...)
+			got := testComplete(t, nil, args...)
+			require.Equal(t, tc.wantResult, got.result, got.directives)
+			require.Equal(t, tc.want, got.values)
+		})
+	}
+}
+
+func TestCompleteAddLocation_Databricks(t *testing.T) {
+	tu.SkipIssueWindows(t, tu.GH372ShellCompletionWin)
+
+	wd := tu.Chdir(t, filepath.Join("testdata", "add_location"))
+	t.Logf("Working dir: %s", wd)
+
+	testCases := []struct {
+		args       []string
+		want       []string
+		wantResult cobra.ShellCompDirective
+	}{
+		{
+			args:       []string{"databr"},
+			want:       []string{"databricks://"},
+			wantResult: stdDirective,
+		},
+		{
+			args:       []string{"databricks://"},
+			want:       []string{"databricks://username"},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"databricks://token"},
+			want: []string{
+				"databricks://token@",
+				"databricks://token:",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"databricks://token:"},
+			want: []string{
+				"databricks://token:@",
+				"databricks://token:password@",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"databricks://token@dbc-1.cloud.databricks.com"},
+			want: []string{
+				"databricks://token@dbc-1.cloud.databricks.com/",
+				"databricks://token@dbc-1.cloud.databricks.com?",
+				"databricks://token@dbc-1.cloud.databricks.com:443/",
+				"databricks://token@dbc-1.cloud.databricks.com:443?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"databricks://token@dbc-1.cloud.databricks.com/"},
+			want: []string{
+				"databricks://token@dbc-1.cloud.databricks.com/http_path",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"databricks://token@dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc"},
+			want: []string{
+				"databricks://token@dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc?",
+			},
+			wantResult: stdDirective,
+		},
+		{
+			args: []string{"databricks://token@dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc?cat"},
+			want: []string{
+				"databricks://token@dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc?catalog=",
+			},
 			wantResult: stdDirective,
 		},
 	}

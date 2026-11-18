@@ -7,6 +7,7 @@ sqlserver   Microsoft SQL Server                   false         https://github.
 mysql       MySQL                                  false         https://github.com/go-sql-driver/mysql
 clickhouse  ClickHouse                             false         https://github.com/ClickHouse/clickhouse-go
 oracle      Oracle                                 false         https://github.com/sijms/go-ora
+databricks  Databricks                             false         https://github.com/databricks/databricks-sql-go
 csv         Comma-Separated Values                 false         https://en.wikipedia.org/wiki/Comma-separated_values
 tsv         Tab-Separated Values                   false         https://en.wikipedia.org/wiki/Tab-separated_values
 json        JSON                                   false         https://en.wikipedia.org/wiki/JSON
