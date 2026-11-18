@@ -300,6 +300,18 @@ Server versions and settings:
   (MySQL's `explicit_defaults_for_timestamp` and `sql_mode`, for example), so a
   differently configured server fails with a message naming the setting.
 
+A type that can't share the main table goes in a test of its own, in the
+same `coltype_test.go`, named `TestColumnTypes_<TYPE>`:
+
+- If the type only needs a table of its own, the test calls `typetest.Run`
+  with a `Config` holding just that case, so it gets the same checks. MySQL's
+  `TestColumnTypes_TIMESTAMP6` does this: on the 5.x images, a second
+  `TIMESTAMP NOT NULL` column in a table gets an implicit default that
+  `CREATE TABLE` rejects.
+- If the type breaks the harness's model (one per table, values the database
+  generates), the test is written by hand and reuses `typetest.DiffMeta` for
+  its inspect checks. SQL Server's `TestColumnTypes_ROWVERSION` does this.
+
 An expected `default_value` that contains the generated table name (a Postgres
 serial column's `nextval('<table>_col_serial_seq'::regclass)`, for example)
 uses `typetest.TableToken` in its place.
