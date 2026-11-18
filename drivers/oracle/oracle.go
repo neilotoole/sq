@@ -722,21 +722,36 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
+//
+// The prepared statement always inserts a single row, because Oracle before
+// 23ai rejects a multi-row VALUES list. When numRows is greater than one, the
+// returned execer inserts the rows with array binding (see
+// newArrayBindExecFunc). Its Exec takes the rows' values back to back, as
+// for any other driver.
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	numRows int,
 ) (*driver.StmtExecer, error) {
+	if numRows <= 0 {
+		return nil, errz.Errorf("numRows must be a positive integer but got %d", numRows)
+	}
+
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
 	}
 
-	stmt, err := driver.PrepareInsertStmt(ctx, d, db, destTbl, destColsMeta.Names(), numRows)
+	stmt, err := driver.PrepareInsertStmt(ctx, d, db, destTbl, destColsMeta.Names(), 1)
 	if err != nil {
 		return nil, err
 	}
 
+	execFn := newStmtExecFunc(stmt)
+	if numRows > 1 {
+		execFn = newArrayBindExecFunc(stmt, len(destColsMeta))
+	}
+
 	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
-		newStmtExecFunc(stmt), destColsMeta)
+		execFn, destColsMeta)
 	return execer, nil
 }
 
