@@ -232,6 +232,38 @@ func TestIngest_DuplicateColumns(t *testing.T) {
 	require.Equal(t, wantHeaders, data[0])
 }
 
+// TestIngest_BOM verifies that a leading UTF-8 byte order mark (as written by
+// Excel's "CSV UTF-8" export) is not treated as part of the first column name.
+func TestIngest_BOM(t *testing.T) {
+	const bom = "\xef\xbb\xbf"
+
+	testCases := []struct {
+		name    string
+		file    string
+		content string
+	}{
+		{"csv", "bom.csv", bom + "id,name\n1,alice\n2,bob\n"},
+		{"csv_quoted_header", "bom_quoted.csv", bom + "\"id\",\"name\"\n1,alice\n2,bob\n"},
+		{"tsv", "bom.tsv", bom + "id\tname\n1\talice\n2\tbob\n"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			fp := filepath.Join(t.TempDir(), tc.file)
+			require.NoError(t, os.WriteFile(fp, []byte(tc.content), 0o600))
+
+			tr := testrun.New(ctx, t, nil)
+			require.NoError(t, tr.Exec("add", fp, "--handle", "@bom"))
+
+			tr = testrun.New(ctx, t, tr).Hush()
+			require.NoError(t, tr.Exec("--csv", ".data"))
+			data := tr.BindCSV()
+			require.Equal(t, [][]string{{"id", "name"}, {"1", "alice"}, {"2", "bob"}}, data)
+		})
+	}
+}
+
 func TestIngest_Kind_Timestamp(t *testing.T) {
 	t.Parallel()
 

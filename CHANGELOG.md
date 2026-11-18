@@ -46,6 +46,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- A CSV or TSV file that starts with a UTF-8 byte order mark, as written by Excel's "CSV UTF-8"
+  export, no longer has the mark prepended to the first column name. A quoted first header field in
+  such a file is also accepted now.
 - [#1151]: Opening a DuckDB source is much faster, and no longer needs network access on a machine
   with an empty extension cache.
 - [#1165]: A source-level option was ignored once `sq` reloaded its config, silently falling back to
