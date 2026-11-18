@@ -1,6 +1,7 @@
 package sqlserver_test
 
 import (
+	"bytes"
 	"context"
 	"math"
 	"strings"
@@ -8,12 +9,17 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/sqlz"
+	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
 	"github.com/neilotoole/sq/testh/sakila"
+	"github.com/neilotoole/sq/testh/tu"
 	"github.com/neilotoole/sq/testh/typetest"
 )
 
@@ -32,6 +38,93 @@ func TestColumnTypes(t *testing.T) {
 	})
 }
 
+// TestColumnTypes_ROWVERSION covers ROWVERSION, which typetest.Run can't: a
+// table can have only one ROWVERSION column, its values can't be inserted
+// (SQL Server generates them), and they depend on database activity. Like
+// TestColumnTypes, it records current behavior. Since the values aren't
+// known in advance, it checks their properties: 8 bytes, different per row,
+// and changed by an UPDATE.
+func TestColumnTypes_ROWVERSION(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	if !th.SourceConfigured(sakila.MS) {
+		t.Skipf("source %s not configured", sakila.MS)
+	}
+	src := th.Source(sakila.MS)
+	db := th.OpenDB(src)
+
+	serverVer, err := th.Open(src).DBSemver(th.Context)
+	require.NoError(t, err)
+	t.Logf("%s: server version %s", sakila.MS, serverVer)
+
+	tbl := stringz.UniqTableName("rowversion")
+	_, err = db.ExecContext(th.Context,
+		"CREATE TABLE "+tbl+" (row_id INT NOT NULL PRIMARY KEY, col_val INT NULL, col_rowversion ROWVERSION)")
+	require.NoError(t, err)
+	t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+	_, err = db.ExecContext(th.Context, "INSERT INTO "+tbl+" (row_id) VALUES (1), (2)")
+	require.NoError(t, err)
+
+	// INFORMATION_SCHEMA reports ROWVERSION by its old name, timestamp.
+	// candidate issue: it's kind int in inspect, but its query result kind is
+	// bytes, and its values come back as 8 raw bytes.
+	want := typetest.Column{
+		Case:       &typetest.Case{Name: "rowversion", Decl: "ROWVERSION"},
+		Name:       "col_rowversion",
+		BaseType:   "timestamp",
+		ColumnType: "timestamp",
+		Kind:       kind.Int,
+	}
+
+	t.Run("TableMetadata", func(t *testing.T) {
+		t.Parallel()
+		tblMeta, err := th.TableMetadata(src, tbl)
+		require.NoError(t, err)
+		col := tblMeta.Column(want.Name)
+		require.NotNil(t, col)
+		require.Empty(t, typetest.DiffMeta("TableMetadata", serverVer, col, want))
+	})
+
+	t.Run("SourceMetadata", func(t *testing.T) {
+		t.Parallel()
+		srcMeta, err := th.SourceMetadata(src)
+		require.NoError(t, err)
+		tblMeta := srcMeta.Table(tbl)
+		require.NotNil(t, tblMeta)
+		col := tblMeta.Column(want.Name)
+		require.NotNil(t, col)
+		require.Empty(t, typetest.DiffMeta("SourceMetadata", serverVer, col, want))
+	})
+
+	query := "SELECT row_id, col_rowversion FROM " + tbl + " ORDER BY row_id"
+	sink, err := th.QuerySQL(src, nil, query)
+	require.NoError(t, err)
+	require.Len(t, sink.Recs, 2)
+	require.Equal(t, kind.Bytes.String(), sink.RecMeta[1].Kind().String(), "query result kind")
+
+	before := make([][]byte, 2)
+	for i, rec := range sink.Recs {
+		v, ok := rec[1].([]byte)
+		require.True(t, ok, "row %d: want []byte, got %T", i+1, rec[1])
+		require.Len(t, v, 8, "row %d", i+1)
+		before[i] = v
+	}
+	require.NotEqual(t, before[0], before[1], "each row has its own rowversion")
+
+	// Updating a row gives it a new rowversion, greater than any before.
+	_, err = db.ExecContext(th.Context, "UPDATE "+tbl+" SET col_val = 7 WHERE row_id = 1")
+	require.NoError(t, err)
+	sink, err = th.QuerySQL(src, nil, query)
+	require.NoError(t, err)
+	after, ok := sink.Recs[0][1].([]byte)
+	require.True(t, ok)
+	require.Positive(t, bytes.Compare(after, before[0]), "the updated row's rowversion increased")
+	require.Positive(t, bytes.Compare(after, before[1]), "and is greater than the other row's")
+	require.Equal(t, before[1], sink.Recs[1][1], "the other row's rowversion is unchanged")
+}
+
 var (
 	msDatetimeMillis = time.Date(2017, 7, 7, 7, 7, 7, 123000000, time.UTC)
 	msDecimal5_2Max  = decimal.RequireFromString("999.99")
@@ -42,6 +135,7 @@ var (
 // column_type that doesn't match the declared type: SQL Server's column_type
 // appends a precision or storage size (int(10), datetime(3)), reports MAX as
 // -1 (varchar(-1)), and drops the scale (DECIMAL(5,2) as decimal(5)).
+// ROWVERSION isn't here: see TestColumnTypes_ROWVERSION.
 var msTypeCases = []typetest.Case{
 	typetest.NewCase("bit", "BIT", fixt.BoolZ, fixt.Bool, "bit", "bit", kind.Bool),
 	typetest.NewCase("tinyint", "TINYINT", fixt.IntZ, int64(math.MaxUint8), "tinyint", "tinyint(3)", kind.Int).
