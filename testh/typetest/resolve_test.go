@@ -277,3 +277,14 @@ func TestResolve_DuplicateVariant(t *testing.T) {
 	require.Contains(t, err.Error(), "case {dup}")
 	require.Contains(t, err.Error(), "variant {not_null} is listed twice")
 }
+
+func TestResolve_NullInput(t *testing.T) {
+	c := intCase("x").WithNullInput([]byte(nil))
+
+	cols, err := typetest.Resolve([]typetest.Case{c}, "v9.1.0")
+	require.NoError(t, err)
+	require.Equal(t, int64(7), cols[0].In[2], "the NOT NULL column's row 3 is still the Val input")
+	require.Equal(t, []byte(nil), cols[1].In[2], "the nullable column's row 3 binds NullInput")
+	require.IsType(t, []byte(nil), cols[1].In[2])
+	require.Nil(t, cols[1].Want[2], "row 3 of the nullable column still expects NULL")
+}

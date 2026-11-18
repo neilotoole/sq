@@ -159,6 +159,13 @@ type Case struct {
 	// server version and every variant.
 	Zero, Val any
 
+	// NullInput is what's bound for NULL in row 3 of the Nullable column.
+	// Nil, the default, binds a Go nil. Set it when a driver can't bind a
+	// plain nil for the type: go-mssqldb, for example, sends nil as an
+	// nvarchar NULL, which a BINARY column rejects, but accepts []byte(nil).
+	// The expected value is NULL either way.
+	NullInput any
+
 	// Name is the column base name, e.g. "varchar_16". It must match
 	// ^[a-z][a-z0-9_]*$.
 	Name string

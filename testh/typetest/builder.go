@@ -65,6 +65,13 @@ func (c Case) WithMinVer(ver string) Case {
 	return c
 }
 
+// WithNullInput returns a copy of c that binds v for NULL in the nullable
+// column's row 3. See Case.NullInput.
+func (c Case) WithNullInput(v any) Case {
+	c.NullInput = v
+	return c
+}
+
 // WithIssue returns a copy of c with Issue set to issue.
 func (c Case) WithIssue(issue string) Case {
 	c.Issue = issue

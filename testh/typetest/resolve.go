@@ -163,7 +163,7 @@ func resolveColumn(c *Case, v Variant, serverVer string) (Column, error) {
 	col.In = [3]any{c.Zero, c.Val, c.Val}
 	col.Want = [3]any{zeroWant, valWant, valWant}
 	if v == Nullable {
-		col.In[2], col.Want[2] = nil, nil
+		col.In[2], col.Want[2] = c.NullInput, nil
 	}
 
 	return col, nil
