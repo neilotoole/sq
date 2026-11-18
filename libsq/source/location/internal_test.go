@@ -228,6 +228,31 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
+			// databricks: the token is the password of the "token" user,
+			// and the name is the host's first label.
+			loc: "databricks://token:dapi123@dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc",
+			want: Fields{
+				DriverType: drivertype.Databricks, Scheme: "databricks", User: "token", Pass: "dapi123",
+				Hostname: "dbc-1.cloud.databricks.com", Name: "dbc-1",
+			},
+		},
+		{
+			// databricks: with a port, and the catalog param provides the name.
+			loc: "databricks://token:dapi123@dbc-1.cloud.databricks.com:8443/sql/1.0/warehouses/abc?catalog=main&schema=sakila",
+			want: Fields{
+				DriverType: drivertype.Databricks, Scheme: "databricks", User: "token", Pass: "dapi123",
+				Hostname: "dbc-1.cloud.databricks.com", Port: 8443, Name: "main",
+			},
+		},
+		{
+			// databricks: OAuth M2M has no userinfo.
+			loc: "databricks://dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc?clientID=id&clientSecret=s3cr3t",
+			want: Fields{
+				DriverType: drivertype.Databricks, Scheme: "databricks",
+				Hostname: "dbc-1.cloud.databricks.com", Name: "dbc-1",
+			},
+		},
+		{
 			// rqlite: full userinfo, port, and path.
 			loc: "rqlite://sakila:p_ssW0rd@server:4001/sakila",
 			want: Fields{

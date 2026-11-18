@@ -31,6 +31,7 @@ var dbSchemes = []string{
 	"duckdb",
 	"clickhouse",
 	"oracle",
+	"databricks",
 }
 
 // fileDBSchemes is the set of file-based DB driver schemes whose bare
@@ -180,6 +181,17 @@ func Short(loc string) string {
 		}
 		sb.WriteString(ru.Host)
 		return sb.String()
+	}
+
+	// databricks is also unknown to dburl in a usable form: dburl insists on
+	// a user and password, and rewrites the host. Show host and HTTP path,
+	// without the "token" pseudo-username that carries the credential.
+	if strings.HasPrefix(loc, "databricks://") {
+		du, err := url.ParseRequestURI(loc)
+		if err != nil {
+			return redactBestEffort(loc)
+		}
+		return du.Host + strings.TrimSuffix(du.Path, "/")
 	}
 
 	u, err := dburl.Parse(loc)
@@ -366,6 +378,13 @@ func Parse(loc string) (*Fields, error) {
 		return parseRqlite(loc, fields)
 	}
 
+	// databricks is handled outside dburl for the same reason as rqlite:
+	// dburl's databricks scheme requires a user and password, and
+	// generates a DSN that is not what the databricks driver expects.
+	if strings.HasPrefix(loc, "databricks://") {
+		return parseDatabricks(loc, fields)
+	}
+
 	if after, ok := strings.CutPrefix(loc, duckdbPrefix); ok {
 		fpath := after
 
@@ -484,6 +503,46 @@ func parseRqlite(loc string, fields *Fields) (*Fields, error) {
 		}
 	}
 	fields.Name = strings.TrimPrefix(u.Path, "/")
+	return fields, nil
+}
+
+// parseDatabricks parses a databricks:// location into fields. The
+// location has the form:
+//
+//	databricks://token:PAT@HOST[:PORT]/HTTP_PATH[?catalog=C&schema=S]
+//
+// fields.Name is the catalog if the "catalog" query param is set,
+// otherwise the first label of the host name (the workspace name).
+func parseDatabricks(loc string, fields *Fields) (*Fields, error) {
+	u, err := url.ParseRequestURI(loc)
+	if err != nil {
+		// url.Error embeds the raw input URL, which may carry inline
+		// credentials. Keep only the underlying cause.
+		if uerr, ok := errors.AsType[*url.Error](err); ok {
+			err = uerr.Err
+		}
+		return nil, errz.Wrapf(err, "parse location: %s", redactBestEffort(loc))
+	}
+
+	fields.Scheme = u.Scheme
+	fields.DriverType = drivertype.Databricks
+	fields.Hostname = u.Hostname()
+	if u.User != nil {
+		fields.User = u.User.Username()
+		fields.Pass, _ = u.User.Password()
+	}
+	if u.Port() != "" {
+		fields.Port, err = strconv.Atoi(u.Port())
+		if err != nil {
+			return nil, errz.Wrapf(err, "parse location: invalid port {%s}: %s", u.Port(),
+				redactBestEffort(loc))
+		}
+	}
+
+	fields.Name = u.Query().Get("catalog")
+	if fields.Name == "" {
+		fields.Name, _, _ = strings.Cut(fields.Hostname, ".")
+	}
 	return fields, nil
 }
 
@@ -721,10 +780,11 @@ func redactRaw(loc string, sentinels []string) string {
 			break
 		}
 		redacted = u.Redacted()
-	case strings.HasPrefix(loc, "rqlite://"):
-		// rqlite is a network SQL driver unknown to dburl; redact its
-		// userinfo explicitly rather than relying on the best-effort
-		// regex fallback below.
+	case strings.HasPrefix(loc, "rqlite://"), strings.HasPrefix(loc, "databricks://"):
+		// rqlite and databricks are network SQL drivers that dburl either
+		// doesn't know or handles differently; redact their userinfo
+		// explicitly rather than relying on the best-effort regex
+		// fallback below.
 		u, err := url.ParseRequestURI(loc)
 		if err != nil {
 			redacted = redactBestEffort(loc)
@@ -805,7 +865,8 @@ func IsSecretQueryParam(key string) bool {
 	k := strings.ToLower(key)
 	switch k {
 	case "password", "passwd", "pwd", "pw", "secret", "token",
-		"apikey", "api_key", "access_token", "auth_token":
+		"apikey", "api_key", "access_token", "auth_token",
+		"accesstoken", "clientsecret":
 		return true
 	default:
 		return strings.HasSuffix(k, "password") ||
