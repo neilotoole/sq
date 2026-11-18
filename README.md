@@ -50,6 +50,7 @@ sqlserver   Microsoft SQL Server
 mysql       MySQL
 clickhouse  ClickHouse
 oracle      Oracle
+databricks  Databricks
 csv         Comma-Separated Values
 tsv         Tab-Separated Values
 json        JSON

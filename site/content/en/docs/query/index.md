@@ -934,6 +934,7 @@ The mechanism and any fidelity caveat vary by driver:
 | [`clickhouse`](/docs/drivers/clickhouse) | native (float)                    | cast result to `Nullable(Decimal(38, 6))` | Rounds to 6 fractional places; overflows beyond 32 integer digits.                                                                           |
 | [`oracle`](/docs/drivers/oracle)         | cast result to `BINARY_DOUBLE`    | cast result to `NUMBER(38, 6)`            | Rounds to 6 fractional places; overflows beyond 32 integer digits. `count`, `count_unique`, and `rownum` are pinned to `int`.                |
 | [`duckdb`](/docs/drivers/duckdb)         | native (float)                    | kind pinned, no SQL cast                  | Native sum over integer (HUGEINT) and decimal columns is lossless; a `DOUBLE` column's sum is computed in float, so small drift is possible. |
+| [`databricks`](/docs/drivers/databricks) | native                            | cast result to `DECIMAL(38, 6)`           | Rounds to 6 fractional places; overflows beyond 32 integer digits.                                                                           |
 
 {{< alert icon="⚠️" >}}
 How `sq` harmonizes numeric types is still evolving. Proposed changes, including
@@ -1055,7 +1056,7 @@ after the fact. SQLite sums over integer columns are exact; on rqlite a very
 large integer sum (beyond 2^53) can also drift, because rqlite returns numbers
 over its HTTP API as floating point.
 
-On Oracle, ClickHouse, and SQL Server the decimal cast uses a fixed
+On Oracle, ClickHouse, Databricks, and SQL Server the decimal cast uses a fixed
 `DECIMAL(38, 6)`. So a sum of a column with more than 6 fractional digits is
 rounded to 6 places, and a sum whose integer part needs more than 32 digits
 overflows (a query error). On SQL Server the operand is cast before summing, so
@@ -1096,7 +1097,7 @@ letter instead of the literal `[A-Z]` substring).
 Under the hood, `sq` chooses the right primitive per driver to guarantee
 case-sensitive matching:
 
-- **Postgres / DuckDB:** native `LIKE` (already case-sensitive).
+- **Postgres / DuckDB / Databricks:** native `LIKE` (already case-sensitive).
 - **Oracle:** native `LIKE` (case-sensitive when `NLS_COMP=BINARY`,
   which is Oracle's default; sessions that set `NLS_COMP=LINGUISTIC`
   with a case-insensitive `NLS_SORT` will get case-insensitive
@@ -1132,7 +1133,7 @@ $ sq '.actor | where(icontains(.first_name, "angela"))'
 Per-driver implementation:
 
 - **Postgres / DuckDB:** native `ILIKE`.
-- **MySQL / Oracle:** `LOWER(col) LIKE LOWER(pat) ESCAPE '|'`,
+- **MySQL / Oracle / Databricks:** `LOWER(col) LIKE LOWER(pat) ESCAPE '|'`,
   via the default renderer (no driver-specific override). Explicit
   lowercasing on both sides keeps the shape portable across
   collation configurations.
@@ -1289,7 +1290,7 @@ $ sq '.actor | where(ilike(.first_name, .last_name))'
 Per-driver implementation:
 
 - **Postgres / DuckDB:** native `ILIKE`.
-- **MySQL / Oracle:** `LOWER(col) LIKE LOWER(pat)`.
+- **MySQL / Oracle / Databricks:** `LOWER(col) LIKE LOWER(pat)`.
 - **SQL Server:** `LIKE` with `COLLATE Latin1_General_CI_AS`.
 - **SQLite:** plain `LIKE` (already ASCII-CI by default).
 - **ClickHouse:** native `ILIKE`.

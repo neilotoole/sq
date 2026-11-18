@@ -3,8 +3,8 @@
 This document describes how `sq` is put together, with particular attention to SQL dialects and
 the type system, which are the primary extension points for adding new database support.
 
-`sq` supports eight SQL drivers (`sqlite3`, `rqlite`, `duckdb`, `postgres`, `sqlserver`, `mysql`,
-`clickhouse`, `oracle`) and six document types (`csv`, `tsv`, `json`, `jsona`, `jsonl`, `xlsx`).
+`sq` supports nine SQL drivers (`sqlite3`, `rqlite`, `duckdb`, `postgres`, `sqlserver`, `mysql`,
+`clickhouse`, `oracle`, `databricks`) and six document types (`csv`, `tsv`, `json`, `jsona`, `jsonl`, `xlsx`).
 The full set is enumerated in
 [`libsq/source/drivertype`](../libsq/source/drivertype/drivertype.go).
 
@@ -518,6 +518,13 @@ sq/
 │   │   ├── render.go             # Both type mappings & SQL rendering
 │   │   └── metadata.go           # Schema extraction (data dictionary queries)
 │   │
+│   ├── databricks/               # Databricks driver (read-only)
+│   │   ├── databricks.go         # Provider, driver & Dialect
+│   │   ├── dsn.go                # Location -> databricks-sql-go DSN
+│   │   ├── metadata.go           # DBType→Kind, information_schema queries
+│   │   ├── render.go             # String literal quoting, row range
+│   │   └── internal/thriftfake/  # In-process fake warehouse, for tests
+│   │
 │   ├── csv/                      # CSV/TSV driver (document)
 │   ├── json/                     # JSON/JSONA/JSONL driver (document)
 │   ├── xlsx/                     # Excel driver (document)
@@ -550,9 +557,14 @@ type Dialect struct {
     Placeholders func(numCols, numRows int) string
 
     // Enquote quotes and escapes an identifier (such as a table or
-    // column name). Typically double-quote, although MySQL and
-    // ClickHouse use backtick.
+    // column name). Typically double-quote, although MySQL, ClickHouse
+    // and Databricks use backtick.
     Enquote func(string) string
+
+    // QuoteString quotes and escapes a string literal. Optional: if nil,
+    // stringz.SingleQuote is used, which doubles single quotes. Databricks
+    // sets it, as Spark SQL escapes with backslash. Call Dialect.QuoteLiteral.
+    QuoteString func(string) string
 
     // ExecModeFor returns the ExecMode for a SQL string. The default
     // implementation is DefaultExecModeFor, which handles standard SQL.
@@ -625,6 +637,10 @@ authoritative cross-driver comparison.
 | MySQL      | `drivers/mysql/`      | `drivertype.MySQL`      | `?`           | `` ` `` | 250       | Yes     | No      | No              |
 | ClickHouse | `drivers/clickhouse/` | `drivertype.ClickHouse` | `?`           | `` ` `` | 10000     | No      | No      | Yes             |
 | Oracle     | `drivers/oracle/`     | `drivertype.Oracle`     | `:1, :2...`   | `"`     | 1000      | Yes     | No      | Yes             |
+| Databricks | `drivers/databricks/` | `drivertype.Databricks` | `?`           | `` ` `` | 100 (a)   | No      | Yes     | Yes             |
+
+(a) The Databricks driver is read-only and never inserts, so `MaxBatchValues` is unused. It is
+set to a conservative value because the dialect needs a positive one.
 
 #### Dialect outliers
 
@@ -636,8 +652,13 @@ Three fields are set by exactly one driver each. They are easy to miss when addi
 - **`IsRowsAffectedUnsupported`** is true only for **ClickHouse**, which always returns 0 from
   `sql.Result.RowsAffected()` for INSERT, UPDATE and DELETE because of protocol-level limits.
   Callers must read a 0 from `ExecSQL` as "unknown", not "zero rows".
-- **`Enquote`** is a plain `stringz.DoubleQuote` for every driver except MySQL and ClickHouse
-  (backtick) and **Oracle**, which double-quotes _and_ uppercases, because Oracle stores quoted
+- **`QuoteString`** is set only by **Databricks**. Every other driver leaves it nil and gets
+  `stringz.SingleQuote`, which doubles an embedded single quote. Spark SQL treats backslash as an
+  escape character, and does not read a doubled quote as a quote (`'it''s'` is two adjacent literals
+  that Spark concatenates into `its`), so the Databricks driver escapes both `\` and `'` with a
+  backslash.
+- **`Enquote`** is a plain `stringz.DoubleQuote` for every driver except MySQL, ClickHouse and
+  Databricks (backtick) and **Oracle**, which double-quotes _and_ uppercases, because Oracle stores quoted
   identifiers case-sensitively while folding unquoted ones to uppercase.
 
 ---
@@ -753,6 +774,9 @@ This is what `dbTypeNameFromKind` (or `DBTypeForKind`) returns for each `Kind`:
 | `Datetime` | `DATETIME` | `DATETIME` | `TIMESTAMP`     | `TIMESTAMP`        | `DATETIME`       | `DATETIME`   | `DateTime`      | `TIMESTAMP`      |
 | `Date`     | `DATE`     | `DATE`     | `DATE`          | `DATE`             | `DATE`           | `DATE`       | `Date`          | `DATE`           |
 | `Time`     | `TIME`     | `TIME`     | `TIME`          | `TIME`             | `TIME`           | `TIME`       | `DateTime`      | `TIMESTAMP`      |
+
+The table has no Databricks column: that driver is read-only, so it has no Kind → native type
+mapping. See [`drivers/databricks/README.md`](../drivers/databricks/README.md).
 
 Notes on the gaps that table papers over:
 
@@ -884,6 +908,7 @@ func FinishRunInit(ctx context.Context, ru *run.Run) error {
 	dr.AddProvider(drivertype.MySQL, &mysql.Provider{Log: log})
 	dr.AddProvider(drivertype.ClickHouse, &clickhouse.Provider{Log: log})
 	dr.AddProvider(drivertype.Oracle, &oracle.Provider{Log: log})
+	dr.AddProvider(drivertype.Databricks, &databricks.Provider{Log: log})
 
 	// Document drivers. Note that one provider can serve several types,
 	// and that each registers a detector so that `sq add` can infer the
@@ -1632,6 +1657,7 @@ Symbol names are given instead of line numbers, because line numbers go stale on
 | MySQL      | `drivers/mysql/mysql.go`           | `metadata.go`, `kindFromDBTypeName`     | `render.go`, `dbTypeNameFromKind` |
 | ClickHouse | `drivers/clickhouse/clickhouse.go` | `metadata.go`, `kindFromClickHouseType` | `render.go`, `dbTypeNameFromKind` |
 | Oracle     | `drivers/oracle/oracle.go`         | `render.go`, `kindFromDBTypeName`       | `render.go`, `dbTypeNameFromKind` |
+| Databricks | `drivers/databricks/databricks.go` | `metadata.go`, `kindFromDBTypeName`     | none (read-only)                  |
 
 Paths in the last two columns are relative to the driver's own package directory.
 

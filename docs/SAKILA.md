@@ -46,6 +46,11 @@ Sakila reaches `sq`'s tests two ways:
   these skip automatically under `-short` (mark them with
   [`tu.SkipShort`](../testh/tu/skip.go)).
 
+Databricks is neither: it is a managed cloud service, so it has no `sakiladb` image
+and no Sakila handle. Its driver is tested against an in-process fake of a
+warehouse, plus an envar-gated test for a real workspace. See
+[`docs/DRIVERS.md`](./DRIVERS.md#cloud-only-drivers).
+
 ## Test handles (`testh/sakila`)
 
 The [`testh/sakila`](../testh/sakila) package
