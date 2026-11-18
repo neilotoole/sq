@@ -26,8 +26,9 @@ import (
 // the full RecordMeta + munge pipeline and asserting the canonical Go type
 // produced for each column.
 //
-// TestKindMapping (db_type_test.go) covers the static type-name → kind.Kind
-// mapping; this test covers the runtime value-munging path.
+// TestColumnTypes (coltype_test.go) covers each type's inspect fields, query
+// kind and values through the shared typetest harness; this test covers the
+// runtime value-munging path for this file's types.
 func TestRecordMeta_TypeSpectrum(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "type_test.duckdb")
