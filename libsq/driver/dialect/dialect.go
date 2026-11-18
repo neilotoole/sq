@@ -11,6 +11,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/jointype"
+	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 )
 
@@ -48,6 +49,15 @@ type Dialect struct {
 	// identifier (such as a table or column name). Typically, the func
 	// uses the double-quote rune (although MySQL uses backtick).
 	Enquote func(string) string
+
+	// QuoteString is a function that single-quotes and escapes a string
+	// value for use as a SQL string literal. It is optional: if nil,
+	// stringz.SingleQuote is used, which doubles embedded single quotes
+	// (O'Brien becomes 'O''Brien'). A dialect needs to set it when its
+	// string-literal syntax differs. For example, Databricks (Spark SQL)
+	// treats backslash as an escape character and does not read a doubled
+	// quote as a quote. Call Dialect.QuoteLiteral rather than this field.
+	QuoteString func(string) string
 
 	// ExecModeFor returns the ExecMode for a SQL string. The default
 	// implementation is DefaultExecModeFor, which handles standard SQL.
@@ -101,6 +111,15 @@ type Dialect struct {
 	// so that the zero value (false) represents the common case where rows
 	// ARE reported, following Go idioms for sensible zero values.
 	IsRowsAffectedUnsupported bool
+}
+
+// QuoteLiteral returns s as a quoted SQL string literal, using d.QuoteString
+// if it is set, and stringz.SingleQuote otherwise.
+func (d Dialect) QuoteLiteral(s string) string {
+	if d.QuoteString != nil {
+		return d.QuoteString(s)
+	}
+	return stringz.SingleQuote(s)
 }
 
 // String returns a log/debug-friendly representation.

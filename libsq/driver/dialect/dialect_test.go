@@ -155,3 +155,15 @@ func TestDefaultExecModeFor_Errors(t *testing.T) {
 		})
 	}
 }
+
+// TestDialect_QuoteLiteral tests that QuoteLiteral uses the doubled single
+// quote of standard SQL unless the dialect supplies its own QuoteString.
+func TestDialect_QuoteLiteral(t *testing.T) {
+	std := Dialect{}
+	require.Equal(t, `'hello'`, std.QuoteLiteral("hello"))
+	require.Equal(t, `'O''Brien'`, std.QuoteLiteral("O'Brien"))
+	require.Equal(t, `'a\b'`, std.QuoteLiteral(`a\b`))
+
+	custom := Dialect{QuoteString: func(s string) string { return "<" + s + ">" }}
+	require.Equal(t, `<O'Brien>`, custom.QuoteLiteral("O'Brien"))
+}
