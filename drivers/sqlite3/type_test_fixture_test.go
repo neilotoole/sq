@@ -4,23 +4,22 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neilotoole/sq/cli/output"
-	"github.com/neilotoole/sq/libsq"
 	"github.com/neilotoole/sq/libsq/core/stringz"
-	"github.com/neilotoole/sq/libsq/core/tablefq"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/testh"
 	"github.com/neilotoole/sq/testh/fixt"
-	"github.com/neilotoole/sq/testh/sakila"
 )
 
+// This file holds the "type_test" fixture: a table with a column per common
+// SQLite type, and rows of values for it. The metadata benchmarks use it to
+// create many populated tables. The driver's column types are tested by
+// TestColumnTypes (coltype_test.go).
+
 // typeTestTableDDLPath is the location of the SQL CREATE statement
-// for the "type_test" table that is used to verify handling of
-// the driver's various data types.
+// for the "type_test" table.
 const typeTestTableDDLPath = "testdata/type_test.ddl"
 
 var typeTestColNames = []string{
@@ -122,8 +121,6 @@ var typeTestVals = [][]any{
 // returning the actual table names used. If withData is true, the
 // test data is also loaded. It is the caller's responsibility to drop
 // the created tables.
-//
-//nolint:unparam // withData is currently unused
 func createTypeTestTbls(th *testh.Helper, src *source.Source, nTimes int, withData bool) (tblNames []string) {
 	const canonicalTblName = "type_test"
 	const insertTpl = "INSERT INTO %s (%s) VALUES %s"
@@ -157,42 +154,4 @@ func createTypeTestTbls(th *testh.Helper, src *source.Source, nTimes int, withDa
 	}
 
 	return tblNames
-}
-
-// TestDatabaseTypes checks that our driver is dealing with database
-// types correctly. The test constructs a "type_test" table with cols
-// for various database types, inserts known data, and checks that
-// the returned data matches the inserted data, including verifying
-// that NULL is handled correctly.
-func TestDatabaseTypes(t *testing.T) {
-	th := testh.New(t)
-	src := th.Source(sakila.SL3)
-	actualTblName := createTypeTestTbls(th, src, 1, true)[0]
-	th.Cleanup.Add(func() {
-		th.DropTable(src, tablefq.From(actualTblName))
-	})
-
-	sink := &testh.RecordSink{}
-	recw := output.NewRecordWriterAdapter(th.Context, sink)
-	err := libsq.QuerySQL(th.Context, th.Open(src), nil, recw, nil, "SELECT * FROM "+actualTblName)
-	require.NoError(t, err)
-	_, err = recw.Wait()
-	require.NoError(t, err)
-
-	require.Equal(t, len(typeTestVals), len(sink.Recs))
-	for i, rec := range sink.Recs {
-		for j := range rec {
-			wantVal := typeTestVals[i][j]
-			gotVal := sink.Recs[i][j]
-
-			if gotVal == nil {
-				require.Equal(t, wantVal, gotVal)
-				continue
-			}
-
-			require.EqualValuesf(t, wantVal, stringz.Val(gotVal),
-				"%s[%d][%d] (%s) expected %T(%v) but got %T(%v)",
-				actualTblName, i, j, typeTestColNames[j], wantVal, wantVal, gotVal, gotVal)
-		}
-	}
 }
