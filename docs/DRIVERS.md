@@ -73,7 +73,8 @@ documentation as incomplete work. This is what keeps [sq.io](https://sq.io),
    `TestType_Coverage` fails until you add it.
 3. **Tests**: integration tests; for SQL drivers, a `sakiladb/{driver}` image
    and handle in [`testh/sakila/sakila.go`](../testh/sakila/sakila.go) when
-   applicable.
+   applicable, and a `TestColumnTypes` using `testh/typetest` (see
+   [Column-type tests](#column-type-tests)).
 4. **sq.io docs**: new page
    `site/content/en/docs/drivers/{driver}.md` (follow an existing driver page;
    link from [`site/content/en/docs/drivers/_index.md`](../site/content/en/docs/drivers/_index.md)).
@@ -256,6 +257,43 @@ func kindFromDBTypeName(dbType string) kind.Kind {
     }
 }
 ```
+
+#### Column-type tests
+
+A SQL driver's `TestColumnTypes` checks what `sq` reports for every column type
+the database supports. It's built on the shared harness in
+[`testh/typetest`](../testh/typetest); see
+[`drivers/mysql/coltype_test.go`](../drivers/mysql/coltype_test.go) for a
+complete example, and [#1368](https://github.com/neilotoole/sq/issues/1368) for
+the background.
+
+The driver declares a table of cases, one per type declaration (`VARCHAR(16)`,
+`DECIMAL(5,2)`, ...), and passes it to `typetest.Run` in a `typetest.Config`.
+For each case the harness creates a `NOT NULL` and a nullable column, inserts
+three rows (a zero value, a non-zero or edge value, and NULL for the nullable
+column), and checks:
+
+- `base_type`, `column_type`, `kind`, `nullable` and `default_value`, from both
+  `TableMetadata` and `SourceMetadata` (the paths behind `sq inspect @src.tbl`
+  and `sq inspect @src`);
+- the kind of the query result column;
+- the values read back through `sq`'s query pipeline, one query per column, and
+  then all columns in one query.
+
+Expectations record what `sq` does today, including values known to be wrong. A
+known-wrong expectation sets `Issue` to the issue tracking it, so that the fix
+shows up as a reviewed change to the expected value. A case is never skipped
+because it fails. If querying a column fails today, `QueryErr` records the
+error.
+
+Server versions and settings:
+
+- `MinVer` excludes a case on servers that don't have the type.
+- `Before` overrides expectations on older servers, for example MySQL before
+  8.0.19 reporting `int(11)` where newer servers report `int`.
+- `Config.CheckSettings` verifies the server settings the expectations assume
+  (MySQL's `explicit_defaults_for_timestamp` and `sql_mode`, for example), so a
+  differently configured server fails with a message naming the setting.
 
 #### Database-specific quirks
 
