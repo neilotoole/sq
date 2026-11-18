@@ -37,8 +37,14 @@ import (
 // columns have the same value types as the statement's first execution. Any
 // other batch runs as a one-off statement, which go-ora prepares afresh with
 // new parameter definitions. A batch with a column of mixed types runs as a
-// one-off statement per row. Batch atomicity is left to the caller's
-// transaction: DBWriter wraps the whole insert in one.
+// one-off statement per row.
+//
+// Atomicity is left to the caller's transaction. DBWriter, which inserts
+// query results, wraps the whole insert in one. Without a transaction, as
+// when ingest writes to an Oracle scratch source on a bare connection, a batch
+// that fails partway can leave its earlier rows committed, on either path:
+// Oracle array DML processes rows up to the failing one, and go-ora
+// autocommits. Earlier batches are committed in that case anyway.
 //
 // A long []byte value also needs care. go-ora binds one longer than the
 // server's RAW limit as LONG RAW, so a column of long and short values mixes
