@@ -32,6 +32,54 @@ func TestColumnTypes(t *testing.T) {
 	})
 }
 
+// TestColumnTypes_TIMESTAMP6 is TestColumnTypes for a single case,
+// TIMESTAMP(6), which runs in a table of its own. It's the same harness and
+// the same checks as TestColumnTypes; only the table differs.
+//
+// The reason is MySQL's handling of TIMESTAMP columns on the 5.x images,
+// where explicit_defaults_for_timestamp is off (checkMySQLSettings pins
+// this). With that setting off, MySQL gives a TIMESTAMP NOT NULL column that
+// declares no default an implicit one:
+//
+//   - the first such column in a table gets
+//     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+//   - every later one gets DEFAULT '0000-00-00 00:00:00'.
+//
+// TestColumnTypes's table already has a TIMESTAMP NOT NULL column,
+// col_timestamp, so a TIMESTAMP(6) NOT NULL column there would be the second,
+// and get the zero-date default. The 5.7 image's strict sql_mode
+// (NO_ZERO_DATE) rejects that, so CREATE TABLE fails for the whole table:
+// "Error 1067 (42000): Invalid default value for 'col_timestamp_6'". In a
+// table of its own, col_timestamp_6 is the first TIMESTAMP NOT NULL column,
+// gets the CURRENT_TIMESTAMP default instead, and the table can be created on
+// every version. The nullable column, declared NULL explicitly, gets no
+// implicit default on any version.
+//
+// MySQL 8.0 turned explicit_defaults_for_timestamp on by default, so on 8 and
+// 9 neither column gets an implicit default, and TIMESTAMP(6) could share the
+// main table. Keeping it here on every version keeps it one case, with one set
+// of expectations.
+func TestColumnTypes_TIMESTAMP6(t *testing.T) {
+	t.Parallel()
+
+	typetest.Run(t, typetest.Config{
+		Handle:        sakila.My,
+		RowIDDecl:     "INT NOT NULL PRIMARY KEY",
+		Cases:         []typetest.Case{mysqlTimestamp6Case},
+		CheckSettings: checkMySQLSettings,
+	})
+}
+
+// mysqlTimestamp6Case is the TIMESTAMP(6) case for TestColumnTypes_TIMESTAMP6.
+// On the 5.x images its NOT NULL column gets the implicit default that MySQL
+// gives the first TIMESTAMP NOT NULL column in a table.
+var mysqlTimestamp6Case = typetest.NewCase("timestamp_6", "TIMESTAMP(6)", fixt.DatetimeZ, datetimeMicros,
+	"timestamp", "timestamp(6)", kind.Datetime).
+	WithVersionOverrides(typetest.Override{
+		Before:     "v8.0.0",
+		PerVariant: typetest.PerVariant{NotNull: typetest.Want{Default: typetest.Is("CURRENT_TIMESTAMP(6)")}},
+	})
+
 var mysqlTypeCases = []typetest.Case{
 	typetest.NewCase("tinyint", "TINYINT", fixt.IntZ, int64(127), "tinyint", "tinyint", kind.Int).
 		WithVersionOverrides(displayWidthBefore8019("tinyint(4)")),
@@ -129,14 +177,8 @@ var mysqlTypeCases = []typetest.Case{
 			PerVariant: typetest.PerVariant{NotNull: typetest.Want{Default: typetest.Is("CURRENT_TIMESTAMP")}},
 		}),
 
-	// With explicit_defaults_for_timestamp off (the 5.x images), every
-	// TIMESTAMP NOT NULL column after the first gets an implicit default of
-	// '0000-00-00 00:00:00', which strict sql_mode (NO_ZERO_DATE) rejects, so
-	// CREATE TABLE fails. col_timestamp is the first. This can come back on
-	// 5.x once cases can declare defaults.
-	typetest.NewCase("timestamp_6", "TIMESTAMP(6)", fixt.DatetimeZ, datetimeMicros, "timestamp", "timestamp(6)",
-		kind.Datetime).
-		WithMinVer("v8.0.0"),
+	// TIMESTAMP(6) isn't here: it needs a table of its own on the 5.x images.
+	// See TestColumnTypes_TIMESTAMP6.
 
 	typetest.NewCase("time", "TIME", fixt.TimeOfDayZ, fixt.TimeOfDay, "time", "time", kind.Time),
 	typetest.NewCase("time_3", "TIME(3)", fixt.TimeOfDayZ, "12:34:56.789", "time", "time(3)", kind.Time).
