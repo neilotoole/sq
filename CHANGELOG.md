@@ -19,6 +19,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq), alongside the existing
   `ghcr.io/neilotoole/sq`. Both registries carry the same image. The image also now ships with SLSA
   build provenance and an SPDX SBOM, in addition to the existing cosign signature.
+- [#1369]: The [Oracle](https://sq.io/docs/drivers/oracle) driver is now tested against Oracle
+  21c, as well as 26ai. Earlier versions, including 19c, are not tested. See
+  [supported versions](https://sq.io/docs/drivers/oracle#supported-versions).
 
 ### Changed
 
