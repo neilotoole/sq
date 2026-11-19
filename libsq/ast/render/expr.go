@@ -5,7 +5,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 func doExpr(rc *Context, expr *ast.ExprNode) (string, error) {
@@ -38,7 +37,7 @@ func doExpr(rc *Context, expr *ast.ExprNode) (string, error) {
 			if rc.Args != nil {
 				val, ok := rc.Args[child.Key()]
 				if ok {
-					sb.WriteString(stringz.SingleQuote(val))
+					sb.WriteString(rc.Dialect.QuoteLiteral(val))
 					break
 				}
 			}

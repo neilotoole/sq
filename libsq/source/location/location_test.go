@@ -27,6 +27,7 @@ func TestIsSQL(t *testing.T) {
 		{loc: "postgres://sq:p_ssW0rd@localhost/sqtest?sslmode=disable", want: true},
 		{loc: "mysql://sq:p_ssW0rd@tcp(localhost:3306)/sqtest", want: true},
 		{loc: "clickhouse://sakila:p_ssW0rd@localhost:9000/sakila", want: true},
+		{loc: "databricks://token:dapi123@dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc", want: true},
 	}
 
 	for _, tc := range testCases {
@@ -220,6 +221,20 @@ func TestShort(t *testing.T) {
 		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001?tls=true", want: "sakila@localhost:4001"},
 		{loc: "rqlite://localhost:4001", want: "localhost:4001"},
 		{loc: "rqlite://sakila:p_ssW0rd@localhost:4001?level=strong", want: "sakila@localhost:4001"},
+		// databricks: host and HTTP path, without the "token" pseudo-user
+		// or the token, and without the query (which may hold a secret).
+		{
+			loc:  "databricks://token:dapi123@dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc",
+			want: "dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc",
+		},
+		{
+			loc:  "databricks://token:dapi123@dbc-1.cloud.databricks.com:443/sql/1.0/warehouses/abc?catalog=main",
+			want: "dbc-1.cloud.databricks.com:443/sql/1.0/warehouses/abc",
+		},
+		{
+			loc:  "databricks://dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc?clientID=id&clientSecret=s3cr3t",
+			want: "dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc",
+		},
 		// rqlite that fails url.ParseRequestURI: best-effort redaction, no leak.
 		{loc: "rqlite://alice:secret@[::1", want: "rqlite://alice:xxxxx@[::1"},
 		// HTTP URL with no usable path component: fall back to hostname.
@@ -370,6 +385,11 @@ func TestIsSecretQueryParam(t *testing.T) {
 		{key: "sslpassword", want: true},
 		{key: "_auth_pass", want: true},
 		{key: "client_secret", want: true},
+		// Databricks (camel case) params.
+		{key: "clientSecret", want: true},
+		{key: "accessToken", want: true},
+		{key: "clientID", want: false},
+		{key: "authType", want: false},
 		// Non-secrets, including near-misses.
 		{key: "user", want: false},
 		{key: "_auth_user", want: false},
@@ -555,6 +575,21 @@ func TestRedact_SecretQueryParams(t *testing.T) {
 			name: "rqlite userinfo and token query param",
 			loc:  "rqlite://alice:hunter2@localhost:4001/mydb?auth_token=abc",
 			want: "rqlite://alice:xxxxx@localhost:4001/mydb?auth_token=xxxxx",
+		},
+		{
+			name: "databricks userinfo token",
+			loc:  "databricks://token:dapi123@dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc?catalog=main",
+			want: "databricks://token:xxxxx@dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc?catalog=main",
+		},
+		{
+			name: "databricks oauth m2m secret query param",
+			loc:  "databricks://dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc?clientID=id&clientSecret=s3cr3t",
+			want: "databricks://dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc?clientID=id&clientSecret=xxxxx",
+		},
+		{
+			name: "databricks access token query param",
+			loc:  "databricks://dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc?accessToken=dapi123",
+			want: "databricks://dbc-1.cloud.databricks.com/sql/1.0/warehouses/abc?accessToken=xxxxx",
 		},
 		{
 			name: "http url with token query param",

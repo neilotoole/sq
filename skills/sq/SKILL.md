@@ -27,7 +27,7 @@ sq driver ls
 ```
 
 `sq driver ls` lists drivers available in this build (e.g. `postgres`, `duckdb`,
-`oracle`, `sqlite3`, `csv`).
+`oracle`, `databricks`, `sqlite3`, `csv`).
 
 ## Sources and handles
 
@@ -76,6 +76,7 @@ When the task involves a **specific driver** (connection strings, options, cavea
 | `mysql`                       | [references/mysql.md](references/mysql.md)           |
 | `clickhouse`                  | [references/clickhouse.md](references/clickhouse.md) |
 | `oracle`                      | [references/oracle.md](references/oracle.md)         |
+| `databricks`                  | [references/databricks.md](references/databricks.md) |
 | `csv`                         | [references/csv.md](references/csv.md)               |
 | `tsv`                         | [references/tsv.md](references/tsv.md)               |
 | `json`                        | [references/json.md](references/json.md)             |

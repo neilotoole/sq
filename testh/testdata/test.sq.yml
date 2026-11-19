@@ -128,4 +128,7 @@ collection:
     - handle: '@clickhouse_test'
       driver: clickhouse
       location: ${env:SQ_TEST_SRC__CLICKHOUSE_TEST}
+    - handle: '@databricks_test'
+      driver: databricks
+      location: ${env:SQ_TEST_SRC__DATABRICKS_TEST}
 

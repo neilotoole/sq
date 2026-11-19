@@ -2,11 +2,10 @@ package render
 
 import (
 	"github.com/neilotoole/sq/libsq/ast"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // Literal implement FragmentBuilder.
-func doLiteral(_ *Context, lit *ast.LiteralNode) (string, error) {
+func doLiteral(rc *Context, lit *ast.LiteralNode) (string, error) {
 	switch lit.LiteralType() {
 	case ast.LiteralNull:
 		return "NULL", nil
@@ -17,7 +16,7 @@ func doLiteral(_ *Context, lit *ast.LiteralNode) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return stringz.SingleQuote(text), nil
+		return rc.Dialect.QuoteLiteral(text), nil
 	case ast.LiteralBool:
 		return lit.Text(), nil
 	default:

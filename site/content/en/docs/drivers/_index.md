@@ -13,6 +13,7 @@ url: /docs/drivers
 [SQL Server](/docs/drivers/sqlserver),
 [ClickHouse](/docs/drivers/clickhouse),
 [Oracle](/docs/drivers/oracle),
+[Databricks](/docs/drivers/databricks),
 [SQLite](/docs/drivers/sqlite),
 [rqlite](/docs/drivers/rqlite),
 [DuckDB](/docs/drivers/duckdb),
