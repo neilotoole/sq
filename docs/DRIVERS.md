@@ -73,7 +73,8 @@ documentation as incomplete work. This is what keeps [sq.io](https://sq.io),
    `TestType_Coverage` fails until you add it.
 3. **Tests**: integration tests; for SQL drivers, a `sakiladb/{driver}` image
    and handle in [`testh/sakila/sakila.go`](../testh/sakila/sakila.go) when
-   applicable.
+   applicable, and a `TestColumnTypes` using `testh/typetest` (see
+   [Column-type tests](#column-type-tests)).
 4. **sq.io docs**: new page
    `site/content/en/docs/drivers/{driver}.md` (follow an existing driver page;
    link from [`site/content/en/docs/drivers/_index.md`](../site/content/en/docs/drivers/_index.md)).
@@ -255,6 +256,73 @@ func kindFromDBTypeName(dbType string) kind.Kind {
         return kind.Text
     }
 }
+```
+
+#### Column-type tests
+
+A SQL driver's `TestColumnTypes` checks what `sq` reports for every column type
+the database supports. It's built on the shared harness in
+[`testh/typetest`](../testh/typetest); see
+[`drivers/mysql/coltype_test.go`](../drivers/mysql/coltype_test.go) for a
+complete example, and [#1368](https://github.com/neilotoole/sq/issues/1368) for
+the background.
+
+The driver declares a table of cases, one per type declaration (`VARCHAR(16)`,
+`DECIMAL(5,2)`, ...), and passes it to `typetest.Run` in a `typetest.Config`.
+Build each case with `typetest.NewCase`, which takes the inputs and the inspect
+expectations every case needs, then chain `With` methods for the rest
+(`WithWantVal`, `WithPerVariant`, `WithVersionOverrides`, `WithIssue`, ...).
+For each case the harness creates a `NOT NULL` and a nullable column, inserts
+three rows (a zero value, a non-zero or edge value, and NULL for the nullable
+column), and checks:
+
+- `base_type`, `column_type`, `kind`, `nullable` and `default_value`, from both
+  `TableMetadata` and `SourceMetadata` (the paths behind `sq inspect @src.tbl`
+  and `sq inspect @src`);
+- the kind of the query result column;
+- the values read back through `sq`'s query pipeline, one query per column, and
+  then all columns in one query.
+
+Expectations record what `sq` does today, including values known to be wrong. A
+known-wrong expectation sets `Issue` to the issue tracking it, so that the fix
+shows up as a reviewed change to the expected value. A case is never skipped
+because it fails. If querying a column fails today, `QueryErr` records the
+error.
+
+Server versions and settings:
+
+- `MinVer` excludes a case on servers that don't have the type, or can't create
+  it as declared. Say why in a comment on the case.
+- `VersionOverrides` overrides expectations on older servers. Each `Override`
+  applies to servers older than its `Before` version, for example MySQL before
+  8.0.19 reporting `int(11)` where newer servers report `int`.
+- `Config.CheckSettings` verifies the server settings the expectations assume
+  (MySQL's `explicit_defaults_for_timestamp` and `sql_mode`, for example), so a
+  differently configured server fails with a message naming the setting.
+
+A type that can't share the main table goes in a test of its own, in the
+same `coltype_test.go`, named `TestColumnTypes_<TYPE>`:
+
+- If the type only needs a table of its own, the test calls `typetest.Run`
+  with a `Config` holding just that case, so it gets the same checks. MySQL's
+  `TestColumnTypes_TIMESTAMP6` does this: on the 5.x images, a second
+  `TIMESTAMP NOT NULL` column in a table gets an implicit default that
+  `CREATE TABLE` rejects.
+- If the type breaks the harness's model (at most one such column per table,
+  values the database generates), the test is written by hand and reuses `typetest.DiffMeta` for
+  its inspect checks. SQL Server's `TestColumnTypes_ROWVERSION` does this.
+
+An expected `default_value` that contains the generated table name (a Postgres
+serial column's `nextval('<table>_col_serial_seq'::regclass)`, for example)
+uses `typetest.TableToken` in its place.
+
+To write or update a case table, run the test with the `SQ_TYPETEST_DUMP`
+envar set. The harness then logs what every column actually reports (inspect
+fields, query kind, and values as Go literals) before checking anything. Run it
+against each server version and read the expectations off the log:
+
+```shell
+SQ_TYPETEST_DUMP=1 go test -v -run 'TestColumnTypes$' ./drivers/postgres/
 ```
 
 #### Database-specific quirks
