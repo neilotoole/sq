@@ -1,12 +1,14 @@
 package diff_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -818,6 +820,102 @@ func TestDiff_Data_StopTrailer(t *testing.T) {
 				require.NotContains(t, got, trailer,
 					"no difference beyond the stop limit exists, so nothing was truncated")
 			}
+		})
+	}
+}
+
+// TestDiff_Data_MissingTable verifies that a data diff where a table exists on
+// only one side completes, treating the missing table as empty: the existing
+// side's rows are reported as removed (or added). Previously the query for the
+// missing table returned without signaling end-of-data, so the diff blocked
+// forever. That affected table-level diffs naming a missing table, and
+// source-level diffs whenever the two sources' table sets differ, since
+// source-level --data diffs the union of both sides' table names.
+//
+// Each case runs under a timeout so that a regression fails fast rather than
+// hanging the test run.
+func TestDiff_Data_MissingTable(t *testing.T) {
+	const (
+		sharedDDL  = `CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)`
+		onlyDDL    = `CREATE TABLE only_one (id INTEGER PRIMARY KEY, v TEXT)`
+		onlyInsert = `INSERT INTO only_one VALUES (1,'only1'),(2,'only2'),(3,'only3')`
+	)
+
+	testCases := []struct {
+		name      string
+		onlyLeft  bool // only_one exists in left (true) or right (false)
+		args      func(left, right string) []string
+		wantPrefx string // "-" when the rows are only in left, "+" when only in right
+	}{
+		{
+			name:     "table_right_missing",
+			onlyLeft: true,
+			args: func(left, right string) []string {
+				return []string{left + ".only_one", right + ".only_one"}
+			},
+			wantPrefx: "-",
+		},
+		{
+			name:     "table_left_missing",
+			onlyLeft: false,
+			args: func(left, right string) []string {
+				return []string{left + ".only_one", right + ".only_one"}
+			},
+			wantPrefx: "+",
+		},
+		{
+			name:     "source_extra_table",
+			onlyLeft: true,
+			args: func(left, right string) []string {
+				return []string{left, right}
+			},
+			wantPrefx: "-",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			th := testh.New(t)
+			srcLeft := source.Source{
+				Handle:   "@test_left",
+				Type:     drivertype.SQLite,
+				Location: "sqlite3://" + filepath.Join(tu.TempDir(t), "left.db"),
+			}
+			srcRight := source.Source{
+				Handle:   "@test_right",
+				Type:     drivertype.SQLite,
+				Location: "sqlite3://" + filepath.Join(tu.TempDir(t), "right.db"),
+			}
+			th.ExecSQL(&srcLeft, sharedDDL)
+			th.ExecSQL(&srcRight, sharedDDL)
+			th.ExecSQL(&srcLeft, `INSERT INTO t VALUES (1,'a'),(2,'b')`)
+			th.ExecSQL(&srcRight, `INSERT INTO t VALUES (1,'a'),(2,'b')`)
+			onlySrc := &srcRight
+			if tc.onlyLeft {
+				onlySrc = &srcLeft
+			}
+			th.ExecSQL(onlySrc, onlyDDL)
+			th.ExecSQL(onlySrc, onlyInsert)
+
+			ctx, cancel := context.WithTimeout(th.Context, 30*time.Second)
+			defer cancel()
+
+			tr := testrun.New(ctx, t, nil).Hush().Add(srcLeft, srcRight)
+			args := append([]string{"diff", "--data", "--stop", "0"}, tc.args(srcLeft.Handle, srcRight.Handle)...)
+			err := tr.Exec(args...)
+			require.NoError(t, ctx.Err(), "diff must complete, not block")
+
+			got := tr.Out.String()
+			t.Log("diff output:\n" + got)
+
+			require.Error(t, err, "diff must report differences (exit code 1)")
+			require.Equal(t, 1, errz.ExitCode(err))
+			for _, v := range []string{"only1", "only2", "only3"} {
+				requireHasDiffLine(t, got, tc.wantPrefx, v, "row of the one-sided table")
+			}
+			// With one side empty, nothing can cascade, so the positional
+			// fallback note would be noise.
+			require.NotContains(t, got, "rows aligned by position")
 		})
 	}
 }

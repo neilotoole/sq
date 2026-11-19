@@ -564,3 +564,56 @@ func TestPositionalFallbackNote(t *testing.T) {
 	out = runRecordDifferWithPK(t, []string{"id"}, 1, 5000, makeAllDiff(3))
 	require.NotContains(t, out, noteText, "note must not appear when an eligible PK exists")
 }
+
+// TestCollateByKey_MissingSide verifies that collateByKey treats a side whose
+// table doesn't exist as empty, instead of blocking. On the key-aware path this
+// arises when a table is dropped between the metadata fetch (which found the
+// primary key on both sides) and the query: the query goroutine then calls
+// signalNotExist, and Open is never invoked for that side.
+func TestCollateByKey_MissingSide(t *testing.T) {
+	rm := record.Meta{newFieldMeta("id"), newFieldMeta("v")}
+
+	rs1 := &dbResults{recCh: make(chan record.Record, 4), opened: make(chan struct{})}
+	rs2 := &dbResults{recCh: make(chan record.Record, 4), opened: make(chan struct{})}
+
+	// Left: two rows, delivered via the usual Open path.
+	recCh, _, err := rs1.Open(context.Background(), nil, rm)
+	require.NoError(t, err)
+	recCh <- record.Record{int64(1), "a"}
+	recCh <- record.Record{int64(2), "b"}
+	close(recCh)
+
+	// Right: the table doesn't exist.
+	rs2.signalNotExist()
+
+	recPairsCh := make(chan record.Pair, 8)
+	kc := keyCollation{
+		rs1:        rs1,
+		rs2:        rs2,
+		pkColNames: []string{"id"},
+		recPairsCh: recPairsCh,
+		cfg:        &Config{Lines: 3},
+		incr:       func(int64) {},
+		dbCancel:   func(error) {},
+		cancelFn:   func(error) {},
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- collateByKey(context.Background(), kc) }()
+	select {
+	case err = <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("collateByKey blocked on the missing side")
+	}
+	require.NoError(t, err)
+
+	var got []record.Pair
+	for rp := range recPairsCh {
+		got = append(got, rp)
+	}
+	require.Len(t, got, 2)
+	for _, rp := range got {
+		require.NotNil(t, rp.Rec1())
+		require.Nil(t, rp.Rec2(), "every left row is removed: the right table is empty")
+	}
+}

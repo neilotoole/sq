@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"sync"
 
 	"github.com/samber/lo"
 
@@ -182,8 +183,11 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 		if err := libsq.ExecSLQ(dbCtx, qc, query1, rs1); err != nil {
 			switch {
 			case errz.Has[*driver.NotExistError](err):
-				// For diffing, it's totally ok if a table is not found.
+				// For diffing, it's totally ok if a table is not found: it's
+				// treated as empty. The query engine never invoked rs1.Open, so
+				// signal end-of-data here, or the collation blocks forever.
 				log.Debug("Diff: table not found", lga.Table, td1.String())
+				rs1.signalNotExist()
 				return
 			case errors.Is(err, errz.ErrStop) || errz.IsContextStop(dbCtx):
 				// This means we explicitly stopped the query, probably due to reaching
@@ -210,8 +214,11 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 		if err := libsq.ExecSLQ(dbCtx, qc, query2, rs2); err != nil {
 			switch {
 			case errz.Has[*driver.NotExistError](err):
-				// For diffing, it's totally ok if a table is not found.
+				// For diffing, it's totally ok if a table is not found: it's
+				// treated as empty. The query engine never invoked rs2.Open, so
+				// signal end-of-data here, or the collation blocks forever.
 				log.Debug("Diff: table not found", lga.Table, td2.String())
+				rs2.signalNotExist()
 				return
 			case errors.Is(err, errz.ErrStop) || errz.IsContextStop(dbCtx):
 				// This means we explicitly stopped the query, probably due to
@@ -272,6 +279,12 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 			pkColNames: pkColNames,
 			recMetaFn: func() (meta1, meta2 record.Meta) {
 				return rs1.recMeta, rs2.recMeta
+			},
+			// Read only after recPairsCh is drained: signalNotExist sets
+			// notExist before closing recCh, which happens-before the collation
+			// closes recPairsCh.
+			oneSidedFn: func() bool {
+				return rs1.notExist || rs2.notExist
 			},
 		}
 
@@ -420,16 +433,23 @@ func collateByKey(ctx context.Context, kc keyCollation) (err error) {
 	// Resolve PK column indexes independently for each side. A mismatch is a
 	// real bug (pkMergeKey already validated the PK against the table metadata),
 	// not normal flow, so there's no mid-stream fallback: we return an error
-	// that seals the doc.
-	keyIdxs1, ok1 := pkColIndexes(kc.rs1.recMeta, kc.pkColNames)
-	if !ok1 {
-		return errz.Errorf("diff: PK columns %v not found in left result columns %v",
-			kc.pkColNames, kc.rs1.recMeta.Names())
+	// that seals the doc. A side whose table doesn't exist (dropped after the
+	// metadata fetch) has no recMeta; its stream is empty, so its key indexes
+	// are never used.
+	var keyIdxs1, keyIdxs2 []int
+	if !kc.rs1.notExist {
+		var ok bool
+		if keyIdxs1, ok = pkColIndexes(kc.rs1.recMeta, kc.pkColNames); !ok {
+			return errz.Errorf("diff: PK columns %v not found in left result columns %v",
+				kc.pkColNames, kc.rs1.recMeta.Names())
+		}
 	}
-	keyIdxs2, ok2 := pkColIndexes(kc.rs2.recMeta, kc.pkColNames)
-	if !ok2 {
-		return errz.Errorf("diff: PK columns %v not found in right result columns %v",
-			kc.pkColNames, kc.rs2.recMeta.Names())
+	if !kc.rs2.notExist {
+		var ok bool
+		if keyIdxs2, ok = pkColIndexes(kc.rs2.recMeta, kc.pkColNames); !ok {
+			return errz.Errorf("diff: PK columns %v not found in right result columns %v",
+				kc.pkColNames, kc.rs2.recMeta.Names())
+		}
 	}
 
 	var (
@@ -474,7 +494,12 @@ type recordDiffer struct {
 	// query has been executed (the record.Meta is returned from the DB, and thus
 	// isn't guaranteed to be available at the time of recordDiffer construction).
 	recMetaFn func() (rm1, rm2 record.Meta)
-	td1, td2  source.Table
+
+	// oneSidedFn reports whether one side's table doesn't exist (and so is
+	// treated as empty). If nil, both tables are assumed to exist.
+	oneSidedFn func() bool
+
+	td1, td2 source.Table
 
 	// pkColNames holds the primary-key column names used for key-aware row
 	// merging, as determined by pkMergeKey. A nil value means the diff fell back
@@ -718,7 +743,10 @@ func (rd *recordDiffer) execAndSeal(ctx, dbCtx context.Context,
 
 	// If there were differences and no usable primary key was found, note that
 	// rows were aligned by position (inserts/deletes may cascade in the output).
-	if rd.pkColNames == nil && rd.hadDiffs {
+	// If one side's table doesn't exist, every row is one-sided and nothing can
+	// cascade, so the note is omitted.
+	oneSided := rd.oneSidedFn != nil && rd.oneSidedFn()
+	if rd.pkColNames == nil && rd.hadDiffs && !oneSided {
 		if h, hErr := doc.NewHunk(0); hErr == nil {
 			_, _ = io.WriteString(h, "… (no usable primary key; rows aligned by position — inserts/deletes may cascade)\n")
 			h.Seal(nil, nil)
@@ -759,15 +787,41 @@ type dbResults struct {
 	// recMeta is set by Open. It's a slice, so it's placed last to keep the
 	// struct's pointer region compact (govet fieldalignment).
 	recMeta record.Meta
+
+	// openOnce guards the one-time close of opened (and, on the not-exist
+	// path, of recCh): exactly one of Open or signalNotExist takes effect.
+	openOnce sync.Once
+
+	// notExist is set by signalNotExist, before opened is closed, when the
+	// table doesn't exist. It's safe to read after receiving from opened.
+	notExist bool
+}
+
+// signalNotExist marks rs's table as nonexistent and signals end-of-data, so
+// that the table is treated as empty. It must be called instead of Open, which
+// the query engine never invokes for a missing table: the engine only closes
+// recCh after Open, so without this the collation would block forever waiting
+// for records (or, on the key-aware path, for opened). If Open has already been
+// invoked, signalNotExist is a no-op; the engine then owns recCh.
+func (rs *dbResults) signalNotExist() {
+	rs.openOnce.Do(func() {
+		rs.notExist = true
+		if rs.opened != nil {
+			close(rs.opened)
+		}
+		close(rs.recCh)
+	})
 }
 
 // Open implements libsq.RecordWriter.
 func (rs *dbResults) Open(_ context.Context, _ context.CancelFunc, recMeta record.Meta,
 ) (recCh chan<- record.Record, errCh <-chan error, err error) {
 	rs.recMeta = recMeta
-	if rs.opened != nil {
-		close(rs.opened)
-	}
+	rs.openOnce.Do(func() {
+		if rs.opened != nil {
+			close(rs.opened)
+		}
+	})
 	return rs.recCh, rs.errCh, nil
 }
 
