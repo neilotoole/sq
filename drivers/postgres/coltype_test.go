@@ -133,6 +133,17 @@ func pgBitDefaultBefore11(def string) typetest.Override {
 	}
 }
 
+// pgExprDefaultBefore10 returns the override for an expression column's
+// default_value on servers before 10, which write the SQL-standard functions
+// (CURRENT_DATE, LOCALTIMESTAMP, CURRENT_USER and the like) in their older
+// form: ('now'::text)::date where 10 and later write CURRENT_DATE.
+func pgExprDefaultBefore10(def string) typetest.Override {
+	return typetest.Override{
+		Before:     "v10.0.0",
+		PerVariant: typetest.PerVariant{Defaulted: typetest.Want{Default: typetest.Is(def)}},
+	}
+}
+
 var pgTypeCases = []typetest.Case{
 	typetest.NewCase("smallint", "SMALLINT", fixt.IntZ, int64(math.MaxInt16), "int2", "smallint", kind.Int).
 		WithWantDefault("32767"),
@@ -333,6 +344,41 @@ var pgTypeCases = []typetest.Case{
 		WithWantDefault("'{alfa,bravo}'::text[]"),
 	typetest.NewCase("int4range", "INT4RANGE", "empty", "[1,7)", "int4range", "int4range", kind.Unknown).
 		WithWantDefault("'[1,7)'::int4range"),
+
+	// Expression defaults.
+	// A value that changes every row is checked only as a non-NULL value of
+	// its Go type, never against the clock. See typetest.NewExprCase.
+	// candidate issue (#1388): TIMESTAMPTZ values come back in the local time
+	// zone, as the timestamptz case's do.
+	typetest.NewExprCase("expr_now", "TIMESTAMPTZ", "now()", typetest.NotNullOf[time.Time](), "timestamptz",
+		"timestamp with time zone", kind.Datetime).
+		WithWantDefault("now()"),
+	typetest.NewExprCase("expr_current_timestamp_3", "TIMESTAMPTZ(3)", "CURRENT_TIMESTAMP(3)",
+		typetest.NotNullOf[time.Time](), "timestamptz", "timestamp with time zone", kind.Datetime).
+		WithVersionOverrides(pgExprDefaultBefore10("('now'::text)::timestamp(3) with time zone")).
+		WithWantDefault("CURRENT_TIMESTAMP(3)"),
+	typetest.NewExprCase("expr_localtimestamp", "TIMESTAMP", "LOCALTIMESTAMP", typetest.NotNullOf[time.Time](),
+		"timestamp", "timestamp without time zone", kind.Datetime).
+		WithVersionOverrides(pgExprDefaultBefore10("('now'::text)::timestamp without time zone")).
+		WithWantDefault("LOCALTIMESTAMP"),
+	typetest.NewExprCase("expr_current_date", "DATE", "CURRENT_DATE", typetest.NotNullOf[time.Time](), "date",
+		"date", kind.Date).
+		WithVersionOverrides(pgExprDefaultBefore10("('now'::text)::date")).
+		WithWantDefault("CURRENT_DATE"),
+	typetest.NewExprCase("expr_gen_random_uuid", "UUID", "gen_random_uuid()", typetest.NotNullOf[string](), "uuid",
+		"uuid", kind.Text).
+		WithMinVer("v13.0.0").
+		WithWantDefault("gen_random_uuid()"),
+	// The value is the connecting user's name, so it's checked only as a
+	// string.
+	typetest.NewExprCase("expr_current_user", "TEXT", "current_user", typetest.NotNullOf[string](), "text", "text",
+		kind.Text).
+		WithVersionOverrides(pgExprDefaultBefore10("\"current_user\"()")).
+		WithWantDefault("CURRENT_USER"),
+	typetest.NewExprCase("expr_seven", "INTEGER", "(1 + 6)", int64(7), "int4", "integer", kind.Int).
+		WithWantDefault("(1 + 6)"),
+	typetest.NewExprCase("expr_lower", "TEXT", "lower('SEVEN')", "seven", "text", "text", kind.Text).
+		WithWantDefault("lower('SEVEN'::text)"),
 }
 
 // serialDefault returns the default_value of a serial column of the

@@ -153,7 +153,15 @@ CREATE TABLE coltypes (
   col_text_array_d TEXT[] DEFAULT '{"alfa","bravo"}' NOT NULL,
   col_int4range INT4RANGE NOT NULL,
   col_int4range_n INT4RANGE NULL,
-  col_int4range_d INT4RANGE DEFAULT '[1,7)' NOT NULL
+  col_int4range_d INT4RANGE DEFAULT '[1,7)' NOT NULL,
+  col_expr_now_d TIMESTAMPTZ DEFAULT now() NOT NULL,
+  col_expr_current_timestamp_3_d TIMESTAMPTZ(3) DEFAULT CURRENT_TIMESTAMP(3) NOT NULL,
+  col_expr_localtimestamp_d TIMESTAMP DEFAULT LOCALTIMESTAMP NOT NULL,
+  col_expr_current_date_d DATE DEFAULT CURRENT_DATE NOT NULL,
+  col_expr_gen_random_uuid_d UUID DEFAULT gen_random_uuid() NOT NULL,
+  col_expr_current_user_d TEXT DEFAULT current_user NOT NULL,
+  col_expr_seven_d INTEGER DEFAULT (1 + 6) NOT NULL,
+  col_expr_lower_d TEXT DEFAULT lower('SEVEN') NOT NULL
 );
 
 INSERT INTO coltypes (
