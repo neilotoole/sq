@@ -80,8 +80,13 @@ func Test_VerifyDriverDoesNotReportNullability(t *testing.T) {
 	src := th.Source(sakila.Pg)
 	db := th.OpenDB(src)
 
-	_, actualTblName := createTypeTestTable(th, src, true)
+	actualTblName := stringz.UniqTableName("nullability")
+	_, err := db.ExecContext(th.Context, "CREATE TABLE "+actualTblName+
+		" (col_int integer NOT NULL, col_int_n integer, col_text text NOT NULL, col_text_n text)")
+	require.NoError(t, err)
 	t.Cleanup(func() { th.DropTable(src, tablefq.From(actualTblName)) })
+	_, err = db.ExecContext(th.Context, "INSERT INTO "+actualTblName+" VALUES (1, NULL, 'alfa', NULL)")
+	require.NoError(t, err)
 
 	rows, err := db.Query("SELECT * FROM " + actualTblName)
 	require.NoError(t, err)

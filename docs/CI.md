@@ -264,15 +264,15 @@ Dedup is best-effort: if a digest cannot be resolved the entry is kept.
 
 | Scenario     | Trigger                                        | Selection                   | Legs           |
 | ------------ | ---------------------------------------------- | --------------------------- | -------------- |
-| Nightly      | 04:00 UTC, not Monday                          | `{"*":["bookends"]}`        | 9              |
-| Weekly       | Monday 05:00 UTC                               | `{"*":["all"]}`             | 19             |
-| Release      | tag `v*`, gates `publish` and `docker-publish` | `{"*":["all"]}`             | 19             |
+| Nightly      | 04:00 UTC, not Monday                          | `{"*":["bookends"]}`        | 10             |
+| Weekly       | Monday 05:00 UTC                               | `{"*":["all"]}`             | 20             |
+| Release      | tag `v*`, gates `publish` and `docker-publish` | `{"*":["all"]}`             | 20             |
 | Driver PR    | paths `drivers/<engine>/**`                    | `{"<engine>":["bookends"]}` | 1-2 per engine |
-| Machinery PR | DB workflows, matrix scripts, `sakila-db.json` | `{"*":["bookends"]}`        | 9              |
+| Machinery PR | DB workflows, matrix scripts, `sakila-db.json` | `{"*":["bookends"]}`        | 10             |
 | Ad hoc       | dispatch                                       | as given                    |                |
 
-Nine bookend legs, not twelve, because clickhouse, oracle and rqlite have one tag each. Legs run
-in parallel with `fail-fast` off, so the wall clock of a nine-leg or nineteen-leg run is the
+Ten bookend legs, not twelve, because clickhouse and rqlite have one tag each. Legs run
+in parallel with `fail-fast` off, so the wall clock of a ten-leg or twenty-leg run is the
 slowest leg plus queueing: about 6 to 8 minutes per leg in practice, most of it setup rather
 than tests. The disk cleanup alone costs 55 to 108 seconds, and the largest images (Oracle, SQL
 Server) add a multi-minute pull before the first test runs.

@@ -1,6 +1,8 @@
 package csv
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/csv"
 	"errors"
@@ -272,9 +274,25 @@ func getDelimFromOptions(opts options.Options) (r rune, ok bool, err error) {
 func newCSVReader(r io.Reader, delim rune) *csv.Reader {
 	// We add the CR filter reader to deal with CSV files exported
 	// from Excel which can have the DOS-style \r EOL markers.
-	cr := csv.NewReader(&crFilterReader{r: r})
+	cr := csv.NewReader(&crFilterReader{r: skipBOM(r)})
 	cr.Comma = delim
 	return cr
+}
+
+// utf8BOM is the UTF-8 byte order mark, which some tools (notably Excel's
+// "CSV UTF-8" export) write at the start of a file.
+var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
+
+// skipBOM returns a reader that yields the contents of r without a leading
+// UTF-8 byte order mark. Otherwise the BOM would become part of the first
+// field, e.g. the first column name, and a quoted first field would be
+// rejected by the CSV parser.
+func skipBOM(r io.Reader) io.Reader {
+	br := bufio.NewReader(r)
+	if b, err := br.Peek(len(utf8BOM)); err == nil && bytes.Equal(b, utf8BOM) {
+		_, _ = br.Discard(len(utf8BOM))
+	}
+	return br
 }
 
 // crFilterReader is a reader whose Read method converts

@@ -81,12 +81,13 @@ type completion struct {
 	directives []cobra.ShellCompDirective
 }
 
-// schemaCompletionTimeout is the shell-completion timeout used by the
-// flag.ActiveSchema tests. The 500ms default is a UX budget, not a correctness
-// property, and these tests assert what completion returns, not how fast it
-// returns it. A cold source open on a loaded CI runner can exceed 500ms, which
-// surfaces as an empty result and ShellCompDirectiveError. See gh #595.
-const schemaCompletionTimeout = time.Second * 10
+// sourceCompletionTimeout is the shell-completion timeout used by tests whose
+// completion opens a source, such as to list its schemas or tables. The 500ms
+// default is a UX budget, not a correctness property, and these tests assert
+// what completion returns, not how fast it returns it. A cold source open on a
+// loaded CI runner can exceed 500ms, which surfaces as a partial or empty
+// result. See gh #595.
+const sourceCompletionTimeout = time.Second * 10
 
 // setCompletionTimeout sets cli.OptShellCompletionTimeout in tr's config store.
 // The store is what testComplete's run loads from, so the value must be
@@ -184,7 +185,7 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) { //nolint:tparallel
 
 					th := testh.New(t)
 					tr := testrun.New(th.Context, t, nil)
-					setCompletionTimeout(t, tr, schemaCompletionTimeout)
+					setCompletionTimeout(t, tr, sourceCompletionTimeout)
 					for _, handle := range tc.handles {
 						tr.Add(*th.Source(handle))
 					}
@@ -300,7 +301,7 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 
 			th := testh.New(t)
 			tr := testrun.New(th.Context, t, nil)
-			setCompletionTimeout(t, tr, schemaCompletionTimeout)
+			setCompletionTimeout(t, tr, sourceCompletionTimeout)
 			for _, handle := range tc.handles {
 				tr.Add(*th.Source(handle))
 			}
@@ -461,7 +462,9 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 			require.NoError(t, err)
 
 			require.NoError(t, tr.Run.Config.Collection.SetActiveGroup(tc.activeGroup))
-			require.NoError(t, tr.Run.ConfigStore.Save(tr.Context, tr.Run.Config))
+			// Cases such as "inspect @prod/sal" complete table names, which
+			// opens the source.
+			setCompletionTimeout(t, tr, sourceCompletionTimeout)
 
 			got := testComplete(t, tr, tc.args...)
 			assert.Equal(t, tc.wantDirective, got.result,
