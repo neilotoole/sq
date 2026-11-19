@@ -161,3 +161,11 @@ func TestCreateTable_ResolveDefaultExprs(t *testing.T) {
 	require.Equal(t, "CREATE TABLE t1 (row_id INT, col_a INT NOT NULL, col_a_d INT DEFAULT 7 NOT NULL)",
 		typetest.CreateTable("t1", "INT", cols, typetest.DefaultColumnDecl, ""))
 }
+
+func TestDefaultColumnDecl_NoType(t *testing.T) {
+	// SQLite accepts a column declared with no type: the declaration then has
+	// no leading space, so the column name is followed by one space, not two.
+	require.Equal(t, "NOT NULL", typetest.DefaultColumnDecl("", typetest.NotNull, ""))
+	require.Equal(t, "NULL", typetest.DefaultColumnDecl("", typetest.Nullable, ""))
+	require.Equal(t, "DEFAULT 'seven' NOT NULL", typetest.DefaultColumnDecl("", typetest.Defaulted, "'seven'"))
+}

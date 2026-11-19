@@ -16,16 +16,22 @@ const rowIDCol = "row_id"
 // NOT NULL because Oracle requires that order. defaultExpr is ignored for
 // the other variants.
 func DefaultColumnDecl(decl string, v Variant, defaultExpr string) string {
+	var clause string
 	switch v {
 	case NotNull:
-		return decl + " NOT NULL"
+		clause = "NOT NULL"
 	case Nullable:
-		return decl + " NULL"
+		clause = "NULL"
 	case Defaulted:
-		return decl + " DEFAULT " + defaultExpr + " NOT NULL"
+		clause = "DEFAULT " + defaultExpr + " NOT NULL"
 	default:
-		return decl + " NOT NULL"
+		clause = "NOT NULL"
 	}
+	if decl == "" {
+		// A column with no type, which SQLite accepts.
+		return clause
+	}
+	return decl + " " + clause
 }
 
 // CreateTable returns the CREATE TABLE statement for tbl: the row_id column
