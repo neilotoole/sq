@@ -92,6 +92,39 @@ func TestRemote_CLI(t *testing.T) {
 	}
 }
 
+// TestRemote_CLI_AddObjectStore verifies that sq add infers the parquet driver
+// and a handle for object-store URLs, without --driver or --handle. The
+// post-add ping is skipped: it would need a reachable bucket.
+func TestRemote_CLI_AddObjectStore(t *testing.T) {
+	testCases := []struct {
+		loc     string
+		wantErr bool
+	}{
+		{loc: "s3://my-bucket/path/to/events.parquet"},
+		{loc: "gs://my-bucket/events.pq"},
+		{loc: "hf://datasets/org/ds/data/events.parquet"},
+		{loc: "s3://my-bucket/path/to/events", wantErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.loc, func(t *testing.T) {
+			ctx := context.Background()
+			tr := testrun.New(ctx, t, nil)
+			err := tr.Exec("add", "-j", "--skip-verify", tc.loc)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			got := tr.BindMap()
+			require.Equal(t, drivertype.Parquet.String(), got["driver"])
+			require.Equal(t, tc.loc, got["location"])
+			require.Equal(t, "@events", got["handle"])
+		})
+	}
+}
+
 // TestRemote_CLI_PingUnreachable verifies that ping reports a remote parquet
 // location that can't be read.
 func TestRemote_CLI_PingUnreachable(t *testing.T) {

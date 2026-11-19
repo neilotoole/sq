@@ -320,13 +320,16 @@ func Parse(loc string) (*Fields, error) {
 			}
 		}
 
-		name := path.Base(u.Path)
-		fields.Ext = path.Ext(name)
-		if fields.Ext != "" {
-			name = name[:len(name)-len(fields.Ext)]
-		}
+		fields.Name, fields.Ext = urlPathNameExt(u.Path)
+		return fields, nil
+	}
 
-		fields.Name = name
+	if u, ok := isObjectStore(loc); ok {
+		// An object-store URL such as s3://bucket/key.parquet. DriverType
+		// is left unset, so that the file extension determines the driver.
+		fields.Scheme = u.Scheme
+		fields.Hostname = u.Hostname()
+		fields.Name, fields.Ext = urlPathNameExt(u.Path)
 		return fields, nil
 	}
 
@@ -587,6 +590,43 @@ func TypeOf(loc string) Type {
 		return TypeUnknown
 	}
 	return TypeFile
+}
+
+// objectStoreSchemes are the URL schemes of the object stores that DuckDB
+// reads directly: s3, s3a, s3n, gs, gcs, r2 and hf via its httpfs extension,
+// and az, azure and abfss via its azure extension.
+var objectStoreSchemes = map[string]struct{}{
+	"s3": {}, "s3a": {}, "s3n": {}, "gs": {}, "gcs": {}, "r2": {}, "hf": {},
+	"az": {}, "azure": {}, "abfss": {},
+}
+
+// IsObjectStore reports whether loc is an object-store URL, such as
+// s3://bucket/key.parquet. sq's files package can't read such a location:
+// only a driver that delegates to DuckDB can.
+func IsObjectStore(loc string) bool {
+	_, ok := isObjectStore(loc)
+	return ok
+}
+
+// isObjectStore returns the parsed URL and true if s is an object-store URL.
+func isObjectStore(s string) (u *url.URL, ok bool) {
+	u, err := url.Parse(s)
+	if err != nil || u.Host == "" {
+		return nil, false
+	}
+	if _, ok = objectStoreSchemes[u.Scheme]; !ok {
+		return nil, false
+	}
+	return u, true
+}
+
+// urlPathNameExt returns the base name of the URL path p, without its
+// extension, and the extension. For "/path/to/sakila.xlsx" it returns
+// "sakila" and ".xlsx".
+func urlPathNameExt(p string) (name, ext string) {
+	name = path.Base(p)
+	ext = path.Ext(name)
+	return name[:len(name)-len(ext)], ext
 }
 
 // IsURL returns true if t is TypeHTTP or TypeSQL.

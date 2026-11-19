@@ -46,6 +46,58 @@ func TestParse(t *testing.T) {
 			want: Fields{Scheme: "http", Hostname: "server", Name: "sakila", Ext: ".xlsx"},
 		},
 		{
+			// Object-store URLs, read by DuckDB's httpfs (and azure)
+			// extensions. DriverType is left for extension-based detection.
+			loc:  "s3://my-bucket/path/to/events.parquet",
+			want: Fields{Scheme: "s3", Hostname: "my-bucket", Name: "events", Ext: ".parquet"},
+		},
+		{
+			loc:  "s3://my-bucket/events.parquet?region=us-east-1",
+			want: Fields{Scheme: "s3", Hostname: "my-bucket", Name: "events", Ext: ".parquet"},
+		},
+		{
+			loc:  "s3a://my-bucket/events.parquet",
+			want: Fields{Scheme: "s3a", Hostname: "my-bucket", Name: "events", Ext: ".parquet"},
+		},
+		{
+			loc:  "s3n://my-bucket/events.parquet",
+			want: Fields{Scheme: "s3n", Hostname: "my-bucket", Name: "events", Ext: ".parquet"},
+		},
+		{
+			loc:  "gs://my-bucket/events.pq",
+			want: Fields{Scheme: "gs", Hostname: "my-bucket", Name: "events", Ext: ".pq"},
+		},
+		{
+			loc:  "gcs://my-bucket/events.parquet",
+			want: Fields{Scheme: "gcs", Hostname: "my-bucket", Name: "events", Ext: ".parquet"},
+		},
+		{
+			loc:  "r2://my-bucket/events.parquet",
+			want: Fields{Scheme: "r2", Hostname: "my-bucket", Name: "events", Ext: ".parquet"},
+		},
+		{
+			loc:  "hf://datasets/org/ds/data/train.parquet",
+			want: Fields{Scheme: "hf", Hostname: "datasets", Name: "train", Ext: ".parquet"},
+		},
+		{
+			loc:  "az://container/dir/events.parquet",
+			want: Fields{Scheme: "az", Hostname: "container", Name: "events", Ext: ".parquet"},
+		},
+		{
+			loc:  "azure://container/dir/events.parquet",
+			want: Fields{Scheme: "azure", Hostname: "container", Name: "events", Ext: ".parquet"},
+		},
+		{
+			loc: "abfss://container@account.dfs.core.windows.net/dir/events.parquet",
+			want: Fields{
+				Scheme: "abfss", Hostname: "account.dfs.core.windows.net", Name: "events", Ext: ".parquet",
+			},
+		},
+		{
+			loc:  "s3://my-bucket/events",
+			want: Fields{Scheme: "s3", Hostname: "my-bucket", Name: "events"},
+		},
+		{
 			loc:     "sqlite3:/path/to/sakila.db",
 			wantErr: true,
 		}, // the scheme is malformed (should be "sqlite3://...")

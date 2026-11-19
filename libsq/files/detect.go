@@ -71,6 +71,12 @@ func (fs *Files) DetectType(ctx context.Context, handle, loc string) (drivertype
 		}
 	}
 
+	if location.IsObjectStore(loc) {
+		// The byte detectors can't read an object-store URL (only DuckDB
+		// can), so there's nothing left to try.
+		return drivertype.None, errz.Errorf("unable to determine driver type: %s", loc)
+	}
+
 	// REVISIT: We really should try to be smarter here, esp with sqlite files.
 
 	fs.mu.Lock()
