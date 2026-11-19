@@ -19,8 +19,11 @@ func TestNewCase(t *testing.T) {
 	require.Equal(t, typetest.Is("int(11)"), c.Want.ColumnType)
 	require.Equal(t, typetest.Is(kind.Int), c.Want.Kind)
 
-	cols := mustResolve(t, c)
-	require.Len(t, cols, 2)
+	_, err := typetest.Resolve([]typetest.Case{c}, "v9.1.0")
+	require.Error(t, err, "the Defaulted column needs an expected default")
+
+	cols := mustResolve(t, c.WithWantDefault("7"))
+	require.Len(t, cols, 3)
 }
 
 func TestCase_WithWant(t *testing.T) {
@@ -119,4 +122,21 @@ func TestCase_BuildersKeepLiteralVal(t *testing.T) {
 		WithPerVariant(typetest.PerVariant{Nullable: typetest.Want{Zero: typetest.Is[any](int64(-2))}})
 	require.Equal(t, typetest.Is[any](int64(-1)), c.PerVariant.Nullable.LiteralZero)
 	require.Equal(t, typetest.Is[any](int64(-2)), c.PerVariant.Nullable.Zero)
+}
+
+func TestCase_WithWantDefault(t *testing.T) {
+	c := intCase("x").WithWantDefault("((7))")
+	require.Equal(t, typetest.Is("((7))"), c.PerVariant.Defaulted.Default)
+	require.False(t, c.Want.Default.Set, "only the Defaulted variant")
+}
+
+func TestCase_WithDefaultExpr(t *testing.T) {
+	require.Equal(t, "42", intCase("x").WithDefaultExpr("42").DefaultExpr)
+}
+
+func TestCase_WithPerVariantDefaulted(t *testing.T) {
+	c := intCase("x").WithWantDefault("7").
+		WithPerVariant(typetest.PerVariant{Defaulted: typetest.Want{BaseType: typetest.Is("text")}})
+	require.Equal(t, typetest.Is("text"), c.PerVariant.Defaulted.BaseType)
+	require.Equal(t, typetest.Is("7"), c.PerVariant.Defaulted.Default, "merged, not replaced")
 }

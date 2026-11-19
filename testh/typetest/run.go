@@ -25,12 +25,27 @@ import (
 
 // Config configures Run for one driver.
 type Config struct {
-	// ColumnDecl declares one column. Nil means DefaultColumnDecl.
-	ColumnDecl func(decl string, v Variant) string
+	// ColumnDecl declares one column of type decl for variant v, with
+	// defaultExpr the default expression of a Defaulted column (empty for
+	// the other variants). Nil means DefaultColumnDecl.
+	ColumnDecl func(decl string, v Variant, defaultExpr string) string
+
+	// DefaultExpr rewrites lit, the SQL literal for a case's Val, as the
+	// default expression of its Defaulted column col, where the dialect
+	// needs another form for a default: MySQL's parenthesized ('seven') for a
+	// TEXT column, for example. Nil means the literal as is. It isn't called
+	// for a case that sets Case.DefaultExpr.
+	DefaultExpr func(col Column, lit string) string
 
 	// CheckSettings verifies the server settings that the expectations
 	// assume, on the connection that creates the table. It returns an error
 	// naming the setting if one doesn't match. Nil means no check.
+	//
+	// Where the database reads a time literal in the session's time zone, it
+	// must check that the zone is UTC: the Defaulted columns' default
+	// literals are read when the table is created, on that connection, and
+	// DDLPrelude doesn't run there (only in the generated DDL file and the
+	// ddl subtest). MySQL's check, for example, requires a UTC time_zone.
 	CheckSettings func(ctx context.Context, db sqlz.DB, serverVer string) error
 
 	// Handle is the source handle, e.g. sakila.My.
@@ -97,7 +112,13 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 	require.NoError(t, err)
 	t.Logf("%s: server version %s", cfg.Handle, serverVer)
 
+	if dumpEnabled(t) {
+		cfg = dumpConfig(cfg)
+	}
 	cols, err := Resolve(cfg.Cases, serverVer)
+	if err == nil {
+		err = ResolveDefaultExprs(cfg, cols)
+	}
 	require.NoError(t, err)
 	require.NotEmpty(t, cols)
 

@@ -146,6 +146,9 @@ func RenderStatements(cfg Config, tbl, serverVer string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err = ResolveDefaultExprs(cfg, cols); err != nil {
+		return nil, err
+	}
 
 	colDecl := cfg.ColumnDecl
 	if colDecl == nil {
@@ -155,7 +158,7 @@ func RenderStatements(cfg Config, tbl, serverVer string) ([]string, error) {
 	var sb strings.Builder
 	sb.WriteString("CREATE TABLE " + tbl + " (\n  " + rowIDCol + " " + cfg.RowIDDecl)
 	for _, col := range cols {
-		sb.WriteString(",\n  " + col.Name + " " + colDecl(col.Case.Decl, col.Variant))
+		sb.WriteString(",\n  " + col.Name + " " + colDecl(col.Case.Decl, col.Variant, col.DefaultExpr))
 	}
 	sb.WriteString("\n)")
 	if cfg.TableSuffix != "" {
@@ -166,10 +169,25 @@ func RenderStatements(cfg Config, tbl, serverVer string) ([]string, error) {
 	// Each value's comment goes on the line before it, not after it: on
 	// ClickHouse 26.5, an unquoted Float32 literal followed by a comment
 	// read back as 0.
+	//
+	// The column list leaves out the Defaulted columns, so that they take
+	// their defaults. A DEFAULT keyword in VALUES isn't an option: SQLite
+	// doesn't support it.
+	names := []string{rowIDCol}
+	for _, col := range cols {
+		if col.Inserted() {
+			names = append(names, col.Name)
+		}
+	}
+	insertPrefix := "INSERT INTO " + tbl + " (\n  " + strings.Join(names, ",\n  ") + "\n) VALUES (\n  -- " +
+		rowIDCol + "\n  "
 	for row := range 3 {
 		sb.Reset()
-		sb.WriteString("INSERT INTO " + tbl + " VALUES (\n  -- " + rowIDCol + "\n  " + strconv.Itoa(row+1))
+		sb.WriteString(insertPrefix + strconv.Itoa(row+1))
 		for _, col := range cols {
+			if !col.Inserted() {
+				continue
+			}
 			lit, err := RenderLiteral(cfg, col, col.In[row])
 			if err != nil {
 				return nil, errz.Wrapf(err, "typetest: column %s (%s), row %d", col.Name, col.Case.Decl, row+1)
@@ -180,6 +198,33 @@ func RenderStatements(cfg Config, tbl, serverVer string) ([]string, error) {
 		stmts = append(stmts, sb.String())
 	}
 	return stmts, nil
+}
+
+// ResolveDefaultExprs sets the DefaultExpr of each Defaulted column in cols,
+// as returned by Resolve: its case's DefaultExpr if set, otherwise the SQL
+// literal for the case's Val (see Config.Literal), rewritten by
+// cfg.DefaultExpr if that's set. Run and RenderStatements call it; a caller
+// that builds a table itself with CreateTable must too.
+func ResolveDefaultExprs(cfg Config, cols []Column) error {
+	for i := range cols {
+		col := &cols[i]
+		if col.Variant != Defaulted {
+			continue
+		}
+		if col.Case.DefaultExpr != "" {
+			col.DefaultExpr = col.Case.DefaultExpr
+			continue
+		}
+		lit, err := RenderLiteral(cfg, *col, col.Case.Val)
+		if err != nil {
+			return errz.Wrapf(err, "typetest: column %s (%s): default expression", col.Name, col.Case.Decl)
+		}
+		if cfg.DefaultExpr != nil {
+			lit = cfg.DefaultExpr(*col, lit)
+		}
+		col.DefaultExpr = lit
+	}
+	return nil
 }
 
 // DDLTable is one table of a DDL file: a name and the Config that defines it.

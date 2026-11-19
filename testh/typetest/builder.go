@@ -42,6 +42,7 @@ func (c Case) WithWant(w Want) Case {
 func (c Case) WithPerVariant(pv PerVariant) Case {
 	layer(&c.PerVariant.NotNull, pv.NotNull)
 	layer(&c.PerVariant.Nullable, pv.Nullable)
+	layer(&c.PerVariant.Defaulted, pv.Defaulted)
 	return c
 }
 
@@ -74,8 +75,10 @@ func (c Case) WithNullInput(v any) Case {
 	return c
 }
 
-// Creates reports whether c creates a column for variant v: whether v is in
-// c.Variants, or in the default variants when c.Variants is nil.
+// Creates reports whether c creates a column for variant v on the newest
+// server version: whether v is in c.Variants, or in the default variants when
+// c.Variants is nil. It ignores the Variants of c's VersionOverrides, which
+// apply only on older servers.
 func (c Case) Creates(v Variant) bool {
 	if c.Variants == nil {
 		return slices.Contains(defaultVariants, v)
@@ -108,5 +111,20 @@ func (c Case) WithWantVal(v any) Case {
 // variant. See Want.LiteralVal.
 func (c Case) WithWantLiteralVal(v any) Case {
 	c.Want.LiteralVal = Is(v)
+	return c
+}
+
+// WithWantDefault returns a copy of c expecting the Defaulted column to
+// report s as its default_value.
+func (c Case) WithWantDefault(s string) Case {
+	c.PerVariant.Defaulted.Default = Is(s)
+	return c
+}
+
+// WithDefaultExpr returns a copy of c with DefaultExpr set to expr: the
+// Defaulted column's default expression, in place of the SQL literal for Val.
+// The column's expected value still comes from Val (see Case.DefaultExpr).
+func (c Case) WithDefaultExpr(expr string) Case {
+	c.DefaultExpr = expr
 	return c
 }

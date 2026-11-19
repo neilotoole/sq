@@ -77,7 +77,9 @@ func TestCheckDDLLoads_SingleConnPool(t *testing.T) {
 
 	cfg := Config{
 		RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
-		Cases:     []Case{NewCase("int", "INTEGER", int64(0), int64(7), "INTEGER", "INTEGER", kind.Int)},
+		Cases: []Case{
+			NewCase("int", "INTEGER", int64(0), int64(7), "INTEGER", "INTEGER", kind.Int).WithWantDefault("7"),
+		},
 	}
 	cols, err := Resolve(cfg.Cases, serverVer)
 	require.NoError(t, err)

@@ -13,14 +13,15 @@
 // # Rows
 //
 // Each case is declared as one column per variant: by default a NOT NULL
-// column and a nullable one. Run inserts three rows into the table, and every
-// column gets a value in each:
+// column, a nullable one, and a NOT NULL one with a declared default. Run
+// inserts three rows into the table, giving every column but the defaulted
+// one a value in each:
 //
-//	row_id | NotNull column | Nullable column
-//	-------+----------------+--------------------------
-//	1      | Case.Zero      | Case.Zero
-//	2      | Case.Val       | Case.Val
-//	3      | Case.Val       | NULL (bound as NullInput)
+//	row_id | NotNull column | Nullable column           | Defaulted column
+//	-------+----------------+---------------------------+-----------------
+//	1      | Case.Zero      | Case.Zero                 | (left out)
+//	2      | Case.Val       | Case.Val                  | (left out)
+//	3      | Case.Val       | NULL (bound as NullInput) | (left out)
 //
 // Row 1 holds a zero value (0, "", the zero time) and row 2 a non-zero one,
 // usually an edge value such as the type's maximum, so a value that reads back
@@ -33,6 +34,14 @@
 // column's expected values for the three rows are Want.Zero, Want.Val (each
 // defaulting to its input) and, in row 3, Want.Val for NotNull and NULL for
 // Nullable. Column.In and Column.Want hold them after Resolve.
+//
+// The Defaulted column is never inserted, so it takes its default in every
+// row. The default is the SQL literal for Case.Val (Config.Literal, rewritten
+// by Config.DefaultExpr, or Case.DefaultExpr in its place), so the column's
+// expected value is the same in all three rows: Want.LiteralVal, defaulting
+// to Want.Val. Its expected default_value is required: set it with
+// Case.WithWantDefault. A type that can't take a default leaves Defaulted out
+// of Case.Variants, or of an Override's Variants on older servers.
 //
 // # Generated DDL
 //
@@ -56,8 +65,9 @@
 // value checks against the result. That proves the literals load on each
 // server version the tests run against, and read back as expected wherever
 // the loading session's time zone is. It doesn't run the committed file
-// itself, through a native client: a case gated by MinVer is in the file but
-// can fail on an older server. A row loaded from literals is expected to read
+// itself, through a native client: a case gated by MinVer, or a variant gated
+// by an Override's Variants, is in the file but can fail on an older server.
+// MySQL's file, for one, doesn't load on 5.x. A row loaded from literals is expected to read
 // back the same as the bound row, unless Want.LiteralZero or Want.LiteralVal
 // says otherwise: typically where the driver mangles a bound value that the
 // literal stores intact. A column with a QueryErr is queried on its own, and
@@ -70,9 +80,10 @@ import (
 
 // Variant identifies one of the columns created for a case. A case tests one
 // column type, but declares it as several columns that differ in a single
-// property, such as nullability, so that each variant's inspect fields and
-// values are checked separately. For example, the case "int" creates the
-// columns "col_int" (NotNull) and "col_int_n" (Nullable), both of type INT.
+// property, such as nullability or a declared default, so that each variant's
+// inspect fields and values are checked separately. For example, the case
+// "int" creates the columns "col_int" (NotNull), "col_int_n" (Nullable) and
+// "col_int_d" (Defaulted), all of type INT.
 //
 // Case.Variants selects which variants a case creates. Expectations that
 // apply to only one variant go in PerVariant.
@@ -84,6 +95,13 @@ const (
 
 	// Nullable is the column "col_<name>_n", declared NULL.
 	Nullable
+
+	// Defaulted is the column "col_<name>_d", declared NOT NULL with a
+	// default, and left out of every INSERT, so that every row reads back the
+	// default. The default expression is the SQL literal for Case.Val (see
+	// Config.DefaultExpr and Case.DefaultExpr). Its expected default_value
+	// must be set, with Case.WithWantDefault.
+	Defaulted
 )
 
 // String implements fmt.Stringer.
@@ -93,6 +111,8 @@ func (v Variant) String() string {
 		return "not_null"
 	case Nullable:
 		return "nullable"
+	case Defaulted:
+		return "defaulted"
 	default:
 		return "unknown"
 	}
@@ -100,14 +120,20 @@ func (v Variant) String() string {
 
 // suffix returns the column name suffix for v.
 func (v Variant) suffix() string {
-	if v == Nullable {
+	switch v {
+	case NotNull:
+		return ""
+	case Nullable:
 		return "_n"
+	case Defaulted:
+		return "_d"
+	default:
+		return ""
 	}
-	return ""
 }
 
 // defaultVariants is the variants a case gets when Case.Variants is nil.
-var defaultVariants = []Variant{NotNull, Nullable}
+var defaultVariants = []Variant{NotNull, Nullable, Defaulted}
 
 // Opt is an optional expectation with an explicit presence flag, so that
 // "unset" is distinct from every value, including kind.Unknown (the zero
@@ -192,8 +218,9 @@ type Want struct {
 // overrides, and adding a Variant adds a field here without touching
 // existing cases.
 type PerVariant struct {
-	NotNull  Want
-	Nullable Want
+	NotNull   Want
+	Nullable  Want
+	Defaulted Want
 }
 
 // get returns the expectations for v.
@@ -203,6 +230,8 @@ func (pv PerVariant) get(v Variant) Want {
 		return pv.NotNull
 	case Nullable:
 		return pv.Nullable
+	case Defaulted:
+		return pv.Defaulted
 	default:
 		return Want{}
 	}
@@ -218,6 +247,12 @@ type Override struct {
 
 	// Want overrides Case.Want, field by field.
 	Want Want
+
+	// Variants, if non-nil, replaces Case.Variants on servers older than
+	// Before: for a type that can take a default only from some version, for
+	// example. Like the rest of an Override, it applies only if this is the
+	// first override whose Before is greater than the server version.
+	Variants []Variant
 
 	// PerVariant overrides this Override's Want for individual variants,
 	// field by field.
@@ -246,6 +281,14 @@ type Case struct {
 	// Decl is the type as written in a column definition, e.g. "VARCHAR(16)".
 	Decl string
 
+	// DefaultExpr, if set, is the Defaulted column's default expression,
+	// used as is. Leave it empty for the SQL literal for Val, rewritten by
+	// Config.DefaultExpr if that's set: set it only where neither will do.
+	// The column's expected value still comes from Val (Want.LiteralVal, then
+	// Want.Val), so an expression that reads back as something else needs
+	// PerVariant.Defaulted's Val set to match.
+	DefaultExpr string
+
 	// MinVer, if set, excludes the case on servers older than this canonical
 	// semver.
 	MinVer string
@@ -256,9 +299,9 @@ type Case struct {
 	Issue string
 
 	// Variants selects which columns to create for the case, one per listed
-	// Variant, in the order listed. Leave it nil to create the usual pair,
-	// NotNull ("col_<name>") then Nullable ("col_<name>_n"). Set it only
-	// when the type can't be declared one of those ways, e.g.
+	// Variant, in the order listed. Leave it nil to create the default
+	// variants (see defaultVariants). Set it only when the type can't be
+	// declared one of those ways, e.g.
 	// []Variant{Nullable} for a type the database won't accept as NOT NULL.
 	//
 	// A non-nil empty slice is an error, as is listing a Variant twice:
@@ -299,6 +342,11 @@ type Column struct {
 	// Name is the column name: "col_" + Case.Name + the variant's suffix.
 	Name string
 
+	// DefaultExpr is the default expression of a Defaulted column, set by
+	// ResolveDefaultExprs once the column's literal is rendered. It's empty
+	// for the other variants.
+	DefaultExpr string
+
 	BaseType   string
 	ColumnType string
 	Default    string
@@ -311,4 +359,10 @@ type Column struct {
 
 	Variant  Variant
 	Nullable bool
+}
+
+// Inserted reports whether c is given a value by the INSERT statements: every
+// column but a Defaulted one, which is left out so that it takes its default.
+func (c Column) Inserted() bool {
+	return c.Variant != Defaulted
 }

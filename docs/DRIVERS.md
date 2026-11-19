@@ -272,9 +272,11 @@ The driver declares a table of cases, one per type declaration (`VARCHAR(16)`,
 Build each case with `typetest.NewCase`, which takes the inputs and the inspect
 expectations every case needs, then chain `With` methods for the rest
 (`WithWantVal`, `WithPerVariant`, `WithVersionOverrides`, `WithIssue`, ...).
-For each case the harness creates a `NOT NULL` and a nullable column, inserts
-three rows (a zero value, a non-zero or edge value, and NULL for the nullable
-column), and checks:
+For each case the harness creates three columns: `NOT NULL`, nullable, and
+`NOT NULL` with a declared default (`col_<name>_d`, the `Defaulted` variant).
+It inserts three rows (a zero value, a non-zero or edge value, and NULL for the
+nullable column), leaving the defaulted column out so it takes its default, and
+checks:
 
 - `base_type`, `column_type`, `kind`, `nullable` and `default_value`, from both
   `TableMetadata` and `SourceMetadata` (the paths behind `sq inspect @src.tbl`
@@ -298,7 +300,12 @@ Server versions and settings:
   8.0.19 reporting `int(11)` where newer servers report `int`.
 - `Config.CheckSettings` verifies the server settings the expectations assume
   (MySQL's `explicit_defaults_for_timestamp` and `sql_mode`, for example), so a
-  differently configured server fails with a message naming the setting.
+  differently configured server fails with a message naming the setting. If
+  the database reads a time literal in the session's time zone, it must also
+  check that the zone is UTC: the defaulted columns' default literals are read
+  when the table is created, on the connection `CheckSettings` gets, where
+  `Config.DDLPrelude` doesn't run. MySQL's check requires a `time_zone` of
+  `+00:00` or `UTC`, or `SYSTEM` on a server whose system time zone is UTC.
 
 A type that can't share the main table goes in a test of its own, in the
 same `coltype_test.go`, named `TestColumnTypes_<TYPE>`:
@@ -355,6 +362,18 @@ precision on a bound value that the literal stores intact, record it with
 `PerVariant` or a version override) that sets `Val` without `LiteralVal`
 clears it, since it says what both paths read back; set both to keep them
 apart.
+
+The defaulted column's default is the same SQL literal for the case's `Val`.
+`Config.DefaultExpr` rewrites it where the dialect needs another form for a
+default (MySQL's parenthesized `('seven')` for a `TEXT` column, SQLite's
+parentheses around an expression), and `WithDefaultExpr` replaces it for one
+case. Every case states the `default_value` the driver reports for it, with
+`WithWantDefault`, written out even where the text follows a pattern, so a
+change in what the driver reports shows up as a changed expectation. Dump mode
+drafts them. A type that can't take a default leaves `Defaulted` out with
+`WithVariants`; one that can't on older servers lists the variants to create
+there in its version override, for example
+`typetest.Override{Before: "v8.0.13", Variants: []typetest.Variant{typetest.NotNull, typetest.Nullable}}`.
 
 #### Database-specific quirks
 
