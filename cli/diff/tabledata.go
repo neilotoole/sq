@@ -168,10 +168,16 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	// records from the DB queries will be sent to each dbResults.recCh, and
 	// any errors will be sent to the shared errCh.
 
-	qc := run.NewQueryContext(cfg.Run, nil)
-	// diff only reads source data; open the source grips read-only so the
-	// pipeline's opens don't take a write lock (e.g. on DuckDB files).
-	qc.AccessMode = driver.ModeReadOnly
+	// Each query gets its own QueryContext: the query pipeline appends to the
+	// QueryContext's PreExecStmts and PostExecStmts while preparing the query,
+	// so sharing one between the two concurrent queries is a data race.
+	newQC := func() *libsq.QueryContext {
+		qc := run.NewQueryContext(cfg.Run, nil)
+		// diff only reads source data; open the source grips read-only so the
+		// pipeline's opens don't take a write lock (e.g. on DuckDB files).
+		qc.AccessMode = driver.ModeReadOnly
+		return qc
+	}
 
 	// We give the DB query goroutines their own context, dbCtx. This is so that
 	// we can explicitly stop the queries using dbCancel(errz.ErrStop) if we reach
@@ -180,7 +186,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	go func() {
 		query1 := dataQuery(td1, pkColNames)
 		// Execute DB query1; records will be sent to rs1.recCh.
-		if err := libsq.ExecSLQ(dbCtx, qc, query1, rs1); err != nil {
+		if err := libsq.ExecSLQ(dbCtx, newQC(), query1, rs1); err != nil {
 			switch {
 			case errz.Has[*driver.NotExistError](err):
 				// For diffing, it's totally ok if a table is not found: it's
@@ -211,7 +217,7 @@ func diffTableData(ctx context.Context, cancelFn context.CancelCauseFunc,
 	go func() {
 		query2 := dataQuery(td2, pkColNames)
 		// Execute DB query2; records will be sent to rs2.recCh.
-		if err := libsq.ExecSLQ(dbCtx, qc, query2, rs2); err != nil {
+		if err := libsq.ExecSLQ(dbCtx, newQC(), query2, rs2); err != nil {
 			switch {
 			case errz.Has[*driver.NotExistError](err):
 				// For diffing, it's totally ok if a table is not found: it's
