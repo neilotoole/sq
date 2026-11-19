@@ -656,6 +656,72 @@ func TestDiff_Data_NullablePKFallsBack(t *testing.T) {
 		"a nullable primary key must fall back to positional alignment")
 }
 
+// TestDiff_Data_PKAlignAllDrivers verifies that key-aware alignment works for
+// each SQL driver, not only SQLite. Each driver's actor table is diffed
+// against a SQLite copy of sakila with 5 scattered actors deleted. Key-aware
+// merging needs both sides to report a matching, non-nullable integer primary
+// key, so this catches a driver that misreports its key metadata (for example,
+// reporting actor_id as nullable) and thereby silently falls back to
+// positional alignment, which cascades.
+//
+// Two drivers currently fall back, for reasons unrelated to the driver's
+// nullability reporting, and are pinned here so that a change in either
+// direction is noticed:
+//
+//   - ClickHouse doesn't report its sort key as a primary key.
+//   - Oracle reports the key column as ACTOR_ID, which doesn't match SQLite's
+//     actor_id; key-aware merging requires identical key column names.
+func TestDiff_Data_PKAlignAllDrivers(t *testing.T) {
+	const wantRemoved = 5
+	wantFallback := map[string]bool{sakila.CH: true, sakila.Ora: true}
+
+	for _, handle := range sakila.SQLAll() {
+		t.Run(tu.Name(handle), func(t *testing.T) {
+			th := testh.New(t)
+			src := th.Source(handle)
+
+			rightPath := filepath.Join(tu.TempDir(t), "right.db")
+			require.NoError(t, ioz.CopyFile(rightPath, proj.Abs(sakila.PathSL3), true))
+			srcRight := source.Source{
+				Handle:   "@test_right",
+				Type:     drivertype.SQLite,
+				Location: "sqlite3://" + rightPath,
+			}
+			th.ExecSQL(&srcRight, "DELETE FROM actor WHERE actor_id IN (2, 4, 6, 8, 10)")
+
+			tr := testrun.New(th.Context, t, nil).Hush().Add(*src, srcRight)
+			err := tr.Exec(
+				"diff", "--data", "--unified", "0", "--stop", "0",
+				src.Handle+"."+sakila.TblActor,
+				srcRight.Handle+"."+sakila.TblActor,
+			)
+			require.Error(t, err, "diff must report differences (exit code 1)")
+			require.Equal(t, 1, errz.ExitCode(err))
+
+			got := tr.Out.String()
+			fellBack := strings.Contains(got, "rows aligned by position")
+			if wantFallback[handle] {
+				require.True(t, fellBack, "expected positional fallback for %s", handle)
+				return
+			}
+
+			require.False(t, fellBack, "%s must use key-aware alignment; got:\n%s", handle, got)
+			var added, removed int
+			for _, line := range strings.Split(got, "\n") {
+				switch {
+				case strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---"):
+				case strings.HasPrefix(line, "+"):
+					added++
+				case strings.HasPrefix(line, "-"):
+					removed++
+				}
+			}
+			require.Equal(t, wantRemoved, removed, "one removed line per deleted actor")
+			require.Zero(t, added)
+		})
+	}
+}
+
 // TestDiff_Data_HunkHeaderCounts verifies that the unified-diff hunk header
 // correctly counts per-side lines for single-sided pairs (added/removed rows).
 //
