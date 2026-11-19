@@ -163,10 +163,19 @@ func resolveColumn(c *Case, v Variant, serverVer string) (Column, error) {
 		return Column{}, err
 	}
 
+	litZeroWant, litValWant := zeroWant, valWant
+	if w.LiteralZero.Set {
+		litZeroWant = w.LiteralZero.Val
+	}
+	if w.LiteralVal.Set {
+		litValWant = w.LiteralVal.Val
+	}
+
 	col.In = [3]any{c.Zero, c.Val, c.Val}
 	col.Want = [3]any{zeroWant, valWant, valWant}
+	col.LiteralWant = [3]any{litZeroWant, litValWant, litValWant}
 	if v == Nullable {
-		col.In[2], col.Want[2] = c.NullInput, nil
+		col.In[2], col.Want[2], col.LiteralWant[2] = c.NullInput, nil, nil
 	}
 
 	return col, nil
@@ -201,6 +210,8 @@ func layer(dst *Want, src Want) {
 	setIf(&dst.Default, src.Default)
 	setIf(&dst.Zero, src.Zero)
 	setIf(&dst.Val, src.Val)
+	setIf(&dst.LiteralZero, src.LiteralZero)
+	setIf(&dst.LiteralVal, src.LiteralVal)
 	setIf(&dst.QueryErr, src.QueryErr)
 	setIf(&dst.Nullable, src.Nullable)
 }

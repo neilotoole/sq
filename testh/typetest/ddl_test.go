@@ -83,31 +83,52 @@ func TestRenderStatements(t *testing.T) {
   col_gated_n INT NULL
 )`,
 		`INSERT INTO t1 VALUES (
-  1, -- row_id
-  0, -- col_int
-  0, -- col_int_n
-  ST_GeomFromText('POINT(1 1)'), -- col_g
-  ST_GeomFromText('POINT(1 1)'), -- col_g_n
-  0, -- col_gated
-  0 -- col_gated_n
+  -- row_id
+  1,
+  -- col_int
+  0,
+  -- col_int_n
+  0,
+  -- col_g
+  ST_GeomFromText('POINT(1 1)'),
+  -- col_g_n
+  ST_GeomFromText('POINT(1 1)'),
+  -- col_gated
+  0,
+  -- col_gated_n
+  0
 )`,
 		`INSERT INTO t1 VALUES (
-  2, -- row_id
-  SEVEN, -- col_int
-  SEVEN, -- col_int_n
-  ST_GeomFromText('POINT(1 1)'), -- col_g
-  ST_GeomFromText('POINT(1 1)'), -- col_g_n
-  SEVEN, -- col_gated
-  SEVEN -- col_gated_n
+  -- row_id
+  2,
+  -- col_int
+  SEVEN,
+  -- col_int_n
+  SEVEN,
+  -- col_g
+  ST_GeomFromText('POINT(1 1)'),
+  -- col_g_n
+  ST_GeomFromText('POINT(1 1)'),
+  -- col_gated
+  SEVEN,
+  -- col_gated_n
+  SEVEN
 )`,
 		`INSERT INTO t1 VALUES (
-  3, -- row_id
-  SEVEN, -- col_int
-  NULL, -- col_int_n
-  ST_GeomFromText('POINT(1 1)'), -- col_g
-  NULL, -- col_g_n
-  SEVEN, -- col_gated
-  NULL -- col_gated_n
+  -- row_id
+  3,
+  -- col_int
+  SEVEN,
+  -- col_int_n
+  NULL,
+  -- col_g
+  ST_GeomFromText('POINT(1 1)'),
+  -- col_g_n
+  NULL,
+  -- col_gated
+  SEVEN,
+  -- col_gated_n
+  NULL
 )`,
 	}, stmts)
 	require.Contains(t, gotDecls, "GEOMETRY", "the literal func is given each value's column")
@@ -147,8 +168,8 @@ func TestRenderDDL(t *testing.T) {
 	got, err := typetest.RenderDDL("-- header\n", typetest.DDLTable{Name: "coltypes", Config: cfg})
 	require.NoError(t, err)
 	require.True(t, strings.HasPrefix(got, "-- header\n\nCREATE TABLE coltypes (\n"))
-	require.Contains(t, got, "\n);\n\nINSERT INTO coltypes VALUES (\n  1, -- row_id\n")
-	require.True(t, strings.HasSuffix(got, "  NULL -- col_int_n\n);\n"))
+	require.Contains(t, got, "\n);\n\nINSERT INTO coltypes VALUES (\n  -- row_id\n  1,\n")
+	require.True(t, strings.HasSuffix(got, "  -- col_int_n\n  NULL\n);\n"))
 
 	// Every MinVer-gated case is included: the file is for the newest
 	// supported server version.
@@ -180,4 +201,10 @@ func TestTimestampTZLiteral(t *testing.T) {
 		typetest.TimestampTZLiteral(time.Date(1989, 11, 9, 0, 0, 0, 0, time.UTC)))
 	require.Equal(t, "'2017-07-07 07:07:07.123+00:00'",
 		typetest.TimestampTZLiteral(time.Date(2017, 7, 7, 0, 7, 7, 123000000, time.FixedZone("", -7*3600))))
+}
+
+func TestCompareDDL_CreatesDir(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "testdata", "coltypes.ddl")
+	require.NoError(t, typetest.CompareDDL(path, "x\n", true), "update creates a missing testdata directory")
+	require.NoError(t, typetest.CompareDDL(path, "x\n", false))
 }

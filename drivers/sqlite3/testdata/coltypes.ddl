@@ -59,151 +59,292 @@ CREATE TABLE coltypes (
 );
 
 INSERT INTO coltypes VALUES (
-  1, -- row_id
-  0, -- col_integer
-  0, -- col_integer_n
-  0, -- col_int
-  0, -- col_int_n
-  0, -- col_tinyint
-  0, -- col_tinyint_n
-  0, -- col_bigint
-  0, -- col_bigint_n
-  FALSE, -- col_boolean
-  FALSE, -- col_boolean_n
-  0, -- col_real
-  0, -- col_real_n
-  0, -- col_double
-  0, -- col_double_n
-  0, -- col_float
-  0, -- col_float_n
-  0, -- col_numeric
-  0, -- col_numeric_n
-  0, -- col_decimal_10_5
-  0, -- col_decimal_10_5_n
-  '', -- col_text
-  '', -- col_text_n
-  '', -- col_varchar_16
-  '', -- col_varchar_16_n
-  '', -- col_char_10
-  '', -- col_char_10_n
-  '', -- col_clob
-  '', -- col_clob_n
-  X'', -- col_blob
-  X'', -- col_blob_n
-  '1989-11-09', -- col_date
-  '1989-11-09', -- col_date_n
-  '1989-11-09', -- col_datetime
-  '1989-11-09', -- col_datetime_n
-  '1989-11-09', -- col_timestamp
-  '1989-11-09', -- col_timestamp_n
-  '00:00:00', -- col_time
-  '00:00:00', -- col_time_n
-  '{}', -- col_json
-  '{}', -- col_json_n
-  0, -- col_untyped
-  0, -- col_untyped_n
-  0, -- col_widget
-  0, -- col_widget_n
-  0, -- col_integer_affinity
-  0 -- col_integer_affinity_n
+  -- row_id
+  1,
+  -- col_integer
+  0,
+  -- col_integer_n
+  0,
+  -- col_int
+  0,
+  -- col_int_n
+  0,
+  -- col_tinyint
+  0,
+  -- col_tinyint_n
+  0,
+  -- col_bigint
+  0,
+  -- col_bigint_n
+  0,
+  -- col_boolean
+  FALSE,
+  -- col_boolean_n
+  FALSE,
+  -- col_real
+  0,
+  -- col_real_n
+  0,
+  -- col_double
+  0,
+  -- col_double_n
+  0,
+  -- col_float
+  0,
+  -- col_float_n
+  0,
+  -- col_numeric
+  0,
+  -- col_numeric_n
+  0,
+  -- col_decimal_10_5
+  0,
+  -- col_decimal_10_5_n
+  0,
+  -- col_text
+  '',
+  -- col_text_n
+  '',
+  -- col_varchar_16
+  '',
+  -- col_varchar_16_n
+  '',
+  -- col_char_10
+  '',
+  -- col_char_10_n
+  '',
+  -- col_clob
+  '',
+  -- col_clob_n
+  '',
+  -- col_blob
+  X'',
+  -- col_blob_n
+  X'',
+  -- col_date
+  '1989-11-09',
+  -- col_date_n
+  '1989-11-09',
+  -- col_datetime
+  '1989-11-09',
+  -- col_datetime_n
+  '1989-11-09',
+  -- col_timestamp
+  '1989-11-09',
+  -- col_timestamp_n
+  '1989-11-09',
+  -- col_time
+  '00:00:00',
+  -- col_time_n
+  '00:00:00',
+  -- col_json
+  '{}',
+  -- col_json_n
+  '{}',
+  -- col_untyped
+  0,
+  -- col_untyped_n
+  0,
+  -- col_widget
+  0,
+  -- col_widget_n
+  0,
+  -- col_integer_affinity
+  0,
+  -- col_integer_affinity_n
+  0
 );
 
 INSERT INTO coltypes VALUES (
-  2, -- row_id
-  9223372036854775807, -- col_integer
-  9223372036854775807, -- col_integer_n
-  2147483647, -- col_int
-  2147483647, -- col_int_n
-  127, -- col_tinyint
-  127, -- col_tinyint_n
-  9223372036854775807, -- col_bigint
-  9223372036854775807, -- col_bigint_n
-  TRUE, -- col_boolean
-  TRUE, -- col_boolean_n
-  7.7, -- col_real
-  7.7, -- col_real_n
-  7.7, -- col_double
-  7.7, -- col_double_n
-  7.7, -- col_float
-  7.7, -- col_float_n
-  77.77, -- col_numeric
-  77.77, -- col_numeric_n
-  77.77, -- col_decimal_10_5
-  77.77, -- col_decimal_10_5_n
-  'seven', -- col_text
-  'seven', -- col_text_n
-  '0123456789abcdef', -- col_varchar_16
-  '0123456789abcdef', -- col_varchar_16_n
-  'seven', -- col_char_10
-  'seven', -- col_char_10_n
-  'seven', -- col_clob
-  'seven', -- col_clob_n
-  X'736576656e', -- col_blob
-  X'736576656e', -- col_blob_n
-  '2017-07-07', -- col_date
-  '2017-07-07', -- col_date_n
-  '2017-07-07 07:07:07', -- col_datetime
-  '2017-07-07 07:07:07', -- col_datetime_n
-  '2017-07-07 07:07:07', -- col_timestamp
-  '2017-07-07 07:07:07', -- col_timestamp_n
-  '07:07:07', -- col_time
-  '07:07:07', -- col_time_n
-  '{"val": 7}', -- col_json
-  '{"val": 7}', -- col_json_n
-  'seven', -- col_untyped
-  'seven', -- col_untyped_n
-  'seven', -- col_widget
-  'seven', -- col_widget_n
-  'seven', -- col_integer_affinity
-  'seven' -- col_integer_affinity_n
+  -- row_id
+  2,
+  -- col_integer
+  9223372036854775807,
+  -- col_integer_n
+  9223372036854775807,
+  -- col_int
+  2147483647,
+  -- col_int_n
+  2147483647,
+  -- col_tinyint
+  127,
+  -- col_tinyint_n
+  127,
+  -- col_bigint
+  9223372036854775807,
+  -- col_bigint_n
+  9223372036854775807,
+  -- col_boolean
+  TRUE,
+  -- col_boolean_n
+  TRUE,
+  -- col_real
+  7.7,
+  -- col_real_n
+  7.7,
+  -- col_double
+  7.7,
+  -- col_double_n
+  7.7,
+  -- col_float
+  7.7,
+  -- col_float_n
+  7.7,
+  -- col_numeric
+  77.77,
+  -- col_numeric_n
+  77.77,
+  -- col_decimal_10_5
+  77.77,
+  -- col_decimal_10_5_n
+  77.77,
+  -- col_text
+  'seven',
+  -- col_text_n
+  'seven',
+  -- col_varchar_16
+  '0123456789abcdef',
+  -- col_varchar_16_n
+  '0123456789abcdef',
+  -- col_char_10
+  'seven',
+  -- col_char_10_n
+  'seven',
+  -- col_clob
+  'seven',
+  -- col_clob_n
+  'seven',
+  -- col_blob
+  X'736576656e',
+  -- col_blob_n
+  X'736576656e',
+  -- col_date
+  '2017-07-07',
+  -- col_date_n
+  '2017-07-07',
+  -- col_datetime
+  '2017-07-07 07:07:07',
+  -- col_datetime_n
+  '2017-07-07 07:07:07',
+  -- col_timestamp
+  '2017-07-07 07:07:07',
+  -- col_timestamp_n
+  '2017-07-07 07:07:07',
+  -- col_time
+  '07:07:07',
+  -- col_time_n
+  '07:07:07',
+  -- col_json
+  '{"val": 7}',
+  -- col_json_n
+  '{"val": 7}',
+  -- col_untyped
+  'seven',
+  -- col_untyped_n
+  'seven',
+  -- col_widget
+  'seven',
+  -- col_widget_n
+  'seven',
+  -- col_integer_affinity
+  'seven',
+  -- col_integer_affinity_n
+  'seven'
 );
 
 INSERT INTO coltypes VALUES (
-  3, -- row_id
-  9223372036854775807, -- col_integer
-  NULL, -- col_integer_n
-  2147483647, -- col_int
-  NULL, -- col_int_n
-  127, -- col_tinyint
-  NULL, -- col_tinyint_n
-  9223372036854775807, -- col_bigint
-  NULL, -- col_bigint_n
-  TRUE, -- col_boolean
-  NULL, -- col_boolean_n
-  7.7, -- col_real
-  NULL, -- col_real_n
-  7.7, -- col_double
-  NULL, -- col_double_n
-  7.7, -- col_float
-  NULL, -- col_float_n
-  77.77, -- col_numeric
-  NULL, -- col_numeric_n
-  77.77, -- col_decimal_10_5
-  NULL, -- col_decimal_10_5_n
-  'seven', -- col_text
-  NULL, -- col_text_n
-  '0123456789abcdef', -- col_varchar_16
-  NULL, -- col_varchar_16_n
-  'seven', -- col_char_10
-  NULL, -- col_char_10_n
-  'seven', -- col_clob
-  NULL, -- col_clob_n
-  X'736576656e', -- col_blob
-  NULL, -- col_blob_n
-  '2017-07-07', -- col_date
-  NULL, -- col_date_n
-  '2017-07-07 07:07:07', -- col_datetime
-  NULL, -- col_datetime_n
-  '2017-07-07 07:07:07', -- col_timestamp
-  NULL, -- col_timestamp_n
-  '07:07:07', -- col_time
-  NULL, -- col_time_n
-  '{"val": 7}', -- col_json
-  NULL, -- col_json_n
-  'seven', -- col_untyped
-  NULL, -- col_untyped_n
-  'seven', -- col_widget
-  NULL, -- col_widget_n
-  'seven', -- col_integer_affinity
-  NULL -- col_integer_affinity_n
+  -- row_id
+  3,
+  -- col_integer
+  9223372036854775807,
+  -- col_integer_n
+  NULL,
+  -- col_int
+  2147483647,
+  -- col_int_n
+  NULL,
+  -- col_tinyint
+  127,
+  -- col_tinyint_n
+  NULL,
+  -- col_bigint
+  9223372036854775807,
+  -- col_bigint_n
+  NULL,
+  -- col_boolean
+  TRUE,
+  -- col_boolean_n
+  NULL,
+  -- col_real
+  7.7,
+  -- col_real_n
+  NULL,
+  -- col_double
+  7.7,
+  -- col_double_n
+  NULL,
+  -- col_float
+  7.7,
+  -- col_float_n
+  NULL,
+  -- col_numeric
+  77.77,
+  -- col_numeric_n
+  NULL,
+  -- col_decimal_10_5
+  77.77,
+  -- col_decimal_10_5_n
+  NULL,
+  -- col_text
+  'seven',
+  -- col_text_n
+  NULL,
+  -- col_varchar_16
+  '0123456789abcdef',
+  -- col_varchar_16_n
+  NULL,
+  -- col_char_10
+  'seven',
+  -- col_char_10_n
+  NULL,
+  -- col_clob
+  'seven',
+  -- col_clob_n
+  NULL,
+  -- col_blob
+  X'736576656e',
+  -- col_blob_n
+  NULL,
+  -- col_date
+  '2017-07-07',
+  -- col_date_n
+  NULL,
+  -- col_datetime
+  '2017-07-07 07:07:07',
+  -- col_datetime_n
+  NULL,
+  -- col_timestamp
+  '2017-07-07 07:07:07',
+  -- col_timestamp_n
+  NULL,
+  -- col_time
+  '07:07:07',
+  -- col_time_n
+  NULL,
+  -- col_json
+  '{"val": 7}',
+  -- col_json_n
+  NULL,
+  -- col_untyped
+  'seven',
+  -- col_untyped_n
+  NULL,
+  -- col_widget
+  'seven',
+  -- col_widget_n
+  NULL,
+  -- col_integer_affinity
+  'seven',
+  -- col_integer_affinity_n
+  NULL
 );

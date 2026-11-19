@@ -15,18 +15,8 @@ import (
 	"github.com/neilotoole/sq/libsq/core/errz"
 )
 
-// A driver's case table also generates a DDL file, testdata/coltypes.ddl,
-// for manual and ad hoc testing: the same CREATE TABLE that TestColumnTypes
-// runs, and its three rows as INSERT statements with the inputs written as
-// SQL literals. Load it into a database to query the table or inspect it
-// with sq, and what you see is what the test asserts.
-//
-// The driver's TestColumnTypesDDL test calls CheckDDL, which compares the
-// rendered DDL with the file. It needs no database, so it runs under -short,
-// and a case table changed without regenerating the file fails at once. Run
-// also loads the rendered statements into the database under test and runs
-// the value checks against them, which proves the literals read back as the
-// same values as the bound inputs.
+// This file generates the testdata/coltypes.ddl file described in the
+// package doc's Generated DDL section.
 
 // UpdateEnvar is the envar that makes CheckDDL rewrite the DDL file instead
 // of comparing with it. An envar rather than a -update flag, since a flag
@@ -113,8 +103,8 @@ func literal(cfg Config, col Column, v any) (string, error) {
 // cases on a server at serverVer, and insert its three rows: the same table
 // Run creates, and one INSERT per row with each input written as a SQL
 // literal (see Config.Literal). They're formatted for reading, one column or
-// value per line, each value commented with its column's name, and have no
-// terminating semicolon.
+// value per line, each value preceded by a comment naming its column, and
+// have no terminating semicolon.
 func RenderStatements(cfg Config, tbl, serverVer string) ([]string, error) {
 	cols, err := Resolve(cfg.Cases, serverVer)
 	if err != nil {
@@ -137,19 +127,20 @@ func RenderStatements(cfg Config, tbl, serverVer string) ([]string, error) {
 	}
 	stmts := []string{sb.String()}
 
+	// Each value's comment goes on the line before it, not after it: on
+	// ClickHouse 26.5, an unquoted Float32 literal followed by a comment
+	// read back as 0.
 	for row := range 3 {
 		sb.Reset()
-		sb.WriteString("INSERT INTO " + tbl + " VALUES (\n  " + strconv.Itoa(row+1))
-		prevName := rowIDCol
+		sb.WriteString("INSERT INTO " + tbl + " VALUES (\n  -- " + rowIDCol + "\n  " + strconv.Itoa(row+1))
 		for _, col := range cols {
 			lit, err := literal(cfg, col, col.In[row])
 			if err != nil {
 				return nil, errz.Wrapf(err, "typetest: column %s (%s), row %d", col.Name, col.Case.Decl, row+1)
 			}
-			sb.WriteString(", -- " + prevName + "\n  " + lit)
-			prevName = col.Name
+			sb.WriteString(",\n  -- " + col.Name + "\n  " + lit)
 		}
-		sb.WriteString(" -- " + prevName + "\n)")
+		sb.WriteString("\n)")
 		stmts = append(stmts, sb.String())
 	}
 	return stmts, nil
@@ -183,6 +174,9 @@ func RenderDDL(header string, tables ...DDLTable) (string, error) {
 // writes want to the file instead.
 func CompareDDL(path, want string, update bool) error {
 	if update {
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			return errz.Wrapf(err, "typetest: create directory for %s", path)
+		}
 		if err := os.WriteFile(path, []byte(want), 0o600); err != nil {
 			return errz.Wrapf(err, "typetest: write %s", path)
 		}

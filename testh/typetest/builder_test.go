@@ -99,3 +99,9 @@ func TestCase_WithWantZeroVal(t *testing.T) {
 	require.Equal(t, typetest.Is[any](int64(2007)), c.Want.Val)
 	require.Equal(t, typetest.Is("int"), c.Want.BaseType)
 }
+
+func TestCase_WithWantLiteralVal(t *testing.T) {
+	c := intCase("x").WithWantLiteralVal(int64(2007))
+	require.Equal(t, typetest.Is[any](int64(2007)), c.Want.LiteralVal)
+	require.False(t, c.Want.Val.Set, "the bound expectation is untouched")
+}

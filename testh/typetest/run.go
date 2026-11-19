@@ -148,7 +148,11 @@ func checkDDLLoads(t *testing.T, th *testh.Helper, src *source.Source, cfg Confi
 		}
 	}
 
-	checkSelectAll(t, th, src, fold, serverVer, tbl, cols)
+	litCols := slices.Clone(cols)
+	for i := range litCols {
+		litCols[i].Want = litCols[i].LiteralWant
+	}
+	checkSelectAll(t, th, src, fold, serverVer, tbl, litCols)
 }
 
 // TableToken stands for the test table's name in an expected default_value,

@@ -316,3 +316,20 @@ func TestResolve_NullableOverride(t *testing.T) {
 	require.False(t, cols[1].Nullable, "the override replaces the variant's nullability")
 	require.Nil(t, cols[1].In[2], "the nullable column still gets NULL in row 3")
 }
+
+func TestResolve_LiteralWant(t *testing.T) {
+	// By default, a row loaded from the DDL file's literals is expected to
+	// read back the same as the bound row.
+	cols := mustResolve(t, intCase("x").WithWantVal(int64(70)))
+	require.Equal(t, cols[0].Want, cols[0].LiteralWant)
+	require.Equal(t, [3]any{int64(0), int64(70), nil}, cols[1].LiteralWant)
+
+	// LiteralZero and LiteralVal record a value the bound insert and the
+	// literal store differently, and layer like any other expectation.
+	c := intCase("x").WithWantVal(int64(70)).WithWantLiteralVal(int64(7))
+	c.PerVariant = typetest.PerVariant{Nullable: typetest.Want{LiteralZero: typetest.Is[any](int64(-1))}}
+	cols = mustResolve(t, c)
+	require.Equal(t, [3]any{int64(0), int64(70), int64(70)}, cols[0].Want, "the bound expectations are unchanged")
+	require.Equal(t, [3]any{int64(0), int64(7), int64(7)}, cols[0].LiteralWant)
+	require.Equal(t, [3]any{int64(-1), int64(7), nil}, cols[1].LiteralWant, "row 3 of a nullable column is NULL")
+}

@@ -83,223 +83,436 @@ CREATE TABLE coltypes (
 );
 
 INSERT INTO coltypes VALUES (
-  1, -- row_id
-  FALSE, -- col_boolean
-  FALSE, -- col_boolean_n
-  0, -- col_tinyint
-  0, -- col_tinyint_n
-  0, -- col_smallint
-  0, -- col_smallint_n
-  0, -- col_integer
-  0, -- col_integer_n
-  0, -- col_bigint
-  0, -- col_bigint_n
-  0::HUGEINT, -- col_hugeint
-  0::HUGEINT, -- col_hugeint_n
-  0, -- col_utinyint
-  0, -- col_utinyint_n
-  0, -- col_usmallint
-  0, -- col_usmallint_n
-  0, -- col_uinteger
-  0, -- col_uinteger_n
-  0, -- col_ubigint
-  0, -- col_ubigint_n
-  0::UHUGEINT, -- col_uhugeint
-  0::UHUGEINT, -- col_uhugeint_n
-  0, -- col_float
-  0, -- col_float_n
-  0, -- col_double
-  0, -- col_double_n
-  0, -- col_decimal
-  0, -- col_decimal_n
-  0, -- col_decimal_5_2
-  0, -- col_decimal_5_2_n
-  '', -- col_varchar
-  '', -- col_varchar_n
-  '', -- col_varchar_16
-  '', -- col_varchar_16_n
-  ''::BLOB, -- col_blob
-  ''::BLOB, -- col_blob_n
-  '0'::BIT, -- col_bit
-  '0'::BIT, -- col_bit_n
-  '1989-11-09', -- col_date
-  '1989-11-09', -- col_date_n
-  '00:00:00', -- col_time
-  '00:00:00', -- col_time_n
-  '00:00:00+00'::TIMETZ, -- col_timetz
-  '00:00:00+00'::TIMETZ, -- col_timetz_n
-  '1989-11-09', -- col_timestamp
-  '1989-11-09', -- col_timestamp_n
-  '1989-11-09', -- col_timestamp_ms
-  '1989-11-09', -- col_timestamp_ms_n
-  '1989-11-09', -- col_timestamp_s
-  '1989-11-09', -- col_timestamp_s_n
-  '1989-11-09', -- col_timestamp_ns
-  '1989-11-09', -- col_timestamp_ns_n
-  '1989-11-09 00:00:00+00:00', -- col_timestamptz
-  '1989-11-09 00:00:00+00:00', -- col_timestamptz_n
-  INTERVAL '0 seconds', -- col_interval
-  INTERVAL '0 seconds', -- col_interval_n
-  '00000000-0000-0000-0000-000000000000', -- col_uuid
-  '00000000-0000-0000-0000-000000000000', -- col_uuid_n
-  '{}', -- col_json
-  '{}', -- col_json_n
-  'alfa', -- col_enum
-  'alfa', -- col_enum_n
-  []::INTEGER[], -- col_integer_list
-  []::INTEGER[], -- col_integer_list_n
-  [0, 0, 0]::FLOAT[3], -- col_float_array_3
-  [0, 0, 0]::FLOAT[3], -- col_float_array_3_n
-  {'a': 0, 'b': ''}, -- col_struct
-  {'a': 0, 'b': ''}, -- col_struct_n
-  MAP {}, -- col_map
-  MAP {} -- col_map_n
+  -- row_id
+  1,
+  -- col_boolean
+  FALSE,
+  -- col_boolean_n
+  FALSE,
+  -- col_tinyint
+  0,
+  -- col_tinyint_n
+  0,
+  -- col_smallint
+  0,
+  -- col_smallint_n
+  0,
+  -- col_integer
+  0,
+  -- col_integer_n
+  0,
+  -- col_bigint
+  0,
+  -- col_bigint_n
+  0,
+  -- col_hugeint
+  0::HUGEINT,
+  -- col_hugeint_n
+  0::HUGEINT,
+  -- col_utinyint
+  0,
+  -- col_utinyint_n
+  0,
+  -- col_usmallint
+  0,
+  -- col_usmallint_n
+  0,
+  -- col_uinteger
+  0,
+  -- col_uinteger_n
+  0,
+  -- col_ubigint
+  0,
+  -- col_ubigint_n
+  0,
+  -- col_uhugeint
+  0::UHUGEINT,
+  -- col_uhugeint_n
+  0::UHUGEINT,
+  -- col_float
+  0,
+  -- col_float_n
+  0,
+  -- col_double
+  0,
+  -- col_double_n
+  0,
+  -- col_decimal
+  0,
+  -- col_decimal_n
+  0,
+  -- col_decimal_5_2
+  0,
+  -- col_decimal_5_2_n
+  0,
+  -- col_varchar
+  '',
+  -- col_varchar_n
+  '',
+  -- col_varchar_16
+  '',
+  -- col_varchar_16_n
+  '',
+  -- col_blob
+  ''::BLOB,
+  -- col_blob_n
+  ''::BLOB,
+  -- col_bit
+  '0'::BIT,
+  -- col_bit_n
+  '0'::BIT,
+  -- col_date
+  '1989-11-09',
+  -- col_date_n
+  '1989-11-09',
+  -- col_time
+  '00:00:00',
+  -- col_time_n
+  '00:00:00',
+  -- col_timetz
+  '00:00:00+00'::TIMETZ,
+  -- col_timetz_n
+  '00:00:00+00'::TIMETZ,
+  -- col_timestamp
+  '1989-11-09',
+  -- col_timestamp_n
+  '1989-11-09',
+  -- col_timestamp_ms
+  '1989-11-09',
+  -- col_timestamp_ms_n
+  '1989-11-09',
+  -- col_timestamp_s
+  '1989-11-09',
+  -- col_timestamp_s_n
+  '1989-11-09',
+  -- col_timestamp_ns
+  '1989-11-09',
+  -- col_timestamp_ns_n
+  '1989-11-09',
+  -- col_timestamptz
+  '1989-11-09 00:00:00+00:00',
+  -- col_timestamptz_n
+  '1989-11-09 00:00:00+00:00',
+  -- col_interval
+  INTERVAL '0 seconds',
+  -- col_interval_n
+  INTERVAL '0 seconds',
+  -- col_uuid
+  '00000000-0000-0000-0000-000000000000',
+  -- col_uuid_n
+  '00000000-0000-0000-0000-000000000000',
+  -- col_json
+  '{}',
+  -- col_json_n
+  '{}',
+  -- col_enum
+  'alfa',
+  -- col_enum_n
+  'alfa',
+  -- col_integer_list
+  []::INTEGER[],
+  -- col_integer_list_n
+  []::INTEGER[],
+  -- col_float_array_3
+  [0, 0, 0]::FLOAT[3],
+  -- col_float_array_3_n
+  [0, 0, 0]::FLOAT[3],
+  -- col_struct
+  {'a': 0, 'b': ''},
+  -- col_struct_n
+  {'a': 0, 'b': ''},
+  -- col_map
+  MAP {},
+  -- col_map_n
+  MAP {}
 );
 
 INSERT INTO coltypes VALUES (
-  2, -- row_id
-  TRUE, -- col_boolean
-  TRUE, -- col_boolean_n
-  127, -- col_tinyint
-  127, -- col_tinyint_n
-  32767, -- col_smallint
-  32767, -- col_smallint_n
-  2147483647, -- col_integer
-  2147483647, -- col_integer_n
-  9223372036854775807, -- col_bigint
-  9223372036854775807, -- col_bigint_n
-  170141183460469231731687303715884105727::HUGEINT, -- col_hugeint
-  170141183460469231731687303715884105727::HUGEINT, -- col_hugeint_n
-  255, -- col_utinyint
-  255, -- col_utinyint_n
-  65535, -- col_usmallint
-  65535, -- col_usmallint_n
-  4294967295, -- col_uinteger
-  4294967295, -- col_uinteger_n
-  18446744073709551615::UBIGINT, -- col_ubigint
-  18446744073709551615::UBIGINT, -- col_ubigint_n
-  340282366920938463463374607431768211455::UHUGEINT, -- col_uhugeint
-  340282366920938463463374607431768211455::UHUGEINT, -- col_uhugeint_n
-  7.7, -- col_float
-  7.7, -- col_float_n
-  7.7, -- col_double
-  7.7, -- col_double_n
-  77.77, -- col_decimal
-  77.77, -- col_decimal_n
-  999.99, -- col_decimal_5_2
-  999.99, -- col_decimal_5_2_n
-  'seven', -- col_varchar
-  'seven', -- col_varchar_n
-  '0123456789abcdef', -- col_varchar_16
-  '0123456789abcdef', -- col_varchar_16_n
-  '\x73\x65\x76\x65\x6e'::BLOB, -- col_blob
-  '\x73\x65\x76\x65\x6e'::BLOB, -- col_blob_n
-  '0101'::BIT, -- col_bit
-  '0101'::BIT, -- col_bit_n
-  '2017-07-07', -- col_date
-  '2017-07-07', -- col_date_n
-  '07:07:07', -- col_time
-  '07:07:07', -- col_time_n
-  '07:07:07+00'::TIMETZ, -- col_timetz
-  '07:07:07+00'::TIMETZ, -- col_timetz_n
-  '2017-07-07 07:07:07', -- col_timestamp
-  '2017-07-07 07:07:07', -- col_timestamp_n
-  '2017-07-07 07:07:07.123', -- col_timestamp_ms
-  '2017-07-07 07:07:07.123', -- col_timestamp_ms_n
-  '2017-07-07 07:07:07', -- col_timestamp_s
-  '2017-07-07 07:07:07', -- col_timestamp_s_n
-  '2017-07-07 07:07:07', -- col_timestamp_ns
-  '2017-07-07 07:07:07', -- col_timestamp_ns_n
-  '2017-07-07 07:07:07+00:00', -- col_timestamptz
-  '2017-07-07 07:07:07+00:00', -- col_timestamptz_n
-  INTERVAL '1 year 2 months 3 days 04:05:06.789', -- col_interval
-  INTERVAL '1 year 2 months 3 days 04:05:06.789', -- col_interval_n
-  '77777777-7777-7777-7777-777777777777', -- col_uuid
-  '77777777-7777-7777-7777-777777777777', -- col_uuid_n
-  '{"val": 7}', -- col_json
-  '{"val": 7}', -- col_json_n
-  'bravo', -- col_enum
-  'bravo', -- col_enum_n
-  [1, 7], -- col_integer_list
-  [1, 7], -- col_integer_list_n
-  [1, 2, 3]::FLOAT[3], -- col_float_array_3
-  [1, 2, 3]::FLOAT[3], -- col_float_array_3_n
-  {'a': 7, 'b': 'seven'}, -- col_struct
-  {'a': 7, 'b': 'seven'}, -- col_struct_n
-  MAP {'k': 7}, -- col_map
-  MAP {'k': 7} -- col_map_n
+  -- row_id
+  2,
+  -- col_boolean
+  TRUE,
+  -- col_boolean_n
+  TRUE,
+  -- col_tinyint
+  127,
+  -- col_tinyint_n
+  127,
+  -- col_smallint
+  32767,
+  -- col_smallint_n
+  32767,
+  -- col_integer
+  2147483647,
+  -- col_integer_n
+  2147483647,
+  -- col_bigint
+  9223372036854775807,
+  -- col_bigint_n
+  9223372036854775807,
+  -- col_hugeint
+  170141183460469231731687303715884105727::HUGEINT,
+  -- col_hugeint_n
+  170141183460469231731687303715884105727::HUGEINT,
+  -- col_utinyint
+  255,
+  -- col_utinyint_n
+  255,
+  -- col_usmallint
+  65535,
+  -- col_usmallint_n
+  65535,
+  -- col_uinteger
+  4294967295,
+  -- col_uinteger_n
+  4294967295,
+  -- col_ubigint
+  18446744073709551615::UBIGINT,
+  -- col_ubigint_n
+  18446744073709551615::UBIGINT,
+  -- col_uhugeint
+  340282366920938463463374607431768211455::UHUGEINT,
+  -- col_uhugeint_n
+  340282366920938463463374607431768211455::UHUGEINT,
+  -- col_float
+  7.7,
+  -- col_float_n
+  7.7,
+  -- col_double
+  7.7,
+  -- col_double_n
+  7.7,
+  -- col_decimal
+  77.77,
+  -- col_decimal_n
+  77.77,
+  -- col_decimal_5_2
+  999.99,
+  -- col_decimal_5_2_n
+  999.99,
+  -- col_varchar
+  'seven',
+  -- col_varchar_n
+  'seven',
+  -- col_varchar_16
+  '0123456789abcdef',
+  -- col_varchar_16_n
+  '0123456789abcdef',
+  -- col_blob
+  '\x73\x65\x76\x65\x6e'::BLOB,
+  -- col_blob_n
+  '\x73\x65\x76\x65\x6e'::BLOB,
+  -- col_bit
+  '0101'::BIT,
+  -- col_bit_n
+  '0101'::BIT,
+  -- col_date
+  '2017-07-07',
+  -- col_date_n
+  '2017-07-07',
+  -- col_time
+  '07:07:07',
+  -- col_time_n
+  '07:07:07',
+  -- col_timetz
+  '07:07:07+00'::TIMETZ,
+  -- col_timetz_n
+  '07:07:07+00'::TIMETZ,
+  -- col_timestamp
+  '2017-07-07 07:07:07',
+  -- col_timestamp_n
+  '2017-07-07 07:07:07',
+  -- col_timestamp_ms
+  '2017-07-07 07:07:07.123',
+  -- col_timestamp_ms_n
+  '2017-07-07 07:07:07.123',
+  -- col_timestamp_s
+  '2017-07-07 07:07:07',
+  -- col_timestamp_s_n
+  '2017-07-07 07:07:07',
+  -- col_timestamp_ns
+  '2017-07-07 07:07:07',
+  -- col_timestamp_ns_n
+  '2017-07-07 07:07:07',
+  -- col_timestamptz
+  '2017-07-07 07:07:07+00:00',
+  -- col_timestamptz_n
+  '2017-07-07 07:07:07+00:00',
+  -- col_interval
+  INTERVAL '1 year 2 months 3 days 04:05:06.789',
+  -- col_interval_n
+  INTERVAL '1 year 2 months 3 days 04:05:06.789',
+  -- col_uuid
+  '77777777-7777-7777-7777-777777777777',
+  -- col_uuid_n
+  '77777777-7777-7777-7777-777777777777',
+  -- col_json
+  '{"val": 7}',
+  -- col_json_n
+  '{"val": 7}',
+  -- col_enum
+  'bravo',
+  -- col_enum_n
+  'bravo',
+  -- col_integer_list
+  [1, 7],
+  -- col_integer_list_n
+  [1, 7],
+  -- col_float_array_3
+  [1, 2, 3]::FLOAT[3],
+  -- col_float_array_3_n
+  [1, 2, 3]::FLOAT[3],
+  -- col_struct
+  {'a': 7, 'b': 'seven'},
+  -- col_struct_n
+  {'a': 7, 'b': 'seven'},
+  -- col_map
+  MAP {'k': 7},
+  -- col_map_n
+  MAP {'k': 7}
 );
 
 INSERT INTO coltypes VALUES (
-  3, -- row_id
-  TRUE, -- col_boolean
-  NULL, -- col_boolean_n
-  127, -- col_tinyint
-  NULL, -- col_tinyint_n
-  32767, -- col_smallint
-  NULL, -- col_smallint_n
-  2147483647, -- col_integer
-  NULL, -- col_integer_n
-  9223372036854775807, -- col_bigint
-  NULL, -- col_bigint_n
-  170141183460469231731687303715884105727::HUGEINT, -- col_hugeint
-  NULL, -- col_hugeint_n
-  255, -- col_utinyint
-  NULL, -- col_utinyint_n
-  65535, -- col_usmallint
-  NULL, -- col_usmallint_n
-  4294967295, -- col_uinteger
-  NULL, -- col_uinteger_n
-  18446744073709551615::UBIGINT, -- col_ubigint
-  NULL, -- col_ubigint_n
-  340282366920938463463374607431768211455::UHUGEINT, -- col_uhugeint
-  NULL, -- col_uhugeint_n
-  7.7, -- col_float
-  NULL, -- col_float_n
-  7.7, -- col_double
-  NULL, -- col_double_n
-  77.77, -- col_decimal
-  NULL, -- col_decimal_n
-  999.99, -- col_decimal_5_2
-  NULL, -- col_decimal_5_2_n
-  'seven', -- col_varchar
-  NULL, -- col_varchar_n
-  '0123456789abcdef', -- col_varchar_16
-  NULL, -- col_varchar_16_n
-  '\x73\x65\x76\x65\x6e'::BLOB, -- col_blob
-  NULL, -- col_blob_n
-  '0101'::BIT, -- col_bit
-  NULL, -- col_bit_n
-  '2017-07-07', -- col_date
-  NULL, -- col_date_n
-  '07:07:07', -- col_time
-  NULL, -- col_time_n
-  '07:07:07+00'::TIMETZ, -- col_timetz
-  NULL, -- col_timetz_n
-  '2017-07-07 07:07:07', -- col_timestamp
-  NULL, -- col_timestamp_n
-  '2017-07-07 07:07:07.123', -- col_timestamp_ms
-  NULL, -- col_timestamp_ms_n
-  '2017-07-07 07:07:07', -- col_timestamp_s
-  NULL, -- col_timestamp_s_n
-  '2017-07-07 07:07:07', -- col_timestamp_ns
-  NULL, -- col_timestamp_ns_n
-  '2017-07-07 07:07:07+00:00', -- col_timestamptz
-  NULL, -- col_timestamptz_n
-  INTERVAL '1 year 2 months 3 days 04:05:06.789', -- col_interval
-  NULL, -- col_interval_n
-  '77777777-7777-7777-7777-777777777777', -- col_uuid
-  NULL, -- col_uuid_n
-  '{"val": 7}', -- col_json
-  NULL, -- col_json_n
-  'bravo', -- col_enum
-  NULL, -- col_enum_n
-  [1, 7], -- col_integer_list
-  NULL, -- col_integer_list_n
-  [1, 2, 3]::FLOAT[3], -- col_float_array_3
-  NULL, -- col_float_array_3_n
-  {'a': 7, 'b': 'seven'}, -- col_struct
-  NULL, -- col_struct_n
-  MAP {'k': 7}, -- col_map
-  NULL -- col_map_n
+  -- row_id
+  3,
+  -- col_boolean
+  TRUE,
+  -- col_boolean_n
+  NULL,
+  -- col_tinyint
+  127,
+  -- col_tinyint_n
+  NULL,
+  -- col_smallint
+  32767,
+  -- col_smallint_n
+  NULL,
+  -- col_integer
+  2147483647,
+  -- col_integer_n
+  NULL,
+  -- col_bigint
+  9223372036854775807,
+  -- col_bigint_n
+  NULL,
+  -- col_hugeint
+  170141183460469231731687303715884105727::HUGEINT,
+  -- col_hugeint_n
+  NULL,
+  -- col_utinyint
+  255,
+  -- col_utinyint_n
+  NULL,
+  -- col_usmallint
+  65535,
+  -- col_usmallint_n
+  NULL,
+  -- col_uinteger
+  4294967295,
+  -- col_uinteger_n
+  NULL,
+  -- col_ubigint
+  18446744073709551615::UBIGINT,
+  -- col_ubigint_n
+  NULL,
+  -- col_uhugeint
+  340282366920938463463374607431768211455::UHUGEINT,
+  -- col_uhugeint_n
+  NULL,
+  -- col_float
+  7.7,
+  -- col_float_n
+  NULL,
+  -- col_double
+  7.7,
+  -- col_double_n
+  NULL,
+  -- col_decimal
+  77.77,
+  -- col_decimal_n
+  NULL,
+  -- col_decimal_5_2
+  999.99,
+  -- col_decimal_5_2_n
+  NULL,
+  -- col_varchar
+  'seven',
+  -- col_varchar_n
+  NULL,
+  -- col_varchar_16
+  '0123456789abcdef',
+  -- col_varchar_16_n
+  NULL,
+  -- col_blob
+  '\x73\x65\x76\x65\x6e'::BLOB,
+  -- col_blob_n
+  NULL,
+  -- col_bit
+  '0101'::BIT,
+  -- col_bit_n
+  NULL,
+  -- col_date
+  '2017-07-07',
+  -- col_date_n
+  NULL,
+  -- col_time
+  '07:07:07',
+  -- col_time_n
+  NULL,
+  -- col_timetz
+  '07:07:07+00'::TIMETZ,
+  -- col_timetz_n
+  NULL,
+  -- col_timestamp
+  '2017-07-07 07:07:07',
+  -- col_timestamp_n
+  NULL,
+  -- col_timestamp_ms
+  '2017-07-07 07:07:07.123',
+  -- col_timestamp_ms_n
+  NULL,
+  -- col_timestamp_s
+  '2017-07-07 07:07:07',
+  -- col_timestamp_s_n
+  NULL,
+  -- col_timestamp_ns
+  '2017-07-07 07:07:07',
+  -- col_timestamp_ns_n
+  NULL,
+  -- col_timestamptz
+  '2017-07-07 07:07:07+00:00',
+  -- col_timestamptz_n
+  NULL,
+  -- col_interval
+  INTERVAL '1 year 2 months 3 days 04:05:06.789',
+  -- col_interval_n
+  NULL,
+  -- col_uuid
+  '77777777-7777-7777-7777-777777777777',
+  -- col_uuid_n
+  NULL,
+  -- col_json
+  '{"val": 7}',
+  -- col_json_n
+  NULL,
+  -- col_enum
+  'bravo',
+  -- col_enum_n
+  NULL,
+  -- col_integer_list
+  [1, 7],
+  -- col_integer_list_n
+  NULL,
+  -- col_float_array_3
+  [1, 2, 3]::FLOAT[3],
+  -- col_float_array_3_n
+  NULL,
+  -- col_struct
+  {'a': 7, 'b': 'seven'},
+  -- col_struct_n
+  NULL,
+  -- col_map
+  MAP {'k': 7},
+  -- col_map_n
+  NULL
 );

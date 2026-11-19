@@ -102,3 +102,11 @@ func (c Case) WithWantVal(v any) Case {
 	c.Want.Val = Is(v)
 	return c
 }
+
+// WithWantLiteralVal returns a copy of c expecting the Val input, loaded from
+// the generated DDL file as a SQL literal, to read back as v, for every
+// variant. See Want.LiteralVal.
+func (c Case) WithWantLiteralVal(v any) Case {
+	c.Want.LiteralVal = Is(v)
+	return c
+}
