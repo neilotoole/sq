@@ -51,7 +51,7 @@ func detectType(ctx context.Context, typ drivertype.Type, newRdrFn files.NewRead
 		delim = csvw.Tab
 	}
 
-	cr := csv.NewReader(&crFilterReader{r: r})
+	cr := csv.NewReader(&crFilterReader{r: skipBOM(r)})
 	cr.Comma = delim
 	cr.FieldsPerRecord = -1
 

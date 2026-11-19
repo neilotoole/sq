@@ -1,2 +1,5 @@
 # Set the default behavior, in case people don't have core.autocrlf set.
 * text=auto eol=lf
+
+# Genuine Excel "CSV UTF-8" export: keep its BOM and CRLF line endings byte for byte.
+drivers/csv/testdata/actor_excel_csv_utf8_bom.csv -text
