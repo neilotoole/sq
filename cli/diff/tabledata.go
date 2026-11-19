@@ -698,7 +698,7 @@ func (rd *recordDiffer) execAndSeal(ctx, dbCtx context.Context,
 	// rows were aligned by position (inserts/deletes may cascade in the output).
 	if rd.pkColNames == nil && rd.hadDiffs {
 		if h, hErr := doc.NewHunk(0); hErr == nil {
-			_, _ = io.WriteString(h, "… (no primary key; rows aligned by position — inserts/deletes may cascade)\n")
+			_, _ = io.WriteString(h, "… (no usable primary key; rows aligned by position — inserts/deletes may cascade)\n")
 			h.Seal(nil, nil)
 		}
 	}

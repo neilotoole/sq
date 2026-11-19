@@ -545,10 +545,10 @@ func runRecordDifferWithPK(t *testing.T, pkColNames []string,
 	return string(out)
 }
 
-// TestPositionalFallbackNote verifies that execAndSeal appends the no-PK note
+// TestPositionalFallbackNote verifies that execAndSeal appends the fallback note
 // exactly when pkColNames is nil AND the tables actually differ.
 func TestPositionalFallbackNote(t *testing.T) {
-	const noteText = "no primary key"
+	const noteText = "no usable primary key"
 	const notePosition = "by position"
 
 	// No PK, tables differ: note must be present.
