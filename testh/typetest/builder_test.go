@@ -138,3 +138,10 @@ func TestWithDefaulted(t *testing.T) {
 	require.Equal(t, []typetest.Variant{typetest.NotNull}, got[1].Variants, "an explicit set is kept")
 	require.Nil(t, in[0].Variants, "the input is not modified")
 }
+
+func TestCase_WithPerVariantDefaulted(t *testing.T) {
+	c := intCase("x").WithWantDefault("7").
+		WithPerVariant(typetest.PerVariant{Defaulted: typetest.Want{BaseType: typetest.Is("text")}})
+	require.Equal(t, typetest.Is("text"), c.PerVariant.Defaulted.BaseType)
+	require.Equal(t, typetest.Is("7"), c.PerVariant.Defaulted.Default, "merged, not replaced")
+}

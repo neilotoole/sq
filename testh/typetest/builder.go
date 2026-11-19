@@ -42,6 +42,7 @@ func (c Case) WithWant(w Want) Case {
 func (c Case) WithPerVariant(pv PerVariant) Case {
 	layer(&c.PerVariant.NotNull, pv.NotNull)
 	layer(&c.PerVariant.Nullable, pv.Nullable)
+	layer(&c.PerVariant.Defaulted, pv.Defaulted)
 	return c
 }
 
