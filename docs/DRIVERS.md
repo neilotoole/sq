@@ -325,6 +325,29 @@ against each server version and read the expectations off the log:
 SQ_TYPETEST_DUMP=1 go test -v -run 'TestColumnTypes$' ./drivers/postgres/
 ```
 
+The case table also generates `testdata/coltypes.ddl`: the table
+`TestColumnTypes` creates and its three rows, as a SQL script to load with the
+database's own client (`psql`, `mysql`, `sqlcmd`, `sqlplus`, ...) for manual
+testing. `TestColumnTypesDDL` fails, under `-short` and with no database, if the
+file is out of date with the case table. `Config.Literal` writes the inputs
+the dialect spells differently from `typetest.DefaultLiteral`, bytes at least,
+in the form the driver binds them. `Config.DDLPrelude` starts the file with any
+session settings its literals assume (MySQL's and ClickHouse's time zone).
+Regenerate the file after changing a case:
+
+```shell
+SQ_TYPETEST_UPDATE=1 go test -run 'TestColumnTypesDDL$' ./drivers/postgres/
+```
+
+`TestColumnTypes` also loads the generated statements into the database under
+test and checks the values they read back. `Config.DDLCheckSession` sets that
+session to an odd time zone (`typetest.CheckTimeZone`), so a time literal that
+depends on the loader's zone fails too; set it for every database with a
+session time zone. A literal that reads back differently from the bound input
+fails there. If the difference is real, such
+as the driver losing precision on a bound value that the literal stores
+intact, record it with `WithWantLiteralVal` and a comment on the case.
+
 #### Database-specific quirks
 
 Document any database-specific behaviors that affect driver implementation:

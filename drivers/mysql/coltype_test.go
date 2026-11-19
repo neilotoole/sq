@@ -2,11 +2,14 @@ package mysql_test
 
 import (
 	"context"
+	"encoding/hex"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/mod/semver"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -24,12 +27,59 @@ import (
 func TestColumnTypes(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:        sakila.My,
-		RowIDDecl:     "INT NOT NULL PRIMARY KEY",
-		Cases:         mysqlTypeCases,
-		CheckSettings: checkMySQLSettings,
-	})
+	typetest.Run(t, mysqlConfig)
+}
+
+// TestColumnTypesDDL checks that testdata/coltypes.ddl matches the case
+// tables of TestColumnTypes and TestColumnTypes_TIMESTAMP6, which the file
+// creates as two tables. See typetest.CheckDDL.
+func TestColumnTypesDDL(t *testing.T) {
+	typetest.CheckDDL(t, "testdata/coltypes.ddl", "MySQL 9",
+		typetest.DDLTable{Name: "coltypes", Config: mysqlConfig},
+		typetest.DDLTable{Name: "coltypes_timestamp6", Config: mysqlTimestamp6Config})
+}
+
+func TestMySQLLiteral(t *testing.T) {
+	// MySQL reads a backslash in a string literal as an escape.
+	got, ok := mysqlLiteral(typetest.Column{Case: &typetest.Case{Decl: "TEXT"}}, `a\nb'c`)
+	require.True(t, ok)
+	require.Equal(t, `'a\\nb''c'`, got)
+}
+
+// mysqlConfig is the typetest configuration for TestColumnTypes.
+var mysqlConfig = typetest.Config{
+	Handle:          sakila.My,
+	RowIDDecl:       "INT NOT NULL PRIMARY KEY",
+	Cases:           mysqlTypeCases,
+	CheckSettings:   checkMySQLSettings,
+	Literal:         mysqlLiteral,
+	DDLPrelude:      []string{mysqlDDLPrelude},
+	DDLCheckSession: []string{mysqlCheckSession},
+}
+
+// mysqlDDLPrelude starts the generated DDL file: MySQL reads a TIMESTAMP
+// literal in the session's time zone, and the literals are UTC.
+const mysqlDDLPrelude = "SET time_zone = '+00:00'"
+
+// mysqlCheckSession sets the ddl subtest's session to an odd time zone (see
+// typetest.Config.DDLCheckSession), as an offset, since the sakiladb images
+// have no time zone tables for a named zone.
+const mysqlCheckSession = "SET time_zone = '" + typetest.CheckTimeZoneOffset + "'"
+
+// mysqlLiteral renders the inputs MySQL writes differently from
+// typetest.DefaultLiteral: bytes, as a hex literal (X'7365'), and strings with
+// backslashes escaped, since MySQL reads a backslash in a string literal as an
+// escape.
+func mysqlLiteral(_ typetest.Column, v any) (string, bool) {
+	switch v := v.(type) {
+	case []byte:
+		if v != nil {
+			return "X'" + hex.EncodeToString(v) + "'", true
+		}
+	case string:
+		return "'" + strings.ReplaceAll(strings.ReplaceAll(v, `\`, `\\`), "'", "''") + "'", true
+	}
+	return "", false
 }
 
 // TestColumnTypes_TIMESTAMP6 is TestColumnTypes for a single case,
@@ -65,12 +115,19 @@ func TestColumnTypes(t *testing.T) {
 func TestColumnTypes_TIMESTAMP6(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:        sakila.My,
-		RowIDDecl:     "INT NOT NULL PRIMARY KEY",
-		Cases:         []typetest.Case{mysqlTimestamp6Case},
-		CheckSettings: checkMySQLSettings,
-	})
+	typetest.Run(t, mysqlTimestamp6Config)
+}
+
+// mysqlTimestamp6Config is the typetest configuration for
+// TestColumnTypes_TIMESTAMP6.
+var mysqlTimestamp6Config = typetest.Config{
+	Handle:          sakila.My,
+	RowIDDecl:       "INT NOT NULL PRIMARY KEY",
+	Cases:           []typetest.Case{mysqlTimestamp6Case},
+	CheckSettings:   checkMySQLSettings,
+	Literal:         mysqlLiteral,
+	DDLPrelude:      []string{mysqlDDLPrelude},
+	DDLCheckSession: []string{mysqlCheckSession},
 }
 
 // mysqlTimestamp6Case is the TIMESTAMP(6) case for TestColumnTypes_TIMESTAMP6.

@@ -33,6 +33,34 @@
 // column's expected values for the three rows are Want.Zero, Want.Val (each
 // defaulting to its input) and, in row 3, Want.Val for NotNull and NULL for
 // Nullable. Column.In and Column.Want hold them after Resolve.
+//
+// # Generated DDL
+//
+// A driver's case tables also generate testdata/coltypes.ddl, for manual and
+// ad hoc testing: the tables the column-type tests create, with every case
+// for the newest server version, and their three rows as INSERT statements
+// with each input written as a SQL literal in the driver's dialect
+// (Config.Literal, falling back to DefaultLiteral). The literals store what
+// the bound inserts store, where the dialect allows. Config.DDLPrelude starts
+// the file with any session settings its literals assume. Load it with the
+// database's own client to query the tables or inspect them with sq.
+//
+// The driver's TestColumnTypesDDL calls CheckDDL, which renders the file and
+// compares it with the one in testdata. It needs no database, so it runs
+// under -short, and a case table changed without regenerating the file fails
+// at once. Set UpdateEnvar to regenerate it.
+//
+// Run's ddl subtest renders the same statements for the connected server's
+// version, executes them one by one through the Go driver, on a session set
+// up by Config.DDLCheckSession to an odd time zone, and runs the whole-table
+// value checks against the result. That proves the literals load on each
+// server version the tests run against, and read back as expected wherever
+// the loading session's time zone is. It doesn't run the committed file
+// itself, through a native client: a case gated by MinVer is in the file but
+// can fail on an older server. A row loaded from literals is expected to read
+// back the same as the bound row, unless Want.LiteralZero or Want.LiteralVal
+// says otherwise: typically where the driver mangles a bound value that the
+// literal stores intact. Columns with a QueryErr aren't read back.
 package typetest
 
 import (
@@ -110,6 +138,16 @@ type Want struct {
 	// Zero and Val are the expected record values for the Zero and Val
 	// inputs. They default to the inputs themselves.
 	Zero, Val Opt[any]
+
+	// LiteralZero and LiteralVal are the expected record values for the Zero
+	// and Val inputs when the row is loaded from the generated DDL file, with
+	// each input written as a SQL literal (see CheckDDL). They default to Zero
+	// and Val. Set one to record a value that the bound insert and the literal
+	// store differently: typically the driver mangling a bound value that the
+	// literal stores intact. The default is applied after layering, so a
+	// LiteralVal set in any layer beats a Val set in a later one: an override
+	// that changes Val for both paths must set LiteralVal too.
+	LiteralZero, LiteralVal Opt[any]
 
 	// BaseType is the expected base_type. Required after resolution.
 	BaseType Opt[string]
@@ -245,6 +283,10 @@ type Column struct {
 
 	// Want holds the expected record values for rows 1 to 3.
 	Want [3]any
+
+	// LiteralWant holds the expected record values for rows 1 to 3 when
+	// they're loaded from the generated DDL file. See Want.LiteralVal.
+	LiteralWant [3]any
 
 	// Case is the case the column was resolved from.
 	Case *Case

@@ -3,7 +3,9 @@ package sqlserver_test
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"math"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -30,12 +32,83 @@ import (
 func TestColumnTypes(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:        sakila.MS,
-		RowIDDecl:     "INT NOT NULL PRIMARY KEY",
-		Cases:         msTypeCases,
-		CheckSettings: checkMSSettings,
-	})
+	typetest.Run(t, msConfig)
+}
+
+// TestColumnTypesDDL checks that testdata/coltypes.ddl matches the case
+// table. See typetest.CheckDDL.
+func TestColumnTypesDDL(t *testing.T) {
+	typetest.CheckDDL(t, "testdata/coltypes.ddl", "SQL Server 2022",
+		typetest.DDLTable{Name: "coltypes", Config: msConfig})
+}
+
+func TestMSLiteral(t *testing.T) {
+	col := func(decl string) typetest.Column { return typetest.Column{Case: &typetest.Case{Decl: decl}} }
+	ts := time.Date(2017, 7, 7, 7, 7, 7, 123000000, time.UTC)
+	testCases := []struct {
+		col  typetest.Column
+		in   any
+		want string
+	}{
+		// N'...', as the driver binds a string, so NVARCHAR keeps non-ASCII
+		// text.
+		{col("NVARCHAR(16)"), "it's \u00fc", "N'it''s \u00fc'"},
+		// The base types the driver binds: bigint and nvarchar.
+		{col("SQL_VARIANT"), int64(0), "CAST(0 AS BIGINT)"},
+		{col("SQL_VARIANT"), "seven", "N'seven'"},
+		{col("INT"), int64(0), "0"},
+		{col("DATETIMEOFFSET(3)"), ts, "'2017-07-07T07:07:07.123+00:00'"},
+		{col("DATETIME2"), ts, "'2017-07-07T07:07:07.123'"},
+	}
+	for _, tc := range testCases {
+		got, err := typetest.RenderLiteral(msConfig, tc.col, tc.in)
+		require.NoError(t, err, "%s %#v", tc.col.Case.Decl, tc.in)
+		require.Equal(t, tc.want, got, "%s %#v", tc.col.Case.Decl, tc.in)
+	}
+}
+
+// msConfig is the typetest configuration for SQL Server.
+var msConfig = typetest.Config{
+	Handle:        sakila.MS,
+	RowIDDecl:     "INT NOT NULL PRIMARY KEY",
+	Cases:         msTypeCases,
+	CheckSettings: checkMSSettings,
+	Literal:       msLiteral,
+}
+
+// msLiteral renders the inputs SQL Server writes differently from
+// typetest.DefaultLiteral, as the driver binds them: booleans as 1 and 0, for
+// BIT; strings as N'...', as NVARCHAR, so non-ASCII text survives; an integer
+// for a SQL_VARIANT column cast to BIGINT, its bound base type; bytes as a
+// binary literal (0x7365); and times in ISO 8601 form, which SQL Server reads
+// the same whatever the session's language and DATEFORMAT, with an explicit
+// UTC offset for DATETIMEOFFSET.
+func msLiteral(col typetest.Column, v any) (string, bool) {
+	switch v := v.(type) {
+	case bool:
+		if v {
+			return "1", true
+		}
+		return "0", true
+	case string:
+		return "N'" + strings.ReplaceAll(v, "'", "''") + "'", true
+	case int64:
+		if strings.HasPrefix(strings.ToUpper(col.Case.Decl), "SQL_VARIANT") {
+			return "CAST(" + strconv.FormatInt(v, 10) + " AS BIGINT)", true
+		}
+	case []byte:
+		if v == nil {
+			return "", false
+		}
+		return "0x" + hex.EncodeToString(v), true
+	case time.Time:
+		ts := v.UTC().Format("2006-01-02T15:04:05.999999999")
+		if typetest.HasTimeZone(col.Case.Decl) {
+			ts += "+00:00"
+		}
+		return "'" + ts + "'", true
+	}
+	return "", false
 }
 
 // TestColumnTypes_ROWVERSION covers ROWVERSION, which typetest.Run can't: a

@@ -2,6 +2,7 @@ package typetest
 
 import (
 	"context"
+	"database/sql/driver"
 	"slices"
 	"strings"
 	"testing"
@@ -41,6 +42,24 @@ type Config struct {
 	// reported as written.
 	FoldName func(string) string
 
+	// Literal renders an input as a SQL literal in the driver's dialect, for
+	// the generated DDL file (see CheckDDL). Nil means DefaultLiteral only.
+	Literal LiteralFunc
+
+	// DDLPrelude holds statements the generated DDL file runs before it
+	// creates the table, to set up the session its literals assume: MySQL's
+	// SET time_zone = '+00:00', for example, since MySQL reads a TIMESTAMP
+	// literal in the session's time zone. The ddl subtest runs them too.
+	DDLPrelude []string
+
+	// DDLCheckSession holds statements the ddl subtest runs on the connection
+	// that loads the generated DDL, before the DDL itself, and that aren't
+	// written to the file. Set that session's time zone to CheckTimeZone, so
+	// that a time literal that depends on the loader's time zone reads back
+	// wrong and fails the check. Leave it empty for a database with no session
+	// time zone.
+	DDLCheckSession []string
+
 	// TableSuffix, if set, is appended to the CREATE TABLE statement, e.g.
 	// "ENGINE = MergeTree() ORDER BY row_id" for ClickHouse.
 	TableSuffix string
@@ -56,7 +75,9 @@ type Config struct {
 // three rows, and checks what sq reports: the inspect metadata from both
 // TableMetadata and SourceMetadata, and, for each column, the query result
 // kind and values, read with one query per column and then with one query
-// over all columns together.
+// over all columns together. Its ddl subtest then creates a second table from
+// the generated DDL's literals and checks its values too: see the package
+// doc's Generated DDL section.
 //
 // Run skips when cfg.Handle isn't configured, and under -short when it's an
 // external database. Embedded sources (SQLite, DuckDB) always run. It
@@ -115,6 +136,56 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 	t.Run("select_all", func(t *testing.T) {
 		checkSelectAll(t, th, src, fold, serverVer, tbl, cols)
 	})
+
+	t.Run("ddl", func(t *testing.T) {
+		checkDDLLoads(t, th, src, cfg, fold, serverVer, cols)
+	})
+}
+
+// checkDDLLoads executes the statements of the generated DDL file (see
+// CheckDDL), rendered for this server's version under a table name of its
+// own, and runs the whole-table value checks against that table. It proves
+// the file loads on this server, and that each input's SQL literal reads back
+// as the same value as the bound input.
+func checkDDLLoads(t *testing.T, th *testh.Helper, src *source.Source, cfg Config, fold func(string) string,
+	serverVer string, cols []Column,
+) {
+	t.Helper()
+
+	tbl := stringz.UniqTableName("coltypes")
+	stmts, err := RenderStatements(cfg, tbl, serverVer)
+	require.NoError(t, err)
+
+	// Load on a connection of its own, set up as cfg.DDLCheckSession says,
+	// and discard it afterward, so its session settings don't leak into the
+	// pool that the checks read through.
+	conn, err := th.OpenDB(src).Conn(th.Context)
+	require.NoError(t, err)
+	defer func() {
+		_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+		_ = conn.Close()
+	}()
+
+	for _, stmt := range cfg.DDLCheckSession {
+		_, err = conn.ExecContext(th.Context, stmt)
+		require.NoError(t, err, "server %s: DDLCheckSession statement: %s", serverVer, stmt)
+	}
+
+	created := false
+	for i, stmt := range stmts {
+		_, err = conn.ExecContext(th.Context, stmt)
+		require.NoError(t, err, "server %s: generated DDL statement %d: %s", serverVer, i+1, stmt)
+		if !created && strings.HasPrefix(stmt, "CREATE TABLE ") {
+			created = true
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+		}
+	}
+
+	litCols := slices.Clone(cols)
+	for i := range litCols {
+		litCols[i].Want = litCols[i].LiteralWant
+	}
+	checkSelectAll(t, th, src, fold, serverVer, tbl, litCols)
 }
 
 // TableToken stands for the test table's name in an expected default_value,

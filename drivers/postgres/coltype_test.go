@@ -2,11 +2,15 @@ package postgres_test
 
 import (
 	"context"
+	"encoding/hex"
 	"math"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -23,12 +27,94 @@ import (
 func TestColumnTypes(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:        sakila.Pg,
-		RowIDDecl:     "INTEGER NOT NULL PRIMARY KEY",
-		Cases:         pgTypeCases,
-		CheckSettings: checkPgSettings,
-	})
+	typetest.Run(t, pgConfig)
+}
+
+// TestColumnTypesDDL checks that testdata/coltypes.ddl matches the case
+// table. See typetest.CheckDDL.
+func TestColumnTypesDDL(t *testing.T) {
+	typetest.CheckDDL(t, "testdata/coltypes.ddl", "Postgres 18", typetest.DDLTable{Name: "coltypes", Config: pgConfig})
+}
+
+func TestPgLiteral(t *testing.T) {
+	col := func(decl string) typetest.Column { return typetest.Column{Case: &typetest.Case{Decl: decl}} }
+	ts := time.Date(2017, 7, 7, 7, 7, 7, 123000000, time.UTC)
+	testCases := []struct {
+		col  typetest.Column
+		in   any
+		want string
+	}{
+		{col("TIMETZ"), "07:07:07", "'07:07:07+00:00'"},
+		{col("TIME WITH TIME ZONE"), "07:07:07", "'07:07:07+00:00'"},
+		{col("TIME"), "07:07:07", "'07:07:07'"},
+		{col("TIMESTAMPTZ(3)"), ts, "'2017-07-07 07:07:07.123+00:00'"},
+		{col("TIMESTAMP WITHOUT TIME ZONE"), ts, "'2017-07-07 07:07:07.123'"},
+		{col("INTEGER[]"), []int64(nil), "NULL"},
+		{col("TEXT[]"), []string(nil), "NULL"},
+		{col("TEXT[]"), []string{`a"b`, `c\d`, "it's"}, `'{"a\"b","c\\d","it''s"}'`},
+		{col("BYTEA"), []byte("se"), `'\x7365'::bytea`},
+	}
+	for _, tc := range testCases {
+		got, err := typetest.RenderLiteral(pgConfig, tc.col, tc.in)
+		require.NoError(t, err, "%s %#v", tc.col.Case.Decl, tc.in)
+		require.Equal(t, tc.want, got, "%s %#v", tc.col.Case.Decl, tc.in)
+	}
+}
+
+// pgConfig is the typetest configuration for Postgres.
+var pgConfig = typetest.Config{
+	Handle:        sakila.Pg,
+	RowIDDecl:     "INTEGER NOT NULL PRIMARY KEY",
+	Cases:         pgTypeCases,
+	CheckSettings: checkPgSettings,
+	Literal:       pgLiteral,
+	// Load the generated DDL in an odd time zone, so a time literal without
+	// an offset fails the check. See typetest.Config.DDLCheckSession.
+	DDLCheckSession: []string{"SET TIME ZONE '" + typetest.CheckTimeZone + "'"},
+}
+
+// pgLiteral renders the inputs Postgres writes differently from
+// typetest.DefaultLiteral: bytes, as a bytea hex literal ('\x7365'::bytea);
+// a time or time of day for a column with a time zone (TIMESTAMPTZ, TIMETZ)
+// with an explicit offset, since Postgres reads one without an offset in the
+// session's time zone; and arrays, in Postgres's array literal form ('{1,7}'),
+// or NULL for a nil array. The bytea and array literals assume
+// standard_conforming_strings, which checkPgSettings checks.
+func pgLiteral(col typetest.Column, v any) (string, bool) {
+	switch v := v.(type) {
+	case []byte:
+		if v == nil {
+			return "", false
+		}
+		return "'\\x" + hex.EncodeToString(v) + "'::bytea", true
+	case time.Time:
+		if typetest.HasTimeZone(col.Case.Decl) {
+			return typetest.TimestampTZLiteral(v), true
+		}
+	case string:
+		if typetest.HasTimeZone(col.Case.Decl) {
+			return "'" + strings.ReplaceAll(v, "'", "''") + "+00:00'", true
+		}
+	case []int64:
+		if v == nil {
+			return "NULL", true
+		}
+		elems := make([]string, len(v))
+		for i, e := range v {
+			elems[i] = strconv.FormatInt(e, 10)
+		}
+		return "'{" + strings.Join(elems, ",") + "}'", true
+	case []string:
+		if v == nil {
+			return "NULL", true
+		}
+		elems := make([]string, len(v))
+		for i, e := range v {
+			elems[i] = `"` + strings.ReplaceAll(strings.ReplaceAll(e, `\`, `\\`), `"`, `\"`) + `"`
+		}
+		return "'" + strings.ReplaceAll("{"+strings.Join(elems, ",")+"}", "'", "''") + "'", true
+	}
+	return "", false
 }
 
 var (
@@ -202,18 +288,22 @@ type pgSettings struct {
 	dateStyle     string
 	intervalStyle string
 	lcMonetary    string
+	stdStrings    string
 }
 
 // checkPgSettings verifies that the session's settings are those the
 // expectations assume. TimeZone decides how timestamptz and timetz values
 // read back, DateStyle and IntervalStyle how date and interval values are
-// formatted, and lc_monetary how money values are formatted.
+// formatted, lc_monetary how money values are formatted, and
+// standard_conforming_strings how pgLiteral's bytea and array literals are
+// read.
 func checkPgSettings(ctx context.Context, db sqlz.DB, serverVer string) error {
 	var got pgSettings
 	err := db.QueryRowContext(ctx,
 		"SELECT current_setting('TimeZone'), current_setting('DateStyle'), "+
-			"current_setting('IntervalStyle'), current_setting('lc_monetary')").
-		Scan(&got.timeZone, &got.dateStyle, &got.intervalStyle, &got.lcMonetary)
+			"current_setting('IntervalStyle'), current_setting('lc_monetary'), "+
+			"current_setting('standard_conforming_strings')").
+		Scan(&got.timeZone, &got.dateStyle, &got.intervalStyle, &got.lcMonetary, &got.stdStrings)
 	if err != nil {
 		return errz.Err(err)
 	}
@@ -223,6 +313,7 @@ func checkPgSettings(ctx context.Context, db sqlz.DB, serverVer string) error {
 		dateStyle:     "ISO, MDY",
 		intervalStyle: "postgres",
 		lcMonetary:    "en_US.utf8",
+		stdStrings:    "on",
 	}
 	if got != want {
 		return errz.Errorf("Postgres %s: settings are %+v, expected %+v", serverVer, got, want)

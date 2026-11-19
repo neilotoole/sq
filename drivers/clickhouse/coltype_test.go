@@ -3,11 +3,13 @@ package clickhouse_test
 import (
 	"context"
 	"math"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -27,14 +29,62 @@ import (
 func TestColumnTypes(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:        sakila.CH,
-		RowIDDecl:     "Int32",
-		ColumnDecl:    chColumnDecl,
-		TableSuffix:   "ENGINE = MergeTree() ORDER BY row_id",
-		Cases:         withNullableColumnTypes(chTypeCases),
-		CheckSettings: checkCHSettings,
-	})
+	typetest.Run(t, chConfig)
+}
+
+// TestColumnTypesDDL checks that testdata/coltypes.ddl matches the case
+// table. See typetest.CheckDDL.
+func TestColumnTypesDDL(t *testing.T) {
+	typetest.CheckDDL(t, "testdata/coltypes.ddl", "ClickHouse 26", typetest.DDLTable{Name: "coltypes", Config: chConfig})
+}
+
+func TestCHLiteral(t *testing.T) {
+	// ClickHouse reads a backslash in a string literal as an escape.
+	got, ok := chLiteral(typetest.Column{Case: &typetest.Case{Decl: "String"}}, `a\nb'c`)
+	require.True(t, ok)
+	require.Equal(t, `'a\\nb''c'`, got)
+}
+
+// chConfig is the typetest configuration for ClickHouse.
+var chConfig = typetest.Config{
+	Handle:        sakila.CH,
+	RowIDDecl:     "Int32",
+	ColumnDecl:    chColumnDecl,
+	TableSuffix:   "ENGINE = MergeTree() ORDER BY row_id",
+	Cases:         withNullableColumnTypes(chTypeCases),
+	CheckSettings: checkCHSettings,
+	Literal:       chLiteral,
+	// ClickHouse reads a DateTime literal in the session's time zone, and
+	// the literals are UTC.
+	DDLPrelude: []string{"SET session_timezone = 'UTC'"},
+	// Load the generated DDL in an odd time zone, so a time literal that
+	// depends on it fails the check. See typetest.Config.DDLCheckSession.
+	DDLCheckSession: []string{"SET session_timezone = '" + typetest.CheckTimeZone + "'"},
+}
+
+// chLiteral renders the inputs ClickHouse writes differently from
+// typetest.DefaultLiteral: a DateTime or DateTime64 value as a full date and
+// time, which ClickHouse requires for those types even at midnight; and
+// decimals and floats as quoted strings. ClickHouse parses a quoted number
+// exactly as the column's type. Unquoted, 9999999.99 is read as a float and
+// overflows Decimal(9, 2), and once a comment in the VALUES list sends
+// ClickHouse to its expression parser, 7.7 reads back from a Nullable(Float32)
+// column as NULL. Strings have backslashes escaped, since ClickHouse reads a
+// backslash in a string literal as an escape.
+func chLiteral(col typetest.Column, v any) (string, bool) {
+	switch v := v.(type) {
+	case time.Time:
+		if strings.HasPrefix(col.Case.Decl, "DateTime") {
+			return "'" + v.UTC().Format("2006-01-02 15:04:05.999999999") + "'", true
+		}
+	case decimal.Decimal:
+		return "'" + v.String() + "'", true
+	case float64:
+		return "'" + strconv.FormatFloat(v, 'g', -1, 64) + "'", true
+	case string:
+		return "'" + strings.ReplaceAll(strings.ReplaceAll(v, `\`, `\\`), "'", "''") + "'", true
+	}
+	return "", false
 }
 
 // checkCHSettings verifies that the server's time zone is UTC, as the
@@ -170,11 +220,14 @@ var chTypeCases = []typetest.Case{
 	typetest.NewCase("datetime_utc", "DateTime('UTC')", fixt.DatetimeZ, fixt.Datetime, "DateTime('UTC')",
 		"DateTime('UTC')", kind.Datetime),
 
-	// candidate issue: the milliseconds of a DateTime64(3) value are lost:
-	// 07:07:07.123 reads back as 07:07:07.
+	// candidate issue: the milliseconds of a bound DateTime64(3) value are
+	// lost on insert: 07:07:07.123 reads back as 07:07:07. Loaded from the
+	// DDL file's literal, the value reads back intact, so the loss is in the
+	// write, not the read.
 	typetest.NewCase("datetime64_3", "DateTime64(3)", fixt.DatetimeZ, chDatetimeMillis, "DateTime64(3)",
 		"DateTime64(3)", kind.Datetime).
-		WithWantVal(chDatetimeMillis.Truncate(time.Second)),
+		WithWantVal(chDatetimeMillis.Truncate(time.Second)).
+		WithWantLiteralVal(chDatetimeMillis),
 
 	// candidate issue: IPv4 and IPv6 are kind text in inspect, but querying
 	// them fails: the driver returns a net.IP, which sq can't scan.

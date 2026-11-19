@@ -1,12 +1,14 @@
 package duckdb_test
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/testh/fixt"
@@ -22,12 +24,57 @@ import (
 // DuckDB is embedded, so this runs in every CI job, including under -short.
 func TestColumnTypes(t *testing.T) {
 	t.Parallel()
+	typetest.Run(t, duckConfig)
+}
 
-	typetest.Run(t, typetest.Config{
-		Handle:    sakila.Duck,
-		RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
-		Cases:     duckTypeCases,
-	})
+// TestColumnTypesDDL checks that testdata/coltypes.ddl matches the case
+// table. See typetest.CheckDDL.
+func TestColumnTypesDDL(t *testing.T) {
+	typetest.CheckDDL(t, "testdata/coltypes.ddl", "DuckDB 2.0",
+		typetest.DDLTable{Name: "coltypes", Config: duckConfig})
+}
+
+func TestDuckLiteral(t *testing.T) {
+	got, ok := duckLiteral(typetest.Column{Case: &typetest.Case{Decl: "TIMESTAMP WITH TIME ZONE"}},
+		time.Date(2017, 7, 7, 7, 7, 7, 0, time.UTC))
+	require.True(t, ok)
+	require.Equal(t, "'2017-07-07 07:07:07+00:00'", got)
+}
+
+// duckConfig is the typetest configuration for DuckDB.
+var duckConfig = typetest.Config{
+	Handle:    sakila.Duck,
+	RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
+	Cases:     duckTypeCases,
+	Literal:   duckLiteral,
+	// Load the generated DDL in an odd time zone, so a time literal without
+	// an offset fails the check. See typetest.Config.DDLCheckSession.
+	DDLCheckSession: []string{"SET SESSION TimeZone = '" + typetest.CheckTimeZone + "'"},
+}
+
+// duckLiteral renders the inputs DuckDB writes differently from
+// typetest.DefaultLiteral: bytes, as a BLOB literal with each byte escaped
+// ('\x73\x65'::BLOB), and a TIMESTAMPTZ value with an explicit offset, since
+// DuckDB reads one without an offset in the session's time zone.
+func duckLiteral(col typetest.Column, v any) (string, bool) {
+	switch v := v.(type) {
+	case []byte:
+		if v == nil {
+			return "", false
+		}
+		var sb strings.Builder
+		sb.WriteString("'")
+		for _, c := range v {
+			fmt.Fprintf(&sb, "\\x%02x", c)
+		}
+		sb.WriteString("'::BLOB")
+		return sb.String(), true
+	case time.Time:
+		if typetest.HasTimeZone(col.Case.Decl) {
+			return typetest.TimestampTZLiteral(v), true
+		}
+	}
+	return "", false
 }
 
 var (
