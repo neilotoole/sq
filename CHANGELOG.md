@@ -25,6 +25,15 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Changed
 
+- [#947]: [`sq diff --data`](https://sq.io/docs/diff#row-matching) now matches rows by primary key
+  when both tables have an integer primary key, so an inserted or deleted row is reported as a
+  single added or removed row. Previously rows were compared by position, and one inserted row made
+  every row after it show as changed. Tables without a usable key are still compared by position,
+  and the output now says so. When [`--stop`](https://sq.io/docs/diff#--stop) cuts the diff short,
+  the output now ends with a note saying more differences exist.
+- [#947]: [`sq inspect`](https://sq.io/docs/inspect) now reports a SQLite or rqlite
+  `INTEGER PRIMARY KEY` column as not nullable, even without an explicit `NOT NULL`. SQLite never
+  allows NULL in that column.
 - [#1013]: Querying a remote source now makes one fewer server round-trip per `sq` invocation. The
   server version, needed for version-aware SQL rendering, is read during the connectivity check when
   the source is opened, instead of in a separate query.
@@ -49,6 +58,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Fixed
 
+- [#947]: `sq diff --data` hung when a table existed in only one of the two sources. That table is
+  now treated as empty, so its rows are shown as removed or added. This also affected diffing two
+  whole sources, such as `sq diff @a @b --data`, whenever they had different tables.
 - [#1151]: Opening a DuckDB source is much faster, and no longer needs network access on a machine
   with an empty extension cache.
 - [#1165]: A source-level option was ignored once `sq` reloaded its config, silently falling back to
@@ -1814,6 +1826,7 @@ change to the `sq` CLI in some time, and should make working with lots of source
 [#920]: https://github.com/neilotoole/sq/pull/920
 [#923]: https://github.com/neilotoole/sq/pull/923
 [#926]: https://github.com/neilotoole/sq/pull/926
+[#947]: https://github.com/neilotoole/sq/issues/947
 [#968]: https://github.com/neilotoole/sq/issues/968
 [#975]: https://github.com/neilotoole/sq/issues/975
 [#976]: https://github.com/neilotoole/sq/pull/976

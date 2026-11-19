@@ -83,6 +83,37 @@ $ sq diff @sakila/staging.actor @sakila/prod.actor --data
 
 ![sq diff table data](sq_diff_table_data.png)
 
+### Row matching
+
+When both tables have an integer primary key, with the same key columns on each side, `sq diff`
+matches rows by key. A row whose key is in only one table is shown as added (`+`) or removed
+(`-`), and a row whose key is in both tables but whose values differ is shown as changed.
+
+For example, if staging is missing actor `2`, only that row is reported, and the rows after it
+still line up:
+
+```shell
+$ sq diff @sakila/prod.actor @sakila/staging.actor --data -U1
+--- @sakila/prod.actor
++++ @sakila/staging.actor
+@@ -1,3 +1,2 @@
+ 1  PENELOPE  GUINESS   2006-02-15T04:34:33Z
+-2  NICK      WAHLBERG  2006-02-15T04:34:33Z
+ 3  ED        CHASE     2006-02-15T04:34:33Z
+```
+
+Otherwise, rows are compared by position: the first row of each table, then the second, and so
+on. That works when the tables differ only in place, but a single inserted or deleted row puts
+every following row out of step, and they are all reported as different. When this happens, the
+output ends with a note:
+
+```text
+… (no usable primary key; rows aligned by position — inserts/deletes may cascade)
+```
+
+A table that exists in only one of the sources is treated as empty, so its rows are all shown as
+removed or added.
+
 ### `--stop`
 
 In early releases, `sq diff --data` would compare every row in the table. Most
@@ -91,7 +122,11 @@ got the idea; the next 999,500 rows of terminal output weren't really helping.
 
 Now diff will stop after N differences, where N is controlled by the `--stop`
 (`-n`) flag, or the [`diff.stop`](/docs/config/#diffstop) config setting. The
-default is `3`.
+default is `3`. If there are more differences than that, the output ends with a note saying so:
+
+```text
+… (stopped after 3 differences; more exist)
+```
 
 ```shell
 # Show the first 5 differing rows.
