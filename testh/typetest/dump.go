@@ -94,16 +94,7 @@ func formatActual(col Column, md *metadata.Column, tbl string, queryKind kind.Ki
 	if queryErr == nil && vals != nil {
 		parts := make([]string, len(vals))
 		for i, v := range vals {
-			switch v.(type) {
-			case nil:
-				parts[i] = "<nil>"
-			case int64, uint64, float64, bool:
-				// %#v drops the type of a basic number or bool, and the
-				// comparison is type-sensitive.
-				parts[i] = fmt.Sprintf("%T(%#v)", v, v)
-			default:
-				parts[i] = fmt.Sprintf("%#v", v)
-			}
+			parts[i] = fmtGoValue(v)
 		}
 		valStr = "[" + strings.Join(parts, " ") + "]"
 	}
@@ -112,6 +103,27 @@ func formatActual(col Column, md *metadata.Column, tbl string, queryKind kind.Ki
 		"default_value %q, query kind %s, values %s",
 		col.Name, col.Case.Decl, col.Variant, md.BaseType, md.ColumnType, md.Kind, md.Nullable,
 		defaultWithToken(md.DefaultValue, tbl), queryKind, valStr)
+}
+
+// fmtGoValue formats a record value as the dump and the value checks show
+// it, close to how it's written in a case table: a basic number or bool with
+// its type (%#v drops it, and the comparison is type-sensitive), a value
+// with a GoString method by it (time.Time prints as time.Date(...)), one
+// with only a String method as its type and string, such as
+// decimal.Decimal(999.99), and anything else by %#v.
+func fmtGoValue(v any) string {
+	switch v := v.(type) {
+	case nil:
+		return "<nil>"
+	case int64, uint64, float64, bool:
+		return fmt.Sprintf("%T(%#v)", v, v)
+	case fmt.GoStringer:
+		return v.GoString()
+	case fmt.Stringer:
+		return fmt.Sprintf("%T(%s)", v, v)
+	default:
+		return fmt.Sprintf("%#v", v)
+	}
 }
 
 // defaultWithToken returns def with tbl replaced by TableToken. An empty tbl

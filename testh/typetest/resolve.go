@@ -31,8 +31,11 @@ var caseNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 // semver, VersionOverrides out of order, an empty or repeating variant list
 // (Case.Variants or Override.Variants), colliding column names, a required
 // expectation left unset (Default, for a Defaulted column), a SQL input with
-// no expected value, an empty QueryErr, or Zero or LiteralZero set for the
-// Defaulted variant, which has no Zero row.
+// no expected value, an empty QueryErr, Zero or LiteralZero set for the
+// Defaulted variant, which has no Zero row, or a misused Matcher: one as an
+// input (Zero, Val or NullInput), one that reaches a NotNull or Nullable
+// column through any layer, or one on a Defaulted column whose case doesn't
+// set DefaultExpr.
 func Resolve(cases []Case, serverVer string) ([]Column, error) {
 	if !semver.IsValid(serverVer) {
 		return nil, errz.Errorf("typetest: invalid server version {%s}: must be a canonical semver",
@@ -85,6 +88,16 @@ func validateCase(c *Case) error {
 
 	if err := validateVariants(c, "Variants", c.Variants); err != nil {
 		return err
+	}
+
+	for _, in := range []struct {
+		v     any
+		field string
+	}{{c.Zero, "Zero"}, {c.Val, "Val"}, {c.NullInput, "NullInput"}} {
+		if _, ok := in.v.(Matcher); ok {
+			return errz.Errorf("typetest: case {%s}: %s is an input, and a Matcher is only an expected value",
+				c.Name, in.field)
+		}
 	}
 
 	if c.MinVer != "" && !semver.IsValid(c.MinVer) {
@@ -216,11 +229,24 @@ func resolveColumn(c *Case, v Variant, serverVer string) (Column, error) {
 		litValWant = w.LiteralVal.Val
 	}
 
+	if v != Defaulted {
+		for _, want := range []any{zeroWant, valWant, litZeroWant, litValWant} {
+			if _, ok := want.(Matcher); ok {
+				return Column{}, errz.Errorf("typetest: case {%s}: variant {%s}: a Matcher can only be the "+
+					"expected value of a Defaulted column", c.Name, v)
+			}
+		}
+	}
+
 	if v == Defaulted {
 		// The column is never inserted: every row reads back its default,
 		// the SQL literal for Val, on both the bound and the ddl table.
 		if !w.Default.Set {
 			return Column{}, missingErr(c, v, "Default")
+		}
+		if _, ok := litValWant.(Matcher); ok && c.DefaultExpr == "" {
+			return Column{}, errz.Errorf("typetest: case {%s}: variant {%s}: a Matcher needs DefaultExpr: the "+
+				"literal for a Matcher can't be rendered", c.Name, v)
 		}
 		col.Want = [3]any{litValWant, litValWant, litValWant}
 		col.LiteralWant = col.Want

@@ -408,6 +408,49 @@ var msTypeCases = []typetest.Case{
 		WithWantVal(msSRID4326 + msPoint22).
 		WithIssue("#1363").
 		WithWantDefault("([geography]::STGeomFromText('POINT(2 2)',(4326)))"),
+
+	// Expression defaults.
+	// A value that changes every row is checked only as a non-NULL value of
+	// its Go type, never against the clock. See typetest.NewExprCase.
+	typetest.NewExprCase("expr_getdate", "DATETIME", "GETDATE()", typetest.NotNullOf[time.Time](), "datetime",
+		"datetime(3)", kind.Datetime).
+		WithWantDefault("(getdate())"),
+	typetest.NewExprCase("expr_current_timestamp", "DATETIME", "CURRENT_TIMESTAMP", typetest.NotNullOf[time.Time](),
+		"datetime", "datetime(3)", kind.Datetime).
+		WithWantDefault("(getdate())"),
+	typetest.NewExprCase("expr_sysdatetime", "DATETIME2", "SYSDATETIME()", typetest.NotNullOf[time.Time](),
+		"datetime2", "datetime2(7)", kind.Datetime).
+		WithWantDefault("(sysdatetime())"),
+	typetest.NewExprCase("expr_sysutcdatetime", "DATETIME2", "SYSUTCDATETIME()", typetest.NotNullOf[time.Time](),
+		"datetime2", "datetime2(7)", kind.Datetime).
+		WithWantDefault("(sysutcdatetime())"),
+	typetest.NewExprCase("expr_sysdatetimeoffset", "DATETIMEOFFSET", "SYSDATETIMEOFFSET()",
+		typetest.NotNullOf[time.Time](), "datetimeoffset", "datetimeoffset(7)", kind.Datetime).
+		WithWantDefault("(sysdatetimeoffset())"),
+	typetest.NewExprCase("expr_cast_getdate_date", "DATE", "CAST(GETDATE() AS DATE)", typetest.NotNullOf[time.Time](),
+		"date", "date(0)", kind.Date).
+		WithWantDefault("(CONVERT([date],getdate()))"),
+	// candidate issue (#1388): the GUIDs read back as their raw 16 bytes, as
+	// the uniqueidentifier case does.
+	typetest.NewExprCase("expr_newid", "UNIQUEIDENTIFIER", "NEWID()", typetest.NotNullOf[string](),
+		"uniqueidentifier", "uniqueidentifier", kind.Text).
+		WithWantDefault("(newid())"),
+	typetest.NewExprCase("expr_newsequentialid", "UNIQUEIDENTIFIER", "NEWSEQUENTIALID()",
+		typetest.NotNullOf[string](), "uniqueidentifier", "uniqueidentifier", kind.Text).
+		WithWantDefault("(newsequentialid())"),
+	typetest.NewExprCase("expr_rand", "FLOAT", "RAND()", typetest.NotNullOf[float64](), "float", "float(53)",
+		kind.Float).
+		WithWantDefault("(rand())"),
+	// The value is the connecting login's name, so it's checked only as a
+	// string.
+	typetest.NewExprCase("expr_suser_sname", "NVARCHAR(128)", "SUSER_SNAME()", typetest.NotNullOf[string](),
+		"nvarchar", "nvarchar(128)", kind.Text).
+		WithWantDefault("(suser_sname())"),
+	typetest.NewExprCase("expr_seven", "INT", "(1 + 6)", int64(7), "int", "int(10)", kind.Int).
+		WithWantDefault("((1)+(6))"),
+	typetest.NewExprCase("expr_lower", "NVARCHAR(20)", "LOWER(N'SEVEN')", "seven", "nvarchar", "nvarchar(20)",
+		kind.Text).
+		WithWantDefault("(lower(N'SEVEN'))"),
 }
 
 // These are the pieces of how a GEOMETRY or GEOGRAPHY column holding a point

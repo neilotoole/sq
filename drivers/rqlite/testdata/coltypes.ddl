@@ -78,7 +78,14 @@ CREATE TABLE coltypes (
   col_widget_d WIDGET DEFAULT 'seven' NOT NULL,
   col_integer_affinity INTEGER NOT NULL,
   col_integer_affinity_n INTEGER NULL,
-  col_integer_affinity_d INTEGER DEFAULT 'seven' NOT NULL
+  col_integer_affinity_d INTEGER DEFAULT 'seven' NOT NULL,
+  col_expr_current_timestamp_text_d TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  col_expr_current_timestamp_datetime_d DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  col_expr_current_timestamp_timestamp_d TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  col_expr_current_date_d DATE DEFAULT CURRENT_DATE NOT NULL,
+  col_expr_current_time_d TIME DEFAULT CURRENT_TIME NOT NULL,
+  col_expr_seven_d INTEGER DEFAULT (1 + 6) NOT NULL,
+  col_expr_lower_d TEXT DEFAULT (lower('SEVEN')) NOT NULL
 );
 
 INSERT INTO coltypes (

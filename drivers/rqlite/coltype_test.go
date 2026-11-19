@@ -209,4 +209,31 @@ var rqTypeCases = []typetest.Case{
 		WithWant(typetest.Want{QueryErr: typetest.Is(`converting driver.Value type string ("seven") to a int64`)}).
 		WithIssue("#1299").
 		WithWantDefault("'seven'"),
+
+	// Expression defaults.
+	// A value that changes every row is checked only as a non-NULL value of
+	// its Go type, never against the clock. See typetest.NewExprCase.
+	typetest.NewExprCase("expr_current_timestamp_text", "TEXT", "CURRENT_TIMESTAMP", typetest.NotNullOf[string](),
+		"TEXT", "TEXT", kind.Text).
+		WithWantDefault("CURRENT_TIMESTAMP"),
+	typetest.NewExprCase("expr_current_timestamp_datetime", "DATETIME", "CURRENT_TIMESTAMP",
+		typetest.NotNullOf[time.Time](), "DATETIME", "DATETIME", kind.Datetime).
+		WithWantDefault("CURRENT_TIMESTAMP"),
+	typetest.NewExprCase("expr_current_timestamp_timestamp", "TIMESTAMP", "CURRENT_TIMESTAMP",
+		typetest.NotNullOf[time.Time](), "TIMESTAMP", "TIMESTAMP", kind.Datetime).
+		WithWantDefault("CURRENT_TIMESTAMP"),
+	typetest.NewExprCase("expr_current_date", "DATE", "CURRENT_DATE", typetest.NotNullOf[time.Time](),
+		"DATE", "DATE", kind.Date).
+		WithWantDefault("CURRENT_DATE"),
+	typetest.NewExprCase("expr_current_time", "TIME", "CURRENT_TIME", typetest.NotNullOf[string](),
+		"TIME", "TIME", kind.Time).
+		WithWantDefault("CURRENT_TIME"),
+	// candidate issue (#1388): rqlite rewrites datetime('now'), random() and
+	// randomblob() to constants when the table is created, so every row gets
+	// the same value, and default_value shows the constant, which differs on
+	// every run. They have no case.
+	typetest.NewExprCase("expr_seven", "INTEGER", "(1 + 6)", int64(7), "INTEGER", "INTEGER", kind.Int).
+		WithWantDefault("1 + 6"),
+	typetest.NewExprCase("expr_lower", "TEXT", "(lower('SEVEN'))", "seven", "TEXT", "TEXT", kind.Text).
+		WithWantDefault("lower('SEVEN')"),
 }

@@ -404,8 +404,10 @@ var mysqlTypeCases = []typetest.Case{
 		}).
 		WithWantDefault("2017-07-07 07:07:07"),
 
-	// TIMESTAMP(6) isn't here: it needs a table of its own on the 5.x images.
-	// See TestColumnTypes_TIMESTAMP6.
+	// The TIMESTAMP(6) type case isn't here: it needs a table of its own on
+	// the 5.x images. See TestColumnTypes_TIMESTAMP6. The expression case
+	// expr_current_timestamp_6 is here: its declared default keeps it from
+	// getting an implicit one.
 
 	typetest.NewCase("time", "TIME", fixt.TimeOfDayZ, fixt.TimeOfDay, "time", "time", kind.Time).
 		WithWantDefault("07:07:07"),
@@ -443,6 +445,53 @@ var mysqlTypeCases = []typetest.Case{
 		WithWantVal(srid0 + point22WKB).
 		WithVersionOverrides(mysqlNoDefaultBefore8013).
 		WithWantDefault("st_geomfromtext(_utf8mb4\\'POINT(2 2)\\')"),
+
+	// Expression defaults.
+	// A value that changes every row is checked only as a non-NULL value of
+	// its Go type, never against the clock. See typetest.NewExprCase.
+	//
+	// The TIMESTAMP cases must stay after col_timestamp, the first TIMESTAMP
+	// column in the table on 5.x (see TestColumnTypes_TIMESTAMP6). Declaring a
+	// default keeps them from getting an implicit one.
+	typetest.NewExprCase("expr_current_timestamp", "TIMESTAMP", "CURRENT_TIMESTAMP", typetest.NotNullOf[time.Time](),
+		"timestamp", "timestamp", kind.Datetime).
+		WithWantDefault("CURRENT_TIMESTAMP"),
+	typetest.NewExprCase("expr_current_timestamp_6", "TIMESTAMP(6)", "CURRENT_TIMESTAMP(6)",
+		typetest.NotNullOf[time.Time](), "timestamp", "timestamp(6)", kind.Datetime).
+		WithWantDefault("CURRENT_TIMESTAMP(6)"),
+	typetest.NewExprCase("expr_current_timestamp_datetime", "DATETIME", "CURRENT_TIMESTAMP",
+		typetest.NotNullOf[time.Time](), "datetime", "datetime", kind.Datetime).
+		WithWantDefault("CURRENT_TIMESTAMP"),
+	typetest.NewExprCase("expr_now_datetime", "DATETIME", "NOW()", typetest.NotNullOf[time.Time](), "datetime",
+		"datetime", kind.Datetime).
+		WithWantDefault("CURRENT_TIMESTAMP"),
+	// candidate issue (#1388): inspect doesn't report the ON UPDATE.
+	typetest.NewExprCase("expr_on_update", "TIMESTAMP", "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+		typetest.NotNullOf[time.Time](), "timestamp", "timestamp", kind.Datetime).
+		WithWantDefault("CURRENT_TIMESTAMP"),
+
+	// MySQL accepts a parenthesized expression as a default from 8.0.13.
+	typetest.NewExprCase("expr_current_date", "DATE", "(CURRENT_DATE)", typetest.NotNullOf[time.Time](), "date",
+		"date", kind.Date).
+		WithMinVer("v8.0.13").
+		WithWantDefault("curdate()"),
+	typetest.NewExprCase("expr_uuid", "CHAR(36)", "(UUID())", typetest.NotNullOf[string](), "char", "char(36)",
+		kind.Text).
+		WithMinVer("v8.0.13").
+		WithWantDefault("uuid()"),
+	typetest.NewExprCase("expr_rand", "DOUBLE", "(RAND())", typetest.NotNullOf[float64](), "double", "double",
+		kind.Float).
+		WithMinVer("v8.0.13").
+		WithWantDefault("rand()"),
+	typetest.NewExprCase("expr_seven", "INT", "(1 + 6)", int64(7), "int", "int", kind.Int).
+		WithMinVer("v8.0.13").
+		WithWantDefault("(1 + 6)"),
+	// candidate issue (#1388): default_value is information_schema's raw
+	// form, as for the TEXT cases' defaults.
+	typetest.NewExprCase("expr_lower", "VARCHAR(20)", "(LOWER('SEVEN'))", "seven", "varchar", "varchar(20)",
+		kind.Text).
+		WithMinVer("v8.0.13").
+		WithWantDefault("lower(_utf8mb4\\'SEVEN\\')"),
 }
 
 // mysqlSettings are the server settings the expectations in mysqlTypeCases

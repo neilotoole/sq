@@ -234,4 +234,34 @@ var duckTypeCases = []typetest.Case{
 		WithWantVal("OrderedMap{k: 7}").
 		WithIssue("#609").
 		WithWantDefault("\"map\"(list_value('k'), list_value(7))"),
+
+	// Expression defaults.
+	// A value that changes every row is checked only as a non-NULL value of
+	// its Go type, never against the clock. See typetest.NewExprCase.
+	typetest.NewExprCase("expr_now", "TIMESTAMPTZ", "now()", typetest.NotNullOf[time.Time](),
+		"TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH TIME ZONE", kind.Datetime).
+		WithWantDefault("now()"),
+	typetest.NewExprCase("expr_current_timestamp", "TIMESTAMPTZ", "current_timestamp",
+		typetest.NotNullOf[time.Time](), "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH TIME ZONE", kind.Datetime).
+		WithWantDefault("current_timestamp"),
+	// A TIMESTAMP holds the local wall-clock time of the machine running the
+	// test, read back as UTC.
+	typetest.NewExprCase("expr_current_localtimestamp", "TIMESTAMP", "current_localtimestamp()",
+		typetest.NotNullOf[time.Time](), "TIMESTAMP", "TIMESTAMP", kind.Datetime).
+		WithWantDefault("current_localtimestamp()"),
+	typetest.NewExprCase("expr_current_date", "DATE", "current_date", typetest.NotNullOf[time.Time](),
+		"DATE", "DATE", kind.Date).
+		WithWantDefault("current_date"),
+	// candidate issue (#1388): the UUID reads back as its raw 16 bytes, as the
+	// uuid case does.
+	typetest.NewExprCase("expr_gen_random_uuid", "UUID", "gen_random_uuid()", typetest.NotNullOf[string](),
+		"UUID", "UUID", kind.Text).
+		WithWantDefault("gen_random_uuid()"),
+	typetest.NewExprCase("expr_random", "DOUBLE", "random()", typetest.NotNullOf[float64](),
+		"DOUBLE", "DOUBLE", kind.Float).
+		WithWantDefault("random()"),
+	typetest.NewExprCase("expr_seven", "INTEGER", "(1 + 6)", int64(7), "INTEGER", "INTEGER", kind.Int).
+		WithWantDefault("(1 + 6)"),
+	typetest.NewExprCase("expr_lower", "VARCHAR", "lower('SEVEN')", "seven", "VARCHAR", "VARCHAR", kind.Text).
+		WithWantDefault("lower('SEVEN')"),
 }

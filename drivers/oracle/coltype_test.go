@@ -244,6 +244,40 @@ var oraTypeCases = []typetest.Case{
 			Val:      typetest.WantNull(),
 		}).
 		WithIssue("#1303"),
+
+	// Expression defaults.
+	// A value that changes every row is checked only as a non-NULL value of
+	// its Go type, never against the clock. See typetest.NewExprCase.
+	// CURRENT_DATE, CURRENT_TIMESTAMP and LOCALTIMESTAMP are in the session
+	// time zone, which follows the machine running the test.
+	typetest.NewExprCase("expr_sysdate", "DATE", "SYSDATE", typetest.NotNullOf[time.Time](), "DATE", "DATE",
+		kind.Datetime).
+		WithWantDefault(""),
+	typetest.NewExprCase("expr_current_date", "DATE", "CURRENT_DATE", typetest.NotNullOf[time.Time](), "DATE",
+		"DATE", kind.Datetime).
+		WithWantDefault(""),
+	typetest.NewExprCase("expr_systimestamp", "TIMESTAMP WITH TIME ZONE", "SYSTIMESTAMP",
+		typetest.NotNullOf[time.Time](), "TIMESTAMP WITH TIME ZONE", "TIMESTAMP(6) WITH TIME ZONE", kind.Datetime).
+		WithWantDefault(""),
+	typetest.NewExprCase("expr_current_timestamp", "TIMESTAMP WITH TIME ZONE", "CURRENT_TIMESTAMP",
+		typetest.NotNullOf[time.Time](), "TIMESTAMP WITH TIME ZONE", "TIMESTAMP(6) WITH TIME ZONE", kind.Datetime).
+		WithWantDefault(""),
+	typetest.NewExprCase("expr_localtimestamp", "TIMESTAMP", "LOCALTIMESTAMP", typetest.NotNullOf[time.Time](),
+		"TIMESTAMP", "TIMESTAMP(6)", kind.Datetime).
+		WithWantDefault(""),
+	typetest.NewExprCase("expr_sys_guid", "RAW(16)", "SYS_GUID()", typetest.NotNullOf[[]byte](), "RAW", "RAW(16)",
+		kind.Bytes).
+		WithWantDefault(""),
+	// The value is the connecting user's name, so it's checked only as a
+	// string.
+	typetest.NewExprCase("expr_user", "VARCHAR2(128)", "USER", typetest.NotNullOf[string](), "VARCHAR2",
+		"VARCHAR2(128)", kind.Text).
+		WithWantDefault(""),
+	typetest.NewExprCase("expr_seven", "NUMBER(10)", "(1 + 6)", int64(7), "NUMBER", "NUMBER(10)", kind.Int).
+		WithWantDefault(""),
+	typetest.NewExprCase("expr_lower", "VARCHAR2(20)", "LOWER('SEVEN')", "seven", "VARCHAR2", "VARCHAR2(20)",
+		kind.Text).
+		WithWantDefault(""),
 }
 
 // oraSettings are the session settings the expectations in oraTypeCases

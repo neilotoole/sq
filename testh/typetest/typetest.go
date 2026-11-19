@@ -43,6 +43,14 @@
 // Case.WithWantDefault. A type that can't take a default leaves Defaulted out
 // of Case.Variants, or of an Override's Variants on older servers.
 //
+// An expression default, such as now() or (1 + 6), is a case of its own,
+// built by NewExprCase: a Defaulted column only, with Case.DefaultExpr set
+// and no inputs. Its expected value is a plain value where the expression
+// always gives the same value, and a Matcher, such as NotNullOf, where it
+// gives a new value each row. NotNullOf checks only that the value isn't
+// NULL and has the right Go type, never what it is: nothing is compared
+// with the clock or the date.
+//
 // # Generated DDL
 //
 // A driver's case tables also generate testdata/coltypes.ddl, for manual and
@@ -163,7 +171,8 @@ type SQL string
 // layer field by field: see Resolve.
 type Want struct {
 	// Zero and Val are the expected record values for the Zero and Val
-	// inputs. They default to the inputs themselves.
+	// inputs. They default to the inputs themselves. On a Defaulted column
+	// whose case sets DefaultExpr, Val may be a Matcher (see NewExprCase).
 	Zero, Val Opt[any]
 
 	// LiteralZero and LiteralVal are the expected record values for the Zero
@@ -286,7 +295,8 @@ type Case struct {
 	// Config.DefaultExpr if that's set: set it only where neither will do.
 	// The column's expected value still comes from Val (Want.LiteralVal, then
 	// Want.Val), so an expression that reads back as something else needs
-	// PerVariant.Defaulted's Val set to match.
+	// PerVariant.Defaulted's Val set to match. For an expression default,
+	// NewExprCase sets both DefaultExpr and Case.Want.Val.
 	DefaultExpr string
 
 	// MinVer, if set, excludes the case on servers older than this canonical

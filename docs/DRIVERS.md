@@ -375,6 +375,23 @@ drafts them. A type that can't take a default leaves `Defaulted` out with
 there in its version override, for example
 `typetest.Override{Before: "v8.0.13", Variants: []typetest.Variant{typetest.NotNull, typetest.Nullable}}`.
 
+An expression default, such as `now()` or `(1 + 6)`, is a case of its own, built by
+`typetest.NewExprCase`: a defaulted column only, whose default is the expression, used as is. An
+expression that always gives the same value expects that value. One that gives a new value each
+row (the current time, a generated UUID, a random number) expects a `typetest.Matcher`:
+`NotNullOf[T]()` checks that the value isn't NULL and has Go type `T`, and nothing more. No case
+checks a time or UUID value against the clock, so no result depends on when, or in which time
+zone, the test runs. For example:
+
+```go
+typetest.NewExprCase("expr_now", "TIMESTAMPTZ", "now()", typetest.NotNullOf[time.Time](),
+	"timestamptz", "timestamp with time zone", kind.Datetime).
+	WithWantDefault("now()"),
+```
+
+Expression cases go at the end of the driver's case table, after an `// Expression defaults.`
+comment, and their names start with `expr_`.
+
 #### Database-specific quirks
 
 Document any database-specific behaviors that affect driver implementation:

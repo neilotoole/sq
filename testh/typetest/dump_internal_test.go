@@ -121,3 +121,16 @@ func TestDumpConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, cfg.Cases[0].PerVariant.Defaulted.Default.Set, "the input is not modified")
 }
+
+func TestWithDumpPlaceholderDefaults_ExprCase(t *testing.T) {
+	// A driver's first dump of its expression cases runs before any of them
+	// has an expected default_value.
+	m := NotNullOf[int64]()
+	c := NewExprCase("expr_seven", "INTEGER", "(1 + 6)", m, "INTEGER", "INTEGER", kind.Int)
+
+	cols, err := Resolve(withDumpPlaceholderDefaults([]Case{c}), "v9.1.0")
+	require.NoError(t, err)
+	require.Len(t, cols, 1)
+	require.Equal(t, dumpPlaceholderDefault, cols[0].Default)
+	require.Equal(t, [3]any{m, m, m}, cols[0].Want)
+}

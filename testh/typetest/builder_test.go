@@ -2,6 +2,7 @@ package typetest_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -139,4 +140,24 @@ func TestCase_WithPerVariantDefaulted(t *testing.T) {
 		WithPerVariant(typetest.PerVariant{Defaulted: typetest.Want{BaseType: typetest.Is("text")}})
 	require.Equal(t, typetest.Is("text"), c.PerVariant.Defaulted.BaseType)
 	require.Equal(t, typetest.Is("7"), c.PerVariant.Defaulted.Default, "merged, not replaced")
+}
+
+func TestNewExprCase(t *testing.T) {
+	m := typetest.NotNullOf[time.Time]()
+	c := typetest.NewExprCase("expr_now", "TIMESTAMPTZ", "now()", m, "timestamptz",
+		"timestamp with time zone", kind.Datetime)
+	require.Equal(t, []typetest.Variant{typetest.Defaulted}, c.Variants)
+	require.Equal(t, "now()", c.DefaultExpr)
+	require.True(t, c.Want.Val.Set)
+	require.Nil(t, c.Zero)
+	require.Nil(t, c.Val)
+	require.Equal(t, typetest.Is("timestamptz"), c.Want.BaseType)
+	require.Equal(t, typetest.Is("timestamp with time zone"), c.Want.ColumnType)
+	require.Equal(t, typetest.Is(kind.Datetime), c.Want.Kind)
+
+	cols := mustResolve(t, c.WithWantDefault("now()"))
+	require.Len(t, cols, 1)
+	require.Equal(t, "col_expr_now_d", cols[0].Name)
+	require.Equal(t, [3]any{m, m, m}, cols[0].Want)
+	require.Equal(t, cols[0].Want, cols[0].LiteralWant)
 }

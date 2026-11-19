@@ -114,7 +114,15 @@ CREATE TABLE coltypes (
   col_struct_d STRUCT(a INTEGER, b VARCHAR) DEFAULT {'a': 7, 'b': 'seven'} NOT NULL,
   col_map MAP(VARCHAR, INTEGER) NOT NULL,
   col_map_n MAP(VARCHAR, INTEGER) NULL,
-  col_map_d MAP(VARCHAR, INTEGER) DEFAULT MAP {'k': 7} NOT NULL
+  col_map_d MAP(VARCHAR, INTEGER) DEFAULT MAP {'k': 7} NOT NULL,
+  col_expr_now_d TIMESTAMPTZ DEFAULT now() NOT NULL,
+  col_expr_current_timestamp_d TIMESTAMPTZ DEFAULT current_timestamp NOT NULL,
+  col_expr_current_localtimestamp_d TIMESTAMP DEFAULT current_localtimestamp() NOT NULL,
+  col_expr_current_date_d DATE DEFAULT current_date NOT NULL,
+  col_expr_gen_random_uuid_d UUID DEFAULT gen_random_uuid() NOT NULL,
+  col_expr_random_d DOUBLE DEFAULT random() NOT NULL,
+  col_expr_seven_d INTEGER DEFAULT (1 + 6) NOT NULL,
+  col_expr_lower_d VARCHAR DEFAULT lower('SEVEN') NOT NULL
 );
 
 INSERT INTO coltypes (

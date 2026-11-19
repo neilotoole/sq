@@ -96,7 +96,16 @@ CREATE TABLE coltypes (
   col_json_n JSON NULL,
   col_json_d JSON DEFAULT '{"val": 7}' NOT NULL,
   col_vector_3 VECTOR(3, FLOAT32) NOT NULL,
-  col_vector_3_n VECTOR(3, FLOAT32) NULL
+  col_vector_3_n VECTOR(3, FLOAT32) NULL,
+  col_expr_sysdate_d DATE DEFAULT SYSDATE NOT NULL,
+  col_expr_current_date_d DATE DEFAULT CURRENT_DATE NOT NULL,
+  col_expr_systimestamp_d TIMESTAMP WITH TIME ZONE DEFAULT SYSTIMESTAMP NOT NULL,
+  col_expr_current_timestamp_d TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  col_expr_localtimestamp_d TIMESTAMP DEFAULT LOCALTIMESTAMP NOT NULL,
+  col_expr_sys_guid_d RAW(16) DEFAULT SYS_GUID() NOT NULL,
+  col_expr_user_d VARCHAR2(128) DEFAULT USER NOT NULL,
+  col_expr_seven_d NUMBER(10) DEFAULT (1 + 6) NOT NULL,
+  col_expr_lower_d VARCHAR2(20) DEFAULT LOWER('SEVEN') NOT NULL
 );
 
 INSERT INTO coltypes (

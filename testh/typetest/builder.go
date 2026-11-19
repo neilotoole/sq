@@ -27,6 +27,24 @@ func NewCase(name, decl string, zero, val any, baseType, columnType string, k ki
 	}
 }
 
+// NewExprCase returns a case whose only column is a Defaulted column declared
+// decl, with the default expression expr, such as now() or (1 + 6). want is
+// the value that each row reads back: a plain value for an expression that
+// always gives the same value, or a Matcher, such as NotNullOf, for one that
+// gives a new value each row. The case has no inputs: its Zero and Val are
+// nil. Set its expected default_value with WithWantDefault, for example:
+//
+//	NewExprCase("expr_now", "TIMESTAMPTZ", "now()", NotNullOf[time.Time](), "timestamptz",
+//		"timestamp with time zone", kind.Datetime).
+//		WithWantDefault("now()")
+func NewExprCase(name, decl, expr string, want any, baseType, columnType string, k kind.Kind) Case {
+	c := NewCase(name, decl, nil, nil, baseType, columnType, k)
+	c.Variants = []Variant{Defaulted}
+	c.DefaultExpr = expr
+	c.Want.Val = Is(want)
+	return c
+}
+
 // The With methods return a modified copy of the case, so that a base case
 // can be reused. Slices are copied before they're appended to.
 

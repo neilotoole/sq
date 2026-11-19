@@ -92,7 +92,15 @@ CREATE TABLE coltypes (
   col_map_string_int32 Map(String, Int32),
   col_map_string_int32_d Map(String, Int32) DEFAULT map('k', 7),
   col_tuple Tuple(Int32, String),
-  col_tuple_d Tuple(Int32, String) DEFAULT tuple(7, 'seven')
+  col_tuple_d Tuple(Int32, String) DEFAULT tuple(7, 'seven'),
+  col_expr_now_d DateTime DEFAULT now(),
+  col_expr_now64_3_d DateTime64(3) DEFAULT now64(3),
+  col_expr_today_d Date DEFAULT today(),
+  col_expr_generate_uuid_v4_d UUID DEFAULT generateUUIDv4(),
+  col_expr_rand_d UInt32 DEFAULT rand(),
+  col_expr_current_user_d String DEFAULT currentUser(),
+  col_expr_seven_d Int32 DEFAULT 1 + 6,
+  col_expr_lower_d String DEFAULT lower('SEVEN')
 ) ENGINE = MergeTree() ORDER BY row_id;
 
 INSERT INTO coltypes (

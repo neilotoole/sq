@@ -137,7 +137,17 @@ CREATE TABLE coltypes (
   col_geometry_d GEOMETRY DEFAULT (ST_GeomFromText('POINT(2 2)')) NOT NULL,
   col_point POINT NOT NULL,
   col_point_n POINT NULL,
-  col_point_d POINT DEFAULT (ST_GeomFromText('POINT(2 2)')) NOT NULL
+  col_point_d POINT DEFAULT (ST_GeomFromText('POINT(2 2)')) NOT NULL,
+  col_expr_current_timestamp_d TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  col_expr_current_timestamp_6_d TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) NOT NULL,
+  col_expr_current_timestamp_datetime_d DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  col_expr_now_datetime_d DATETIME DEFAULT NOW() NOT NULL,
+  col_expr_on_update_d TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
+  col_expr_current_date_d DATE DEFAULT (CURRENT_DATE) NOT NULL,
+  col_expr_uuid_d CHAR(36) DEFAULT (UUID()) NOT NULL,
+  col_expr_rand_d DOUBLE DEFAULT (RAND()) NOT NULL,
+  col_expr_seven_d INT DEFAULT (1 + 6) NOT NULL,
+  col_expr_lower_d VARCHAR(20) DEFAULT (LOWER('SEVEN')) NOT NULL
 );
 
 INSERT INTO coltypes (
