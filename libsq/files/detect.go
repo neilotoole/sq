@@ -71,6 +71,12 @@ func (fs *Files) DetectType(ctx context.Context, handle, loc string) (drivertype
 		}
 	}
 
+	if location.IsObjectStore(loc) {
+		// The byte detectors can't read an object-store URL (only DuckDB
+		// can), so there's nothing left to try.
+		return drivertype.None, errz.Errorf("unable to determine driver type: %s", loc)
+	}
+
 	// REVISIT: We really should try to be smarter here, esp with sqlite files.
 
 	fs.mu.Lock()
@@ -269,11 +275,14 @@ func DetectMagicNumber(ctx context.Context, newRdrFn NewReaderFunc,
 
 // driverFromFileExt returns the driver type for file extensions that have no
 // registered MIME type (and thus cannot be detected via driverFromMediaType).
-// Currently this covers the DuckDB extensions .duckdb and .ddb.
+// Currently this covers the DuckDB extensions .duckdb and .ddb, and the
+// Parquet extensions .parquet and .pq.
 func driverFromFileExt(ext string) (typ drivertype.Type, ok bool) {
 	switch strings.ToLower(ext) {
 	case ".duckdb", ".ddb":
 		return drivertype.DuckDB, true
+	case ".parquet", ".pq":
+		return drivertype.Parquet, true
 	}
 	return drivertype.None, false
 }

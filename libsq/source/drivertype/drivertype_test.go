@@ -44,6 +44,7 @@ var typeCases = []struct {
 	{"JSONA", drivertype.JSONA, "jsona"},
 	{"JSONL", drivertype.JSONL, "jsonl"},
 	{"XLSX", drivertype.XLSX, "xlsx"},
+	{"Parquet", drivertype.Parquet, "parquet"},
 }
 
 func TestType_String(t *testing.T) {
