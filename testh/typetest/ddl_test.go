@@ -208,3 +208,60 @@ func TestCompareDDL_CreatesDir(t *testing.T) {
 	require.NoError(t, typetest.CompareDDL(path, "x\n", true), "update creates a missing testdata directory")
 	require.NoError(t, typetest.CompareDDL(path, "x\n", false))
 }
+
+func TestHasTimeZone(t *testing.T) {
+	for _, decl := range []string{
+		"TIMESTAMPTZ", "timestamptz(3)", "TIMETZ", "TIMESTAMP WITH TIME ZONE", "TIME(3) WITH TIME ZONE",
+		"TIMESTAMP(6) WITH LOCAL TIME ZONE", "DATETIMEOFFSET", "datetimeoffset(7)",
+	} {
+		require.True(t, typetest.HasTimeZone(decl), decl)
+	}
+	for _, decl := range []string{
+		"TIMESTAMP", "TIMESTAMP WITHOUT TIME ZONE", "TIME WITHOUT TIME ZONE", "DATETIME2", "DateTime('UTC')",
+		"TIME",
+	} {
+		require.False(t, typetest.HasTimeZone(decl), decl)
+	}
+}
+
+func TestDefaultLiteral_NonFinite(t *testing.T) {
+	// NaN and infinities have no portable literal, and a bare NaN is invalid
+	// SQL in most dialects: an error here fails TestColumnTypesDDL, with no
+	// database, rather than only the live load.
+	for _, f := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err := typetest.DefaultLiteral(f)
+		require.Error(t, err, "%v", f)
+	}
+}
+
+func TestCompareDDL_MismatchNamesLine(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "coltypes.ddl")
+	require.NoError(t, typetest.CompareDDL(path, "a\nb\nc\n", true))
+
+	err := typetest.CompareDDL(path, "a\nB\nc\n", false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "line 2")
+	require.Contains(t, err.Error(), `"b"`, "the file's line")
+	require.Contains(t, err.Error(), `"B"`, "the rendered line")
+
+	err = typetest.CompareDDL(path, "a\nb\nc\nd\n", false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "line 4", "a file that ends early differs at its end")
+}
+
+func TestRenderStatements_Prelude(t *testing.T) {
+	cfg := typetest.Config{
+		RowIDDecl:  "INT",
+		DDLPrelude: []string{"SET time_zone = '+00:00'"},
+		Cases:      []typetest.Case{intCase("int")},
+	}
+	stmts, err := typetest.RenderStatements(cfg, "t1", "v9.1.0")
+	require.NoError(t, err)
+	require.Len(t, stmts, 5)
+	require.Equal(t, "SET time_zone = '+00:00'", stmts[0], "the prelude runs first")
+	require.True(t, strings.HasPrefix(stmts[1], "CREATE TABLE t1 ("))
+
+	got, err := typetest.RenderDDL("", typetest.DDLTable{Name: "t1", Config: cfg})
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(got, "\nSET time_zone = '+00:00';\n\nCREATE TABLE t1 ("))
+}
