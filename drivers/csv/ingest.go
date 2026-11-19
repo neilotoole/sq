@@ -77,6 +77,10 @@ func (d *driveri) ingestCSV(ctx context.Context, src *source.Source, destGrip dr
 		return err
 	}
 
+	if len(recs) == 0 {
+		return driver.NewEmptyDataError("csv: source {%s} has no data", src.Handle)
+	}
+
 	headerPresent, err := hasHeaderRow(ctx, recs, src.Options)
 	if err != nil {
 		return err
