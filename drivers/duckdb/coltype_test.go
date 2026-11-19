@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/testh/fixt"
@@ -33,12 +34,22 @@ func TestColumnTypesDDL(t *testing.T) {
 		typetest.DDLTable{Name: "coltypes", Config: duckConfig})
 }
 
+func TestDuckLiteral(t *testing.T) {
+	got, ok := duckLiteral(typetest.Column{Case: &typetest.Case{Decl: "TIMESTAMP WITH TIME ZONE"}},
+		time.Date(2017, 7, 7, 7, 7, 7, 0, time.UTC))
+	require.True(t, ok)
+	require.Equal(t, "'2017-07-07 07:07:07+00:00'", got)
+}
+
 // duckConfig is the typetest configuration for DuckDB.
 var duckConfig = typetest.Config{
 	Handle:    sakila.Duck,
 	RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
 	Cases:     duckTypeCases,
 	Literal:   duckLiteral,
+	// Load the generated DDL in an odd time zone, so a time literal without
+	// an offset fails the check. See typetest.Config.DDLCheckSession.
+	DDLCheckSession: []string{"SET SESSION TimeZone = '" + typetest.CheckTimeZone + "'"},
 }
 
 // duckLiteral renders the inputs DuckDB writes differently from
@@ -59,7 +70,7 @@ func duckLiteral(col typetest.Column, v any) (string, bool) {
 		sb.WriteString("'::BLOB")
 		return sb.String(), true
 	case time.Time:
-		if col.Case.Decl == "TIMESTAMPTZ" {
+		if typetest.HasTimeZone(col.Case.Decl) {
 			return typetest.TimestampTZLiteral(v), true
 		}
 	}

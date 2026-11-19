@@ -4,6 +4,9 @@ import (
 	"encoding/hex"
 	"math"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/testh/fixt"
@@ -31,6 +34,18 @@ func TestColumnTypesDDL(t *testing.T) {
 	typetest.CheckDDL(t, "testdata/coltypes.ddl", "rqlite 10", typetest.DDLTable{Name: "coltypes", Config: rqConfig})
 }
 
+func TestRQLiteral(t *testing.T) {
+	col := typetest.Column{Case: &typetest.Case{Decl: "DATETIME"}}
+
+	// The same text rqlite stores for a bound time.Time.
+	got, ok := rqLiteral(col, time.Date(2017, 7, 7, 0, 0, 0, 0, time.UTC))
+	require.True(t, ok)
+	require.Equal(t, "'2017-07-07T00:00:00Z'", got)
+	got, ok = rqLiteral(col, time.Date(2017, 7, 7, 7, 7, 7, 123000000, time.FixedZone("", 3600)))
+	require.True(t, ok)
+	require.Equal(t, "'2017-07-07T06:07:07.123Z'", got)
+}
+
 // rqConfig is the typetest configuration for rqlite.
 var rqConfig = typetest.Config{
 	Handle:    sakila.RQ,
@@ -39,11 +54,18 @@ var rqConfig = typetest.Config{
 	Literal:   rqLiteral,
 }
 
-// rqLiteral renders the inputs rqlite (SQLite) writes differently from
-// typetest.DefaultLiteral: bytes, as a blob literal (X'7365').
+// rqLiteral renders the inputs rqlite writes differently from
+// typetest.DefaultLiteral: bytes, as a blob literal (X'7365'), and a time as
+// the same text rqlite stores for a bound time.Time, RFC 3339 in UTC
+// ('2017-07-07T07:07:07.123Z').
 func rqLiteral(_ typetest.Column, v any) (string, bool) {
-	if b, ok := v.([]byte); ok && b != nil {
-		return "X'" + hex.EncodeToString(b) + "'", true
+	switch v := v.(type) {
+	case []byte:
+		if v != nil {
+			return "X'" + hex.EncodeToString(v) + "'", true
+		}
+	case time.Time:
+		return "'" + v.UTC().Format(time.RFC3339Nano) + "'", true
 	}
 	return "", false
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -34,6 +35,16 @@ func TestColumnTypesDDL(t *testing.T) {
 	typetest.CheckDDL(t, "testdata/coltypes.ddl", "Oracle 23ai", typetest.DDLTable{Name: "coltypes", Config: oraConfig})
 }
 
+func TestOraLiteral(t *testing.T) {
+	ts := time.Date(2017, 7, 7, 7, 7, 7, 0, time.UTC)
+	got, ok := oraLiteral(typetest.Column{Case: &typetest.Case{Decl: "TIMESTAMP(3) WITH LOCAL TIME ZONE"}}, ts)
+	require.True(t, ok)
+	require.Equal(t, "TIMESTAMP '2017-07-07 07:07:07 +00:00'", got)
+	got, ok = oraLiteral(typetest.Column{Case: &typetest.Case{Decl: "TIMESTAMP"}}, ts)
+	require.True(t, ok)
+	require.Equal(t, "TIMESTAMP '2017-07-07 07:07:07'", got)
+}
+
 // oraConfig is the typetest configuration for Oracle.
 var oraConfig = typetest.Config{
 	Handle:        sakila.Ora,
@@ -42,6 +53,9 @@ var oraConfig = typetest.Config{
 	Cases:         oraTypeCases,
 	CheckSettings: checkOraSettings,
 	Literal:       oraLiteral,
+	// Load the generated DDL in an odd time zone, so a time literal without
+	// an offset fails the check. See typetest.Config.DDLCheckSession.
+	DDLCheckSession: []string{"ALTER SESSION SET TIME_ZONE = '" + typetest.CheckTimeZoneOffset + "'"},
 }
 
 // oraLiteral renders the inputs Oracle writes differently from
@@ -52,7 +66,7 @@ func oraLiteral(col typetest.Column, v any) (string, bool) {
 	switch v := v.(type) {
 	case time.Time:
 		ts := v.UTC().Format("2006-01-02 15:04:05.999999999")
-		if strings.Contains(col.Case.Decl, "TIME ZONE") {
+		if typetest.HasTimeZone(col.Case.Decl) {
 			ts += " +00:00"
 		}
 		return "TIMESTAMP '" + ts + "'", true

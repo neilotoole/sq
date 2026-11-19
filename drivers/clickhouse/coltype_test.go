@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
@@ -37,6 +38,13 @@ func TestColumnTypesDDL(t *testing.T) {
 	typetest.CheckDDL(t, "testdata/coltypes.ddl", "ClickHouse 26", typetest.DDLTable{Name: "coltypes", Config: chConfig})
 }
 
+func TestCHLiteral(t *testing.T) {
+	// ClickHouse reads a backslash in a string literal as an escape.
+	got, ok := chLiteral(typetest.Column{Case: &typetest.Case{Decl: "String"}}, `a\nb'c`)
+	require.True(t, ok)
+	require.Equal(t, `'a\\nb''c'`, got)
+}
+
 // chConfig is the typetest configuration for ClickHouse.
 var chConfig = typetest.Config{
 	Handle:        sakila.CH,
@@ -46,6 +54,12 @@ var chConfig = typetest.Config{
 	Cases:         withNullableColumnTypes(chTypeCases),
 	CheckSettings: checkCHSettings,
 	Literal:       chLiteral,
+	// ClickHouse reads a DateTime literal in the session's time zone, and
+	// the literals are UTC.
+	DDLPrelude: []string{"SET session_timezone = 'UTC'"},
+	// Load the generated DDL in an odd time zone, so a time literal that
+	// depends on it fails the check. See typetest.Config.DDLCheckSession.
+	DDLCheckSession: []string{"SET session_timezone = '" + typetest.CheckTimeZone + "'"},
 }
 
 // chLiteral renders the inputs ClickHouse writes differently from
@@ -55,7 +69,8 @@ var chConfig = typetest.Config{
 // exactly as the column's type. Unquoted, 9999999.99 is read as a float and
 // overflows Decimal(9, 2), and once a comment in the VALUES list sends
 // ClickHouse to its expression parser, 7.7 reads back from a Nullable(Float32)
-// column as NULL.
+// column as NULL. Strings have backslashes escaped, since ClickHouse reads a
+// backslash in a string literal as an escape.
 func chLiteral(col typetest.Column, v any) (string, bool) {
 	switch v := v.(type) {
 	case time.Time:
@@ -66,6 +81,8 @@ func chLiteral(col typetest.Column, v any) (string, bool) {
 		return "'" + v.String() + "'", true
 	case float64:
 		return "'" + strconv.FormatFloat(v, 'g', -1, 64) + "'", true
+	case string:
+		return "'" + strings.ReplaceAll(strings.ReplaceAll(v, `\`, `\\`), "'", "''") + "'", true
 	}
 	return "", false
 }

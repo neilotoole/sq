@@ -4,6 +4,9 @@ import (
 	"encoding/hex"
 	"math"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/testh/fixt"
@@ -32,6 +35,18 @@ func TestColumnTypesDDL(t *testing.T) {
 	typetest.CheckDDL(t, "testdata/coltypes.ddl", "SQLite 3", typetest.DDLTable{Name: "coltypes", Config: sl3Config})
 }
 
+func TestSL3Literal(t *testing.T) {
+	col := typetest.Column{Case: &typetest.Case{Decl: "DATETIME"}}
+
+	// The same text the sqlite3 driver stores for a bound time.Time.
+	got, ok := sl3Literal(col, time.Date(2017, 7, 7, 0, 0, 0, 0, time.UTC))
+	require.True(t, ok)
+	require.Equal(t, "'2017-07-07 00:00:00+00:00'", got)
+	got, ok = sl3Literal(col, time.Date(2017, 7, 7, 7, 7, 7, 123000000, time.FixedZone("", 3600)))
+	require.True(t, ok)
+	require.Equal(t, "'2017-07-07 06:07:07.123+00:00'", got)
+}
+
 // sl3Config is the typetest configuration for SQLite.
 var sl3Config = typetest.Config{
 	Handle:    sakila.SL3,
@@ -41,10 +56,17 @@ var sl3Config = typetest.Config{
 }
 
 // sl3Literal renders the inputs SQLite writes differently from
-// typetest.DefaultLiteral: bytes, as a blob literal (X'7365').
+// typetest.DefaultLiteral: bytes, as a blob literal (X'7365'), and a time as
+// the same text the sqlite3 driver stores for a bound time.Time
+// ('2017-07-07 07:07:07.123+00:00').
 func sl3Literal(_ typetest.Column, v any) (string, bool) {
-	if b, ok := v.([]byte); ok && b != nil {
-		return "X'" + hex.EncodeToString(b) + "'", true
+	switch v := v.(type) {
+	case []byte:
+		if v != nil {
+			return "X'" + hex.EncodeToString(v) + "'", true
+		}
+	case time.Time:
+		return "'" + v.UTC().Format("2006-01-02 15:04:05.999999999-07:00") + "'", true
 	}
 	return "", false
 }
