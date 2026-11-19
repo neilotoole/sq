@@ -65,7 +65,7 @@ func TestPgLiteral(t *testing.T) {
 var pgConfig = typetest.Config{
 	Handle:        sakila.Pg,
 	RowIDDecl:     "INTEGER NOT NULL PRIMARY KEY",
-	Cases:         pgTypeCases,
+	Cases:         typetest.WithDefaulted(pgTypeCases),
 	CheckSettings: checkPgSettings,
 	Literal:       pgLiteral,
 	// Load the generated DDL in an odd time zone, so a time literal without
@@ -123,10 +123,23 @@ var (
 	pgNumeric10Max    = decimal.RequireFromString("9999999999")
 )
 
+// pgBitDefaultBefore11 returns the override for a bit string column's
+// default_value on servers before 11, which write a bit string constant with
+// a B prefix: B'1'::"bit" where 11 and later write '1'::"bit".
+func pgBitDefaultBefore11(def string) typetest.Override {
+	return typetest.Override{
+		Before:     "v11.0.0",
+		PerVariant: typetest.PerVariant{Defaulted: typetest.Want{Default: typetest.Is(def)}},
+	}
+}
+
 var pgTypeCases = []typetest.Case{
-	typetest.NewCase("smallint", "SMALLINT", fixt.IntZ, int64(math.MaxInt16), "int2", "smallint", kind.Int),
-	typetest.NewCase("integer", "INTEGER", fixt.IntZ, int64(math.MaxInt32), "int4", "integer", kind.Int),
-	typetest.NewCase("bigint", "BIGINT", fixt.IntZ, int64(math.MaxInt64), "int8", "bigint", kind.Int),
+	typetest.NewCase("smallint", "SMALLINT", fixt.IntZ, int64(math.MaxInt16), "int2", "smallint", kind.Int).
+		WithWantDefault("32767"),
+	typetest.NewCase("integer", "INTEGER", fixt.IntZ, int64(math.MaxInt32), "int4", "integer", kind.Int).
+		WithWantDefault("2147483647"),
+	typetest.NewCase("bigint", "BIGINT", fixt.IntZ, int64(math.MaxInt64), "int8", "bigint", kind.Int).
+		WithWantDefault("'9223372036854775807'::bigint"),
 
 	// The serial types are integers with a sequence as their default. They
 	// can't be NULL, so there's no nullable variant.
@@ -143,20 +156,25 @@ var pgTypeCases = []typetest.Case{
 	// From here on, column_type lacks the declared parameters wherever the
 	// type has them (VARCHAR(16) is reported as "character varying"): #1365.
 
-	typetest.NewCase("numeric", "NUMERIC", fixt.DecimalZ, fixt.Decimal, "numeric", "numeric", kind.Decimal),
+	typetest.NewCase("numeric", "NUMERIC", fixt.DecimalZ, fixt.Decimal, "numeric", "numeric", kind.Decimal).
+		WithWantDefault("77.77"),
 	typetest.NewCase("numeric_5_2", "NUMERIC(5,2)", fixt.DecimalZ, pgNumeric5_2Max, "numeric", "numeric",
 		kind.Decimal).
 		WithWantZero(decimal.New(0, -2)).
-		WithIssue("#1365"),
+		WithIssue("#1365").
+		WithWantDefault("999.99"),
 	typetest.NewCase("numeric_10", "NUMERIC(10)", fixt.DecimalZ, pgNumeric10Max, "numeric", "numeric",
 		kind.Decimal).
-		WithIssue("#1365"),
+		WithIssue("#1365").
+		WithWantDefault("'9999999999'::bigint"),
 
 	// REAL is single precision.
 	typetest.NewCase("real", "REAL", fixt.FloatZ, fixt.Float, "float4", "real", kind.Float).
-		WithWantVal(float64(float32(fixt.Float))),
+		WithWantVal(float64(float32(fixt.Float))).
+		WithWantDefault("7.7"),
 	typetest.NewCase("double_precision", "DOUBLE PRECISION", fixt.FloatZ, fixt.Float, "float8", "double precision",
-		kind.Float),
+		kind.Float).
+		WithWantDefault("7.7"),
 
 	// candidate issue: MONEY is kind decimal in inspect, but its query result
 	// kind is unknown, and its values come back as formatted text.
@@ -165,45 +183,64 @@ var pgTypeCases = []typetest.Case{
 			QueryKind: typetest.Is(kind.Unknown),
 			Zero:      typetest.Is[any]("$0.00"),
 			Val:       typetest.Is[any]("$77.77"),
-		}),
+		}).
+		WithWantDefault("77.77"),
 
 	// CHARACTER pads values to its length with spaces.
 	typetest.NewCase("character_255", "CHARACTER(255)", fixt.TextZ, fixt.Text, "bpchar", "character", kind.Text).
 		WithWantZero(typetest.SpacePadded(fixt.TextZ, 255)).
 		WithWantVal(typetest.SpacePadded(fixt.Text, 255)).
-		WithIssue("#1365"),
-	typetest.NewCase("varchar", "VARCHAR", fixt.TextZ, fixt.Text, "varchar", "character varying", kind.Text),
+		WithIssue("#1365").
+		WithWantDefault("'seven'::bpchar"),
+	typetest.NewCase("varchar", "VARCHAR", fixt.TextZ, fixt.Text, "varchar", "character varying", kind.Text).
+		WithWantDefault("'seven'::character varying"),
 	typetest.NewCase("varchar_16", "VARCHAR(16)", fixt.TextZ, "0123456789abcdef", "varchar", "character varying",
 		kind.Text).
-		WithIssue("#1365"),
-	typetest.NewCase("text", "TEXT", fixt.TextZ, fixt.Text, "text", "text", kind.Text),
-	typetest.NewCase("bytea", "BYTEA", fixt.BytesZ, fixt.Bytes, "bytea", "bytea", kind.Bytes),
-	typetest.NewCase("boolean", "BOOLEAN", fixt.BoolZ, fixt.Bool, "bool", "boolean", kind.Bool),
+		WithIssue("#1365").
+		WithWantDefault("'0123456789abcdef'::character varying"),
+	typetest.NewCase("text", "TEXT", fixt.TextZ, fixt.Text, "text", "text", kind.Text).
+		WithWantDefault("'seven'::text"),
+	typetest.NewCase("bytea", "BYTEA", fixt.BytesZ, fixt.Bytes, "bytea", "bytea", kind.Bytes).
+		WithWantDefault("'\\x736576656e'::bytea"),
+	typetest.NewCase("boolean", "BOOLEAN", fixt.BoolZ, fixt.Bool, "bool", "boolean", kind.Bool).
+		WithWantDefault("true"),
 
-	typetest.NewCase("bit", "BIT", "0", "1", "bit", "bit", kind.Text),
+	typetest.NewCase("bit", "BIT", "0", "1", "bit", "bit", kind.Text).
+		WithWantDefault("'1'::\"bit\"").
+		WithVersionOverrides(pgBitDefaultBefore11("B'1'::\"bit\"")),
 	typetest.NewCase("bit_8", "BIT(8)", "00000000", "10101010", "bit", "bit", kind.Text).
-		WithIssue("#1365"),
+		WithIssue("#1365").
+		WithWantDefault("'10101010'::\"bit\"").
+		WithVersionOverrides(pgBitDefaultBefore11("B'10101010'::\"bit\"")),
 	typetest.NewCase("bit_varying", "BIT VARYING(255)", fixt.BitStringZ, fixt.BitString, "varbit", "bit varying",
 		kind.Text).
-		WithIssue("#1365"),
+		WithIssue("#1365").
+		WithWantDefault("'1001'::bit varying").
+		WithVersionOverrides(pgBitDefaultBefore11("B'1001'::bit varying")),
 
-	typetest.NewCase("date", "DATE", fixt.DateZ, fixt.Date, "date", "date", kind.Date),
+	typetest.NewCase("date", "DATE", fixt.DateZ, fixt.Date, "date", "date", kind.Date).
+		WithWantDefault("'2017-07-07'::date"),
 	typetest.NewCase("timestamp", "TIMESTAMP", fixt.DatetimeZ, fixt.Datetime, "timestamp",
-		"timestamp without time zone", kind.Datetime),
+		"timestamp without time zone", kind.Datetime).
+		WithWantDefault("'2017-07-07 07:07:07'::timestamp without time zone"),
 	typetest.NewCase("timestamp_3", "TIMESTAMP(3)", fixt.DatetimeZ, pgTimestampMillis, "timestamp",
 		"timestamp without time zone", kind.Datetime).
-		WithIssue("#1365"),
+		WithIssue("#1365").
+		WithWantDefault("'2017-07-07 07:07:07.123'::timestamp without time zone"),
 
 	// candidate issue: TIMESTAMPTZ values come back in the local time zone of
 	// the machine running sq, not UTC.
 	typetest.NewCase("timestamptz", "TIMESTAMPTZ", fixt.DatetimeZ, fixt.Datetime, "timestamptz",
 		"timestamp with time zone", kind.Datetime).
 		WithWantZero(fixt.DatetimeZ.In(time.Local)).
-		WithWantVal(fixt.Datetime.In(time.Local)),
-	typetest.NewCase("time", "TIME", fixt.TimeOfDayZ, fixt.TimeOfDay, "time", "time without time zone", kind.Time),
+		WithWantVal(fixt.Datetime.In(time.Local)).
+		WithWantDefault("'2017-07-07 07:07:07+00'::timestamp with time zone"),
+	typetest.NewCase("time", "TIME", fixt.TimeOfDayZ, fixt.TimeOfDay, "time", "time without time zone", kind.Time).
+		WithWantDefault("'07:07:07'::time without time zone"),
 	typetest.NewCase("time_3", "TIME(3)", fixt.TimeOfDayZ, "12:34:56.789", "time", "time without time zone",
 		kind.Time).
-		WithIssue("#1365"),
+		WithIssue("#1365").
+		WithWantDefault("'12:34:56.789'::time without time zone"),
 
 	// candidate issue: TIMETZ is kind time in inspect, but its query result
 	// kind is unknown.
@@ -213,53 +250,73 @@ var pgTypeCases = []typetest.Case{
 			QueryKind: typetest.Is(kind.Unknown),
 			Zero:      typetest.Is[any]("00:00:00+00"),
 			Val:       typetest.Is[any]("07:07:07+00"),
-		}),
+		}).
+		WithWantDefault("'07:07:07+00'::time with time zone"),
 
 	// INTERVAL values come back in the "postgres" IntervalStyle.
 	typetest.NewCase("interval", "INTERVAL", "0 seconds", "7 seconds", "interval", "interval", kind.Text).
 		WithWantZero("00:00:00").
-		WithWantVal("00:00:07"),
+		WithWantVal("00:00:07").
+		WithWantDefault("'00:00:07'::interval"),
 
 	// The geometric and network types read back in Postgres's canonical
 	// text form.
 
 	typetest.NewCase("box", "BOX", "(0,0), (0,0)", "(0,0), (7,7)", "box", "box", kind.Text).
 		WithWantZero("(0,0),(0,0)").
-		WithWantVal("(7,7),(0,0)"),
+		WithWantVal("(7,7),(0,0)").
+		WithWantDefault("'(7,7),(0,0)'::box"),
 	typetest.NewCase("circle", "CIRCLE", "((0,0), 0)", "((0,0), 7)", "circle", "circle", kind.Text).
 		WithWantZero("<(0,0),0>").
-		WithWantVal("<(0,0),7>"),
+		WithWantVal("<(0,0),7>").
+		WithWantDefault("'<(0,0),7>'::circle"),
 	typetest.NewCase("line", "LINE", "[(0,0),(1,0)]", "[(0,0),(1,1)]", "line", "line", kind.Text).
 		WithWantZero("{0,-1,0}").
-		WithWantVal("{1,-1,0}"),
-	typetest.NewCase("lseg", "LSEG", "[(0,0),(0,0)]", "[(0,0),(7,0)]", "lseg", "lseg", kind.Text),
-	typetest.NewCase("path", "PATH", "[(0,0),(0,0)]", "[(0,0),(7,0)]", "path", "path", kind.Text),
-	typetest.NewCase("point", "POINT", "(0,0)", "(7,7)", "point", "point", kind.Text),
-	typetest.NewCase("polygon", "POLYGON", "((0,0))", "((0,0),(0,7),(7,0))", "polygon", "polygon", kind.Text),
+		WithWantVal("{1,-1,0}").
+		WithWantDefault("'{1,-1,0}'::line"),
+	typetest.NewCase("lseg", "LSEG", "[(0,0),(0,0)]", "[(0,0),(7,0)]", "lseg", "lseg", kind.Text).
+		WithWantDefault("'[(0,0),(7,0)]'::lseg"),
+	typetest.NewCase("path", "PATH", "[(0,0),(0,0)]", "[(0,0),(7,0)]", "path", "path", kind.Text).
+		WithWantDefault("'[(0,0),(7,0)]'::path"),
+	typetest.NewCase("point", "POINT", "(0,0)", "(7,7)", "point", "point", kind.Text).
+		WithWantDefault("'(7,7)'::point"),
+	typetest.NewCase("polygon", "POLYGON", "((0,0))", "((0,0),(0,7),(7,0))", "polygon", "polygon", kind.Text).
+		WithWantDefault("'((0,0),(0,7),(7,0))'::polygon"),
 
 	typetest.NewCase("cidr", "CIDR", "0.0.0.0", "192.168.0.1", "cidr", "cidr", kind.Text).
 		WithWantZero("0.0.0.0/32").
-		WithWantVal("192.168.0.1/32"),
-	typetest.NewCase("inet", "INET", "0.0.0.0", "192.168.0.1", "inet", "inet", kind.Text),
+		WithWantVal("192.168.0.1/32").
+		WithWantDefault("'192.168.0.1/32'::cidr"),
+	typetest.NewCase("inet", "INET", "0.0.0.0", "192.168.0.1", "inet", "inet", kind.Text).
+		WithWantDefault("'192.168.0.1'::inet"),
 	typetest.NewCase("macaddr", "MACADDR", "00:00:00:00:00:00", "07:07:07:07:07:07", "macaddr", "macaddr",
-		kind.Text),
+		kind.Text).
+		WithWantDefault("'07:07:07:07:07:07'::macaddr"),
 
 	// candidate issue: MACADDR8, TSQUERY and PG_LSN have no kind, while their
 	// siblings MACADDR and TSVECTOR are text.
 	typetest.NewCase("macaddr8", "MACADDR8", "00:00:00:00:00:00:00:00", "07:07:07:07:07:07:07:07", "macaddr8",
 		"macaddr8", kind.Unknown).
-		WithMinVer("v10.0.0"),
+		WithMinVer("v10.0.0").
+		WithWantDefault("'07:07:07:07:07:07:07:07'::macaddr8"),
 
 	typetest.NewCase("uuid", "UUID", "00000000-0000-0000-0000-000000000000", "77777777-7777-7777-7777-777777777777",
-		"uuid", "uuid", kind.Text),
-	typetest.NewCase("json", "JSON", fixt.JSONZ, fixt.JSON, "json", "json", kind.Text),
-	typetest.NewCase("jsonb", "JSONB", fixt.JSONZ, fixt.JSON, "jsonb", "jsonb", kind.Text),
-	typetest.NewCase("xml", "XML", "", "<val>7</val>", "xml", "xml", kind.Text),
+		"uuid", "uuid", kind.Text).
+		WithWantDefault("'77777777-7777-7777-7777-777777777777'::uuid"),
+	typetest.NewCase("json", "JSON", fixt.JSONZ, fixt.JSON, "json", "json", kind.Text).
+		WithWantDefault("'{\"val\": 7}'::json"),
+	typetest.NewCase("jsonb", "JSONB", fixt.JSONZ, fixt.JSON, "jsonb", "jsonb", kind.Text).
+		WithWantDefault("'{\"val\": 7}'::jsonb"),
+	typetest.NewCase("xml", "XML", "", "<val>7</val>", "xml", "xml", kind.Text).
+		WithWantDefault("'<val>7</val>'::xml"),
 	typetest.NewCase("tsvector", "TSVECTOR", "", "alfa bravo charlie delta", "tsvector", "tsvector", kind.Text).
-		WithWantVal("'alfa' 'bravo' 'charlie' 'delta'"),
+		WithWantVal("'alfa' 'bravo' 'charlie' 'delta'").
+		WithWantDefault("'''alfa'' ''bravo'' ''charlie'' ''delta'''::tsvector"),
 	typetest.NewCase("tsquery", "TSQUERY", "", "alfa | bravo", "tsquery", "tsquery", kind.Unknown).
-		WithWantVal("'alfa' | 'bravo'"),
-	typetest.NewCase("pg_lsn", "PG_LSN", "0/0", "7/7", "pg_lsn", "pg_lsn", kind.Unknown),
+		WithWantVal("'alfa' | 'bravo'").
+		WithWantDefault("'''alfa'' | ''bravo'''::tsquery"),
+	typetest.NewCase("pg_lsn", "PG_LSN", "0/0", "7/7", "pg_lsn", "pg_lsn", kind.Unknown).
+		WithWantDefault("'7/7'::pg_lsn"),
 
 	// candidate issue: arrays and ranges have no kind. Their values come back
 	// as Postgres's text form. An array's column_type is just ARRAY, without
@@ -267,12 +324,15 @@ var pgTypeCases = []typetest.Case{
 	// describes.
 	typetest.NewCase("integer_array", "INTEGER[]", []int64{}, []int64{1, 7}, "_int4", "ARRAY", kind.Unknown).
 		WithWantZero("{}").
-		WithWantVal("{1,7}"),
+		WithWantVal("{1,7}").
+		WithWantDefault("'{1,7}'::integer[]"),
 	typetest.NewCase("text_array", "TEXT[]", []string{}, []string{"alfa", "bravo"}, "_text", "ARRAY",
 		kind.Unknown).
 		WithWantZero("{}").
-		WithWantVal("{alfa,bravo}"),
-	typetest.NewCase("int4range", "INT4RANGE", "empty", "[1,7)", "int4range", "int4range", kind.Unknown),
+		WithWantVal("{alfa,bravo}").
+		WithWantDefault("'{alfa,bravo}'::text[]"),
+	typetest.NewCase("int4range", "INT4RANGE", "empty", "[1,7)", "int4range", "int4range", kind.Unknown).
+		WithWantDefault("'[1,7)'::int4range"),
 }
 
 // serialDefault returns the default_value of a serial column of the
