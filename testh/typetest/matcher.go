@@ -33,7 +33,11 @@ func (notNullOf[T]) Match(got any) error {
 	if _, ok := got.(T); ok && !isNil(got) {
 		return nil
 	}
-	return errz.Errorf("want non-NULL %s, got %T(%v)", reflect.TypeFor[T](), got, got)
+	if got == nil {
+		return errz.Errorf("want non-NULL %s, got NULL", reflect.TypeFor[T]())
+	}
+	// fmtGoValue shows a typed nil as such: []byte(nil), not [].
+	return errz.Errorf("want non-NULL %s, got %T: %s", reflect.TypeFor[T](), got, fmtGoValue(got))
 }
 
 // String implements Matcher.

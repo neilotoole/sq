@@ -19,6 +19,8 @@ func TestNotNullOf(t *testing.T) {
 
 	b := typetest.NotNullOf[[]byte]()
 	require.ErrorContains(t, b.Match([]byte(nil)), "want non-NULL []uint8", "a nil slice is NULL")
+	require.ErrorContains(t, b.Match([]byte(nil)), "[]byte(nil)", "the message tells a nil slice from an empty one")
+	require.ErrorContains(t, m.Match(nil), "got NULL")
 	require.NoError(t, b.Match([]byte{}), "an empty, non-nil slice is a value")
 	require.NoError(t, b.Match([]byte("se")))
 }

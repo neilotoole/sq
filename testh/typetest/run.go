@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
@@ -397,11 +398,21 @@ func checkRecords(t *testing.T, serverVer string, sink *testh.RecordSink, pos in
 	require.Equal(t, col.QueryKind.String(), sink.RecMeta[pos].Kind().String(),
 		"column %s (%s) on server %s: query result kind", col.Name, col.Case.Decl, serverVer)
 	for row := range 3 {
-		msg := []any{"column %s (%s) on server %s: row %d value", col.Name, col.Case.Decl, serverVer, row + 1}
-		if m, ok := col.Want[row].(Matcher); ok {
-			require.NoError(t, m.Match(sink.Recs[row][pos]), msg...)
-			continue
-		}
-		require.Equal(t, col.Want[row], sink.Recs[row][pos], msg...)
+		require.NoError(t, diffValue(col.Want[row], sink.Recs[row][pos]),
+			"column %s (%s) on server %s: row %d value", col.Name, col.Case.Decl, serverVer, row+1)
 	}
+}
+
+// diffValue returns nil if got, a record value read back, matches want, an
+// expected value: by want's Match if want is a Matcher, otherwise by
+// equality, as require.Equal compares. Otherwise it returns an error showing
+// both values as a dump does (see fmtGoValue).
+func diffValue(want, got any) error {
+	if m, ok := want.(Matcher); ok {
+		return m.Match(got)
+	}
+	if assert.ObjectsAreEqual(want, got) {
+		return nil
+	}
+	return errz.Errorf("want %s, got %s", fmtGoValue(want), fmtGoValue(got))
 }
