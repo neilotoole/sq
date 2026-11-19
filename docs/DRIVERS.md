@@ -317,16 +317,17 @@ serial column's `nextval('<table>_col_serial_seq'::regclass)`, for example)
 uses `typetest.TableToken` in its place.
 
 To write or update a case table, run the test with the `SQ_TYPETEST_DUMP`
-envar set. The harness then logs what every column actually reports (inspect
-fields, query kind, and values as Go literals) before checking anything. Run it
-against each server version and read the expectations off the log:
+envar set to 1. The harness then logs what every column actually reports
+(inspect fields, query kind, and values as Go literals) before checking
+anything. Run it against each server version and read the expectations off
+the log:
 
 ```shell
-SQ_TYPETEST_DUMP=1 go test -v -run 'TestColumnTypes$' ./drivers/postgres/
+SQ_TYPETEST_DUMP=1 go test -v -run '^TestColumnTypes$' ./drivers/postgres/
 ```
 
-The case table also generates `testdata/coltypes.ddl`: the table
-`TestColumnTypes` creates and its three rows, as a SQL script to load with the
+The case tables also generate `testdata/coltypes.ddl`: the tables the
+column-type tests create and their three rows, as a SQL script to load with the
 database's own client (`psql`, `mysql`, `sqlcmd`, `sqlplus`, ...) for manual
 testing. `TestColumnTypesDDL` fails, under `-short` and with no database, if the
 file is out of date with the case table. `Config.Literal` writes the inputs
@@ -336,17 +337,24 @@ session settings its literals assume (MySQL's and ClickHouse's time zone).
 Regenerate the file after changing a case:
 
 ```shell
-SQ_TYPETEST_UPDATE=1 go test -run 'TestColumnTypesDDL$' ./drivers/postgres/
+SQ_TYPETEST_UPDATE_DDL=1 go test -run '^TestColumnTypesDDL$' ./drivers/postgres/
 ```
+
+Both envars take a boolean (`1`, `true`, `0`, `false`); any other value fails
+the test.
 
 `TestColumnTypes` also loads the generated statements into the database under
 test and checks the values they read back. `Config.DDLCheckSession` sets that
 session to an odd time zone (`typetest.CheckTimeZone`), so a time literal that
 depends on the loader's zone fails too; set it for every database with a
 session time zone. A literal that reads back differently from the bound input
-fails there. If the difference is real, such
-as the driver losing precision on a bound value that the literal stores
-intact, record it with `WithWantLiteralVal` and a comment on the case.
+fails there, as does a column with an expected query error whose literal
+queries differently. If the difference is real, such as the driver losing
+precision on a bound value that the literal stores intact, record it with
+`WithWantLiteralVal` and a comment on the case. A later layer (a
+`PerVariant` or a version override) that sets `Val` without `LiteralVal`
+clears it, since it says what both paths read back; set both to keep them
+apart.
 
 #### Database-specific quirks
 

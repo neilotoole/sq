@@ -2,9 +2,10 @@ package typetest
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/neilotoole/sq/cli/output"
 	"github.com/neilotoole/sq/libsq"
@@ -15,12 +16,12 @@ import (
 	"github.com/neilotoole/sq/testh"
 )
 
-// DumpEnvar is the envar that turns on dump mode: when it's set to a
-// non-empty value, Run logs what every column actually reports, before
+// EnvDump is the envar that turns on dump mode: when it's set to true (1,
+// true), Run logs what every column actually reports, before
 // checking anything. It's for writing or updating a case table: run the test
 // with it set, against each server version, and read the expectations off
 // the log.
-const DumpEnvar = "SQ_TYPETEST_DUMP"
+const EnvDump = "SQ_TYPETEST_DUMP"
 
 // dumpActual logs formatActual for each column of tbl.
 func dumpActual(t *testing.T, th *testh.Helper, src *source.Source, fold func(string) string, serverVer,
@@ -121,7 +122,11 @@ func defaultWithToken(def, tbl string) string {
 	return strings.ReplaceAll(def, tbl, TableToken)
 }
 
-// dumpEnabled reports whether dump mode is on.
-func dumpEnabled() bool {
-	return os.Getenv(DumpEnvar) != ""
+// dumpEnabled reports whether dump mode is on, failing t if EnvDump isn't a
+// boolean.
+func dumpEnabled(t *testing.T) bool {
+	t.Helper()
+	on, err := envBool(EnvDump)
+	require.NoError(t, err)
+	return on
 }

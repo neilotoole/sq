@@ -193,7 +193,7 @@ func TestCompareDDL(t *testing.T) {
 
 	err = typetest.CompareDDL(path, "CREATE TABLE x (b INT);\n", false)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), typetest.UpdateEnvar, "the error says how to regenerate")
+	require.Contains(t, err.Error(), typetest.EnvUpdateDDL, "the error says how to regenerate")
 }
 
 func TestTimestampTZLiteral(t *testing.T) {

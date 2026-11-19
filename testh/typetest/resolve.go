@@ -20,7 +20,8 @@ var caseNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 // Kind, Default "", Zero and Val from the inputs, no QueryErr), then layer,
 // field by field where set: Case.Want, Case.PerVariant for the variant, the
 // first VersionOverrides entry whose Before is greater than serverVer, then
-// that entry's PerVariant for the variant.
+// that entry's PerVariant for the variant. Want.LiteralVal describes the one
+// exception to field-by-field layering.
 //
 // Resolve returns an error for a mistake in the case table, rather than
 // letting it surface as a confusing assertion failure: an invalid name or
@@ -108,12 +109,12 @@ func validateCase(c *Case) error {
 // resolveColumn resolves the expectations for one variant of c.
 func resolveColumn(c *Case, v Variant, serverVer string) (Column, error) {
 	w := Want{}
-	layer(&w, c.Want)
-	layer(&w, c.PerVariant.get(v))
+	resolveLayer(&w, c.Want)
+	resolveLayer(&w, c.PerVariant.get(v))
 	for _, o := range c.VersionOverrides {
 		if semver.Compare(serverVer, o.Before) < 0 {
-			layer(&w, o.Want)
-			layer(&w, o.PerVariant.get(v))
+			resolveLayer(&w, o.Want)
+			resolveLayer(&w, o.PerVariant.get(v))
 			break
 		}
 	}
@@ -201,7 +202,22 @@ func missingErr(c *Case, v Variant, field string) error {
 	return errz.Errorf("typetest: case {%s}: variant {%s}: expectation %s is not set", c.Name, v, field)
 }
 
-// layer copies each set field of src onto dst.
+// resolveLayer layers src onto dst for Resolve, as layer does, except that
+// a src that sets Zero or Val without its literal counterpart first clears
+// dst's LiteralZero or LiteralVal: a later layer that says what Zero or Val
+// reads back says it for both paths. See Want.LiteralVal.
+func resolveLayer(dst *Want, src Want) {
+	if src.Zero.Set && !src.LiteralZero.Set {
+		dst.LiteralZero = Opt[any]{}
+	}
+	if src.Val.Set && !src.LiteralVal.Set {
+		dst.LiteralVal = Opt[any]{}
+	}
+	layer(dst, src)
+}
+
+// layer copies each set field of src onto dst. The builder methods merge
+// with it, field by field, within one layer.
 func layer(dst *Want, src Want) {
 	setIf(&dst.BaseType, src.BaseType)
 	setIf(&dst.ColumnType, src.ColumnType)
