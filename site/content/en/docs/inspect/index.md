@@ -13,7 +13,7 @@ url: /docs/inspect
 or for an individual table. When used with `--json`, the output of `sq inspect` can
 be fed into other tools such as [jq](https://jqlang.github.io/jq/) to enable complex data pipelines.
 
-Let's start off with a single source, a Postgres [Sakila](/docs/develop/sakila/) database:
+Let's start off with a single source, a Postgres [Sakila](https://github.com/neilotoole/sq/blob/master/docs/SAKILA.md) database:
 
 ```shell
 # Start the Postgres container
@@ -372,7 +372,7 @@ DuckDB's `duckdb_constraints()` view doesn't expose either action, so
 both fields are left empty for DuckDB sources).
 
 For example, to list every parent → child relationship in the
-[Sakila](/docs/develop/sakila/) schema:
+[Sakila](https://github.com/neilotoole/sq/blob/master/docs/SAKILA.md) schema:
 
 ```shell
 $ sq inspect -j @sakila_pg | jq -r '

@@ -29,15 +29,18 @@ var createTblKindDefaults = map[kind.Kind]string{ //nolint:exhaustive // ignore 
 	kind.Unknown:  `DEFAULT ''`,
 }
 
+// buildCreateTableStmt builds a CREATE TABLE statement from tblDef. Identifiers
+// are quoted via stringz.DoubleQuote (sqlite3's dialect Enquote func), which
+// doubles any embedded quote char, so a name like `we"ird` cannot break out of
+// its quoting.
 func buildCreateTableStmt(tblDef *schema.Table) string {
 	var buf *bytes.Buffer
 
 	cols := make([]string, len(tblDef.Cols))
 	for i, col := range tblDef.Cols {
 		buf = &bytes.Buffer{}
-		buf.WriteRune('"')
-		buf.WriteString(col.Name)
-		buf.WriteString(`" `)
+		buf.WriteString(stringz.DoubleQuote(col.Name))
+		buf.WriteRune(' ')
 		buf.WriteString(DBTypeForKind(col.Kind))
 
 		if col.Name == tblDef.PKColName {
@@ -74,21 +77,17 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 			buf.WriteString(",\n")
 		}
 
-		buf.WriteString(`CONSTRAINT "`)
-		buf.WriteString(tblDef.Name)
-		buf.WriteRune('_')
-		buf.WriteString(col.Name)
-		buf.WriteRune('_')
-		buf.WriteString(col.ForeignKey.RefTable)
-		buf.WriteRune('_')
-		buf.WriteString(col.ForeignKey.RefCol)
-		buf.WriteString(`_fk" FOREIGN KEY ("`)
-		buf.WriteString(col.Name)
-		buf.WriteString(`") REFERENCES "`)
-		buf.WriteString(col.ForeignKey.RefTable)
-		buf.WriteString(`" ("`)
-		buf.WriteString(col.ForeignKey.RefCol)
-		buf.WriteString(`") ON DELETE `)
+		fkName := tblDef.Name + "_" + col.Name + "_" +
+			col.ForeignKey.RefTable + "_" + col.ForeignKey.RefCol + "_fk"
+		buf.WriteString(`CONSTRAINT `)
+		buf.WriteString(stringz.DoubleQuote(fkName))
+		buf.WriteString(` FOREIGN KEY (`)
+		buf.WriteString(stringz.DoubleQuote(col.Name))
+		buf.WriteString(`) REFERENCES `)
+		buf.WriteString(stringz.DoubleQuote(col.ForeignKey.RefTable))
+		buf.WriteString(` (`)
+		buf.WriteString(stringz.DoubleQuote(col.ForeignKey.RefCol))
+		buf.WriteString(`) ON DELETE `)
 		if col.ForeignKey.OnDelete == "" {
 			buf.WriteString("CASCADE")
 		} else {
@@ -104,9 +103,9 @@ func buildCreateTableStmt(tblDef *schema.Table) string {
 	fk = buf.String()
 
 	buf = &bytes.Buffer{}
-	buf.WriteString(`CREATE TABLE "`)
-	buf.WriteString(tblDef.Name)
-	buf.WriteString("\" (\n")
+	buf.WriteString(`CREATE TABLE `)
+	buf.WriteString(stringz.DoubleQuote(tblDef.Name))
+	buf.WriteString(" (\n")
 
 	for x := 0; x < len(cols)-1; x++ {
 		buf.WriteString(cols[x])
@@ -128,11 +127,16 @@ func buildUpdateStmt(tbl string, cols []string, where string) (string, error) {
 	}
 
 	buf := strings.Builder{}
-	buf.WriteString(`UPDATE "`)
-	buf.WriteString(tbl)
-	buf.WriteString(`" SET "`)
-	buf.WriteString(strings.Join(cols, `" = ?, "`))
-	buf.WriteString(`" = ?`)
+	buf.WriteString(`UPDATE `)
+	buf.WriteString(stringz.DoubleQuote(tbl))
+	buf.WriteString(` SET `)
+	for i, col := range cols {
+		if i > 0 {
+			buf.WriteString(`, `)
+		}
+		buf.WriteString(stringz.DoubleQuote(col))
+		buf.WriteString(` = ?`)
+	}
 	if where != "" {
 		buf.WriteString(" WHERE ")
 		buf.WriteString(where)

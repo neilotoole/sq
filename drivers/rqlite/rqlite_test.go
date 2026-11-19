@@ -72,6 +72,36 @@ func TestSourceMetadata(t *testing.T) {
 	require.Nil(t, md.Size, "rqlite source size should not be reported")
 }
 
+// TestSourceMetadata_VirtualTableCounted verifies that a virtual table is
+// counted in TableCount (gh1300).
+func TestSourceMetadata_VirtualTableCounted(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.RQ)
+	grip := th.Open(src)
+	ctx := th.Context
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	tblName := "vtab_fts_" + stringz.Uniq8()
+	_, err = db.ExecContext(ctx, fmt.Sprintf(`CREATE VIRTUAL TABLE %q USING fts5(body)`, tblName))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %q", tblName))
+	})
+
+	md, err := grip.SourceMetadata(ctx, false)
+	require.NoError(t, err)
+	tblMd := md.Table(tblName)
+	require.NotNil(t, tblMd)
+	require.Equal(t, sqlz.TableTypeVirtual, tblMd.TableType)
+	// Other tests create and drop tables in parallel, so assert the
+	// invariant within this snapshot rather than exact counts.
+	require.Equal(t, int64(len(md.Tables)), md.TableCount+md.ViewCount)
+}
+
 // TestInspect_DDLMetadata exercises the DDL-derived inspect metadata that
 // SQLite/rqlite exposes only in the CREATE statements in sqlite_master:
 // generated columns, AUTOINCREMENT, CHECK constraints, triggers (timing +
@@ -363,7 +393,7 @@ func TestTruncate_Reset(t *testing.T) {
 	require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
 
 	// Insert 3 rows so sqlite_sequence has data for this table.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err = db.ExecContext(th.Context,
 			fmt.Sprintf(`INSERT INTO %q (name) VALUES (?)`, tblName), "x")
 		require.NoError(t, err)
@@ -833,7 +863,7 @@ func TestBatchInsert(t *testing.T) {
 	const total = 1500
 	go func() {
 		defer close(bi.RecordCh)
-		for i := 0; i < total; i++ {
+		for i := range total {
 			rec := []any{int64(i), "b", "c", "2026-01-01T00:00:00"}
 			if mErr := bi.Munge(rec); mErr != nil {
 				t.Errorf("munge failed: %v", mErr)

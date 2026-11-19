@@ -1,7 +1,6 @@
 # sq data wrangler
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/neilotoole/sq.svg)](https://pkg.go.dev/github.com/neilotoole/sq)
-[![Go Report Card](https://goreportcard.com/badge/neilotoole/sq)](https://goreportcard.com/report/neilotoole/sq)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/neilotoole/sq/blob/master/LICENSE)
 ![Main pipeline](https://github.com/neilotoole/sq/actions/workflows/main.yml/badge.svg)
 [![codecov](https://codecov.io/gh/neilotoole/sq/graph/badge.svg)](https://codecov.io/gh/neilotoole/sq)
@@ -45,12 +44,12 @@ $ sq driver ls
 DRIVER      DESCRIPTION
 sqlite3     SQLite
 rqlite      rqlite
+duckdb      DuckDB
 postgres    PostgreSQL
 sqlserver   Microsoft SQL Server
 mysql       MySQL
 clickhouse  ClickHouse
 oracle      Oracle
-duckdb      DuckDB
 csv         Comma-Separated Values
 tsv         Tab-Separated Values
 json        JSON
@@ -67,11 +66,14 @@ xlsx        Microsoft Excel XLSX
 brew install sq
 ```
 
-> [!IMPORTANT]
-> `sq` is now a [core brew formula](https://formulae.brew.sh/formula/sq#default). Previously,
-> `sq` was available via `brew install neilotoole/sq/sq`. If you have installed `sq` this way,
-> you should uninstall it (`brew uninstall neilotoole/sq/sq`) before installing the new formula
-> via `brew install sq`.
+> [!NOTE]
+> `sq` is a [core brew formula](https://formulae.brew.sh/formula/sq#default). The old
+> `neilotoole/sq` tap is retired. If you installed `sq` from it (`brew install neilotoole/sq/sq`),
+> the next `brew update` switches that install to the core formula.
+>
+> Homebrew no longer builds bottles for Intel Macs, so on an Intel Mac, `brew install sq` builds
+> from source. To skip the build, download the `macos-amd64` binary from
+> [GitHub releases](https://github.com/neilotoole/sq/releases).
 
 ### Linux
 
@@ -86,16 +88,24 @@ scoop bucket add sq https://github.com/neilotoole/sq
 scoop install sq
 ```
 
-### Go
+### Source
+
+Prefer a package manager above, or a [release binary](https://github.com/neilotoole/sq/releases).
+`go install` needs the SQLite build tags, and its binary reports version `v0.0.0-dev`; use
+`make install` from a clone for a version-stamped build.
 
 ```shell
-go install github.com/neilotoole/sq
+go install -tags "sqlite_vtable sqlite_stat4 sqlite_fts5 sqlite_introspect sqlite_json sqlite_math_functions" \
+  github.com/neilotoole/sq@latest
 ```
 
 ### Docker
 
 The [`ghcr.io/neilotoole/sq`](https://github.com/neilotoole/sq/pkgs/container/sq)
-image is preloaded with `sq` and a handful of related tools like `jq`.
+image is preloaded with `sq` and a handful of related tools like `jq`. The same
+image is published to Docker Hub as
+[`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq). Both are cosign-signed
+and carry SLSA build provenance and an SPDX SBOM.
 
 #### Local
 
@@ -332,8 +342,8 @@ Read more about cross-source joins in the [query guide](https://sq.io/docs/query
 ### Table commands
 
 `sq` provides several handy commands for working with tables:
-[`tbl copy`](/docs/cmd/tbl-copy), [`tbl truncate`](/docs/cmd/tbl-truncate)
-and [`tbl drop`](/docs/cmd/tbl-drop).
+[`tbl copy`](https://sq.io/docs/cmd/tbl-copy), [`tbl truncate`](https://sq.io/docs/cmd/tbl-truncate)
+and [`tbl drop`](https://sq.io/docs/cmd/tbl-drop).
 Note that these commands work directly
 against SQL database sources, using their native SQL commands.
 
@@ -382,10 +392,10 @@ $ cat ./example.xlsx | sq inspect
 ## Contributing
 
 Bug reports, feature requests, and pull requests are welcome. Start with
-[CONTRIBUTING.md](./CONTRIBUTING.md), which links out to the per-area guides:
-[`site/README.md`](./site/README.md) for the website and
-[`drivers/README.md`](./drivers/README.md) for adding a driver, plus
-[AGENTS.md](./AGENTS.md) for coding-agent conventions.
+[CONTRIBUTING.md](./CONTRIBUTING.md). Contributor and maintainer docs
+(architecture, drivers, grammar, workflows) are indexed in
+[`docs/README.md`](./docs/README.md), and [AGENTS.md](./AGENTS.md) covers
+AI-agent conventions.
 
 ## CHANGELOG
 

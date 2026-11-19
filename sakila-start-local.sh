@@ -3,9 +3,24 @@
 # Starts local Postgres, MySQL, SQL Server, ClickHouse, Oracle, and rqlite
 # (via the sakiladb/* docker images) for repo-wide integration tests.
 #
+# Usage: source its output to export the SQ_TEST_SRC__SAKILA_* DSN vars into the
+# current shell, then run the tests:
+#
+#   source <(./sakila-start-local.sh)                  # every engine
+#   source <(./sakila-start-local.sh postgres mysql)   # just these
+#   make test
+#
+# Engine names are the keys of .github/sakila-db.json: postgres, mysql,
+# sqlserver, clickhouse, oracle, rqlite. Tests for engines that aren't started
+# skip themselves, since their envar is unset.
+#
+# Progress and health-check status are written to stderr; stdout carries only
+# the `export ...` lines, so the output is safe to source.
+#
 # Image tags, ports, DSNs, and env-var names come from .github/sakila-db.json
 # (single source of truth, shared with CI). Each engine uses its first tag
-# (tags[0], normally "latest"). `--pull always` avoids a silently-stale image.
+# (tags[0], the newest supported version; tags are newest-first and never
+# list "latest"). `--pull always` avoids a silently-stale image.
 #
 # NOTE: tested on macOS / Apple Silicon. SQL Server is amd64-only.
 
@@ -14,16 +29,29 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 config="$here/.github/sakila-db.json"
 
-# Stop anything already running.
-"$here/sakila-stop-local.sh" &>/dev/null || true
-
+# Keep in sync with sakila-stop-local.sh.
 declare -A cname=(
   [postgres]=sakiladb-pg [mysql]=sakiladb-my [sqlserver]=sakiladb-ms
   [clickhouse]=sakiladb-ch [oracle]=sakiladb-or [rqlite]=sakiladb-rq
 )
 declare -A platform=( [sqlserver]="--platform=linux/amd64" )
 
-engines=(postgres mysql sqlserver clickhouse oracle rqlite)
+engines=("$@")
+if [ ${#engines[@]} -eq 0 ]; then
+  engines=(postgres mysql sqlserver clickhouse oracle rqlite)
+fi
+
+for engine in "${engines[@]}"; do
+  if [ -z "${cname[$engine]:-}" ]; then
+    echo "unknown engine: $engine" >&2
+    exit 2
+  fi
+done
+
+# Stop any of the selected engines that are already running. Engines that
+# weren't selected keep running.
+"$here/sakila-stop-local.sh" "${engines[@]}" &>/dev/null || true
+
 exports=()
 
 for engine in "${engines[@]}"; do
@@ -38,7 +66,7 @@ for engine in "${engines[@]}"; do
 done
 
 # Wait for every container to report healthy (images ship a HEALTHCHECK).
-echo "Waiting for containers to become healthy..."
+echo "Waiting for containers to become healthy..." >&2
 for engine in "${engines[@]}"; do
   c="${cname[$engine]}"
   for _ in $(seq 1 60); do
@@ -48,11 +76,11 @@ for engine in "${engines[@]}"; do
     [ "$status" = missing ] && break # container gone: stop waiting
     sleep 5
   done
-  echo "  $c: $(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$c" 2>/dev/null || echo '?')"
+  echo "  $c: $(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}running{{end}}' "$c" 2>/dev/null || echo '?')" >&2
 done
 
-echo
-echo "Export these envars (and source them) to run the tests with these sources enabled"
+echo >&2
+echo "# Source these into your shell, e.g.: source <(./sakila-start-local.sh)" >&2
+
+# Emit only the `export ...` lines on stdout, so the output is safe to source.
 printf '%s\n' "${exports[@]}"
-# Also export into the current shell when sourced.
-for line in "${exports[@]}"; do eval "$line"; done

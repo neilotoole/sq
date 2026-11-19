@@ -37,8 +37,7 @@ func errw(err error) error {
 // kept. Non-*url.Error values pass through unchanged. Used wherever a
 // net/url-produced error could otherwise echo a source DSN's userinfo.
 func stripURLError(err error) error {
-	var uerr *url.Error
-	if errors.As(err, &uerr) {
+	if uerr, ok := errors.AsType[*url.Error](err); ok {
 		return uerr.Err
 	}
 	return err
@@ -496,8 +495,7 @@ func isTLSSignal(err error) bool {
 	// 1. Go's net/http detected a TLS record on a plain-HTTP socket.
 	// Dead in production today (gorqlite breaks the error chain) but
 	// retained for forward-compat.
-	var rec tls.RecordHeaderError
-	if errors.As(err, &rec) {
+	if _, ok := errors.AsType[tls.RecordHeaderError](err); ok {
 		return true
 	}
 
@@ -583,16 +581,13 @@ func isCertVerificationError(err error) bool {
 	if err == nil {
 		return false
 	}
-	var unkAuth x509.UnknownAuthorityError
-	if errors.As(err, &unkAuth) {
+	if _, ok := errors.AsType[x509.UnknownAuthorityError](err); ok {
 		return true
 	}
-	var hostErr x509.HostnameError
-	if errors.As(err, &hostErr) {
+	if _, ok := errors.AsType[x509.HostnameError](err); ok {
 		return true
 	}
-	var verifyErr *tls.CertificateVerificationError
-	if errors.As(err, &verifyErr) {
+	if _, ok := errors.AsType[*tls.CertificateVerificationError](err); ok {
 		return true
 	}
 	// Substring fallback: the canonical "x509:" prefix on Go's

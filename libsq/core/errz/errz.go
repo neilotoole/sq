@@ -329,7 +329,7 @@ func WithExitCode(err error, code int) error {
 		return &exitCoder{errz: *ez, code: code}
 	}
 
-	return &exitCoder{errz: errz{stack: callers(0), error: err}, code: code}
+	return &exitCoder{stack: callers(0), error: err, code: code}
 }
 
 var _ ExitCoder = (*exitCoder)(nil)
@@ -529,8 +529,7 @@ func HumanMessage(err error) string {
 	if err == nil {
 		return ""
 	}
-	var hr HumanReadable
-	if errors.As(err, &hr) {
+	if hr, ok := errors.AsType[HumanReadable](err); ok {
 		return hr.HumanError()
 	}
 	return err.Error()

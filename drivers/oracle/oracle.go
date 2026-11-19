@@ -141,7 +141,7 @@ func placeholders(numCols, numRows int) string {
 
 	n := 1
 	var sb strings.Builder
-	for i := 0; i < numRows; i++ {
+	for i := range numRows {
 		sb.Reset()
 		sb.WriteRune('(')
 		for j := 1; j <= numCols; j++ {
@@ -212,11 +212,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessM
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 // doOpen opens a connection to the Oracle database.
@@ -719,21 +722,37 @@ func newStmtExecFunc(stmt *sql.Stmt) driver.StmtExecFunc {
 }
 
 // PrepareInsertStmt implements driver.SQLDriver.
+//
+// The prepared statement always inserts a single row, because Oracle before
+// 23ai rejects a multi-row VALUES list. The returned execer inserts rows with
+// array binding (see arrayBinder), and its Exec takes the rows' values back to
+// back, as for any other driver. numRows, the number of rows per Exec, must
+// be positive but is otherwise not needed.
 func (d *driveri) PrepareInsertStmt(ctx context.Context, db sqlz.DB, destTbl string, destColNames []string,
 	numRows int,
 ) (*driver.StmtExecer, error) {
+	if numRows <= 0 {
+		return nil, errz.Errorf("numRows must be a positive integer but got %d", numRows)
+	}
+
 	destColsMeta, err := d.getTableRecordMeta(ctx, db, destTbl, destColNames)
 	if err != nil {
 		return nil, err
 	}
 
-	stmt, err := driver.PrepareInsertStmt(ctx, d, db, destTbl, destColsMeta.Names(), numRows)
+	query, err := driver.InsertSQL(d, destTbl, destColsMeta.Names(), 1)
 	if err != nil {
 		return nil, err
 	}
 
+	stmt, err := db.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, errw(err)
+	}
+
+	binder := &arrayBinder{db: db, stmt: stmt, query: query, numCols: len(destColsMeta)}
 	execer := driver.NewStmtExecer(stmt, driver.DefaultInsertMungeFunc(destTbl, destColsMeta),
-		newStmtExecFunc(stmt), destColsMeta)
+		binder.exec, destColsMeta)
 	return execer, nil
 }
 

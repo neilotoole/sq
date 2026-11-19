@@ -388,6 +388,20 @@ func encodeString(b []byte, s string, escapeHTML bool) ([]byte, error) { //nolin
 			j++
 			continue
 
+		case '\b':
+			b = append(b, s[i:j]...)
+			b = append(b, '\\', 'b')
+			i = j + 1
+			j++
+			continue
+
+		case '\f':
+			b = append(b, s[i:j]...)
+			b = append(b, '\\', 'f')
+			i = j + 1
+			j++
+			continue
+
 		case '<', '>', '&':
 			b = append(b, s[i:j]...)
 			b = append(b, `\u00`...)
@@ -397,7 +411,7 @@ func encodeString(b []byte, s string, escapeHTML bool) ([]byte, error) { //nolin
 			continue
 		}
 
-		// This encodes bytes < 0x20 except for \t, \n and \r.
+		// This encodes bytes < 0x20 except for \b, \f, \t, \n and \r.
 		if c < 0x20 {
 			b = append(b, s[i:j]...)
 			b = append(b, `\u00`...)

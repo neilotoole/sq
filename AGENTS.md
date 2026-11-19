@@ -3,14 +3,23 @@
 Guidance for AI coding assistants (Claude Code, Copilot, Cursor, Codex, etc.) and
 human contributors working in this repo.
 
-[`CLAUDE.md`](./CLAUDE.md) is the Claude Code entry point; it points here for
-all shared rules.
+Subdirectories add their own conventions on top of these rules:
+
+- [`cli/AGENTS.md`](./cli/AGENTS.md): CLI command conventions
+- [`site/AGENTS.md`](./site/AGENTS.md): sq.io website (Hugo/Bun) conventions
+
+> [!IMPORTANT]
+> Before making a significant change, review [`docs/README.md`](./docs/README.md)
+> and the contributor docs it links to (architecture, drivers, grammar, development, CI,
+> Sakila, releasing). Read the ones relevant to your task before you start, and
+> if your change makes any of them inaccurate, update them in the same change.
 
 ## About `sq`
 
 `sq` is a command-line data wrangler providing jq-style access to structured
-data sources (SQL databases like Postgres, MySQL, SQLite, SQL Server,
-ClickHouse, Oracle, DuckDB; and document formats like CSV, JSON, Excel). User
+data sources (eight SQL databases: SQLite, rqlite, DuckDB, Postgres, SQL
+Server, MySQL, ClickHouse and Oracle; and document formats like CSV, JSON and
+Excel). User
 docs live at
 [sq.io](https://sq.io).
 
@@ -23,15 +32,27 @@ task:
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md): full contributor guide (tooling,
   `Makefile` usage, driver implementation patterns, test handles,
   `CHANGELOG.md` format).
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md): Mermaid ERD of core types
+- [`docs/README.md`](./docs/README.md): index of the contributor docs under
+  [`docs/`](./docs).
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md): Mermaid ERD of core types
   (`Source`, `Driver`, `Grip`, `Registry`, `RecordWriter`, etc.).
+- [`docs/DRIVERS.md`](./docs/DRIVERS.md): driver development guide (package
+  structure, type mapping, the driver ship checklist).
+- [`docs/GRAMMAR.md`](./docs/GRAMMAR.md): SLQ query language grammar guide
+  (companion to [`grammar/SLQ.g4`](./grammar/SLQ.g4)).
+- [`docs/DEVELOPER.md`](./docs/DEVELOPER.md): the local development loop
+  (`Makefile` targets, inner loop, git hooks).
+- [`docs/CI.md`](./docs/CI.md): how CI works (what runs on a PR, nightly, and
+  on a release tag; the DB integration matrix; the release path).
+- [`docs/SAKILA.md`](./docs/SAKILA.md): the Sakila test dataset (`sakiladb`
+  images, embedded vs external sources, engine matrix, repo-wide usage).
 - [sq.io](https://sq.io): end-user documentation for commands and query
   syntax.
 
 ## Common commands
 
 This project uses a `Makefile` as its canonical developer entry point (see
-[`CONTRIBUTING.md`](./CONTRIBUTING.md#makefile) for why).
+[`CONTRIBUTING.md`](./CONTRIBUTING.md#general-advice) for why).
 
 `make help` (the default target) lists every target with a one-line
 description; each target is documented inline in the `Makefile`.
@@ -55,9 +76,11 @@ repo's git hooks (`.githooks`), including a `pre-commit` hook that runs
 of failing the `Format` CI job. Bypass the hook for one commit with
 `git commit --no-verify`.
 
-Driver integration tests for Postgres, MySQL, SQL Server, and ClickHouse
-require the `sakiladb/*` Docker images to be reachable. Use `make test-short`
-or `go test -short ./...` to skip them.
+Driver integration tests for the six client/server engines (Postgres, MySQL,
+SQL Server, ClickHouse, Oracle and rqlite) require the `sakiladb/*` Docker
+images to be reachable. Use `make test-short` or `go test -short ./...` to skip
+them. The embedded engines, SQLite and DuckDB, use in-repo fixtures and always
+run.
 
 ## Conventions
 
@@ -99,10 +122,48 @@ func TestExample(t *testing.T) {
 }
 ```
 
-Integration tests that need a real database should call `tu.SkipShort(t, true)`
+Integration tests that need a real database should call [`tu.SkipShort(t, true)`](./testh/tu/skip.go)
 so they're skipped under `go test -short`. See
-[`drivers/README.md`](./drivers/README.md#test-handles) for driver test handle
+[`docs/DRIVERS.md`](./docs/DRIVERS.md#test-handles) for driver test handle
 conventions.
+
+### Flaky tests
+
+Do not skip a flaky test. Find the root cause and fix that.
+
+A `t.Skip` on an intermittent failure removes the signal and leaves the cause in
+place, so it resurfaces against whatever test loses the race next. One Windows
+fixture-locking bug surfaced as failures in `TestCmdSLQ_Insert`,
+`TestSakilaCrossDatabase` and `TestCmdSQL_ExecMode` on different runs, and two
+separate PRs proposed skipping two of those tests. Neither test was the culprit,
+and each skip would have silenced one symptom while leaving the bug to surface
+elsewhere. The cause was other tests opening the shared DuckDB fixture
+read-write, fixed in
+[#1199](https://github.com/neilotoole/sq/pull/1199) and
+[#1196](https://github.com/neilotoole/sq/pull/1196).
+
+When a test flakes:
+
+1. Read the failure output. The error text names the mechanism, which is often
+   unrelated to what the test name suggests.
+2. Compare the failing runs. Look for what they share: one OS, one driver, one
+   CI leg, a particular pair of tests running concurrently.
+3. Trace back to the cause. A test that fails is often the victim rather than
+   the culprit.
+4. Fix the cause, and add a test that would have caught it.
+
+Gating on a real precondition is not skipping. `tu.SkipShort(t, true)` for tests
+that need a live database, and the envar checks behind the driver test handles,
+state what the test requires. A skip added because a test sometimes fails states
+nothing.
+
+If you cannot fix it in the same change, open an issue with the failure output
+and the runs it appeared in. That keeps the test running, so the next failure
+adds evidence instead of being silenced.
+
+The [`sq-ci-triage`](.agents/skills/sq-ci-triage/) skill is the procedure for
+acting on a red run: what to check before proposing anything, what counts as
+proof that a fix works, and where a fix belongs.
 
 ### Error handling
 
@@ -135,7 +196,7 @@ produce stackless errors that surface upstream with no useful trace.
 
 Command-authoring conventions for the `cli` package (including the rule that
 every argument-taking command must offer shell completion) live in
-[`cli/CLAUDE.md`](./cli/CLAUDE.md).
+[`cli/AGENTS.md`](./cli/AGENTS.md).
 
 ### Passing data: prefer explicit signatures over `context.Value`
 
@@ -162,6 +223,12 @@ Use US English in all prose: code comments, godoc, user-facing strings,
 commit messages, PR descriptions, CHANGELOG entries, and site docs. For
 example, "honors" not "honours", "color" not "colour", "behavior" not
 "behaviour", "optimize" not "optimise".
+
+### Terminology
+
+- **Envar** (one word) for an environment variable, not "env var", "env-var",
+  or "environment variable". Capitalize as "Envar" in headings and table
+  headers, "envar" in running prose.
 
 ### Prose style (no AI-isms)
 
@@ -209,7 +276,7 @@ JSON) file you touch before committing.
 
 ### `CHANGELOG.md`
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md#changelogmd) for the full format.
+See [`docs/RELEASING.md`](./docs/RELEASING.md) for the full format.
 In short: work-in-progress goes under an `## Unreleased` section at the top
 with `Fixed` / `Changed` / `Added` subsections, and the first reference to
 an `sq` command in a release section links to its `sq.io` documentation.
@@ -252,13 +319,13 @@ Do not add AI / Claude attribution text to commits or PRs.
 `sq` is driver-oriented: each supported data source type is implemented as a
 driver under [`drivers/`](./drivers/). When adding or modifying a driver,
 read the
-["New driver implementations"](./drivers/README.md#new-driver-implementations)
-guide in [`drivers/README.md`](./drivers/README.md). It covers package structure,
+["New driver implementations"](./docs/DRIVERS.md#new-driver-implementations)
+guide in [`docs/DRIVERS.md`](./docs/DRIVERS.md). It covers package structure,
 type mapping, dialect configuration, test handles, and the SQL-vs-document
 driver split.
 
 **Adding a new driver type:** you must complete the
-[driver ship checklist](./drivers/README.md#driver-ship-checklist) in the same
+[driver ship checklist](./docs/DRIVERS.md#driver-ship-checklist) in the same
 PR, including [`site/content/en/docs/drivers/`](site/content/en/docs/drivers/)
 and [`skills/sq/`](skills/sq/SKILL.md) (`SKILL.md` driver table plus
 `references/{driver}.md`). Do not mark driver work done until those files are
@@ -266,7 +333,7 @@ updated; copy an existing `skills/sq/references/*.md` as a template.
 
 For a visual map of the driver interfaces (`driver.Driver`,
 `driver.SQLDriver`, `driver.Grip`, `driver.Registry`) and how they relate to
-the rest of the system, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+the rest of the system, see [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ## Agent skills (contributors)
 
@@ -280,7 +347,7 @@ This repo ships [Agent Skills](https://agentskills.io/specification) for
 
 Adding a new driver type also requires updating
 [`skills/sq/`](skills/sq/SKILL.md); see [Drivers](#drivers) and the
-[driver ship checklist](./drivers/README.md#driver-ship-checklist).
+[driver ship checklist](./docs/DRIVERS.md#driver-ship-checklist).
 
 Claude Code discovers the same tree via [`.claude/skills`](.claude/skills)
 (symlink to `.agents/skills`). Cursor and Codex load `.agents/skills/`
@@ -289,10 +356,16 @@ tree as documented in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ### Skills in this repo
 
-| Skill                                                        | Use when                                                              |
-| ------------------------------------------------------------ | --------------------------------------------------------------------- |
-| [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/)   | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo). |
-| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/) | Dependabot PRs for Go modules (`go.mod`/`go.sum`) at repo root.       |
+| Skill                                                            | Use when                                                                                |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [`sq-site-dependabot`](.agents/skills/sq-site-dependabot/)       | Triaging or merging Dependabot PRs for [`site/`](site/) (Bun / Hugo).                   |
+| [`sq-gomod-dependabot`](.agents/skills/sq-gomod-dependabot/)     | Dependabot PRs for Go modules (`go.mod`/`go.sum`) at repo root.                         |
+| [`sq-actions-dependabot`](.agents/skills/sq-actions-dependabot/) | Dependabot PRs for GitHub Actions pins under `.github/workflows/`.                      |
+| [`code-review`](.agents/skills/code-review/)                     | Reviewing a PR or diff; carries repo conventions a reviewer cannot infer from the diff. |
+| [`sq-ci-triage`](.agents/skills/sq-ci-triage/)                   | CI is red and you intend to act on it: triage order, proof, and where a fix belongs.    |
+
+The three Dependabot skills cover all four ecosystems in [`.github/dependabot.yml`](.github/dependabot.yml):
+`gomod`, both `bun` manifests (`/` dev tooling and `/site`), and `github-actions`.
 
 Invoke explicitly when your agent supports it (e.g. `/sq-site-dependabot` in
 Cursor, `$sq-site-dependabot` in Codex) or ask to “clear site dependabot PRs”.
@@ -310,6 +383,7 @@ npx skills add <owner/repo> --skill <skill-name>
 ```bash
 npx skills add neilotoole/sq --skill sq-site-dependabot
 npx skills add neilotoole/sq --skill sq-gomod-dependabot
+npx skills add neilotoole/sq --skill sq-actions-dependabot
 ```
 
 **From a local checkout** (verify before opening a PR that touches skills):

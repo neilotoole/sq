@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -80,6 +81,23 @@ type completion struct {
 	directives []cobra.ShellCompDirective
 }
 
+// sourceCompletionTimeout is the shell-completion timeout used by tests whose
+// completion opens a source, such as to list its schemas or tables. The 500ms
+// default is a UX budget, not a correctness property, and these tests assert
+// what completion returns, not how fast it returns it. A cold source open on a
+// loaded CI runner can exceed 500ms, which surfaces as a partial or empty
+// result. See gh #595.
+const sourceCompletionTimeout = time.Second * 10
+
+// setCompletionTimeout sets cli.OptShellCompletionTimeout in tr's config store.
+// The store is what testComplete's run loads from, so the value must be
+// persisted, not just set on tr's in-memory config.
+func setCompletionTimeout(tb testing.TB, tr *testrun.TestRun, d time.Duration) {
+	tb.Helper()
+	tr.Run.Config.Options[cli.OptShellCompletionTimeout.Key()] = d
+	require.NoError(tb, tr.Run.ConfigStore.Save(tr.Context, tr.Run.Config))
+}
+
 // TestCompleteFlagActiveSchema_query_cmds tests flag.ActiveSchema
 // behavior for the query commands (slq, sql).
 //
@@ -131,23 +149,27 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) { //nolint:tparallel
 			wantDirective: wantDirective,
 		},
 		{
-			handles:           []string{sakila.My, sakila.Pg},
-			withFlagActiveSrc: sakila.Pg,
-			arg:               "publ",
-			wantContains:      []string{"public"},
-			wantDirective:     wantDirective,
+			// The flag selects Duck, whose catalog "sakila" completes. SL3
+			// offers no such catalog, so the case fails if the flag is ignored.
+			handles:           []string{sakila.SL3, sakila.Duck},
+			withFlagActiveSrc: sakila.Duck,
+			arg:               "sak",
+			wantContains:      []string{"sakila."},
+			wantDirective:     wantDirective | cobra.ShellCompDirectiveNoSpace,
 		},
 		{
-			handles:           []string{sakila.Pg, sakila.My},
-			withFlagActiveSrc: sakila.My,
+			// The flag selects SL3, which offers only the "main" schema, and so
+			// no NoSpace directive. Duck would also offer its catalog.
+			handles:           []string{sakila.Duck, sakila.SL3},
+			withFlagActiveSrc: sakila.SL3,
 			arg:               "",
-			wantContains:      []string{"mysql", "sys", "information_schema", "sakila"},
+			wantContains:      []string{"main"},
 			wantDirective:     wantDirective,
 		},
 		{
-			handles:           []string{sakila.My, sakila.Pg},
+			handles:           []string{sakila.SL3, sakila.Duck},
 			withFlagActiveSrc: sakila.MS,
-			arg:               "publ",
+			arg:               "ma",
 			// Should error because sakila.MS isn't a loaded source (via "handles").
 			wantDirective: cobra.ShellCompDirectiveError,
 		},
@@ -163,6 +185,7 @@ func TestCompleteFlagActiveSchema_query_cmds(t *testing.T) { //nolint:tparallel
 
 					th := testh.New(t)
 					tr := testrun.New(th.Context, t, nil)
+					setCompletionTimeout(t, tr, sourceCompletionTimeout)
 					for _, handle := range tc.handles {
 						tr.Add(*th.Source(handle))
 					}
@@ -246,23 +269,27 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 			wantDirective: wantDirective,
 		},
 		{
-			handles:          []string{sakila.My, sakila.Pg},
-			withArgActiveSrc: sakila.Pg,
-			arg:              "publ",
-			wantContains:     []string{"public"},
-			wantDirective:    wantDirective,
+			// The arg selects Duck, whose catalog "sakila" completes. SL3
+			// offers no such catalog, so the case fails if the arg is ignored.
+			handles:          []string{sakila.SL3, sakila.Duck},
+			withArgActiveSrc: sakila.Duck,
+			arg:              "sak",
+			wantContains:     []string{"sakila."},
+			wantDirective:    wantDirective | cobra.ShellCompDirectiveNoSpace,
 		},
 		{
-			handles:          []string{sakila.Pg, sakila.My},
-			withArgActiveSrc: sakila.My,
+			// The arg selects SL3, which offers only the "main" schema, and so
+			// no NoSpace directive. Duck would also offer its catalog.
+			handles:          []string{sakila.Duck, sakila.SL3},
+			withArgActiveSrc: sakila.SL3,
 			arg:              "",
-			wantContains:     []string{"mysql", "sys", "information_schema", "sakila"},
+			wantContains:     []string{"main"},
 			wantDirective:    wantDirective,
 		},
 		{
-			handles:          []string{sakila.My, sakila.Pg},
+			handles:          []string{sakila.SL3, sakila.Duck},
 			withArgActiveSrc: sakila.MS,
-			arg:              "publ",
+			arg:              "ma",
 			// Should error because sakila.MS isn't a loaded source (via "handles").
 			wantDirective: cobra.ShellCompDirectiveError,
 		},
@@ -274,6 +301,7 @@ func TestCompleteFlagActiveSchema_inspect(t *testing.T) {
 
 			th := testh.New(t)
 			tr := testrun.New(th.Context, t, nil)
+			setCompletionTimeout(t, tr, sourceCompletionTimeout)
 			for _, handle := range tc.handles {
 				tr.Add(*th.Source(handle))
 			}
@@ -426,7 +454,7 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 			tr := testrun.New(context.Background(), t, nil).Hush()
 
 			for _, handle := range tc.srcs {
-				src := testh.NewActorSource(t, handle, true)
+				src := testh.NewActorSource(t, handle)
 				tr.Add(*src)
 			}
 
@@ -434,7 +462,9 @@ func TestCompleteFilterActiveGroup(t *testing.T) {
 			require.NoError(t, err)
 
 			require.NoError(t, tr.Run.Config.Collection.SetActiveGroup(tc.activeGroup))
-			require.NoError(t, tr.Run.ConfigStore.Save(tr.Context, tr.Run.Config))
+			// Cases such as "inspect @prod/sal" complete table names, which
+			// opens the source.
+			setCompletionTimeout(t, tr, sourceCompletionTimeout)
 
 			got := testComplete(t, tr, tc.args...)
 			assert.Equal(t, tc.wantDirective, got.result,

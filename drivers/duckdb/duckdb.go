@@ -107,10 +107,13 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, mode driver.Acce
 	if err != nil {
 		return nil, errz.Err(err)
 	}
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.AccessMode) (*sql.DB, error) {
@@ -143,12 +146,23 @@ func (d *driveri) doOpen(ctx context.Context, src *source.Source, mode driver.Ac
 	if err != nil {
 		return nil, err
 	}
-	// Use duckdb-go's connector with a per-connection init function
-	// (connInitFn). On each new pooled connection it runs INSTALL (memoized
-	// once per process), LOAD for every bundled extension, and SET
-	// enable_progress_bar — DuckDB's LOAD and SET are session-scoped, so
-	// they must repeat on every connection.
-	connector, err := duckdbdriver.NewConnector(dsn, connInitFn)
+	// No per-connection init function. In particular, extensions are not
+	// installed or loaded here. Only json, parquet, icu, autocomplete,
+	// core_functions, tpch and tpcds are statically linked into the
+	// duckdb-go-bindings engine; every other extension is a separate shared
+	// library that DuckDB installs into its extension directory (~/.duckdb by
+	// default) and loads on first use via autoinstall_known_extensions and
+	// autoload_known_extensions, both of which default to true.
+	//
+	// The driver used to run INSTALL for a fixed set once per process and
+	// LOAD for each of them on every new connection. Each LOAD of a
+	// non-static extension reads and hashes the file to verify its
+	// signature (tens of MB per database open), which cost seconds per open
+	// on Windows, and on a cold cache the INSTALL made every open depend on
+	// the extension repository being reachable. See #1151. The limitations
+	// of relying on autoload instead, and the plan to remove them by
+	// statically linking the extensions sq needs, are in #1155.
+	connector, err := duckdbdriver.NewConnector(dsn, nil)
 	if err != nil {
 		return nil, errz.Err(err)
 	}
@@ -734,6 +748,7 @@ type grip struct {
 	db       *sql.DB
 	src      *source.Source
 	drvr     *driveri
+	semver   driver.SemverCache
 
 	// closeOnce guards Close so that subsequent calls are no-op and return
 	// the same error. DuckDB takes a process-exclusive lock on the database
@@ -766,7 +781,7 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 
 // DBSemver implements driver.Grip.
 func (g *grip) DBSemver(ctx context.Context) (string, error) {
-	return g.drvr.DBSemver(ctx, g.db)
+	return g.semver.Get(func() (string, error) { return g.drvr.DBSemver(ctx, g.db) })
 }
 
 // TableMetadata implements driver.Grip.

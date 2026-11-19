@@ -85,8 +85,7 @@ func hasErrCode(err error, code int32) bool {
 		return false
 	}
 
-	var chErr *clickhouse.Exception
-	if errors.As(err, &chErr) {
+	if chErr, ok := errors.AsType[*clickhouse.Exception](err); ok {
 		return chErr.Code == code
 	}
 

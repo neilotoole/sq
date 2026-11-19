@@ -145,6 +145,12 @@ func TestQuery_join_inner(t *testing.T) {
 	}
 }
 
+// TestQuery_join_multi_source tests joins that span sources. The additional
+// sources are always embedded handles (sakila.SL3, sakila.Duck): they need no
+// container, so these cases run in every CI leg. Hardcoding external engines
+// here would pin the cases to a leg that has two engines live at once, which
+// no leg does. See gh #1143.
+//
 //nolint:lll
 func TestQuery_join_multi_source(t *testing.T) {
 	testCases := []queryTestCase{
@@ -178,7 +184,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			name: "n1/equals-with-alias",
 			in: fmt.Sprintf(
 				`@sakila | .store:s | join(%s.address:a, .s.address_id == .a.address_id)`,
-				sakila.Pg,
+				sakila.Duck,
 			),
 			wantRecCount:  2,
 			repeatReplace: innerJoins,
@@ -190,7 +196,7 @@ func TestQuery_join_multi_source(t *testing.T) {
 			name: "n2/two-sources",
 			in: fmt.Sprintf(
 				`@sakila | .actor | join(%s.film_actor, .actor_id) | join(.film, .film_id) | .first_name, .last_name, .title`,
-				sakila.Pg,
+				sakila.Duck,
 			),
 			wantRecCount:  sakila.TblFilmActorCount,
 			repeatReplace: innerJoins,
@@ -202,8 +208,8 @@ func TestQuery_join_multi_source(t *testing.T) {
 			name: "n2/three-sources-no-alias-no-col-alias",
 			in: fmt.Sprintf(
 				`@sakila | .actor | join(%s.film_actor, .actor_id) | join(%s.film, .film_id) | .first_name, .last_name, .title`,
-				sakila.Pg,
-				sakila.My,
+				sakila.Duck,
+				sakila.SL3,
 			),
 			wantSQL:       `SELECT "first_name", "last_name", "title" FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id" INNER JOIN "film" ON "film_actor"."film_id" = "film"."film_id"`,
 			wantRecCount:  sakila.TblFilmActorCount,
@@ -216,8 +222,8 @@ func TestQuery_join_multi_source(t *testing.T) {
 			name: "n2/three-sources-no-alias-all-cols",
 			in: fmt.Sprintf(
 				`@sakila | .actor | join(%s.film_actor, .actor_id) | join(%s.film, .film_id)`,
-				sakila.Pg,
-				sakila.My,
+				sakila.Duck,
+				sakila.SL3,
 			),
 			wantSQL:       `SELECT * FROM "actor" INNER JOIN "film_actor" ON "actor"."actor_id" = "film_actor"."actor_id" INNER JOIN "film" ON "film_actor"."film_id" = "film"."film_id"`,
 			wantRecCount:  sakila.TblFilmActorCount,
@@ -230,8 +236,8 @@ func TestQuery_join_multi_source(t *testing.T) {
 			name: "n2/equals-with-alias/unqualified-cols",
 			in: fmt.Sprintf(
 				`@sakila | .actor:a | join(%s.film_actor:fa, .a.actor_id == .fa.actor_id) | join(%s.film:f, .fa.film_id == .f.film_id) | .first_name, .last_name, .title`,
-				sakila.Pg,
-				sakila.My,
+				sakila.Duck,
+				sakila.SL3,
 			),
 			wantRecCount: sakila.TblFilmActorCount,
 			sinkFns: []SinkTestFunc{

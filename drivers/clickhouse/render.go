@@ -91,13 +91,19 @@ func dbTypeNameFromKind(knd kind.Kind) string {
 //     data storage, compression, and query performance.
 //
 //  2. ORDER BY clause is required for MergeTree. This defines the primary
-//     sort order for data storage and affects query performance. This function
-//     uses the first NOT NULL column as the ordering key. If no NOT NULL column
-//     exists, it uses tuple() which means no specific ordering.
+//     sort order for data storage and affects query performance. When
+//     tblDef.PKColName names one of the table's columns, that column is the
+//     ordering key: MergeTree's ORDER BY / PRIMARY KEY is the closest analogue
+//     to an ANSI primary key, though it does not enforce uniqueness (#1029).
+//     Otherwise this function falls back to the first NOT NULL column. If no
+//     NOT NULL column exists either, it uses tuple() which means no specific
+//     ordering.
 //
 //  3. Nullable types must be explicit. Unlike many SQL databases where columns
 //     are nullable by default, ClickHouse columns are non-nullable by default.
 //     This function wraps types with Nullable(T) when colDef.NotNull is false.
+//     The PK column is never wrapped: an ANSI primary key implies NOT NULL,
+//     and ClickHouse forbids nullable columns in the sorting key by default.
 //
 // Generated SQL format:
 //
@@ -123,14 +129,27 @@ func buildCreateTableStmtName(qtblName string, tblDef *schema.Table) string {
 	sb.WriteString(qtblName)
 	sb.WriteString(" (\n")
 
+	// pkColName is honored only if it names an actual column; a dangling
+	// PKColName must not produce an ORDER BY that references a column
+	// missing from the DDL.
+	pkColName := ""
+	for _, colDef := range tblDef.Cols {
+		if colDef.Name == tblDef.PKColName {
+			pkColName = colDef.Name
+			break
+		}
+	}
+
 	for i, colDef := range tblDef.Cols {
 		sb.WriteString("  ")
 		sb.WriteString(stringz.BacktickQuote(colDef.Name))
 		sb.WriteString(" ")
 
 		typeName := dbTypeNameFromKind(colDef.Kind)
-		if !colDef.NotNull {
-			// Wrap with Nullable for columns that allow NULL values
+		if !colDef.NotNull && colDef.Name != pkColName {
+			// Wrap with Nullable for columns that allow NULL values.
+			// The PK column is exempt: it becomes the sorting key below,
+			// and ClickHouse forbids nullable columns in the sorting key.
 			typeName = "Nullable(" + typeName + ")"
 		}
 		sb.WriteString(typeName)
@@ -144,14 +163,17 @@ func buildCreateTableStmtName(qtblName string, tblDef *schema.Table) string {
 
 	// ORDER BY clause is required for MergeTree.
 	// ClickHouse does not allow nullable columns in the sorting key by default.
-	// Find the first NOT NULL column to use as the ordering key, or use tuple()
-	// if all columns are nullable (tuple() means no specific ordering).
+	// Prefer the PK column as the ordering key (#1029); otherwise find the
+	// first NOT NULL column, or use tuple() if all columns are nullable
+	// (tuple() means no specific ordering).
 	sb.WriteString("ORDER BY ")
-	orderByCol := ""
-	for _, colDef := range tblDef.Cols {
-		if colDef.NotNull {
-			orderByCol = colDef.Name
-			break
+	orderByCol := pkColName
+	if orderByCol == "" {
+		for _, colDef := range tblDef.Cols {
+			if colDef.NotNull {
+				orderByCol = colDef.Name
+				break
+			}
 		}
 	}
 	if orderByCol != "" {

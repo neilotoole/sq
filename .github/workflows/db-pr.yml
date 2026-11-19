@@ -1,0 +1,84 @@
+name: DB integration (PR)
+
+# Path-selected DB integration legs for pull requests (gh #1133):
+#   drivers/<engine>/**             -> that engine at bookends (latest + oldest)
+#   DB workflows, matrix scripts,   -> every engine at bookends (a smoke test
+#   .github/sakila-db.json             of the CI machinery itself)
+# Engine names come from the keys of .github/sakila-db.json, which are the
+# drivers/<engine>/ directory names, so there is no path list to maintain.
+#
+# An embedded-driver change (e.g. drivers/duckdb/) matches the trigger but
+# selects nothing, and the run job is skipped. db-integration.yml fails loudly
+# on an empty selection by design, so the `if` on the run job is what keeps a
+# no-op PR green.
+#
+# Shared code (libsq/, cli/, testh/) is deliberately not a trigger: main.yml
+# already runs the whole suite against the embedded engines on every PR, and
+# the nightly covers the server-only paths within a day.
+
+on:
+  pull_request:
+    # Markdown-only changes never run a leg.
+    paths:
+      - "drivers/**"
+      - ".github/sakila-db.json"
+      - ".github/workflows/db-*.yml"
+      - "scripts/*db-matrix*"
+      - "!**/*.md"
+
+concurrency:
+  group: db-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  select:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      selection: ${{ steps.sel.outputs.selection }}
+      run: ${{ steps.sel.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - id: sel
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Changed files via the API: no git history needed, and --paginate
+          # handles PRs with more than 100 files.
+          files=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')
+          # The trigger's "!**/*.md" negation only decides whether this workflow
+          # runs; the file list still contains Markdown, so drop it here too.
+          files=$(grep -Ev '\.md$' <<<"$files" || true)
+          machinery='^(\.github/workflows/db-[^/]*\.yml|\.github/sakila-db\.json|scripts/[^/]*db-matrix[^/]*)$'
+          sel='{}'
+          if grep -Eq "$machinery" <<<"$files"; then
+            sel='{"*":["bookends"]}'
+          else
+            for e in $(jq -r 'keys[]' .github/sakila-db.json); do
+              if grep -Eq "^drivers/${e}/" <<<"$files"; then
+                sel=$(jq -c --arg e "$e" '. + {($e): ["bookends"]}' <<<"$sel")
+              fi
+            done
+          fi
+          if [ "$sel" = '{}' ]; then
+            echo "::notice::No external-engine or DB-machinery paths changed; skipping DB integration."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::selection=$sel"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "selection=$sel" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: select
+    if: needs.select.outputs.run == 'true'
+    uses: ./.github/workflows/db-integration.yml
+    with:
+      selection: ${{ needs.select.outputs.selection }}

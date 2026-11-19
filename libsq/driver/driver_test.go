@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/neilotoole/sq/libsq/core/errz"
@@ -253,10 +254,10 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 			// Oracle's DATE type stores down to seconds (it's effectively a small
 			// datetime), so kind.Date round-trips back as kind.Datetime. Oracle
 			// has no time-only type, so kind.Time is stored as TIMESTAMP and
-			// also reads back as kind.Datetime. See drivers/oracle/render.go and
-			// drivers/oracle/README.md "Known limitations" for details.
+			// also reads back as kind.Datetime. See drivers/oracle/render.go
+			// for the type mapping.
 			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.Oracle,
-				"Oracle: kind.Date and kind.Time don't roundtrip exactly (see README Known limitations)")
+				"Oracle: kind.Date and kind.Time don't roundtrip exactly (see drivers/oracle/render.go)")
 
 			tblName := stringz.UniqTableName(t.Name())
 			colNames, colKinds := fixt.ColNamePerKind(drvr.Dialect().IntBool, false, false)
@@ -286,6 +287,140 @@ func TestDriver_CreateTable_Minimal(t *testing.T) {
 				require.Equal(t, colNames, gotNames)
 			}
 			require.Equal(t, colKinds, recMeta.Kinds())
+		})
+	}
+}
+
+// TestDriver_QuotedIdentifier is a cross-driver regression test for issue
+// #1027: a table or column name containing the dialect's own quote char (e.g.
+// we"ird, or a backtick for MySQL) must be escaped when the write-path builders
+// interpolate it into SQL. It exercises the CreateTable builder, the metadata
+// scan path, and the UPDATE builder in one pass. The builders previously
+// interpolated names raw, so an embedded quote built malformed SQL. This is
+// user-reachable via ingestion, where column names come from file headers (a
+// header like weird"col is untrusted input). Mirrors
+// TestPostgres_QuotedTableName_Metadata (#1025).
+func TestDriver_QuotedIdentifier(t *testing.T) {
+	t.Parallel()
+
+	for _, handle := range sakila.SQLAll() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, src, drvr, grip, db := testh.NewWith(t, handle)
+
+			// ClickHouse already escapes identifiers (issue #1027), and its
+			// MergeTree DDL imposes ORDER BY / nullability constraints unrelated
+			// to escaping, so it is skipped here to keep the test focused.
+			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.ClickHouse,
+				"ClickHouse: already escapes; MergeTree DDL constraints are out of scope")
+
+			// Oracle forbids a double-quote char in an identifier outright
+			// (ORA-25716), even when escaped, so its own delimiter can never
+			// appear in a name, so there is nothing to escape-test. Oracle's
+			// write-path builders still route through enquoteOracle for hygiene.
+			tu.SkipIf(t, drvr.DriverMetadata().Type == drivertype.Oracle,
+				"Oracle: ORA-25716 forbids a double-quote char in identifiers")
+
+			// The "weird" char is the dialect's own identifier delimiter (the
+			// first rune Enquote emits): the exact char that must be doubled,
+			// a double-quote for most dialects, a backtick for MySQL.
+			delim := []rune(drvr.Dialect().Enquote(""))[0]
+			weird := "we" + string(delim) + "ird"
+
+			// An int PK column comes first (some engines order/constrain the
+			// first column); the delimiter appears in both a column name and
+			// the table name. On MySQL, the PK also exercises index-name
+			// escaping (the UNIQUE KEY name embeds the table name).
+			tblName := stringz.UniqTableName(weird + "_tbl")
+			colNames := []string{"id", weird}
+			colKinds := []kind.Kind{kind.Int, kind.Text}
+			tblDef := schema.NewTable(tblName, colNames, colKinds)
+			tblDef.PKColName = "id"
+
+			require.NoError(t, drvr.CreateTable(th.Context, db, tblDef),
+				"CreateTable must escape the delimiter in %q", weird)
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+
+			// The scan path must also load metadata for the quoted name
+			// (SQL Server's sp_spaceused was raw-interpolated).
+			md, err := grip.TableMetadata(th.Context, tblName)
+			require.NoError(t, err, "TableMetadata must load for a quoted table name")
+			require.Equal(t, tblName, md.Name)
+			require.Len(t, md.Columns, len(colNames))
+
+			// The PK must materialize (#1029) so that constraint metadata is
+			// exercised for the quoted table name: postgres getPgConstraints
+			// initially shipped without coverage (#1026) because no PK ever
+			// existed here.
+			idCol := md.Column("id")
+			require.NotNil(t, idCol)
+			require.True(t, idCol.PrimaryKey,
+				"CreateTable must honor PKColName so constraint metadata is exercised")
+
+			// Exercise the UPDATE write-path builder (buildUpdateStmt) with the
+			// quoted column: insert a row, then update the weird column by id.
+			th.Insert(src, tblName, colNames, []any{int64(1), "before"})
+			execer, err := drvr.PrepareUpdateStmt(th.Context, db, tblName, []string{weird}, "id = ?")
+			require.NoError(t, err, "PrepareUpdateStmt must escape the quoted column %q", weird)
+			require.NoError(t, execer.Munge([]any{"after"}))
+			_, err = execer.Exec(th.Context, "after", int64(1))
+			require.NoError(t, err, "UPDATE must escape the quoted column %q", weird)
+		})
+	}
+}
+
+// TestDriver_CreateTable_PKColName verifies that SQLDriver.CreateTable honors
+// schema.Table.PKColName on every SQL engine (#1029). Before that fix the
+// postgres, sqlserver, oracle and clickhouse builders silently ignored the
+// field, so the same schema.Table input yielded a primary key on half the
+// engines and none on the others.
+//
+// ClickHouse has no ANSI primary key: PKColName maps to the MergeTree sorting
+// key (ORDER BY), which does not enforce uniqueness, and the driver
+// deliberately reports Column.PrimaryKey as false. The metadata assertion is
+// therefore skipped for ClickHouse here; TestCreateTable_PKColName_SortingKey
+// in drivers/clickhouse asserts the sorting key directly.
+func TestDriver_CreateTable_PKColName(t *testing.T) {
+	t.Parallel()
+
+	for _, handle := range sakila.SQLAll() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			th, src, drvr, grip, db := testh.NewWith(t, handle)
+
+			tblName := stringz.UniqTableName("pk_col")
+			tblDef := schema.NewTable(tblName,
+				[]string{"id", "name"}, []kind.Kind{kind.Int, kind.Text})
+			tblDef.PKColName = "id"
+
+			require.NoError(t, drvr.CreateTable(th.Context, db, tblDef))
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tblName)) })
+
+			// A PK column is implicitly NOT NULL, so a row with a non-null id
+			// must insert cleanly on every engine.
+			th.Insert(src, tblName, []string{"id", "name"}, []any{int64(1), "a"})
+
+			if drvr.DriverMetadata().Type == drivertype.ClickHouse {
+				return // see comment above
+			}
+
+			// enquoteOracle uppercases identifiers, and Oracle reports names
+			// in their stored case.
+			pkColName := "id"
+			if drvr.DriverMetadata().Type == drivertype.Oracle {
+				pkColName = "ID"
+			}
+
+			md, err := grip.TableMetadata(th.Context, tblName)
+			require.NoError(t, err)
+			idCol := md.Column(pkColName)
+			require.NotNil(t, idCol)
+			require.True(t, idCol.PrimaryKey, "CreateTable must honor PKColName")
+			pkCols := md.PKCols()
+			require.Len(t, pkCols, 1)
+			require.Equal(t, pkColName, pkCols[0].Name)
 		})
 	}
 }
@@ -492,7 +627,7 @@ func TestRegistry_DriversMetadata_All(t *testing.T) {
 	metas := reg.DriversMetadata()
 	require.Equal(t, len(metas), len(reg.Drivers()))
 
-	m := map[drivertype.Type]driver.Metadata{}
+	m := make(map[drivertype.Type]driver.Metadata, len(metas))
 	for i := range metas {
 		m[metas[i].Type] = metas[i]
 	}
@@ -1468,4 +1603,28 @@ func TestNotExistError(t *testing.T) {
 	require.True(t, errz.Has[*driver.NotExistError](err))
 	err = fmt.Errorf("wrap me: %w", err)
 	require.True(t, errz.Has[*driver.NotExistError](err))
+}
+
+// TestDriver_Open_PrimesDBSemver verifies that opening a SQL source primes the
+// grip's server-version cache, so that the pipeline's render-time DBSemver read
+// is a cache hit rather than a fresh round-trip (issue #1013). A cancelled
+// context is used for the read: a primed cache returns without touching the
+// server, whereas an unprimed one would attempt a query and fail on the ctx.
+func TestDriver_Open_PrimesDBSemver(t *testing.T) {
+	t.Parallel()
+
+	for _, handle := range sakila.SQLAll() {
+		t.Run(handle, func(t *testing.T) {
+			t.Parallel()
+
+			_, _, _, grip, _ := testh.NewWith(t, handle)
+
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+
+			v, err := grip.DBSemver(ctx)
+			require.NoError(t, err, "DBSemver should be served from the cache primed at open")
+			require.True(t, semver.IsValid(v), "expected a canonical semver, got %q", v)
+		})
+	}
 }

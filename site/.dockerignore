@@ -23,7 +23,7 @@ resources
 # Dev tooling not needed for Hugo build
 Makefile
 Common.make
-linkinator.sh
-linkinator.config.json
+check-links.sh
+lychee.toml
 BENCHMARK_README.md
 # scripts/ included so dev-server.js + gen-site-data.js + version-fetch.js run in container

@@ -132,3 +132,25 @@ func TestOpt_Get(t *testing.T) {
 	// GetAny delegates to Get.
 	require.Equal(t, datasize.ByteSize(16), opt.GetAny(options.Options{"size": datasize.ByteSize(16)}))
 }
+
+// TestOptGetRawValue verifies that datasize.Opt.Get converts the raw forms
+// that a config file yields. A ByteSize can only reach the config as a string
+// or a number, so without this, an unprocessed Options silently yields the
+// default size. See #1209.
+func TestOptGetRawValue(t *testing.T) {
+	opt := datasize.NewOpt("sz", nil, datasize.ByteSize(8), "Use me", "Help me")
+
+	raw := options.Options{"sz": "7"}
+	require.Equal(t, datasize.ByteSize(7), opt.Get(raw),
+		"Get must convert the raw string, not fall back to the default")
+
+	reg := &options.Registry{}
+	reg.Add(opt)
+	processed, err := reg.Process(raw)
+	require.NoError(t, err)
+	require.Equal(t, datasize.ByteSize(7), opt.Get(processed),
+		"Get must agree with itself on processed and unprocessed options")
+
+	require.Equal(t, datasize.ByteSize(8), opt.Get(options.Options{"sz": "not-a-size"}),
+		"an unconvertible value still yields the default")
+}

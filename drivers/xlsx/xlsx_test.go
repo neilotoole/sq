@@ -51,7 +51,6 @@ var sakilaSheets = []string{
 
 func TestSakilaInspectSource(t *testing.T) {
 	t.Parallel()
-	tu.SkipIssueWindows(t, tu.GH371ExcelSlowWin)
 	tu.SkipShort(t, true)
 
 	th := testh.New(t)
@@ -65,7 +64,6 @@ func TestSakilaInspectSource(t *testing.T) {
 
 func TestSakilaInspectSheets(t *testing.T) {
 	t.Parallel()
-	tu.SkipIssueWindows(t, tu.GH371ExcelSlowWin)
 	tu.SkipShort(t, true)
 
 	for _, sheet := range sakilaSheets {
@@ -83,7 +81,6 @@ func TestSakilaInspectSheets(t *testing.T) {
 }
 
 func BenchmarkInspectSheets(b *testing.B) {
-	tu.SkipIssueWindows(b, tu.GH371ExcelSlowWin)
 	tu.SkipShort(b, true)
 
 	for _, sheet := range sakilaSheets {
@@ -105,7 +102,6 @@ func BenchmarkInspectSheets(b *testing.B) {
 
 func TestSakila_query_cmd(t *testing.T) {
 	t.Parallel()
-	tu.SkipIssueWindows(t, tu.GH371ExcelSlowWin)
 	tu.SkipShort(t, true)
 
 	for _, sheet := range sakilaSheets {
@@ -125,7 +121,6 @@ func TestSakila_query_cmd(t *testing.T) {
 
 func TestOpenFileFormats(t *testing.T) {
 	t.Parallel()
-	tu.SkipIssueWindows(t, tu.GH371ExcelSlowWin)
 	tu.SkipShort(t, true)
 
 	testCases := []struct {
@@ -184,7 +179,6 @@ func TestOpenFileFormats(t *testing.T) {
 
 func TestSakila_query(t *testing.T) {
 	t.Parallel()
-	tu.SkipIssueWindows(t, tu.GH371ExcelSlowWin)
 	tu.SkipShort(t, true)
 
 	testCases := []struct {

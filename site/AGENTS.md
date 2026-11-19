@@ -1,0 +1,279 @@
+# AGENTS.md (site/)
+
+Conventions specific to the sq.io website under `site/`. Repo-wide rules in
+[AGENTS.md](../AGENTS.md) still apply here.
+
+## Project Overview
+
+This is the source for the sq.io website under `site/` in the
+[sq](https://github.com/neilotoole/sq) monorepo. It is a Hugo-based documentation site
+for the `sq` CLI tool, uses the Doks theme and Bun tooling, and is deployed on Netlify.
+
+**Tech Stack:**
+
+- Hugo 0.139.2+ (extended version) - static site generator
+- Bun 1.2+ - JavaScript runtime and package manager
+- Doks theme (Hugo theme for documentation sites)
+- Netlify for hosting and CI/CD
+
+## Development Commands
+
+### Local Development
+
+```bash
+# Install dependencies (includes Hugo via hugo-installer)
+make deps
+# or
+bun install
+
+# Start local dev server at http://localhost:1313
+# Note: May take 1+ minute to start, be patient
+make site-local
+# or
+bun start
+
+# Build production site (output to ./public)
+make site-build
+# or
+bun run build
+
+# One-shot CI-equivalent check (deps -> test -> build)
+make ci
+
+# Build and preview locally
+bun run preview
+```
+
+### Linting and Testing
+
+The site's own test/lint suite is **link-checking only** (lychee):
+
+```bash
+make site-test        # internal link check (bun run test:ci); matches Site CI
+make site-test-full   # + external link crawl (bun run test:full)
+bun run lint:links:internal   # the internal check directly
+```
+
+Formatting and JS linting are handled **repo-wide**, not by site scripts.
+Markdown, JSON, YAML, TOML, SCSS/CSS, Go, and site JS are formatted by
+**dprint**, and site JS is linted by **Biome**. Run these from the repo root:
+
+```bash
+make fmt      # dprint fmt (plus Go imports)
+make lint     # golangci-lint, shellcheck, dprint check, Biome
+```
+
+The repo-root [`Format`](../.github/workflows/format.yml) workflow gates this.
+
+### Content Generation
+
+```bash
+# Regenerate sq command help documentation
+# Requires sq CLI to be installed and in PATH
+bun run gen:cmd-help
+
+# Regenerate syntax highlighting CSS (Chroma themes)
+bun run gen:syntax-css
+```
+
+## Architecture
+
+### Content Organization
+
+**Content structure:**
+
+- `content/en/docs/` - Main documentation in English
+  - `cmd/` - Auto-generated command documentation (see below)
+  - `drivers/` - Database driver docs
+  - `output/` - Output format docs
+  - `inspect/` - Inspect command docs
+  - `config/` - Configuration docs
+  - `overview.md`, `install.md` - Key landing pages
+
+**Hugo modules:**
+
+- Uses `cj.rs/gohugo-asciinema` module for embedded terminal recordings
+- Module defined in `go.mod`, cached by Hugo
+
+### Command Documentation System
+
+The `content/en/docs/cmd/` directory contains auto-generated help text for sq commands:
+
+1. **Generation script:** `content/en/docs/cmd/generate-cmd-help.sh`
+   - Runs `sq <command> --help` for each command
+   - Outputs to `.help.txt` files (e.g., `add.help.txt`, `driver-ls.help.txt`)
+   - Also generates config option help in `./options/*.help.txt`
+
+2. **Markdown integration:** Corresponding `.md` files include the help text via Hugo shortcodes
+
+3. **Regeneration:** Run `bun run gen:cmd-help` when sq commands change (requires sq installed)
+
+### Layouts and Templates
+
+- `layouts/_default/` - Base templates
+- `layouts/shortcodes/` - Custom shortcodes for documentation
+  - Includes asciinema player shortcode for terminal recordings
+- `layouts/partials/` - Reusable template partials
+
+### Assets Pipeline
+
+- `assets/scss/` - SCSS stylesheets compiled by Hugo Pipes
+- `assets/js/` - JavaScript bundled with esbuild
+- `static/` - Static assets served as-is
+  - `static/casts/` - Asciinema terminal recordings (.cast files)
+  - `static/_redirects` - Netlify redirects (e.g., sq.io/install.sh)
+
+### Configuration
+
+Hugo configuration is split by environment:
+
+- `config/_default/` - Base config (config.toml, params.toml, menus, etc.)
+- `config/production/` - Production overrides
+- `config/next/` - Staging/next environment
+
+### Syntax Highlighting
+
+Uses Hugo's built-in Chroma (not highlight.js):
+
+- Themes: Nord (light and dark modes)
+- Generation: `generate-syntax-css.sh` creates SCSS files
+- Output: `assets/scss/components/_syntax.scss` and `_syntax-dark.scss`
+
+### Link Checking
+
+`check-links.sh`:
+
+1. Builds a fresh site with Hugo into `.serve-lint`
+2. Maps generated `https://sq.io` URLs back to the local build
+3. Runs the package.json-pinned lychee binary against every generated HTML file
+4. Reads shared request policy and host exclusions from `lychee.toml`
+
+Two scopes, selected via `LYCHEE_SCOPE` (or a `full`/`internal` argument):
+
+- `internal` (`bun run lint:links:internal`): only checks pages and assets served
+  by the generated site. Stable, no network dependency; this is what `make ci`
+  and PR gating use.
+- `full` (`bun run lint:links`, the default): also follows third-party external
+  links. Used by the nightly [`Site Links`](../.github/workflows/site-links-nightly.yml)
+  workflow. To keep "red" meaningful despite flaky third parties, it downgrades
+  `403`/`429`/`5xx` responses (genuine `404`/`410`/network errors stay fatal).
+  Lychee handles per-request timeouts, retries, and per-host throttling.
+
+`bun install` downloads lychee as a checksummed release binary. The pin is
+`otherDependencies.lychee` in `package.json`; update that value and the platform
+checksums in `scripts/install-lychee.sh` together. Rust and Cargo are not required.
+
+## CI/CD Workflow
+
+**Triggers and actions:**
+
+- Push to `master` or `develop` with changes under `site/**` →
+  GitHub Actions runs `make ci` (lint, build, artifact validation); no production deploy
+- PR to `master` or `develop` with changes under `site/**` → CI + Netlify deploy preview
+- Stable GitHub release (`vX.Y.Z`, not pre-release) →
+  [`site-publish-release.yml`](../.github/workflows/site-publish-release.yml) deploys to
+  https://sq.io and runs post-deploy smoke checks
+- Manual [`Site Publish (dispatch)`](../.github/workflows/site-publish-dispatch.yml)
+  for ad-hoc publishes before the next release. Requires `NETLIFY_AUTH_TOKEN` and
+  `NETLIFY_SITE_ID`.
+- Nightly ([`site-data-nightly.yml`](../.github/workflows/site-data-nightly.yml), 07:00 UTC)
+  regenerates `site/data/github.toml`; a push triggers Site CI only (no deploy).
+  Requires `SITE_DATA_PUSH_TOKEN` (admin PAT with Contents read/write).
+
+**Third-party scripts and CSP:** when adding scripts in
+[`layouts/partials/head/custom-head.html`](layouts/partials/head/custom-head.html), update
+`Content-Security-Policy` in [`netlify.toml`](netlify.toml) in the same PR.
+
+**Netlify configuration** (`netlify.toml`):
+
+- Build command: `bun run build` (deploy previews only; production is skipped via `ignore`)
+- Publish directory: `public`
+- Plugins: Lighthouse audits, sitemap submission
+- Deploy previews run Lighthouse against the deployed URL. Scores appear in the build log and
+  Netlify's deploy summary; no report page is published to the site.
+- Netlify automatically detects `bun.lock` and uses `bun install`
+- `BUN_FLAGS = "--force"` makes that install reinstall every dependency. Netlify restores a
+  per-branch `node_modules` cache, and installing a newer `bun.lock` over a stale tree can leave
+  nested dependencies missing, which crashes the install stage (#1210). Despite the flag's
+  description, `--force` still resolves from `bun.lock` and does not float to newer in-range
+  versions.
+
+### Lighthouse
+
+Two separate runners produce Lighthouse scores, and they only agree if kept aligned:
+
+- **Deploy previews:** `@netlify/plugin-lighthouse` audits the deployed preview URL. It runs
+  `onSuccess`, after the deploy, using the lighthouse version it depends on.
+- **Locally:** `make site-lighthouse` builds the production site, serves it with gzip/brotli, and
+  audits `http://localhost:8090`.
+
+`lighthouse` reaches `node_modules` as a dependency of `@netlify/plugin-lighthouse`, and
+`overrides` in `package.json` pins it so the plugin and the harness always run the same version.
+When bumping that plugin, move the override with it, or local numbers stop predicting preview
+numbers.
+
+The harness runs `node_modules/.bin/lighthouse`. Do not switch it back to `bunx lighthouse`: bunx
+prefers the local binary but silently falls back to the registry's latest from any other
+directory, and the versions are not interchangeable. The same page scored SEO 93 under 9.6.3 and
+69 under 13.4.1, because the single failing audit (`is-crawlable`) was reweighted from 1-of-15 to
+4-of-11. Accessibility went from 54 audits to 76, and the PWA category was removed in v12.
+
+Even at matching versions, a local run does not reproduce a production score, by design:
+
+- The plugin passes `skipAudits: ['is-crawlable']` when auditing a deploy URL, because Netlify
+  injects `x-robots-tag: noindex` on previews. The harness serves without that header, so the
+  audit passes on its own merits instead of being skipped.
+- Local runs see no Netlify headers (no CSP, no `netlify.toml` caching rules) and no CDN latency.
+- Third-party scripts behave differently from `localhost`. Measured the same day on 9.6.8:
+  Best Practices was 100 locally and 92 on `https://sq.io`, because the analytics beacon logs a
+  console error under a headless browser against the real origin but not against the local server.
+
+So use the harness for relative comparisons, not to predict the number a deploy preview reports.
+
+The plugin's `full-config` is not a distinct configuration: in 9.6.8 it is
+`{extends: 'lighthouse:default', settings: {}}`, so the harness's default-config mobile run
+already matches it.
+
+## Content Style Guide
+
+### Asciinema Terminal Recordings
+
+Include terminal recordings using the asciicast shortcode:
+
+```gotemplate
+{{< asciicast src="/casts/filename.cast" theme="monokai" poster="npt:0:20" rows="10" speed="1.5" idleTimeLimit="3" >}}
+```
+
+- Store casts in `static/casts/`
+- `poster="npt:0:20"` sets cover image at 20 seconds
+- Usually do NOT set `autoPlay="true"`
+
+**Module cache issue:** If you see "shortcode 'asciicast' not found", run `bun install` to
+refresh Hugo modules.
+
+### Alerts
+
+Use Hugo alert shortcodes for callouts:
+
+```gotemplate
+{{< alert icon="👉" >}}
+Important note for readers.
+{{< /alert >}}
+```
+
+## Redirects
+
+- **Hugo aliases:** Use Hugo's `alias` front matter for content-based redirects
+- **Static redirects:** Add entries to `static/_redirects` for non-content redirects
+  (Netlify format)
+  - Automatically appended to `public/_redirects` during build
+
+## Important Notes
+
+- **Hugo version:** Extended version required (specified in package.json otherDependencies)
+- **Bun version:** Requires Bun 1.2+ (enforced in package.json engines)
+- **Build time:** Initial local server start can take 1+ minute
+- **Command help:** The `gen:cmd-help` script requires the `sq` CLI installed locally
+- **Module cache:** Run `bun install` if Hugo module issues occur
+- **Lockfile:** Project uses `bun.lock` (text-based lockfile, introduced in Bun 1.2+) for
+  dependency management

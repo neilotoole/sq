@@ -28,46 +28,6 @@ func recordPeak(active, peak *atomic.Int32) int32 {
 	}
 }
 
-// concProbeTask records the peak number of tasks executing concurrently.
-// The sleep widens the window in which overlapping tasks are observable, so
-// that a broken concurrency clamp (tasks running in parallel when they must
-// be serialized) is reliably caught; under a correct serialized run the peak
-// is structurally 1 regardless of the sleep, so this cannot yield a false
-// failure.
-type concProbeTask struct {
-	active *atomic.Int32
-	peak   *atomic.Int32
-}
-
-func (ct *concProbeTask) executeTask(context.Context) error {
-	recordPeak(ct.active, ct.peak)
-	defer ct.active.Add(-1)
-	time.Sleep(50 * time.Millisecond)
-	return nil
-}
-
-func newConcProbeTasks(n int) (tasks []tasker, peak *atomic.Int32) {
-	active := &atomic.Int32{}
-	peak = &atomic.Int32{}
-	tasks = make([]tasker, n)
-	for i := range tasks {
-		tasks[i] = &concProbeTask{active: active, peak: peak}
-	}
-	return tasks, peak
-}
-
-// TestPipeline_executeTasks_singleWriterSerializes verifies gh975: when the
-// join destination is single-writer (tasksSingleWriter, as SQLite is),
-// executeTasks runs the copy tasks one at a time, so they never contend on
-// the single write lock and fail with "database is locked".
-func TestPipeline_executeTasks_singleWriterSerializes(t *testing.T) {
-	tasks, peak := newConcProbeTasks(4)
-	p := &pipeline{tasks: tasks, tasksSingleWriter: true}
-	require.NoError(t, p.executeTasks(context.Background()))
-	require.Equal(t, int32(1), peak.Load(),
-		"tasksSingleWriter must serialize join copy tasks")
-}
-
 // TestPipeline_executeTasks_concurrentByDefault verifies that for a
 // multi-writer joindb (tasksSingleWriter false), executeTasks runs tasks
 // concurrently up to the errgroup limit. Each task blocks until a second
@@ -106,4 +66,34 @@ func TestPipeline_executeTasks_concurrentByDefault(t *testing.T) {
 	require.NoError(t, p.executeTasks(context.Background()))
 	require.Greater(t, peak.Load(), int32(1),
 		"a multi-writer joindb must allow concurrent task execution")
+}
+
+// TestPipeline_executeTasks_singleWriterSerialFallback verifies the defensive
+// serial fallback: when a single-writer joindb (tasksSingleWriter) has tasks
+// that are not joinCopyTasks (so copyTasksOf reports false), executeTasks runs
+// them one at a time via executeTasksSerial rather than concurrently, keeping
+// the single-writer invariant. Real join copies take the fan-in path instead
+// (concurrent reads, one serialized writer), covered by TestRunCopyFanIn_*.
+//
+// The sleep widens the window in which overlapping tasks would be observable,
+// so a broken (concurrent) fallback is reliably caught; under a correct serial
+// run the peak is structurally 1 regardless of the sleep, so this can't flake.
+func TestPipeline_executeTasks_singleWriterSerialFallback(t *testing.T) {
+	const n = 4
+	var active, peak atomic.Int32
+
+	tasks := make([]tasker, n)
+	for i := range tasks {
+		tasks[i] = taskerFunc(func(context.Context) error {
+			recordPeak(&active, &peak)
+			defer active.Add(-1)
+			time.Sleep(20 * time.Millisecond)
+			return nil
+		})
+	}
+
+	p := &pipeline{tasks: tasks, tasksSingleWriter: true}
+	require.NoError(t, p.executeTasks(context.Background()))
+	require.Equal(t, int32(1), peak.Load(),
+		"single-writer non-copy tasks must run serially via executeTasksSerial")
 }

@@ -256,7 +256,6 @@ func TestCmdInspect_json_yaml(t *testing.T) { //nolint:tparallel
 			for _, tc := range testCases {
 				t.Run(tc.handle, func(t *testing.T) {
 					t.Parallel()
-					tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 					th := testh.New(t)
 					src := th.Source(tc.handle)
@@ -366,8 +365,6 @@ func TestCmdInspect_text(t *testing.T) { //nolint:tparallel
 	for _, tc := range testCases {
 		t.Run(tc.handle, func(t *testing.T) {
 			t.Parallel()
-
-			tu.SkipWindowsIf(t, tc.handle == sakila.XLSX, "XLSX too slow on windows workflow")
 
 			th := testh.New(t)
 			src := th.Source(tc.handle)
@@ -821,7 +818,7 @@ func TestCmdInspect_stdin(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			f, err := os.Open(tc.fpath) // No need to close f
+			f, err := os.Open(tc.fpath) // Files.AddStdin takes ownership; Files.Close closes f
 			require.NoError(t, err)
 
 			tr := testrun.New(ctx, t, nil)
@@ -854,6 +851,19 @@ func TestCmdInspect_mode_schemata(t *testing.T) {
 		Catalog string `json:"catalog" yaml:"catalog"`
 		Owner   string `json:"owner,omitempty" yaml:"owner,omitempty"`
 		Active  *bool  `json:"active" yaml:"active"`
+	}
+
+	// withoutSchema returns schemas with any entry named name removed. It's
+	// used to drop the "sys" schema expectation on MySQL < 5.7, where it
+	// doesn't exist.
+	withoutSchema := func(schemas []schema, name string) []schema {
+		out := make([]schema, 0, len(schemas))
+		for _, s := range schemas {
+			if s.Name != name {
+				out = append(out, s)
+			}
+		}
+		return out
 	}
 
 	testCases := []struct {
@@ -922,7 +932,12 @@ func TestCmdInspect_mode_schemata(t *testing.T) {
 						return
 					}
 
-					for i, s := range tc.wantSchemata {
+					want := tc.wantSchemata
+					if tc.handle == sakila.My && !th.DBSemverAtLeast(sakila.My, "v5.7.0") {
+						// The "sys" schema was introduced in MySQL 5.7.
+						want = withoutSchema(want, "sys")
+					}
+					for i, s := range want {
 						require.Contains(t, gotSchemata, s, "wantSchemata[%d]", i)
 					}
 				})

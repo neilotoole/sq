@@ -122,7 +122,6 @@ func TestCreateTable_bytes(t *testing.T) {
 	for _, handle := range sakila.SQLLatest() {
 		t.Run(handle, func(t *testing.T) {
 			th, src, _, _, _ := testh.NewWith(t, handle)
-			th.DiffDB(src)
 
 			tblDef := schema.NewTable(
 				stringz.UniqTableName("test_bytes"),

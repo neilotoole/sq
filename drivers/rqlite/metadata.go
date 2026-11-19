@@ -260,7 +260,7 @@ func DBTypeForKind(knd kind.Kind) string {
 func newRecordFromScanRow(meta record.Meta, row []any) (rec record.Record) {
 	rec = make([]any, len(row))
 
-	for i := 0; i < len(row); i++ {
+	for i := range row {
 		if row[i] == nil {
 			rec[i] = nil
 			continue
@@ -726,9 +726,21 @@ ORDER BY m.name, p.cid
 	if err != nil {
 		return nil, errw(err)
 	}
+
+	// Assign counts, omitting any table that vanished mid-scan (recorded as -1
+	// by getTblRowCounts): a dropped table must not appear in the results with
+	// a nonsensical count.
+	kept := tblMetas[:0]
 	for i := range rowCounts {
+		if rowCounts[i] < 0 {
+			lg.FromContext(ctx).Warn("Table vanished during metadata scan; omitting",
+				lga.Table, tblMetas[i].Name)
+			continue
+		}
 		tblMetas[i].RowCount = rowCounts[i]
+		kept = append(kept, tblMetas[i])
 	}
+	tblMetas = kept
 
 	// Batch-fetch all triggers in a single round-trip (replaces N per-table
 	// getTableTriggers calls).
@@ -771,7 +783,8 @@ ORDER BY m.name, p.cid
 // between the enumerate step in getAllTableMetadata and the COUNT
 // batch here, the UNION ALL fails with "no such table:". We fall
 // back to per-table COUNTs for that batch and record -1 for any
-// table that has since vanished, so callers can detect (or skip).
+// table that has since vanished. The caller (getAllTableMetadata)
+// omits such tables from the results.
 func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int64, error) {
 	log := lg.FromContext(ctx)
 	const maxCompoundSelect = 500
@@ -783,7 +796,7 @@ func getTblRowCounts(ctx context.Context, db sqlz.DB, tblNames []string) ([]int6
 		j     int
 	)
 
-	for i := 0; i < len(tblNames); i++ {
+	for i := range tblNames {
 		if terms > 0 {
 			sb.WriteString(" UNION ALL ")
 		}
@@ -850,11 +863,12 @@ func countTblsIndividually(ctx context.Context, db sqlz.DB, names []string, coun
 		err := db.QueryRowContext(ctx,
 			"SELECT COUNT(*) FROM "+stringz.DoubleQuote(name)).Scan(&count)
 		if err != nil {
-			if errz.Has[*driver.NotExistError](errw(err)) {
+			wrapped := errw(err)
+			if errz.Has[*driver.NotExistError](wrapped) {
 				counts[i] = -1
 				continue
 			}
-			return errw(err)
+			return wrapped
 		}
 		counts[i] = count
 	}

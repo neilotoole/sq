@@ -165,11 +165,14 @@ func (d *driveri) Open(ctx context.Context, src *source.Source, _ driver.AccessM
 		return nil, err
 	}
 
-	if err = driver.OpeningPing(ctx, src, db); err != nil {
+	ver, err := driver.OpeningPing(ctx, src, db, d.DBSemver)
+	if err != nil {
 		return nil, err
 	}
 
-	return &grip{log: d.log, db: db, src: src, drvr: d}, nil
+	g := &grip{log: d.log, db: db, src: src, drvr: d}
+	g.semver.Prime(ver)
+	return g, nil
 }
 
 func (d *driveri) doOpen(ctx context.Context, src *source.Source) (*sql.DB, error) {
@@ -899,4 +902,14 @@ func getPoolConfig(src *source.Source, includeConnTimeout bool) (*pgxpool.Config
 func doRetry(ctx context.Context, fn func() error) error {
 	maxRetryInterval := tuning.OptMaxRetryInterval.Get(options.FromContext(ctx))
 	return retry.Do(ctx, maxRetryInterval, fn, isErrTooManyConnections)
+}
+
+// doRetryVanished is like doRetry, but also retries when a relation vanishes
+// mid-operation because of concurrent DDL. A source-wide metadata scan issues
+// bulk catalog queries against a live database, so a table dropped mid-query is
+// transient; retrying lets the churn settle. The error is still returned if
+// retries are exhausted.
+func doRetryVanished(ctx context.Context, fn func() error) error {
+	maxRetryInterval := tuning.OptMaxRetryInterval.Get(options.FromContext(ctx))
+	return retry.Do(ctx, maxRetryInterval, fn, isErrScanRetryable)
 }

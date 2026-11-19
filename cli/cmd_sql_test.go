@@ -395,6 +395,10 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 		// isDML is true for INSERT/UPDATE/DELETE statements where wantDMLRowsAffected
 		// from driverCfg should be used instead of a fixed value.
 		isDML bool
+		// minMySQL, when non-empty, is the minimum MySQL semver (e.g. "v8.0.0")
+		// required to run this case against the mysql source. Empty means no
+		// MySQL version restriction.
+		minMySQL string
 	}{
 		// Lowercase variations
 		{
@@ -448,14 +452,16 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 
 		// WITH (Common Table Expressions)
 		{
-			name:    "with_cte",
-			sql:     "WITH cte AS (SELECT id, name FROM test_edge_cases) SELECT name FROM cte WHERE id = 1",
-			isQuery: true,
+			name:     "with_cte",
+			sql:      "WITH cte AS (SELECT id, name FROM test_edge_cases) SELECT name FROM cte WHERE id = 1",
+			isQuery:  true,
+			minMySQL: "v8.0.0",
 		},
 		{
-			name:    "with_cte_lowercase",
-			sql:     "with cte as (select id, name from test_edge_cases) select name from cte where id = 1",
-			isQuery: true,
+			name:     "with_cte_lowercase",
+			sql:      "with cte as (select id, name from test_edge_cases) select name from cte where id = 1",
+			isQuery:  true,
+			minMySQL: "v8.0.0",
 		},
 	}
 
@@ -496,6 +502,10 @@ func TestCmdSQL_ExecTypeEdgeCases(t *testing.T) {
 			// Run edge case tests
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
+					if tc.minMySQL != "" && handle == sakila.My && !th.DBSemverAtLeast(sakila.My, tc.minMySQL) {
+						t.Skipf("%s requires MySQL >= %s", tc.name, tc.minMySQL)
+					}
+
 					tr.Reset()
 
 					err := tr.Exec("sql", tc.sql)

@@ -59,7 +59,7 @@ Read more in [Concepts](/docs/concepts).
    ```shell
    $ sq inspect @demo
    SOURCE  DRIVER   NAME       FQ NAME         SIZE   TABLES  VIEWS  LOCATION
-   @demo   sqlite3  sakila.db  sakila.db/main  5.6MB  16      5      sqlite3:///Users/neilotoole/work/sq/sq/sakila.db
+   @demo   sqlite3  sakila.db  sakila.db.main  5.9MB  16      7      sqlite3:///Users/neilotoole/work/sq/sq/sakila.db
 
    NAME                    TYPE   ROWS   COLS
    actor                   table  200    actor_id, first_name, last_name, last_update
@@ -73,18 +73,18 @@ Read more in [Concepts](/docs/concepts).
    ```shell
    $ sq '@demo.actor | .[0:3]'
    actor_id  first_name  last_name  last_update
-   1         PENELOPE    GUINESS    2020-02-15T06:59:28Z
-   2         NICK        WAHLBERG   2020-02-15T06:59:28Z
-   3         ED          CHASE      2020-02-15T06:59:28Z
+   1         PENELOPE    GUINESS    2006-02-15T04:34:33Z
+   2         NICK        WAHLBERG   2006-02-15T04:34:33Z
+   3         ED          CHASE      2006-02-15T04:34:33Z
    ```
 
 1. Run the query again, but output in a different format:
 
    ```shell
    $ sq '@demo.actor | .[0:3]' --jsonl
-   {"actor_id": "1", "first_name": "PENELOPE", "last_name": "GUINESS", "last_update": "2020-02-15T06:59:28Z"}
-   {"actor_id": "2", "first_name": "NICK", "last_name": "WAHLBERG", "last_update": "2020-02-15T06:59:28Z"}
-   {"actor_id": "3", "first_name": "ED", "last_name": "CHASE", "last_update": "2020-02-15T06:59:28Z"}
+   {"actor_id": "1", "first_name": "PENELOPE", "last_name": "GUINESS", "last_update": "2006-02-15T04:34:33Z"}
+   {"actor_id": "2", "first_name": "NICK", "last_name": "WAHLBERG", "last_update": "2006-02-15T04:34:33Z"}
+   {"actor_id": "3", "first_name": "ED", "last_name": "CHASE", "last_update": "2006-02-15T04:34:33Z"}
    ```
 
 Next, read the [tutorial](/docs/tutorial).
@@ -106,16 +106,18 @@ Available Commands:
   ping        Ping data sources
   sql         Execute DB-native SQL query or statement
   tbl         Useful table actions (copy, truncate, drop)
+  db          Useful database actions
   diff        BETA: Compare sources, or tables
   driver      Manage drivers
   config      Manage config
   cache       Manage cache
-  completion  Generate shell completion script
   version     Show version info
   help        Show help
+  completion  Generate the autocompletion script for the specified shell
 
 Flags:
   -f, --format string                  Specify output format (default "text")
+      --format.decimal string          Render decimal as string or number (JSON, YAML) (default "string")
   -t, --text                           Output text
   -h, --header                         Print header row (default true)
   -H, --no-header                      Don't print header row
@@ -132,6 +134,7 @@ Flags:
       --xml                            Output XML
   -y, --yaml                           Output YAML
   -c, --compact                        Compact instead of pretty-printed output
+      --format.html.embed-assets       Embed assets (Mermaid.js) in HTML output for offline use
       --format.datetime string         Timestamp format: constant such as RFC3339 or a strftime format (default "RFC3339")
       --format.datetime.number         Render numeric datetime value as number instead of string (default true)
       --format.date string             Date format: constant such as DateOnly or a strftime format (default "DateOnly")
@@ -144,21 +147,28 @@ Flags:
   -o, --output string                  Write output to <file> instead of stdout
       --insert string                  Insert query results into @HANDLE.TABLE; if not existing, TABLE will be created
       --src string                     Override active source for this query
-      --src.schema string              Override active schema or catalog.schema for this query
+      --src.schema string              Override active schema (and/or catalog) for this query
       --ingest.driver string           Explicitly specify driver to use for ingesting data
-      --ingest.header                  Treat first row of ingest data as header
-      --no-cache                       Cache ingest data
-      --driver.csv.empty-as-null       Treat empty CSV fields as null (default true)
-      --driver.csv.delim string        CSV delimiter: one of comma, space, pipe, tab, colon, semi, period (default "comma")
+      --ingest.header                  Ingest data has a header row
+      --no-cache                       Don't cache ingest data
+      --driver.csv.delim string        Delimiter for ingest CSV data (default "comma")
+      --driver.csv.empty-as-null       Treat ingest empty CSV fields as NULL (default true)
+      --render-sql                     Render the SLQ to SQL without executing it
       --version                        Print version info
-  -M, --monochrome                     Don't colorize output
-      --no-progress                    Progress bar for long-running operations
-  -v, --verbose                        Verbose output
+  -M, --monochrome                     Don't print color output
+      --no-progress                    Don't show progress bar
+      --reveal                         Show secret values in output (don't redact passwords; print keyring values)
+      --no-redact                      Don't redact passwords in output (deprecated, use --reveal)
+      --expand                         Resolve ${scheme:path} placeholders to their underlying values
+  -v, --verbose                        Print verbose output
+      --debug.pprof string             pprof profiling mode (default "off")
       --config string                  Load config from here
       --log                            Enable logging
-      --log.file string                Path to log file; empty disables logging
-      --log.level string               Log level: one of DEBUG, INFO, WARN, ERROR
-      --log.format string              Log format: one of "text" or "json"
+      --log.file string                Log file path (default "$HOME/Library/Logs/sq/sq.log")
+      --log.level string               Log level, one of: DEBUG, INFO, WARN, ERROR (default "DEBUG")
+      --log.format string              Log output format (text or json) (default "text")
+      --error.format string            Error output format (default "text")
+  -E, --error.stack                    Print error stack trace to stderr
 ```
 
 ## Issues
