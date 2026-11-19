@@ -201,6 +201,32 @@ func TestIngestJSONL_Flat(t *testing.T) {
 			wantCols:  []string{"a", "b"},
 			wantKinds: []kind.Kind{kind.Float, kind.Int},
 		},
+		{
+			// A round number too large for an int64 used to be converted to
+			// int64 (overflowing), so the column was int but held a float
+			// and the query failed with a scan error.
+			name:      "int_overflow",
+			input:     `{"a": 12345678901234567890}`,
+			wantRows:  1,
+			wantCols:  []string{"a"},
+			wantKinds: []kind.Kind{kind.Float},
+		},
+		{
+			name: "int_overflow_later_row",
+			input: `{"a": 1}
+{"a": 12345678901234567890}`,
+			wantRows:  2,
+			wantCols:  []string{"a"},
+			wantKinds: []kind.Kind{kind.Float},
+		},
+		{
+			name: "int_max_float",
+			input: `{"a": 9223372036854775807}
+{"a": -9223372036854775808}`,
+			wantRows:  2,
+			wantCols:  []string{"a"},
+			wantKinds: []kind.Kind{kind.Float},
+		},
 	}
 
 	for _, tc := range testCases {
