@@ -34,7 +34,7 @@ If @HANDLE is not provided, the active data source is used. If
 @HANDLE.TABLE is provided, that table is focused on launch.
 
 Quit with q. Use --emit-handle (-q) to write the last-focused handle
-(e.g. "@src.actor") to stdout — handy with shell substitution:
+(e.g. "@src.actor") to stdout, for use with shell substitution:
 
   sq $(sq explore -q) --csv > rows.csv
 

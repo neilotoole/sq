@@ -16,7 +16,7 @@ const (
 // theme holds the lipgloss styles the UI uses. Constructing it once
 // per program run lets the test suite pass in a no-color theme.
 type theme struct {
-	// Title styles pane titles ("Sources", "Schema (…)") — blue + bold,
+	// Title styles pane titles ("Sources", "Schema (…)"): blue + bold,
 	// like sq's Header.
 	Title lipgloss.Style
 	// TitleFocus styles the focused pane's title (hi-blue, like sq's
@@ -33,13 +33,13 @@ type theme struct {
 	// ItemCursor styles the selected row in an unfocused pane so the
 	// cursor position is still visible (underline + faint).
 	ItemCursor lipgloss.Style
-	// ItemActiv styles the active source — green + bold, like sq's Active.
+	// ItemActiv styles the active source: green + bold, like sq's Active.
 	ItemActiv lipgloss.Style
-	// Handle is a source handle — blue, like sq's Handle.
+	// Handle is a source handle: blue, like sq's Handle.
 	Handle lipgloss.Style
-	// Number is numeric values — cyan, like sq's Number.
+	// Number is numeric values: cyan, like sq's Number.
 	Number lipgloss.Style
-	// Location is for source location URLs / paths — green, like sq's Location.
+	// Location is for source location URLs / paths: green, like sq's Location.
 	Location lipgloss.Style
 	// Divider styles the rules separating panes: full-height "│"
 	// columns in horizontal layouts, a "─" row in the stacked layout.
@@ -47,16 +47,16 @@ type theme struct {
 	// DividerFocus styles the divider when the inspector has focus. It
 	// stands in for the focused border the other panes use.
 	DividerFocus lipgloss.Style
-	// Faint de-emphasizes text — like sq's Faint.
+	// Faint de-emphasizes text, like sq's Faint.
 	Faint lipgloss.Style
-	// Error styles error messages — red + bold.
+	// Error styles error messages: red + bold.
 	Error lipgloss.Style
 	// Help styles the always-visible top help line.
 	Help lipgloss.Style
 }
 
 // newTheme returns a theme. If noColor is true, every style has its
-// foreground/background stripped — useful for tests and for
+// foreground/background stripped. This is useful for tests and for
 // --no-color / NO_COLOR scenarios.
 func newTheme(noColor bool) theme {
 	if noColor {

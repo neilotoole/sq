@@ -51,7 +51,7 @@ sq $(sq explore -q @sakila) --csv > rows.csv
 
 The TUI refuses to start when stdout is not a TTY (for example, piped to a
 file or another command). In that case `sq explore` prints the source
-overview instead — the same output as `sq inspect --overview`. You can
+overview instead, the same output as `sq inspect --overview`. You can
 also force this behavior on a TTY with `--no-tui`.
 
 ## Reference

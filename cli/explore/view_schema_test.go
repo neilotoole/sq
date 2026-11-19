@@ -41,12 +41,12 @@ func TestSchemaTree_SetTableMeta(t *testing.T) {
 	})
 
 	tr.toggleExpand(tr.selected) // expand "film"
-	// "tables", "film", "columns (2)" — 3 visible.
+	// "tables", "film", "columns (2)": 3 visible.
 	require.Equal(t, 3, tr.visibleCount())
 
 	tr.move(1)                   // selected = columns
 	tr.toggleExpand(tr.selected) // expand "columns"
-	// "tables", "film", "columns (2)", "id", "title" — 5.
+	// "tables", "film", "columns (2)", "id", "title": 5.
 	require.Equal(t, 5, tr.visibleCount())
 }
 

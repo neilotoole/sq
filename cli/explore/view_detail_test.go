@@ -51,7 +51,7 @@ func TestDetailPane_TableView_EmptyIndexesHidden(t *testing.T) {
 	d.setTable(&metadata.Table{
 		Name:    "csvrows",
 		Columns: []*metadata.Column{{Name: "a"}, {Name: "b"}},
-		// No indexes, no FK, no UniqueConstraints — typical for a CSV.
+		// No indexes, no FK, no UniqueConstraints: typical for a CSV.
 	})
 	out := d.view(60, 20)
 	require.NotContains(t, out, "indexes", "empty indexes section must not render")

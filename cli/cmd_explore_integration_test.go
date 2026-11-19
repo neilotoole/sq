@@ -15,8 +15,8 @@ import (
 
 // TestExplore_SQLite_LoadsAndQuits opens the explorer against the
 // sakila SQLite fixture, runs initial fetches, then cancels the
-// program. The TUI rendering itself is not asserted — model-level
-// tests cover that — but a misconfigured fetcher or msg-routing
+// program. The TUI rendering itself is not asserted (model-level
+// tests cover that), but a misconfigured fetcher or msg-routing
 // regression would surface as a hang or error.
 func TestExplore_SQLite_LoadsAndQuits(t *testing.T) {
 	th := testh.New(t)

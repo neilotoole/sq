@@ -36,7 +36,7 @@ type metaFetcher interface {
 	RefreshSource(ctx context.Context, handle string) ([]string, error)
 }
 
-// sourceOverview is the cheap-overview shape — the subset of
+// sourceOverview is the cheap-overview shape: the subset of
 // metadata.Source that survives a noSchema=true fetch. We keep it as a
 // distinct type so the schema-tree pane can't accidentally try to
 // iterate Tables on it.
@@ -176,7 +176,7 @@ type previewFunc func(ctx context.Context, send func(any), handle, table string,
 func (rf *runFetcher) runPreview(ctx context.Context, send func(any), handle, table string, n int) {
 	// The writer stops the pipeline once it has enough rows by cancelling
 	// this context with cause errz.ErrStop, rather than invoking the
-	// cancelFn that ExecSLQ passes to Open — the RecordWriter contract
+	// cancelFn that ExecSLQ passes to Open, because the RecordWriter contract
 	// reserves that cancelFn for Wait.
 	ctx, stop := context.WithCancelCause(ctx)
 	pw := newPreviewWriter(handle, table, n, send, func() { stop(errz.ErrStop) })

@@ -76,7 +76,7 @@ func TestPreviewWriter_CancelsAtCap(t *testing.T) {
 		recCh <- record.Record{nil}
 		// Writer should stop and drain after the 2nd record.
 		// A 3rd send simulates the upstream producer not yet noticing
-		// the stop — the writer's drain goroutine should absorb it
+		// the stop; the writer's drain goroutine should absorb it
 		// without blocking. We send with a goroutine + select so the
 		// test isn't itself blocking forever.
 		select {

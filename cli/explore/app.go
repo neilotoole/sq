@@ -21,7 +21,7 @@ import (
 	"github.com/neilotoole/sq/libsq/source"
 )
 
-// Config is the input to NewModel — everything the TUI needs that
+// Config is the input to NewModel: everything the TUI needs that
 // can't be derived after construction.
 type Config struct {
 	// FocusedSrc is the source the explorer starts on. Required.
@@ -42,7 +42,7 @@ type Config struct {
 	// just records the handle in the quitMsg.
 	EmitHandle bool
 
-	// NoColor disables every lipgloss style — also implied by NO_COLOR.
+	// NoColor disables every lipgloss style. NO_COLOR also implies it.
 	NoColor bool
 }
 
@@ -102,7 +102,7 @@ type previewBuffer struct {
 }
 
 // previewStartedMsg is the completion message for the Cmd that kicks
-// off the preview goroutine. It carries no state — the actual data
+// off the preview goroutine. It carries no state; the actual data
 // arrives via subsequent previewMetaLoadedMsg / previewRowsAppendedMsg
 // dispatched by previewWriter through sendFn.
 type previewStartedMsg struct {

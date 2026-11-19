@@ -30,7 +30,7 @@ const (
 
 // schemaNode is one row in the rendered tree. depth governs indentation,
 // expanded governs whether children are visible. children is computed
-// lazily — populated when toggleExpand fires for a kind that needs to
+// lazily: populated when toggleExpand fires for a kind that needs to
 // fetch (nodeTable) or built locally (nodeGroupColumns).
 type schemaNode struct {
 	// table metadata back-reference for nodeTable. Set by setTableMeta.
@@ -393,8 +393,8 @@ func (tr *schemaTree) view(focused bool, width, height int) string {
 	return tr.theme.Pane.Width(width).Height(height).MaxHeight(height).Render(b.String())
 }
 
-// selectedDetail returns the "open this in detail" target — either a
-// *metadata.Table, *metadata.Column, or nil — for the current
+// selectedDetail returns the "open this in detail" target (either a
+// *metadata.Table, *metadata.Column, or nil) for the current
 // selection. Useful when the user presses Enter.
 func (tr *schemaTree) selectedDetail() (tbl *metadata.Table, col *metadata.Column) {
 	n := tr.selectedNode()

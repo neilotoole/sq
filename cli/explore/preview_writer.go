@@ -103,7 +103,7 @@ func (pw *previewWriter) run(ctx context.Context) {
 			return
 		case rec, ok := <-pw.recCh:
 			if !ok {
-				// Upstream closed normally — no more records.
+				// Upstream closed normally; no more records.
 				flush(true)
 				return
 			}
