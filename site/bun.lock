@@ -11,7 +11,7 @@
         "@fullhuman/postcss-purgecss": "^9.1",
         "@hyas/images": "^3",
         "@netlify/plugin-lighthouse": "^6.0.4",
-        "asciinema-player": "^3.18.0",
+        "asciinema-player": "^3.18.1",
         "autoprefixer": "^10.6.2",
         "bootstrap": "^5.3.9",
         "esbuild": "^0.28.2",
@@ -718,7 +718,7 @@
 
     "ascii-table": ["ascii-table@0.0.9", "", {}, "sha512-xpkr6sCDIYTPqzvjG8M3ncw1YOTaloWZOyrUmicoEifBEKzQzt+ooUpRpQ/AbOoJfO/p2ZKiyp79qHThzJDulQ=="],
 
-    "asciinema-player": ["asciinema-player@3.18.0", "", { "dependencies": { "solid-js": "^1.9.18" } }, "sha512-5gpt2ipFcy4NKmgkv+c/QXnJ9zMicxqWROCOuJqgwwtiYKM8Qe9hnDOvfqke5bW6M2DW/seO3uQYkQ0xeUUVtw=="],
+    "asciinema-player": ["asciinema-player@3.18.1", "", { "dependencies": { "solid-js": "^1.9.18" } }, "sha512-H3blHwZYerDkjUVNABB0zjIzZhZu+JT0/FXT7Skc+4cpa2i7bDab49uOztsIguej4Ppfw6JS0V8J5/6VNqIIkQ=="],
 
     "ast-module-types": ["ast-module-types@6.0.2", "", {}, "sha512-6KuK/7nZ/2Qh7sGuVEiwxjCxzTY2Pdb5mTo5z1e6/J8BA0tvjR7G8vQJKrQMTqwmnA3UPEyKIFX4YUS1DO1Hvw=="],
 
