@@ -105,3 +105,18 @@ func TestCase_WithWantLiteralVal(t *testing.T) {
 	require.Equal(t, typetest.Is[any](int64(2007)), c.Want.LiteralVal)
 	require.False(t, c.Want.Val.Set, "the bound expectation is untouched")
 }
+
+func TestCase_BuildersKeepLiteralVal(t *testing.T) {
+	// Builder calls merge into one layer field by field. Clearing a literal
+	// expectation is only for a later layer in Resolve, so a builder that
+	// sets Val doesn't drop a LiteralVal set by an earlier call.
+	c := intCase("x").WithWantLiteralVal(int64(7)).WithWant(typetest.Want{Val: typetest.Is[any](int64(70))})
+	require.Equal(t, typetest.Is[any](int64(7)), c.Want.LiteralVal)
+	require.Equal(t, typetest.Is[any](int64(70)), c.Want.Val)
+
+	c = intCase("x").
+		WithPerVariant(typetest.PerVariant{Nullable: typetest.Want{LiteralZero: typetest.Is[any](int64(-1))}}).
+		WithPerVariant(typetest.PerVariant{Nullable: typetest.Want{Zero: typetest.Is[any](int64(-2))}})
+	require.Equal(t, typetest.Is[any](int64(-1)), c.PerVariant.Nullable.LiteralZero)
+	require.Equal(t, typetest.Is[any](int64(-2)), c.PerVariant.Nullable.Zero)
+}

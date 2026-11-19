@@ -145,10 +145,13 @@ type Want struct {
 	// each input written as a SQL literal (see CheckDDL). They default to Zero
 	// and Val. Set one to record a value that the bound insert and the literal
 	// store differently: typically the driver mangling a bound value that the
-	// literal stores intact. They layer as the other fields do, with one
-	// difference: a layer that sets Val but not LiteralVal (or Zero but not
-	// LiteralZero) clears the LiteralVal of earlier layers, since it says what
-	// both paths read back. A layer that sets both keeps them apart.
+	// literal stores intact. They layer as the other fields do (see Resolve),
+	// with one difference: a layer that sets Val but not LiteralVal clears
+	// the LiteralVal of earlier layers, and one that sets Zero but not
+	// LiteralZero clears their LiteralZero, since it says what both paths read
+	// back. A layer that sets both keeps them apart. Within one layer, the
+	// builder methods (WithWant, WithPerVariant, ...) merge field by field and
+	// clear nothing.
 	LiteralZero, LiteralVal Opt[any]
 
 	// BaseType is the expected base_type. Required after resolution.

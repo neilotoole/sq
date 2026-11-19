@@ -157,9 +157,39 @@ func checkDDLLoads(t *testing.T, th *testh.Helper, src *source.Source, cfg Confi
 	stmts, err := RenderStatements(cfg, tbl, serverVer)
 	require.NoError(t, err)
 
-	// Load on a connection of its own, set up as cfg.DDLCheckSession says,
-	// and discard it afterward, so its session settings don't leak into the
-	// pool that the checks read through.
+	loadDDL(t, th, src, cfg, serverVer, tbl, stmts)
+
+	litCols := slices.Clone(cols)
+	for i := range litCols {
+		litCols[i].Want = litCols[i].LiteralWant
+	}
+	// Subtests, so that a failure in one doesn't hide the others.
+	t.Run("select_all", func(t *testing.T) {
+		checkSelectAll(t, th, src, fold, serverVer, tbl, litCols)
+	})
+
+	// checkSelectAll leaves out the columns with an expected query error.
+	// Query each of those on its own, as Run does for the bound table, so a
+	// literal that clears or changes the error fails too.
+	for _, col := range litCols {
+		if col.QueryErr.Set {
+			t.Run(col.Name+"/query", func(t *testing.T) {
+				checkColumnQuery(t, th, src, serverVer, tbl, col)
+			})
+		}
+	}
+}
+
+// loadDDL executes stmts, which create table tbl, on a connection of its
+// own, set up as cfg.DDLCheckSession says. It discards the connection before
+// returning, so that its session settings don't leak into the pool the
+// checks read through, and so the checks can use it, as they must with a
+// pool of one connection (conn.max-open=1).
+func loadDDL(t *testing.T, th *testh.Helper, src *source.Source, cfg Config, serverVer, tbl string,
+	stmts []string,
+) {
+	t.Helper()
+
 	conn, err := th.OpenDB(src).Conn(th.Context)
 	require.NoError(t, err)
 	defer func() {
@@ -179,23 +209,6 @@ func checkDDLLoads(t *testing.T, th *testh.Helper, src *source.Source, cfg Confi
 		if !created && strings.HasPrefix(stmt, "CREATE TABLE ") {
 			created = true
 			t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
-		}
-	}
-
-	litCols := slices.Clone(cols)
-	for i := range litCols {
-		litCols[i].Want = litCols[i].LiteralWant
-	}
-	checkSelectAll(t, th, src, fold, serverVer, tbl, litCols)
-
-	// checkSelectAll leaves out the columns with an expected query error.
-	// Query each of those on its own, as Run does for the bound table, so a
-	// literal that clears or changes the error fails too.
-	for _, col := range litCols {
-		if col.QueryErr.Set {
-			t.Run(col.Name+"/query", func(t *testing.T) {
-				checkColumnQuery(t, th, src, serverVer, tbl, col)
-			})
 		}
 	}
 }
