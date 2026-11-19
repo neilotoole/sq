@@ -3,6 +3,7 @@ package sqlserver_test
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"math"
 	"strings"
 	"testing"
@@ -30,12 +31,50 @@ import (
 func TestColumnTypes(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:        sakila.MS,
-		RowIDDecl:     "INT NOT NULL PRIMARY KEY",
-		Cases:         msTypeCases,
-		CheckSettings: checkMSSettings,
-	})
+	typetest.Run(t, msConfig)
+}
+
+// TestColumnTypesDDL checks that testdata/coltypes.ddl matches the case
+// table. See typetest.CheckDDL.
+func TestColumnTypesDDL(t *testing.T) {
+	typetest.CheckDDL(t, "testdata/coltypes.ddl", "SQL Server 2022",
+		typetest.DDLTable{Name: "coltypes", Config: msConfig})
+}
+
+// msConfig is the typetest configuration for SQL Server.
+var msConfig = typetest.Config{
+	Handle:        sakila.MS,
+	RowIDDecl:     "INT NOT NULL PRIMARY KEY",
+	Cases:         msTypeCases,
+	CheckSettings: checkMSSettings,
+	Literal:       msLiteral,
+}
+
+// msLiteral renders the inputs SQL Server writes differently from
+// typetest.DefaultLiteral: booleans as 1 and 0, for BIT; bytes as a binary
+// literal (0x7365); and times in ISO 8601 form, which SQL Server reads the same
+// whatever the session's language and DATEFORMAT, with an explicit UTC offset
+// for DATETIMEOFFSET.
+func msLiteral(col typetest.Column, v any) (string, bool) {
+	switch v := v.(type) {
+	case bool:
+		if v {
+			return "1", true
+		}
+		return "0", true
+	case []byte:
+		if v == nil {
+			return "", false
+		}
+		return "0x" + hex.EncodeToString(v), true
+	case time.Time:
+		ts := v.UTC().Format("2006-01-02T15:04:05.999999999")
+		if col.Case.Decl == "DATETIMEOFFSET" {
+			ts += "+00:00"
+		}
+		return "'" + ts + "'", true
+	}
+	return "", false
 }
 
 // TestColumnTypes_ROWVERSION covers ROWVERSION, which typetest.Run can't: a

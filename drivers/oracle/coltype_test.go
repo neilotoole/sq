@@ -2,6 +2,7 @@ package oracle_test
 
 import (
 	"context"
+	"encoding/hex"
 	"math"
 	"strings"
 	"testing"
@@ -24,13 +25,44 @@ import (
 func TestColumnTypes(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:        sakila.Ora,
-		RowIDDecl:     "NUMBER(10) NOT NULL PRIMARY KEY",
-		FoldName:      strings.ToUpper,
-		Cases:         oraTypeCases,
-		CheckSettings: checkOraSettings,
-	})
+	typetest.Run(t, oraConfig)
+}
+
+// TestColumnTypesDDL checks that testdata/coltypes.ddl matches the case
+// table. See typetest.CheckDDL.
+func TestColumnTypesDDL(t *testing.T) {
+	typetest.CheckDDL(t, "testdata/coltypes.ddl", "Oracle 23ai", typetest.DDLTable{Name: "coltypes", Config: oraConfig})
+}
+
+// oraConfig is the typetest configuration for Oracle.
+var oraConfig = typetest.Config{
+	Handle:        sakila.Ora,
+	RowIDDecl:     "NUMBER(10) NOT NULL PRIMARY KEY",
+	FoldName:      strings.ToUpper,
+	Cases:         oraTypeCases,
+	CheckSettings: checkOraSettings,
+	Literal:       oraLiteral,
+}
+
+// oraLiteral renders the inputs Oracle writes differently from
+// typetest.DefaultLiteral: a time as a TIMESTAMP literal, since a plain string
+// is read with the session's NLS_DATE_FORMAT, with an explicit UTC offset for
+// the time zone types; and bytes with HEXTORAW.
+func oraLiteral(col typetest.Column, v any) (string, bool) {
+	switch v := v.(type) {
+	case time.Time:
+		ts := v.UTC().Format("2006-01-02 15:04:05.999999999")
+		if strings.Contains(col.Case.Decl, "TIME ZONE") {
+			ts += " +00:00"
+		}
+		return "TIMESTAMP '" + ts + "'", true
+	case []byte:
+		if v == nil {
+			return "", false
+		}
+		return "HEXTORAW('" + hex.EncodeToString(v) + "')", true
+	}
+	return "", false
 }
 
 var (

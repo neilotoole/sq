@@ -1,6 +1,7 @@
 package rqlite_test
 
 import (
+	"encoding/hex"
 	"math"
 	"testing"
 
@@ -21,11 +22,30 @@ import (
 func TestColumnTypes(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:    sakila.RQ,
-		RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
-		Cases:     rqTypeCases,
-	})
+	typetest.Run(t, rqConfig)
+}
+
+// TestColumnTypesDDL checks that testdata/coltypes.ddl matches the case
+// table. See typetest.CheckDDL.
+func TestColumnTypesDDL(t *testing.T) {
+	typetest.CheckDDL(t, "testdata/coltypes.ddl", "rqlite 10", typetest.DDLTable{Name: "coltypes", Config: rqConfig})
+}
+
+// rqConfig is the typetest configuration for rqlite.
+var rqConfig = typetest.Config{
+	Handle:    sakila.RQ,
+	RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
+	Cases:     rqTypeCases,
+	Literal:   rqLiteral,
+}
+
+// rqLiteral renders the inputs rqlite (SQLite) writes differently from
+// typetest.DefaultLiteral: bytes, as a blob literal (X'7365').
+func rqLiteral(_ typetest.Column, v any) (string, bool) {
+	if b, ok := v.([]byte); ok && b != nil {
+		return "X'" + hex.EncodeToString(b) + "'", true
+	}
+	return "", false
 }
 
 // rqFirstInexactInt is 2^53 + 1, the smallest integer a float64 can't hold

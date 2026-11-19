@@ -2,6 +2,7 @@ package mysql_test
 
 import (
 	"context"
+	"encoding/hex"
 	"math"
 	"testing"
 	"time"
@@ -24,12 +25,34 @@ import (
 func TestColumnTypes(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:        sakila.My,
-		RowIDDecl:     "INT NOT NULL PRIMARY KEY",
-		Cases:         mysqlTypeCases,
-		CheckSettings: checkMySQLSettings,
-	})
+	typetest.Run(t, mysqlConfig)
+}
+
+// TestColumnTypesDDL checks that testdata/coltypes.ddl matches the case
+// tables of TestColumnTypes and TestColumnTypes_TIMESTAMP6, which the file
+// creates as two tables. See typetest.CheckDDL.
+func TestColumnTypesDDL(t *testing.T) {
+	typetest.CheckDDL(t, "testdata/coltypes.ddl", "MySQL 9",
+		typetest.DDLTable{Name: "coltypes", Config: mysqlConfig},
+		typetest.DDLTable{Name: "coltypes_timestamp6", Config: mysqlTimestamp6Config})
+}
+
+// mysqlConfig is the typetest configuration for TestColumnTypes.
+var mysqlConfig = typetest.Config{
+	Handle:        sakila.My,
+	RowIDDecl:     "INT NOT NULL PRIMARY KEY",
+	Cases:         mysqlTypeCases,
+	CheckSettings: checkMySQLSettings,
+	Literal:       mysqlLiteral,
+}
+
+// mysqlLiteral renders the inputs MySQL writes differently from
+// typetest.DefaultLiteral: bytes, as a hex literal (X'7365').
+func mysqlLiteral(_ typetest.Column, v any) (string, bool) {
+	if b, ok := v.([]byte); ok && b != nil {
+		return "X'" + hex.EncodeToString(b) + "'", true
+	}
+	return "", false
 }
 
 // TestColumnTypes_TIMESTAMP6 is TestColumnTypes for a single case,
@@ -65,12 +88,17 @@ func TestColumnTypes(t *testing.T) {
 func TestColumnTypes_TIMESTAMP6(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:        sakila.My,
-		RowIDDecl:     "INT NOT NULL PRIMARY KEY",
-		Cases:         []typetest.Case{mysqlTimestamp6Case},
-		CheckSettings: checkMySQLSettings,
-	})
+	typetest.Run(t, mysqlTimestamp6Config)
+}
+
+// mysqlTimestamp6Config is the typetest configuration for
+// TestColumnTypes_TIMESTAMP6.
+var mysqlTimestamp6Config = typetest.Config{
+	Handle:        sakila.My,
+	RowIDDecl:     "INT NOT NULL PRIMARY KEY",
+	Cases:         []typetest.Case{mysqlTimestamp6Case},
+	CheckSettings: checkMySQLSettings,
+	Literal:       mysqlLiteral,
 }
 
 // mysqlTimestamp6Case is the TIMESTAMP(6) case for TestColumnTypes_TIMESTAMP6.

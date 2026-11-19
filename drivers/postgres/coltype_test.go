@@ -2,7 +2,10 @@ package postgres_test
 
 import (
 	"context"
+	"encoding/hex"
 	"math"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,12 +26,54 @@ import (
 func TestColumnTypes(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:        sakila.Pg,
-		RowIDDecl:     "INTEGER NOT NULL PRIMARY KEY",
-		Cases:         pgTypeCases,
-		CheckSettings: checkPgSettings,
-	})
+	typetest.Run(t, pgConfig)
+}
+
+// TestColumnTypesDDL checks that testdata/coltypes.ddl matches the case
+// table. See typetest.CheckDDL.
+func TestColumnTypesDDL(t *testing.T) {
+	typetest.CheckDDL(t, "testdata/coltypes.ddl", "Postgres 18", typetest.DDLTable{Name: "coltypes", Config: pgConfig})
+}
+
+// pgConfig is the typetest configuration for Postgres.
+var pgConfig = typetest.Config{
+	Handle:        sakila.Pg,
+	RowIDDecl:     "INTEGER NOT NULL PRIMARY KEY",
+	Cases:         pgTypeCases,
+	CheckSettings: checkPgSettings,
+	Literal:       pgLiteral,
+}
+
+// pgLiteral renders the inputs Postgres writes differently from
+// typetest.DefaultLiteral: bytes, as a bytea hex literal ('\x7365'::bytea);
+// a TIMESTAMPTZ value with an explicit offset, since Postgres reads one
+// without an offset in the session's time zone; and arrays, in Postgres's
+// array literal form ('{1,7}').
+func pgLiteral(col typetest.Column, v any) (string, bool) {
+	switch v := v.(type) {
+	case []byte:
+		if v == nil {
+			return "", false
+		}
+		return "'\\x" + hex.EncodeToString(v) + "'::bytea", true
+	case time.Time:
+		if col.Case.Decl == "TIMESTAMPTZ" {
+			return typetest.TimestampTZLiteral(v), true
+		}
+	case []int64:
+		elems := make([]string, len(v))
+		for i, e := range v {
+			elems[i] = strconv.FormatInt(e, 10)
+		}
+		return "'{" + strings.Join(elems, ",") + "}'", true
+	case []string:
+		elems := make([]string, len(v))
+		for i, e := range v {
+			elems[i] = `"` + strings.ReplaceAll(strings.ReplaceAll(e, `\`, `\\`), `"`, `\"`) + `"`
+		}
+		return "'" + strings.ReplaceAll("{"+strings.Join(elems, ",")+"}", "'", "''") + "'", true
+	}
+	return "", false
 }
 
 var (
