@@ -360,10 +360,12 @@ func detectColKindsJSONA(ctx context.Context, r io.Reader, sampleSize int) ([]ki
 // (especially important for id columns).
 // So, if the float64 has zero after the decimal point '.' (that
 // is to say, it's a round float like 1.0), we return the int64 value.
+// A round float that doesn't fit in an int64 (for example 1e19) is
+// returned as a float64: converting it would overflow.
 func maybeFloatToInt(val any) any {
 	if f64, ok := val.(float64); ok {
 		floor := math.Floor(f64)
-		if f64-floor == 0 {
+		if f64-floor == 0 && f64 > -(1<<63) && f64 < 1<<63 {
 			return int64(floor)
 		}
 	}
