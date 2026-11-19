@@ -467,6 +467,8 @@ func exprCase() typetest.Case {
 }
 
 func TestResolve_MatcherOnlyDefaulted(t *testing.T) {
+	// In each row, only the named layer carries the matcher, so a check that
+	// skipped that layer, or looked at Val alone, would let it through.
 	m := typetest.NotNullOf[int64]()
 	testCases := []struct {
 		name      string
@@ -474,9 +476,10 @@ func TestResolve_MatcherOnlyDefaulted(t *testing.T) {
 		serverVer string
 	}{
 		{name: "want", c: intCase("x").WithWantVal(m), serverVer: "v9.1.0"},
+		{name: "want_literal_val", c: intCase("x").WithWantLiteralVal(m), serverVer: "v9.1.0"},
 		{
 			name: "per_variant",
-			c: exprCase().WithVariants(typetest.NotNull, typetest.Defaulted).
+			c: intCase("x").
 				WithPerVariant(typetest.PerVariant{NotNull: typetest.Want{Val: typetest.Is[any](m)}}),
 			serverVer: "v9.1.0",
 		},
@@ -485,6 +488,14 @@ func TestResolve_MatcherOnlyDefaulted(t *testing.T) {
 			c: intCase("x").WithVersionOverrides(typetest.Override{
 				Before: "v9.0.0",
 				Want:   typetest.Want{Val: typetest.Is[any](m)},
+			}),
+			serverVer: "v8.0.0",
+		},
+		{
+			name: "override_per_variant",
+			c: intCase("x").WithVersionOverrides(typetest.Override{
+				Before:     "v9.0.0",
+				PerVariant: typetest.PerVariant{Nullable: typetest.Want{Val: typetest.Is[any](m)}},
 			}),
 			serverVer: "v8.0.0",
 		},
