@@ -170,16 +170,17 @@ func TestEscapeSingleQuotes(t *testing.T) {
 	require.Equal(t, `''''`, "'"+escapeSingleQuotes("'")+"'")
 }
 
-func TestIsNonHTTPRemote(t *testing.T) {
+func TestIsRemote(t *testing.T) {
 	testCases := []struct {
 		loc  string
 		want bool
 	}{
 		{"/abs/path/to.parquet", false},
 		{"./rel.parquet", false},
-		{"http://example.com/x.parquet", false},
-		{"https://example.com/x.parquet", false},
-		{"https://example.com/x.parquet?X-Amz-Signature=abc", false},
+		{"/abs/path/to.parquet?threads=4", false},
+		{"http://example.com/x.parquet", true},
+		{"https://example.com/x.parquet", true},
+		{"https://example.com/x.parquet?X-Amz-Signature=abc", true},
 		{"s3://bucket/k.parquet", true},
 		{"gs://bucket/k.parquet", true},
 		{"r2://bucket/k.parquet", true},
@@ -188,7 +189,7 @@ func TestIsNonHTTPRemote(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.loc, func(t *testing.T) {
-			require.Equal(t, tc.want, isNonHTTPRemote(tc.loc))
+			require.Equal(t, tc.want, isRemote(tc.loc))
 		})
 	}
 }

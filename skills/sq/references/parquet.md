@@ -37,7 +37,8 @@ above syntax is not available. Use env vars or `sq config set` for those.
 
 ## Remote files
 
-HTTP/HTTPS URLs are handled by DuckDB's `httpfs` extension. AWS env vars
+HTTP/HTTPS URLs are handled by DuckDB's `httpfs` extension. S3 presigned URLs work too (quote
+them; the source stops working when the signature expires). AWS envars
 (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`) configure S3 access; explicit
 per-source S3 options are not yet supported.
 

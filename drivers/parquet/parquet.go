@@ -142,16 +142,19 @@ func (d *driveri) ValidateSource(src *source.Source) (*source.Source, error) {
 	return src, nil
 }
 
-// Ping implements driver.Driver. For local files and http(s) URLs, ping is
-// delegated to files.Ping. For other URL schemes that DuckDB's httpfs can
-// reach (s3://, gs://, r2://, azure://, abfs://, abfss://), files.Ping
-// doesn't work: location.TypeOf treats them as file paths and files.Ping
-// would call os.Stat against the URL string. Instead, ping opens the grip,
-// whose eager DESCRIBE reads the parquet footer via httpfs, surfacing auth
-// and network errors; this costs a remote read, but ping's whole purpose is
-// reachability verification.
+// Ping implements driver.Driver. For local files, ping is delegated to
+// files.Ping. For remote locations, ping opens the grip, whose eager DESCRIBE
+// reads the parquet footer via DuckDB's httpfs, surfacing auth and network
+// errors. This costs a remote read, but ping's purpose is to verify that the
+// file can be read.
+//
+// files.Ping can't be used for remote locations. It treats s3://, gs:// and
+// similar as file paths and calls os.Stat on them. For http(s) it sends a HEAD
+// request and requires 200 OK, which fails for an S3 presigned GET URL: the
+// signature covers the HTTP method, so S3 answers HEAD with 403. DuckDB itself
+// reads such URLs fine.
 func (d *driveri) Ping(ctx context.Context, src *source.Source, mode driver.AccessMode) error {
-	if !isNonHTTPRemote(src.Location) {
+	if !isRemote(src.Location) {
 		return d.files.Ping(ctx, src)
 	}
 
@@ -162,18 +165,12 @@ func (d *driveri) Ping(ctx context.Context, src *source.Source, mode driver.Acce
 	return g.Close()
 }
 
-// isNonHTTPRemote reports whether loc looks like a URL with a scheme other
-// than http(s). Examples: s3://bucket/key, gs://bucket/key. These reach
-// the parquet file via DuckDB's httpfs extension at read time, so Ping
-// cannot meaningfully check them without re-running the read path.
-func isNonHTTPRemote(loc string) bool {
-	if !strings.Contains(loc, "://") {
-		return false
-	}
-	if strings.HasPrefix(loc, "http://") || strings.HasPrefix(loc, "https://") {
-		return false
-	}
-	return true
+// isRemote reports whether loc is a URL (http://, https://, s3://, gs://,
+// etc.) rather than a local file path. DuckDB's httpfs reads remote locations
+// directly, so sq's files package (download cache, HEAD-based ping, os.Stat)
+// never sees their content.
+func isRemote(loc string) bool {
+	return strings.Contains(loc, "://")
 }
 
 // errw wraps err with the package's standard boundary prefix. Errors crossing
@@ -203,7 +200,7 @@ func parseLocation(loc string) (path, dsnQuery string, err error) {
 		// No "parquet:" prefix here; callers wrap via errw.
 		return "", "", errz.New("location must not be empty")
 	}
-	if strings.Contains(loc, "://") {
+	if isRemote(loc) {
 		return loc, "", nil
 	}
 	if i := strings.LastIndex(loc, "?"); i >= 0 {

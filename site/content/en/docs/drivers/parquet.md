@@ -73,6 +73,15 @@ DuckDB's bundled `httpfs` extension handles remote reads transparently. A `SELEC
 only fetches the Parquet footer, so it returns quickly. Column projection limits the bytes
 pulled across the wire.
 
+An S3 presigned URL works the same way, which is one way to read an object in a private
+bucket. Quote the URL so the shell doesn't interpret the `&` characters:
+
+```shell
+$ sq add 'https://my-bucket.s3.us-east-1.amazonaws.com/events.parquet?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=...'
+```
+
+The URL stops working when its signature expires, so the source does too.
+
 ## S3 and other remotes
 
 AWS credentials are read from the environment (`AWS_ACCESS_KEY_ID`,

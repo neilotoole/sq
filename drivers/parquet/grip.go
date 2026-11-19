@@ -58,11 +58,12 @@ func (g *grip) SourceMetadata(ctx context.Context, noSchema bool) (*metadata.Sou
 	md.Driver = drivertype.Parquet
 	md.Location = g.src.Location
 
-	if isNonHTTPRemote(g.src.Location) {
-		// location.Filename and files.Filesize treat non-HTTP remotes
-		// (s3://, gs://, etc.) as local file paths and fail. Derive the name
-		// from the URL path instead, and leave Size nil: determining the
-		// object size would require re-reading the remote via DuckDB httpfs.
+	if isRemote(g.src.Location) {
+		// DuckDB's httpfs reads remote files directly, so sq's download
+		// cache never holds them and files.Filesize can't report a size:
+		// for http(s) it looks in that cache, and for s3://, gs:// etc. it
+		// calls os.Stat on the URL. Derive the name from the URL path, and
+		// leave Size nil rather than make an extra request to find it.
 		md.Name = remoteFileName(g.src.Location)
 		md.FQName = md.Name
 		return md, nil
