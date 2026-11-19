@@ -722,6 +722,106 @@ func TestDiff_Data_PKAlignAllDrivers(t *testing.T) {
 	}
 }
 
+// TestDiff_Data_StopTrailer verifies that the --stop trailer appears only when
+// a difference beyond the stop limit actually exists. Previously the trailer
+// was printed whenever the diff stopped reading with rows left over, even if
+// every remaining row was identical, which claimed truncation that hadn't
+// happened. Both alignment paths own their own stop logic, so both are
+// covered: key-aware (integer primary key) and positional (no primary key).
+//
+// Each table pair has exactly 3 differences, the last of which is followed by
+// identical rows, so the diff stops with rows unread when --stop is 3.
+func TestDiff_Data_StopTrailer(t *testing.T) {
+	const trailer = "stopped after"
+
+	testCases := []struct {
+		name       string
+		ddl        string
+		left       string
+		right      string
+		stop       int
+		wantDiffs  int // data lines (+ or -) expected in the output
+		wantMarker bool
+	}{
+		{
+			name:  "key_exact",
+			ddl:   `CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)`,
+			left:  `INSERT INTO t VALUES (1,'a'),(3,'c'),(4,'d'),(6,'f'),(7,'g'),(9,'i'),(10,'j')`,
+			right: `INSERT INTO t VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'f'),(7,'g'),(8,'h'),(9,'i'),(10,'j')`,
+			stop:  3, wantDiffs: 3, wantMarker: false,
+		},
+		{
+			name:  "key_more",
+			ddl:   `CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)`,
+			left:  `INSERT INTO t VALUES (1,'a'),(3,'c'),(4,'d'),(6,'f'),(7,'g'),(9,'i'),(10,'j')`,
+			right: `INSERT INTO t VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'f'),(7,'g'),(8,'h'),(9,'i'),(10,'j')`,
+			stop:  2, wantDiffs: 2, wantMarker: true,
+		},
+		{
+			name:  "positional_exact",
+			ddl:   `CREATE TABLE t (id INTEGER, name TEXT)`,
+			left:  `INSERT INTO t VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'f'),(7,'g'),(8,'h'),(9,'i'),(10,'j')`,
+			right: `INSERT INTO t VALUES (1,'a'),(2,'B'),(3,'c'),(4,'d'),(5,'E'),(6,'f'),(7,'g'),(8,'H'),(9,'i'),(10,'j')`,
+			stop:  3, wantDiffs: 6, wantMarker: false,
+		},
+		{
+			name:  "positional_more",
+			ddl:   `CREATE TABLE t (id INTEGER, name TEXT)`,
+			left:  `INSERT INTO t VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'f'),(7,'g'),(8,'h'),(9,'i'),(10,'j')`,
+			right: `INSERT INTO t VALUES (1,'a'),(2,'B'),(3,'c'),(4,'d'),(5,'E'),(6,'f'),(7,'g'),(8,'H'),(9,'i'),(10,'j')`,
+			stop:  2, wantDiffs: 4, wantMarker: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			th := testh.New(t)
+			srcLeft := source.Source{
+				Handle:   "@test_left",
+				Type:     drivertype.SQLite,
+				Location: "sqlite3://" + filepath.Join(tu.TempDir(t), "left.db"),
+			}
+			srcRight := source.Source{
+				Handle:   "@test_right",
+				Type:     drivertype.SQLite,
+				Location: "sqlite3://" + filepath.Join(tu.TempDir(t), "right.db"),
+			}
+			th.ExecSQL(&srcLeft, tc.ddl)
+			th.ExecSQL(&srcRight, tc.ddl)
+			th.ExecSQL(&srcLeft, tc.left)
+			th.ExecSQL(&srcRight, tc.right)
+
+			tr := testrun.New(th.Context, t, nil).Hush().Add(srcLeft, srcRight)
+			err := tr.Exec(
+				"diff", "--data", "--unified", "0", "--stop", strconv.Itoa(tc.stop),
+				srcLeft.Handle+".t", srcRight.Handle+".t",
+			)
+			require.Error(t, err, "diff must report differences (exit code 1)")
+			require.Equal(t, 1, errz.ExitCode(err))
+
+			got := tr.Out.String()
+			t.Log("diff output:\n" + got)
+
+			var diffLines int
+			for _, line := range strings.Split(got, "\n") {
+				switch {
+				case strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---"):
+				case strings.HasPrefix(line, "+") || strings.HasPrefix(line, "-"):
+					diffLines++
+				}
+			}
+			require.Equal(t, tc.wantDiffs, diffLines)
+
+			if tc.wantMarker {
+				require.Contains(t, got, fmt.Sprintf("stopped after %d differences; more exist", tc.stop))
+			} else {
+				require.NotContains(t, got, trailer,
+					"no difference beyond the stop limit exists, so nothing was truncated")
+			}
+		})
+	}
+}
+
 // TestDiff_Data_HunkHeaderCounts verifies that the unified-diff hunk header
 // correctly counts per-side lines for single-sided pairs (added/removed rows).
 //

@@ -299,10 +299,15 @@ func collatePositional(ctx context.Context, rs1, rs2 *dbResults, recPairsCh chan
 	var rec1, rec2 record.Record
 	var diffCount int
 
-	// If cfg.StopAfter is set, we'll stop after diffCount reaches cfg.StopAfter
-	// plus cfg.Lines. We add cfg.Lines to ensure that we have enough records
-	// to generate the "context lines" after the last differing record.
+	// If cfg.StopAfter is set, we stop emitting pairs once diffCount reaches
+	// cfg.StopAfter plus cfg.Lines more pairs, so that there are enough records
+	// to generate the "context lines" after the last differing record. We then
+	// look ahead (without emitting) for a further difference: only if one
+	// exists do we stop the queries via dbCancel(errz.ErrStop), which is what
+	// triggers the "stopped after" trailer. If the rest of the data is equal,
+	// nothing was truncated and the stream ends normally.
 	stopAt := -1
+	var lookingAhead bool
 
 	for i := 0; ctx.Err() == nil; i++ {
 		select {
@@ -325,6 +330,15 @@ func collatePositional(ctx context.Context, rs1, rs2 *dbResults, recPairsCh chan
 
 		rp := record.NewPair(i, rec1, rec2)
 		incr(1)
+		if lookingAhead {
+			if !rp.Equal() {
+				dbCancel(errz.ErrStop) // Explicit stop: a difference was truncated.
+				close(recPairsCh)
+				return
+			}
+			continue
+		}
+
 		if !rp.Equal() {
 			diffCount++
 		}
@@ -335,9 +349,7 @@ func collatePositional(ctx context.Context, rs1, rs2 *dbResults, recPairsCh chan
 			stopAt = i + cfg.Lines
 		}
 		if stopAt > -1 && i >= stopAt {
-			dbCancel(errz.ErrStop) // Explicit stop
-			close(recPairsCh)
-			return
+			lookingAhead = true
 		}
 	}
 }
@@ -377,7 +389,8 @@ type keyCollation struct {
 //
 // collateByKey owns the same --stop bookkeeping as collatePositional: it counts
 // differing pairs, and once cfg.StopAfter is reached it emits cfg.Lines more
-// pairs of trailing context before stopping the DB queries via kc.dbCancel.
+// pairs of trailing context, then looks ahead (without emitting) for a further
+// difference. Only if one exists does it stop the DB queries via kc.dbCancel.
 func collateByKey(ctx context.Context, kc keyCollation) (err error) {
 	// Set the cause before the channel close becomes visible to the reader. A
 	// plain `defer close` would let the exec goroutine finish its range over the
@@ -420,13 +433,22 @@ func collateByKey(ctx context.Context, kc keyCollation) (err error) {
 	}
 
 	var (
-		diffCount int
-		stopAt    = -1
-		row       int
+		diffCount    int
+		stopAt       = -1
+		row          int
+		lookingAhead bool
 	)
 
 	return mergeRecordsByKey(ctx, kc.rs1.recCh, kc.rs2.recCh, keyIdxs1, keyIdxs2, func(rp record.Pair) bool {
 		kc.incr(1)
+		if lookingAhead {
+			if !rp.Equal() {
+				kc.dbCancel(errz.ErrStop) // Explicit stop: a difference was truncated.
+				return false
+			}
+			return true
+		}
+
 		if !rp.Equal() {
 			diffCount++
 		}
@@ -436,8 +458,7 @@ func collateByKey(ctx context.Context, kc keyCollation) (err error) {
 			stopAt = row + kc.cfg.Lines
 		}
 		if stopAt > -1 && row >= stopAt {
-			kc.dbCancel(errz.ErrStop) // Explicit stop
-			return false
+			lookingAhead = true
 		}
 		row++
 		return true
@@ -685,11 +706,12 @@ func (rd *recordDiffer) execAndSeal(ctx, dbCtx context.Context,
 		return
 	}
 
-	// If the collation goroutine explicitly stopped early via
-	// dbCancel(errz.ErrStop), write a trailer so the truncation is never silent.
+	// The collation goroutine stops early via dbCancel(errz.ErrStop) only when
+	// it found a difference beyond the --stop limit, so write a trailer: the
+	// truncation is never silent.
 	if errz.IsContextStop(dbCtx) {
 		if h, hErr := doc.NewHunk(0); hErr == nil {
-			_, _ = fmt.Fprintf(h, "… (stopped after %d differences)\n", rd.cfg.StopAfter)
+			_, _ = fmt.Fprintf(h, "… (stopped after %d differences; more exist)\n", rd.cfg.StopAfter)
 			h.Seal(nil, nil)
 		}
 	}
