@@ -300,4 +300,29 @@ var chTypeCases = []typetest.Case{
 			Val:      typetest.WantNull(),
 		}).
 		WithWantDefault("tuple(7, 'seven')"),
+
+	// Expression defaults.
+	// A value that changes every row is checked only as a non-NULL value of
+	// its Go type, never against the clock. See typetest.NewExprCase.
+	typetest.NewExprCase("expr_now", "DateTime", "now()", typetest.NotNullOf[time.Time](), "DateTime", "DateTime",
+		kind.Datetime).
+		WithWantDefault("now()"),
+	typetest.NewExprCase("expr_now64_3", "DateTime64(3)", "now64(3)", typetest.NotNullOf[time.Time](),
+		"DateTime64(3)", "DateTime64(3)", kind.Datetime).
+		WithWantDefault("now64(3)"),
+	typetest.NewExprCase("expr_today", "Date", "today()", typetest.NotNullOf[time.Time](), "Date", "Date", kind.Date).
+		WithWantDefault("today()"),
+	typetest.NewExprCase("expr_generate_uuid_v4", "UUID", "generateUUIDv4()", typetest.NotNullOf[string](), "UUID",
+		"UUID", kind.Text).
+		WithWantDefault("generateUUIDv4()"),
+	typetest.NewExprCase("expr_rand", "UInt32", "rand()", typetest.NotNullOf[int64](), "UInt32", "UInt32", kind.Int).
+		WithWantDefault("rand()"),
+	// ClickHouse evaluates a default without a user, so currentUser() is
+	// empty, in its own client too.
+	typetest.NewExprCase("expr_current_user", "String", "currentUser()", "", "String", "String", kind.Text).
+		WithWantDefault("currentUser()"),
+	typetest.NewExprCase("expr_seven", "Int32", "1 + 6", int64(7), "Int32", "Int32", kind.Int).
+		WithWantDefault("1 + 6"),
+	typetest.NewExprCase("expr_lower", "String", "lower('SEVEN')", "seven", "String", "String", kind.Text).
+		WithWantDefault("lower('SEVEN')"),
 }
