@@ -80,11 +80,19 @@ func TestCheckMySQLSettings_TimeZone(t *testing.T) {
 		_ = conn.Close()
 	})
 
-	_, err = conn.ExecContext(th.Context, "SET time_zone = '+05:45'")
+	// Europe/London is at UTC+0 in winter, but reads the July 2017 literals
+	// at +01:00: the check is of the zone, not of today's offset.
+	for _, tz := range []string{"+05:45", "Europe/London"} {
+		_, err = conn.ExecContext(th.Context, "SET time_zone = '"+tz+"'")
+		require.NoError(t, err)
+		err = checkMySQLSettings(th.Context, conn, serverVer)
+		require.Error(t, err, tz)
+		require.Contains(t, err.Error(), "time zone", tz)
+	}
+
+	_, err = conn.ExecContext(th.Context, "SET time_zone = 'SYSTEM'")
 	require.NoError(t, err)
-	err = checkMySQLSettings(th.Context, conn, serverVer)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "time zone")
+	require.NoError(t, checkMySQLSettings(th.Context, conn, serverVer), "the images' system time zone is UTC")
 
 	_, err = conn.ExecContext(th.Context, "SET time_zone = '+00:00'")
 	require.NoError(t, err)
@@ -164,8 +172,8 @@ func mysqlNeedsExprDefault(decl string) bool {
 }
 
 // mysqlCheckSession sets the ddl subtest's session to an odd time zone (see
-// typetest.Config.DDLCheckSession), as an offset, since the sakiladb images
-// have no time zone tables for a named zone.
+// typetest.Config.DDLCheckSession), as an offset, which works on any server,
+// with or without its time zone tables loaded.
 const mysqlCheckSession = "SET time_zone = '" + typetest.CheckTimeZoneOffset + "'"
 
 // mysqlLiteral renders the inputs MySQL writes differently from
@@ -471,6 +479,21 @@ func wantMySQLSettings(serverVer string) mysqlSettings {
 	}
 }
 
+// mysqlUTCZone reports whether a session time zone of timeZone is UTC:
+// +00:00 or UTC, or SYSTEM where the server's system time zone, systemTimeZone,
+// is UTC, as on the sakiladb images. Another zone that happens to be at UTC+0
+// is rejected, since it may not be on every date.
+func mysqlUTCZone(timeZone, systemTimeZone string) bool {
+	switch timeZone {
+	case "+00:00", "UTC":
+		return true
+	case "SYSTEM":
+		return systemTimeZone == "UTC"
+	default:
+		return false
+	}
+}
+
 // checkMySQLSettings verifies that the server's settings are those the
 // expectations assume. explicit_defaults_for_timestamp decides the implicit
 // defaults of TIMESTAMP columns, sql_mode decides how zero and edge inputs
@@ -478,18 +501,21 @@ func wantMySQLSettings(serverVer string) mysqlSettings {
 // read.
 func checkMySQLSettings(ctx context.Context, db sqlz.DB, serverVer string) error {
 	var got mysqlSettings
-	var utcOffset string
+	var timeZone, systemTimeZone string
 	err := db.QueryRowContext(ctx,
-		"SELECT @@explicit_defaults_for_timestamp, @@sql_mode, TIMEDIFF(NOW(), UTC_TIMESTAMP())").
-		Scan(&got.explicitDefaultsForTimestamp, &got.sqlMode, &utcOffset)
+		"SELECT @@explicit_defaults_for_timestamp, @@sql_mode, @@session.time_zone, @@system_time_zone").
+		Scan(&got.explicitDefaultsForTimestamp, &got.sqlMode, &timeZone, &systemTimeZone)
 	if err != nil {
 		return errz.Err(err)
 	}
 
 	// MySQL reads a TIMESTAMP literal, a Defaulted column's default among
-	// them, in the session's time zone, and the literals are UTC.
-	if utcOffset != "00:00:00" {
-		return errz.Errorf("MySQL %s: the session time zone is UTC offset {%s}, expected UTC", serverVer, utcOffset)
+	// them, in the session's time zone, and the literals are UTC. Check the
+	// zone itself, not today's offset: a zone like Europe/London is at UTC+0
+	// in winter, but reads the July literals at +01:00.
+	if !mysqlUTCZone(timeZone, systemTimeZone) {
+		return errz.Errorf("MySQL %s: the session time zone is {%s} (system time zone {%s}), expected UTC",
+			serverVer, timeZone, systemTimeZone)
 	}
 
 	want := wantMySQLSettings(serverVer)
