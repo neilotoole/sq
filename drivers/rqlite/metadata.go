@@ -438,6 +438,20 @@ func coerceFloat64(meta record.Meta, i int, v float64) any {
 	}
 }
 
+// noPKIndexExpr returns a SQL expression that is true when the table named by
+// tblExpr (a bound parameter or a column reference) has no primary key index.
+//
+// SQLite allows NULL in a primary key column unless the column is declared NOT
+// NULL, with one exception: a rowid alias (an INTEGER PRIMARY KEY column of a
+// rowid table) can never be NULL, yet pragma_table_xinfo still reports
+// notnull=0 for it. SQLite builds a primary key index (origin "pk" in
+// pragma_index_list) for every primary key except a rowid alias, so a primary
+// key column of a table with no such index is the rowid alias. This mirrors
+// the sqlite3 driver's helper of the same name.
+func noPKIndexExpr(tblExpr string) string {
+	return "NOT EXISTS (SELECT 1 FROM pragma_index_list(" + tblExpr + ") WHERE origin = 'pk')"
+}
+
 // getTableMetadata returns metadata for a single table. The shape
 // mirrors the sqlite3 driver's helper. Virtual-table BaseType
 // recovery via SELECT typeof() is omitted; rqlite users are
@@ -496,8 +510,11 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	// (skipped), 2 for a VIRTUAL generated column, and 3 for a STORED one.
 	// The table-valued pragma function takes the table name as a bound
 	// parameter, eliminating an interpolated quoting site (gh777).
-	query = `SELECT cid, name, type, "notnull", dflt_value, pk, hidden FROM pragma_table_xinfo(?)`
-	rows, err := db.QueryContext(ctx, query, tblMeta.Name)
+	// The trailing column reports whether the table has no primary key
+	// index; see noPKIndexExpr.
+	query = `SELECT cid, name, type, "notnull", dflt_value, pk, hidden, ` +
+		noPKIndexExpr("?") + ` FROM pragma_table_xinfo(?)`
+	rows, err := db.QueryContext(ctx, query, tblMeta.Name, tblMeta.Name)
 	if err != nil {
 		return nil, errw(err)
 	}
@@ -506,10 +523,11 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 	for rows.Next() {
 		col := &metadata.Column{}
 		var notnull, hidden int64
+		var noPKIndex bool
 		defaultValue := &sql.NullString{}
 		pkValue := &sql.NullInt64{}
 		if err = rows.Scan(
-			&col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue, &hidden,
+			&col.Position, &col.Name, &col.BaseType, &notnull, defaultValue, pkValue, &hidden, &noPKIndex,
 		); err != nil {
 			return nil, errw(err)
 		}
@@ -521,7 +539,8 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblName string) (*metadat
 		col.Generated = hidden == 2 || hidden == 3
 		col.PrimaryKey = pkValue.Int64 > 0
 		col.ColumnType = col.BaseType
-		col.Nullable = notnull == 0
+		isRowidAlias := col.PrimaryKey && noPKIndex
+		col.Nullable = notnull == 0 && !isRowidAlias
 		col.DefaultValue = defaultValue.String
 		col.Kind = kindFromDBTypeName(ctx, col.Name, col.BaseType, nil)
 		tblMeta.Columns = append(tblMeta.Columns, col)
@@ -632,10 +651,11 @@ func getAllTableMetadata(ctx context.Context, db sqlz.DB, schemaName string) ([]
 	// m.sql (the CREATE DDL) repeats for every column row in the join; it is
 	// captured once per table during the scan via tblDDLs, eliminating a
 	// per-table getTableDDL round-trip in the post-scan loop.
-	const query = `
+	query := `
 SELECT m.name as table_name, m.type, p.cid, p.name, p.type, p.'notnull' as 'notnull', p.dflt_value, p.pk, p.hidden,
 (substr(m.sql, 0, 21) == 'CREATE VIRTUAL TABLE') AS is_virtual,
-COALESCE(m.sql, '') AS table_ddl
+COALESCE(m.sql, '') AS table_ddl,
+` + noPKIndexExpr("m.name") + ` AS no_pk_index
 FROM sqlite_master AS m JOIN pragma_table_xinfo(m.name) AS p
 ORDER BY m.name, p.cid
 `
@@ -667,12 +687,13 @@ ORDER BY m.name, p.cid
 
 		col := &metadata.Column{}
 		var notnull, hidden int64
+		var noPKIndex bool
 		colDefault := &sql.NullString{}
 		pkValue := &sql.NullInt64{}
 
 		if err = rows.Scan(
 			&curTblName, &curTblType, &col.Position, &col.Name, &col.BaseType,
-			&notnull, colDefault, pkValue, &hidden, &curTblIsVirtual, &curTblDDL,
+			&notnull, colDefault, pkValue, &hidden, &curTblIsVirtual, &curTblDDL, &noPKIndex,
 		); err != nil {
 			return nil, errw(err)
 		}
@@ -712,7 +733,8 @@ ORDER BY m.name, p.cid
 		col.Generated = hidden == 2 || hidden == 3
 		col.PrimaryKey = pkValue.Int64 > 0
 		col.ColumnType = col.BaseType
-		col.Nullable = notnull == 0
+		isRowidAlias := col.PrimaryKey && noPKIndex
+		col.Nullable = notnull == 0 && !isRowidAlias
 		col.DefaultValue = colDefault.String
 		col.Kind = kindFromDBTypeName(ctx, col.Name, col.BaseType, nil)
 		curTblMeta.Columns = append(curTblMeta.Columns, col)
