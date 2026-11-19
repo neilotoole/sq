@@ -397,7 +397,11 @@ func checkRecords(t *testing.T, serverVer string, sink *testh.RecordSink, pos in
 	require.Equal(t, col.QueryKind.String(), sink.RecMeta[pos].Kind().String(),
 		"column %s (%s) on server %s: query result kind", col.Name, col.Case.Decl, serverVer)
 	for row := range 3 {
-		require.Equal(t, col.Want[row], sink.Recs[row][pos],
-			"column %s (%s) on server %s: row %d value", col.Name, col.Case.Decl, serverVer, row+1)
+		msg := []any{"column %s (%s) on server %s: row %d value", col.Name, col.Case.Decl, serverVer, row + 1}
+		if m, ok := col.Want[row].(Matcher); ok {
+			require.NoError(t, m.Match(sink.Recs[row][pos]), msg...)
+			continue
+		}
+		require.Equal(t, col.Want[row], sink.Recs[row][pos], msg...)
 	}
 }

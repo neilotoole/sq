@@ -87,6 +87,16 @@ func validateCase(c *Case) error {
 		return err
 	}
 
+	for _, in := range []struct {
+		v     any
+		field string
+	}{{c.Zero, "Zero"}, {c.Val, "Val"}, {c.NullInput, "NullInput"}} {
+		if _, ok := in.v.(Matcher); ok {
+			return errz.Errorf("typetest: case {%s}: %s is an input, and a Matcher is only an expected value",
+				c.Name, in.field)
+		}
+	}
+
 	if c.MinVer != "" && !semver.IsValid(c.MinVer) {
 		return errz.Errorf("typetest: case {%s}: invalid MinVer {%s}: must be a canonical semver",
 			c.Name, c.MinVer)
@@ -216,11 +226,24 @@ func resolveColumn(c *Case, v Variant, serverVer string) (Column, error) {
 		litValWant = w.LiteralVal.Val
 	}
 
+	if v != Defaulted {
+		for _, want := range []any{zeroWant, valWant, litZeroWant, litValWant} {
+			if _, ok := want.(Matcher); ok {
+				return Column{}, errz.Errorf("typetest: case {%s}: variant {%s}: a Matcher can only be the "+
+					"expected value of a Defaulted column", c.Name, v)
+			}
+		}
+	}
+
 	if v == Defaulted {
 		// The column is never inserted: every row reads back its default,
 		// the SQL literal for Val, on both the bound and the ddl table.
 		if !w.Default.Set {
 			return Column{}, missingErr(c, v, "Default")
+		}
+		if _, ok := litValWant.(Matcher); ok && c.DefaultExpr == "" {
+			return Column{}, errz.Errorf("typetest: case {%s}: variant {%s}: a Matcher needs DefaultExpr: the "+
+				"literal for a Matcher can't be rendered", c.Name, v)
 		}
 		col.Want = [3]any{litValWant, litValWant, litValWant}
 		col.LiteralWant = col.Want

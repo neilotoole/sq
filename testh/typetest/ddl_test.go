@@ -11,6 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/testh/typetest"
 )
 
@@ -317,4 +318,22 @@ func TestRenderStatements_Defaulted(t *testing.T) {
   -- col_a_n
   0
 )`, stmts[1])
+}
+
+func TestRenderStatements_ExprCase(t *testing.T) {
+	cfg := typetest.Config{
+		RowIDDecl: "INT",
+		Cases: []typetest.Case{
+			intCase("a").WithVariants(typetest.NotNull),
+			typetest.NewExprCase("expr_seven", "INTEGER", "(1 + 6)", int64(7), "INTEGER", "INTEGER", kind.Int).
+				WithWantDefault("(1 + 6)"),
+		},
+	}
+	stmts, err := typetest.RenderStatements(cfg, "t1", "v9.1.0")
+	require.NoError(t, err)
+	require.Contains(t, stmts[0], "  col_expr_seven_d INTEGER DEFAULT (1 + 6) NOT NULL\n")
+	require.Len(t, stmts, 4, "CREATE TABLE and three INSERTs")
+	for _, stmt := range stmts[1:] {
+		require.NotContains(t, stmt, "col_expr_seven_d")
+	}
 }

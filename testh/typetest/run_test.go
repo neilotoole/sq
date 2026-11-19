@@ -3,6 +3,7 @@ package typetest_test
 import (
 	"math"
 	"testing"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -64,6 +65,13 @@ var duckCases = []typetest.Case{
 		},
 		PerVariant: typetest.PerVariant{Defaulted: typetest.Want{Default: typetest.Is("'alfa'")}},
 	},
+	// Expression defaults: one that gives a new value each row, and one that
+	// always gives the same value.
+	typetest.NewExprCase("expr_now", "TIMESTAMPTZ", "now()", typetest.NotNullOf[time.Time](),
+		"TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH TIME ZONE", kind.Datetime).
+		WithWantDefault("now()"),
+	typetest.NewExprCase("expr_seven", "INTEGER", "(1 + 6)", int64(7), "INTEGER", "INTEGER", kind.Int).
+		WithWantDefault("(1 + 6)"),
 }
 
 // TestRun_DuckDB runs the harness end to end against an embedded source, so

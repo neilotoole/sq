@@ -458,3 +458,68 @@ func TestResolve_DefaultVariants(t *testing.T) {
 	}
 	require.Equal(t, []string{"col_x", "col_x_n", "col_x_d"}, names, "a case gets all three variants by default")
 }
+
+// exprCase returns an expression case: a Defaulted column whose default is
+// the expression (1 + 6), expected to read back as any non-NULL int64.
+func exprCase() typetest.Case {
+	return typetest.NewExprCase("expr_seven", "INTEGER", "(1 + 6)", typetest.NotNullOf[int64](), "INTEGER",
+		"INTEGER", kind.Int).WithWantDefault("(1 + 6)")
+}
+
+func TestResolve_MatcherOnlyDefaulted(t *testing.T) {
+	m := typetest.NotNullOf[int64]()
+	testCases := []struct {
+		name      string
+		c         typetest.Case
+		serverVer string
+	}{
+		{name: "want", c: intCase("x").WithWantVal(m), serverVer: "v9.1.0"},
+		{
+			name: "per_variant",
+			c: exprCase().WithVariants(typetest.NotNull, typetest.Defaulted).
+				WithPerVariant(typetest.PerVariant{NotNull: typetest.Want{Val: typetest.Is[any](m)}}),
+			serverVer: "v9.1.0",
+		},
+		{
+			name: "override",
+			c: intCase("x").WithVersionOverrides(typetest.Override{
+				Before: "v9.0.0",
+				Want:   typetest.Want{Val: typetest.Is[any](m)},
+			}),
+			serverVer: "v8.0.0",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := typetest.Resolve([]typetest.Case{tc.c}, tc.serverVer)
+			require.ErrorContains(t, err, "Matcher")
+		})
+	}
+}
+
+func TestResolve_MatcherNeedsDefaultExpr(t *testing.T) {
+	c := exprCase()
+	c.DefaultExpr = ""
+	_, err := typetest.Resolve([]typetest.Case{c}, "v9.1.0")
+	require.ErrorContains(t, err, "DefaultExpr")
+}
+
+func TestResolve_MatcherInput(t *testing.T) {
+	m := typetest.NotNullOf[int64]()
+	zero, val := intCase("x"), intCase("x")
+	zero.Zero, val.Val = m, m
+	testCases := []struct {
+		name string
+		c    typetest.Case
+	}{
+		{name: "zero", c: zero},
+		{name: "val", c: val},
+		{name: "null_input", c: intCase("x").WithNullInput(m)},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := typetest.Resolve([]typetest.Case{tc.c}, "v9.1.0")
+			require.ErrorContains(t, err, "input")
+		})
+	}
+}
