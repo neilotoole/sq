@@ -110,3 +110,31 @@ func (c Case) WithWantLiteralVal(v any) Case {
 	c.Want.LiteralVal = Is(v)
 	return c
 }
+
+// WithWantDefault returns a copy of c expecting the Defaulted column to
+// report s as its default_value.
+func (c Case) WithWantDefault(s string) Case {
+	c.PerVariant.Defaulted.Default = Is(s)
+	return c
+}
+
+// WithDefaultExpr returns a copy of c with DefaultExpr set to expr: the
+// Defaulted column's default expression, in place of the SQL literal for Val.
+func (c Case) WithDefaultExpr(expr string) Case {
+	c.DefaultExpr = expr
+	return c
+}
+
+// WithDefaulted returns a copy of cases in which each case with nil Variants
+// creates the Defaulted column too: NotNull, Nullable, Defaulted. A case with
+// its own Variants is unchanged. It lets a driver opt in to Defaulted before
+// it's a default variant.
+func WithDefaulted(cases []Case) []Case {
+	out := slices.Clone(cases)
+	for i := range out {
+		if out[i].Variants == nil {
+			out[i].Variants = []Variant{NotNull, Nullable, Defaulted}
+		}
+	}
+	return out
+}

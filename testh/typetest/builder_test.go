@@ -120,3 +120,21 @@ func TestCase_BuildersKeepLiteralVal(t *testing.T) {
 	require.Equal(t, typetest.Is[any](int64(-1)), c.PerVariant.Nullable.LiteralZero)
 	require.Equal(t, typetest.Is[any](int64(-2)), c.PerVariant.Nullable.Zero)
 }
+
+func TestCase_WithWantDefault(t *testing.T) {
+	c := intCase("x").WithWantDefault("((7))")
+	require.Equal(t, typetest.Is("((7))"), c.PerVariant.Defaulted.Default)
+	require.False(t, c.Want.Default.Set, "only the Defaulted variant")
+}
+
+func TestCase_WithDefaultExpr(t *testing.T) {
+	require.Equal(t, "42", intCase("x").WithDefaultExpr("42").DefaultExpr)
+}
+
+func TestWithDefaulted(t *testing.T) {
+	in := []typetest.Case{intCase("a"), intCase("b").WithVariants(typetest.NotNull)}
+	got := typetest.WithDefaulted(in)
+	require.Equal(t, []typetest.Variant{typetest.NotNull, typetest.Nullable, typetest.Defaulted}, got[0].Variants)
+	require.Equal(t, []typetest.Variant{typetest.NotNull}, got[1].Variants, "an explicit set is kept")
+	require.Nil(t, in[0].Variants, "the input is not modified")
+}

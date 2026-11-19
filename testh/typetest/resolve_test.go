@@ -377,3 +377,69 @@ func TestResolve_LiteralWantFollowsLaterVal(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(-2), cols[0].LiteralWant[0])
 }
+
+func TestResolve_Defaulted(t *testing.T) {
+	c := intCase("x").WithVariants(typetest.NotNull, typetest.Nullable, typetest.Defaulted).
+		WithWantVal(int64(70)).WithWantLiteralVal(int64(7)).WithWantDefault("7")
+	cols := mustResolve(t, c)
+	require.Len(t, cols, 3)
+	d := cols[2]
+	require.Equal(t, "col_x_d", d.Name)
+	require.Equal(t, typetest.Defaulted, d.Variant)
+	require.Equal(t, "defaulted", d.Variant.String())
+	require.False(t, d.Nullable)
+	require.False(t, d.Inserted())
+	require.True(t, cols[0].Inserted())
+	require.Equal(t, "7", d.Default)
+	require.Equal(t, "", cols[0].Default, "the other variants keep their no-default expectation")
+	// Every row reads back the default, which is the Val literal's value.
+	require.Equal(t, [3]any{int64(7), int64(7), int64(7)}, d.Want)
+	require.Equal(t, d.Want, d.LiteralWant)
+}
+
+func TestResolve_DefaultedNeedsDefault(t *testing.T) {
+	c := intCase("x").WithVariants(typetest.Defaulted)
+	_, err := typetest.Resolve([]typetest.Case{c}, "v9.1.0")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "defaulted")
+	require.Contains(t, err.Error(), "Default")
+}
+
+func TestResolve_DefaultedRejectsZero(t *testing.T) {
+	c := intCase("x").WithVariants(typetest.Defaulted).WithWantDefault("7")
+	c.PerVariant.Defaulted.Zero = typetest.Is[any](int64(1))
+	_, err := typetest.Resolve([]typetest.Case{c}, "v9.1.0")
+	require.Error(t, err, "Defaulted has no Zero row")
+
+	c = intCase("x").WithVariants(typetest.Defaulted).WithWantDefault("7")
+	c.PerVariant.Defaulted.LiteralZero = typetest.Is[any](int64(1))
+	_, err = typetest.Resolve([]typetest.Case{c}, "v9.1.0")
+	require.Error(t, err)
+}
+
+func TestResolve_OverrideVariants(t *testing.T) {
+	c := intCase("x").WithVariants(typetest.NotNull, typetest.Nullable, typetest.Defaulted).WithWantDefault("7").
+		WithVersionOverrides(typetest.Override{
+			Before: "v8.0.13", Variants: []typetest.Variant{typetest.NotNull, typetest.Nullable},
+		})
+	cols, err := typetest.Resolve([]typetest.Case{c}, "v8.0.12")
+	require.NoError(t, err)
+	require.Len(t, cols, 2)
+	cols, err = typetest.Resolve([]typetest.Case{c}, "v8.0.13")
+	require.NoError(t, err)
+	require.Len(t, cols, 3)
+}
+
+func TestResolve_OverrideVariantsFirstMatch(t *testing.T) {
+	// The first matching override wins entirely: on v8.0.0 the gating
+	// override applies, so the later override's BaseType doesn't.
+	c := intCase("x").WithVariants(typetest.NotNull, typetest.Defaulted).WithWantDefault("7").
+		WithVersionOverrides(
+			typetest.Override{Before: "v8.0.13", Variants: []typetest.Variant{typetest.NotNull}},
+			typetest.Override{Before: "v9.0.0", Want: typetest.Want{BaseType: typetest.Is("old")}},
+		)
+	cols, err := typetest.Resolve([]typetest.Case{c}, "v8.0.0")
+	require.NoError(t, err)
+	require.Len(t, cols, 1)
+	require.Equal(t, "int", cols[0].BaseType)
+}

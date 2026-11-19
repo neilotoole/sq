@@ -25,8 +25,17 @@ import (
 
 // Config configures Run for one driver.
 type Config struct {
-	// ColumnDecl declares one column. Nil means DefaultColumnDecl.
-	ColumnDecl func(decl string, v Variant) string
+	// ColumnDecl declares one column of type decl for variant v, with
+	// defaultExpr the default expression of a Defaulted column (empty for
+	// the other variants). Nil means DefaultColumnDecl.
+	ColumnDecl func(decl string, v Variant, defaultExpr string) string
+
+	// DefaultExpr rewrites lit, the SQL literal for a case's Val, as the
+	// default expression of its Defaulted column col, where the dialect
+	// needs another form for a default: MySQL's parenthesized ('seven') for a
+	// TEXT column, for example. Nil means the literal as is. It isn't called
+	// for a case that sets Case.DefaultExpr.
+	DefaultExpr func(col Column, lit string) string
 
 	// CheckSettings verifies the server settings that the expectations
 	// assume, on the connection that creates the table. It returns an error
@@ -97,7 +106,14 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 	require.NoError(t, err)
 	t.Logf("%s: server version %s", cfg.Handle, serverVer)
 
-	cols, err := Resolve(cfg.Cases, serverVer)
+	cases := cfg.Cases
+	if dumpEnabled(t) {
+		cases = withDumpPlaceholderDefaults(cases)
+	}
+	cols, err := Resolve(cases, serverVer)
+	if err == nil {
+		err = resolveDefaultExprs(cfg, cols)
+	}
 	require.NoError(t, err)
 	require.NotEmpty(t, cols)
 

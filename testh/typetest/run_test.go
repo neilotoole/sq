@@ -25,6 +25,7 @@ var duckCases = []typetest.Case{
 			ColumnType: typetest.Is("INTEGER"),
 			Kind:       typetest.Is(kind.Int),
 		},
+		PerVariant: typetest.PerVariant{Defaulted: typetest.Want{Default: typetest.Is("2147483647")}},
 	},
 	{
 		Name: "varchar",
@@ -36,6 +37,7 @@ var duckCases = []typetest.Case{
 			ColumnType: typetest.Is("VARCHAR"),
 			Kind:       typetest.Is(kind.Text),
 		},
+		PerVariant: typetest.PerVariant{Defaulted: typetest.Want{Default: typetest.Is("'alfa'")}},
 	},
 	{
 		Name: "decimal_5_2",
@@ -47,6 +49,7 @@ var duckCases = []typetest.Case{
 			ColumnType: typetest.Is("DECIMAL(5,2)"),
 			Kind:       typetest.Is(kind.Decimal),
 		},
+		PerVariant: typetest.PerVariant{Defaulted: typetest.Want{Default: typetest.Is("999.99")}},
 	},
 	{
 		Name: "sql_input",
@@ -59,6 +62,7 @@ var duckCases = []typetest.Case{
 			Kind:       typetest.Is(kind.Text),
 			Zero:       typetest.Is[any]("xy"),
 		},
+		PerVariant: typetest.PerVariant{Defaulted: typetest.Want{Default: typetest.Is("'alfa'")}},
 	},
 }
 
@@ -70,7 +74,7 @@ func TestRun_DuckDB(t *testing.T) {
 	typetest.Run(t, typetest.Config{
 		Handle:    sakila.Duck,
 		RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
-		Cases:     duckCases,
+		Cases:     typetest.WithDefaulted(duckCases),
 	})
 }
 
@@ -82,6 +86,6 @@ func TestRun_DuckDB_Dump(t *testing.T) {
 	typetest.Run(t, typetest.Config{
 		Handle:    sakila.Duck,
 		RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
-		Cases:     duckCases,
+		Cases:     typetest.WithDefaulted(duckCases),
 	})
 }

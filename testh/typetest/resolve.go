@@ -1,6 +1,7 @@
 package typetest
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 
@@ -47,6 +48,9 @@ func Resolve(cases []Case, serverVer string) ([]Column, error) {
 		}
 
 		variants := c.Variants
+		if o := matchingOverride(c, serverVer); o != nil && o.Variants != nil {
+			variants = o.Variants
+		}
 		if variants == nil {
 			variants = defaultVariants
 		}
@@ -75,14 +79,8 @@ func validateCase(c *Case) error {
 		return errz.Errorf("typetest: case {%s}: name must match %s", c.Name, caseNameRx)
 	}
 
-	if c.Variants != nil && len(c.Variants) == 0 {
-		return errz.Errorf("typetest: case {%s}: Variants is empty: use nil for both variants", c.Name)
-	}
-
-	for i, v := range c.Variants {
-		if slices.Contains(c.Variants[:i], v) {
-			return errz.Errorf("typetest: case {%s}: variant {%s} is listed twice in Variants", c.Name, v)
-		}
+	if err := validateVariants(c, "Variants", c.Variants); err != nil {
+		return err
 	}
 
 	if c.MinVer != "" && !semver.IsValid(c.MinVer) {
@@ -101,8 +99,53 @@ func validateCase(c *Case) error {
 				c.Name, c.VersionOverrides[i-1].Before, o.Before,
 			)
 		}
+		if err := validateVariants(c, fmt.Sprintf("VersionOverrides[%d].Variants", i), o.Variants); err != nil {
+			return err
+		}
 	}
 
+	for _, pv := range append([]PerVariant{c.PerVariant}, overridePerVariants(c)...) {
+		if pv.Defaulted.Zero.Set || pv.Defaulted.LiteralZero.Set {
+			return errz.Errorf("typetest: case {%s}: PerVariant.Defaulted sets Zero or LiteralZero, but the "+
+				"Defaulted column has no Zero row: every row reads back its default", c.Name)
+		}
+	}
+
+	return nil
+}
+
+// validateVariants checks a variant list of c, named field: nil, or
+// non-empty with no variant listed twice.
+func validateVariants(c *Case, field string, vs []Variant) error {
+	if vs != nil && len(vs) == 0 {
+		return errz.Errorf("typetest: case {%s}: %s is empty: use nil for the default variants", c.Name, field)
+	}
+	for i, v := range vs {
+		if slices.Contains(vs[:i], v) {
+			return errz.Errorf("typetest: case {%s}: variant {%s} is listed twice in %s", c.Name, v, field)
+		}
+	}
+	return nil
+}
+
+// overridePerVariants returns the PerVariant of each of c's VersionOverrides.
+func overridePerVariants(c *Case) []PerVariant {
+	pvs := make([]PerVariant, len(c.VersionOverrides))
+	for i, o := range c.VersionOverrides {
+		pvs[i] = o.PerVariant
+	}
+	return pvs
+}
+
+// matchingOverride returns the override of c that applies on a server at
+// serverVer: the first whose Before is greater than serverVer. It returns
+// nil if none applies.
+func matchingOverride(c *Case, serverVer string) *Override {
+	for i := range c.VersionOverrides {
+		if semver.Compare(serverVer, c.VersionOverrides[i].Before) < 0 {
+			return &c.VersionOverrides[i]
+		}
+	}
 	return nil
 }
 
@@ -111,12 +154,9 @@ func resolveColumn(c *Case, v Variant, serverVer string) (Column, error) {
 	w := Want{}
 	resolveLayer(&w, c.Want)
 	resolveLayer(&w, c.PerVariant.get(v))
-	for _, o := range c.VersionOverrides {
-		if semver.Compare(serverVer, o.Before) < 0 {
-			resolveLayer(&w, o.Want)
-			resolveLayer(&w, o.PerVariant.get(v))
-			break
-		}
+	if o := matchingOverride(c, serverVer); o != nil {
+		resolveLayer(&w, o.Want)
+		resolveLayer(&w, o.PerVariant.get(v))
 	}
 
 	col := Column{
@@ -170,6 +210,17 @@ func resolveColumn(c *Case, v Variant, serverVer string) (Column, error) {
 	}
 	if w.LiteralVal.Set {
 		litValWant = w.LiteralVal.Val
+	}
+
+	if v == Defaulted {
+		// The column is never inserted: every row reads back its default,
+		// the SQL literal for Val, on both the bound and the ddl table.
+		if !w.Default.Set {
+			return Column{}, missingErr(c, v, "Default")
+		}
+		col.Want = [3]any{litValWant, litValWant, litValWant}
+		col.LiteralWant = col.Want
+		return col, nil
 	}
 
 	col.In = [3]any{c.Zero, c.Val, c.Val}

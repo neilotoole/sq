@@ -52,8 +52,8 @@ func geomCase() typetest.Case {
 }
 
 func TestDefaultColumnDecl(t *testing.T) {
-	require.Equal(t, "TIMESTAMP NOT NULL", typetest.DefaultColumnDecl("TIMESTAMP", typetest.NotNull))
-	require.Equal(t, "TIMESTAMP NULL", typetest.DefaultColumnDecl("TIMESTAMP", typetest.Nullable))
+	require.Equal(t, "TIMESTAMP NOT NULL", typetest.DefaultColumnDecl("TIMESTAMP", typetest.NotNull, ""))
+	require.Equal(t, "TIMESTAMP NULL", typetest.DefaultColumnDecl("TIMESTAMP", typetest.Nullable, ""))
 }
 
 func TestCreateTable(t *testing.T) {
@@ -124,4 +124,26 @@ func TestSelectAllNames(t *testing.T) {
 	c.PerVariant = typetest.PerVariant{Nullable: typetest.Want{QueryErr: typetest.Is("boom")}}
 	cols := mustResolve(t, c, intCase("x"))
 	require.Equal(t, []string{"row_id", "col_int", "col_x", "col_x_n"}, typetest.SelectAllNames(cols))
+}
+
+func TestDefaultColumnDecl_Defaulted(t *testing.T) {
+	require.Equal(t, "INT DEFAULT 7 NOT NULL", typetest.DefaultColumnDecl("INT", typetest.Defaulted, "7"))
+	require.Equal(t, "INT NOT NULL", typetest.DefaultColumnDecl("INT", typetest.NotNull, ""))
+	require.Equal(t, "INT NULL", typetest.DefaultColumnDecl("INT", typetest.Nullable, ""))
+}
+
+func TestInsert_OmitsDefaulted(t *testing.T) {
+	cols := mustResolve(t,
+		intCase("a").WithVariants(typetest.NotNull, typetest.Defaulted, typetest.Nullable).WithWantDefault("7"),
+		intCase("b"))
+	query, args := typetest.Insert("t1", cols, 1, qmarkPlaceholders)
+	require.Equal(t, "INSERT INTO t1 (row_id, col_a, col_a_n, col_b, col_b_n) VALUES (?, ?, ?, ?, ?)", query)
+	require.Equal(t, []any{2, int64(7), int64(7), int64(7), int64(7)}, args)
+}
+
+func TestCreateTable_Defaulted(t *testing.T) {
+	cols := mustResolve(t, intCase("a").WithVariants(typetest.Defaulted).WithWantDefault("7"))
+	cols[0].DefaultExpr = "7"
+	require.Equal(t, "CREATE TABLE t1 (row_id INT, col_a_d INT DEFAULT 7 NOT NULL)",
+		typetest.CreateTable("t1", "INT", cols, typetest.DefaultColumnDecl, ""))
 }

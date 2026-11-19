@@ -81,3 +81,24 @@ func TestDiffRowIDs(t *testing.T) {
 		})
 	}
 }
+
+func TestWithDumpPlaceholderDefaults(t *testing.T) {
+	// Dump mode is how a case's expected default_value is drafted, so a
+	// Defaulted column with none set mustn't stop Resolve before the dump.
+	base := Case{
+		Name: "x", Decl: "INT", Zero: int64(0), Val: int64(7),
+		Want:     Want{BaseType: Is("int"), ColumnType: Is("int"), Kind: Is(kind.Int)},
+		Variants: []Variant{NotNull, Defaulted},
+	}
+	set := base.WithWantDefault("7")
+	set.Name = "y"
+	got := withDumpPlaceholderDefaults([]Case{base, set})
+
+	cols, err := Resolve(got, "v9.1.0")
+	require.NoError(t, err)
+	require.Equal(t, dumpPlaceholderDefault, cols[1].Default)
+	require.Equal(t, "7", cols[3].Default, "a set expectation is kept")
+
+	_, err = Resolve([]Case{base}, "v9.1.0")
+	require.Error(t, err, "the input is not modified")
+}

@@ -106,14 +106,20 @@ func checkCHSettings(ctx context.Context, db sqlz.DB, serverVer string) error {
 // default, and a nullable column wraps its type in Nullable(T). For
 // LowCardinality(T), which can't be wrapped, the nullable form wraps the inner
 // type instead: LowCardinality(Nullable(T)).
-func chColumnDecl(decl string, v typetest.Variant) string {
-	if v != typetest.Nullable {
+func chColumnDecl(decl string, v typetest.Variant, defaultExpr string) string {
+	switch v {
+	case typetest.Defaulted:
+		return decl + " DEFAULT " + defaultExpr
+	case typetest.Nullable:
+		if inner, ok := strings.CutPrefix(decl, "LowCardinality("); ok {
+			return "LowCardinality(Nullable(" + inner + ")"
+		}
+		return "Nullable(" + decl + ")"
+	case typetest.NotNull:
+		return decl
+	default:
 		return decl
 	}
-	if inner, ok := strings.CutPrefix(decl, "LowCardinality("); ok {
-		return "LowCardinality(Nullable(" + inner + ")"
-	}
-	return "Nullable(" + decl + ")"
 }
 
 // withNullableColumnTypes returns cases with the expected column_type of each

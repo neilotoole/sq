@@ -9,29 +9,39 @@ import (
 const rowIDCol = "row_id"
 
 // DefaultColumnDecl declares a column of type decl for variant v:
-// decl + " NOT NULL" for NotNull and decl + " NULL" for Nullable. NULL is
+// decl + " NOT NULL" for NotNull, decl + " NULL" for Nullable, and
+// decl + " DEFAULT " + defaultExpr + " NOT NULL" for Defaulted. NULL is
 // explicit because some engines make a column NOT NULL by default for some
-// types (MySQL 5.6 and 5.7 TIMESTAMP, for example).
-func DefaultColumnDecl(decl string, v Variant) string {
-	if v == Nullable {
+// types (MySQL 5.6 and 5.7 TIMESTAMP, for example). DEFAULT comes before
+// NOT NULL because Oracle requires that order. defaultExpr is ignored for
+// the other variants.
+func DefaultColumnDecl(decl string, v Variant, defaultExpr string) string {
+	switch v {
+	case NotNull:
+		return decl + " NOT NULL"
+	case Nullable:
 		return decl + " NULL"
+	case Defaulted:
+		return decl + " DEFAULT " + defaultExpr + " NOT NULL"
+	default:
+		return decl + " NOT NULL"
 	}
-	return decl + " NOT NULL"
 }
 
 // CreateTable returns the CREATE TABLE statement for tbl: the row_id column
-// declared as rowIDDecl, then cols in order, each declared via colDecl, then
+// declared as rowIDDecl, then cols in order, each declared via colDecl
+// (given the column's DefaultExpr), then
 // suffix if it's not empty (ClickHouse, for example, requires an ENGINE
 // clause).
 // Identifiers are not quoted: Resolve restricts column names to
 // [a-z0-9_], and tbl is expected to come from stringz.UniqTableName.
-func CreateTable(tbl, rowIDDecl string, cols []Column, colDecl func(decl string, v Variant) string,
+func CreateTable(tbl, rowIDDecl string, cols []Column, colDecl func(decl string, v Variant, defaultExpr string) string,
 	suffix string,
 ) string {
 	var sb strings.Builder
 	sb.WriteString("CREATE TABLE " + tbl + " (" + rowIDCol + " " + rowIDDecl)
 	for _, col := range cols {
-		sb.WriteString(", " + col.Name + " " + colDecl(col.Case.Decl, col.Variant))
+		sb.WriteString(", " + col.Name + " " + colDecl(col.Case.Decl, col.Variant, col.DefaultExpr))
 	}
 	sb.WriteString(")")
 	if suffix != "" {
@@ -41,7 +51,8 @@ func CreateTable(tbl, rowIDDecl string, cols []Column, colDecl func(decl string,
 }
 
 // Insert returns the INSERT statement for row (0, 1 or 2) of tbl, with
-// row_id = row+1, and its bound args. A SQL input is written into the
+// row_id = row+1, and its bound args. It leaves out the columns that aren't
+// Inserted, the Defaulted ones, so they take their defaults. A SQL input is written into the
 // statement as is; every other input is bound. placeholders is the
 // dialect's placeholder func (see dialect.Dialect.Placeholders). Insert
 // relies on its format, a parenthesized list of tokens joined by
@@ -51,6 +62,9 @@ func Insert(tbl string, cols []Column, row int, placeholders func(numCols, numRo
 ) {
 	args = []any{row + 1}
 	for _, col := range cols {
+		if !col.Inserted() {
+			continue
+		}
 		if _, ok := col.In[row].(SQL); !ok {
 			args = append(args, col.In[row])
 		}
@@ -62,6 +76,9 @@ func Insert(tbl string, cols []Column, row int, placeholders func(numCols, numRo
 	vals := []string{toks[0]}
 	next := 1
 	for _, col := range cols {
+		if !col.Inserted() {
+			continue
+		}
 		names = append(names, col.Name)
 		if expr, ok := col.In[row].(SQL); ok {
 			vals = append(vals, string(expr))

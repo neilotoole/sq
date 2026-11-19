@@ -82,7 +82,15 @@ func TestRenderStatements(t *testing.T) {
   col_gated INT NOT NULL,
   col_gated_n INT NULL
 )`,
-		`INSERT INTO t1 VALUES (
+		`INSERT INTO t1 (
+  row_id,
+  col_int,
+  col_int_n,
+  col_g,
+  col_g_n,
+  col_gated,
+  col_gated_n
+) VALUES (
   -- row_id
   1,
   -- col_int
@@ -98,7 +106,15 @@ func TestRenderStatements(t *testing.T) {
   -- col_gated_n
   0
 )`,
-		`INSERT INTO t1 VALUES (
+		`INSERT INTO t1 (
+  row_id,
+  col_int,
+  col_int_n,
+  col_g,
+  col_g_n,
+  col_gated,
+  col_gated_n
+) VALUES (
   -- row_id
   2,
   -- col_int
@@ -114,7 +130,15 @@ func TestRenderStatements(t *testing.T) {
   -- col_gated_n
   SEVEN
 )`,
-		`INSERT INTO t1 VALUES (
+		`INSERT INTO t1 (
+  row_id,
+  col_int,
+  col_int_n,
+  col_g,
+  col_g_n,
+  col_gated,
+  col_gated_n
+) VALUES (
   -- row_id
   3,
   -- col_int
@@ -142,7 +166,7 @@ func TestRenderStatements(t *testing.T) {
 func TestRenderStatements_Suffix(t *testing.T) {
 	cfg := typetest.Config{
 		RowIDDecl:   "Int32",
-		ColumnDecl:  func(decl string, v typetest.Variant) string { return decl + "/" + v.String() },
+		ColumnDecl:  func(decl string, v typetest.Variant, _ string) string { return decl + "/" + v.String() },
 		TableSuffix: "ENGINE = MergeTree() ORDER BY row_id",
 		Cases:       []typetest.Case{intCase("int")},
 	}
@@ -168,7 +192,8 @@ func TestRenderDDL(t *testing.T) {
 	got, err := typetest.RenderDDL("-- header\n", typetest.DDLTable{Name: "coltypes", Config: cfg})
 	require.NoError(t, err)
 	require.True(t, strings.HasPrefix(got, "-- header\n\nCREATE TABLE coltypes (\n"))
-	require.Contains(t, got, "\n);\n\nINSERT INTO coltypes VALUES (\n  -- row_id\n  1,\n")
+	require.Contains(t, got,
+		"\n);\n\nINSERT INTO coltypes (\n  row_id,\n  col_int,\n  col_int_n\n) VALUES (\n  -- row_id\n  1,\n")
 	require.True(t, strings.HasSuffix(got, "  -- col_int_n\n  NULL\n);\n"))
 
 	// Every MinVer-gated case is included: the file is for the newest
@@ -264,4 +289,32 @@ func TestRenderStatements_Prelude(t *testing.T) {
 	got, err := typetest.RenderDDL("", typetest.DDLTable{Name: "t1", Config: cfg})
 	require.NoError(t, err)
 	require.True(t, strings.HasPrefix(got, "\nSET time_zone = '+00:00';\n\nCREATE TABLE t1 ("))
+}
+
+func TestRenderStatements_Defaulted(t *testing.T) {
+	cfg := typetest.Config{
+		RowIDDecl: "INT",
+		Cases: []typetest.Case{
+			intCase("a").WithVariants(typetest.NotNull, typetest.Defaulted, typetest.Nullable).WithWantDefault("7"),
+			intCase("b").WithVariants(typetest.Defaulted).WithWantDefault("42").WithDefaultExpr("42"),
+		},
+		// Config.DefaultExpr applies to a's literal, not to b's own expression.
+		DefaultExpr: func(_ typetest.Column, lit string) string { return "(" + lit + ")" },
+	}
+	stmts, err := typetest.RenderStatements(cfg, "t1", "v9.1.0")
+	require.NoError(t, err)
+	require.Contains(t, stmts[0], "  col_a_d INT DEFAULT (7) NOT NULL,\n")
+	require.Contains(t, stmts[0], "  col_b_d INT DEFAULT 42 NOT NULL\n")
+	require.Equal(t, `INSERT INTO t1 (
+  row_id,
+  col_a,
+  col_a_n
+) VALUES (
+  -- row_id
+  1,
+  -- col_a
+  0,
+  -- col_a_n
+  0
+)`, stmts[1])
 }

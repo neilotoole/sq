@@ -2,6 +2,7 @@ package typetest
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -129,4 +130,25 @@ func dumpEnabled(t *testing.T) bool {
 	on, err := envBool(EnvDump)
 	require.NoError(t, err)
 	return on
+}
+
+// dumpPlaceholderDefault is the expected default_value that dump mode gives a
+// Defaulted column whose case sets none (see withDumpPlaceholderDefaults).
+const dumpPlaceholderDefault = "<unset: see the dump>"
+
+// withDumpPlaceholderDefaults returns a copy of cases in which each case that
+// sets no expected default_value for its Defaulted column, in Want or
+// PerVariant.Defaulted, expects dumpPlaceholderDefault instead. Resolve
+// requires that expectation, and dump mode is how it's drafted, so without
+// this the dump would never run. The placeholder can't match a real
+// default_value, so the checks after the dump still fail.
+func withDumpPlaceholderDefaults(cases []Case) []Case {
+	out := slices.Clone(cases)
+	for i := range out {
+		c := &out[i]
+		if !c.Want.Default.Set && !c.PerVariant.Defaulted.Default.Set {
+			c.PerVariant.Defaulted.Default = Is(dumpPlaceholderDefault)
+		}
+	}
+	return out
 }
