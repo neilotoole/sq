@@ -2343,3 +2343,73 @@ func TestDBSemver(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, v, md.DBSemver, "metadata.Source.DBSemver must match Grip.DBSemver")
 }
+
+// TestColumnNullable_RowidAlias verifies that a primary key column that is
+// the table's rowid alias reports Nullable=false even without an explicit NOT
+// NULL, while any other primary key column without NOT NULL stays nullable:
+// SQLite allows NULL in every primary key column except the rowid alias.
+// Both the single-table and whole-source metadata paths are checked.
+func TestColumnNullable_RowidAlias(t *testing.T) {
+	tu.SkipShort(t, true)
+	t.Parallel()
+
+	th := testh.New(t)
+	src := th.Source(sakila.RQ)
+	grip := th.Open(src)
+	ctx := th.Context
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	suffix := stringz.Uniq8()
+	testCases := []struct {
+		tbl          string
+		ddl          string // %q is replaced by the quoted table name
+		wantNullable map[string]bool
+	}{
+		{"t_integer_" + suffix, `CREATE TABLE %q (id INTEGER PRIMARY KEY, v TEXT)`, map[string]bool{"id": false}},
+		{"t_tbl_pk_" + suffix, `CREATE TABLE %q (id INTEGER, v TEXT, PRIMARY KEY (id))`, map[string]bool{"id": false}},
+		{
+			"t_col_pk_desc_" + suffix, `CREATE TABLE %q (id INTEGER PRIMARY KEY DESC, v TEXT)`,
+			map[string]bool{"id": true},
+		},
+		{"t_int_" + suffix, `CREATE TABLE %q (id INT PRIMARY KEY, v TEXT)`, map[string]bool{"id": true}},
+		{
+			"t_composite_" + suffix, `CREATE TABLE %q (a INTEGER, b INTEGER, PRIMARY KEY (a, b))`,
+			map[string]bool{"a": true, "b": true},
+		},
+		{
+			"t_without_rowid_" + suffix, `CREATE TABLE %q (id INTEGER PRIMARY KEY, v TEXT) WITHOUT ROWID`,
+			map[string]bool{"id": false},
+		},
+	}
+
+	for _, tc := range testCases {
+		_, err = db.ExecContext(ctx, fmt.Sprintf(tc.ddl, tc.tbl))
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_ = grip.SQLDriver().DropTable(ctx, db, tablefq.T{Table: tc.tbl}, true)
+		})
+	}
+
+	srcMeta, err := grip.SourceMetadata(ctx, false)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		tblMeta, err := grip.TableMetadata(ctx, tc.tbl)
+		require.NoError(t, err)
+
+		srcTblMeta := srcMeta.Table(tc.tbl)
+		require.NotNil(t, srcTblMeta)
+
+		for colName, wantNullable := range tc.wantNullable {
+			col := tblMeta.Column(colName)
+			require.NotNil(t, col)
+			require.True(t, col.PrimaryKey)
+			require.Equal(t, wantNullable, col.Nullable, "TableMetadata: %s.%s", tc.tbl, colName)
+
+			col = srcTblMeta.Column(colName)
+			require.NotNil(t, col)
+			require.Equal(t, wantNullable, col.Nullable, "SourceMetadata: %s.%s", tc.tbl, colName)
+		}
+	}
+}

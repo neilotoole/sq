@@ -706,3 +706,90 @@ func TestTableMetadata_ProblematicTableNames(t *testing.T) {
 		})
 	}
 }
+
+// TestColumnNullable_RowidAlias verifies that a primary key column that is
+// the table's rowid alias reports Nullable=false even without an explicit NOT
+// NULL, while any other primary key column without NOT NULL stays nullable:
+// SQLite allows NULL in every primary key column except the rowid alias.
+// Both the single-table and whole-source metadata paths are checked.
+func TestColumnNullable_RowidAlias(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@rowid_alias_sl3",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "rowid_alias.db"),
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	db, err := grip.DB(th.Context)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		tbl          string
+		ddl          string
+		wantNullable map[string]bool // key column name to want Nullable
+	}{
+		{"t_integer", `CREATE TABLE t_integer (id INTEGER PRIMARY KEY, v TEXT)`, map[string]bool{"id": false}},
+		{"t_lower", `CREATE TABLE t_lower (id integer primary key, v TEXT)`, map[string]bool{"id": false}},
+		{"t_tbl_pk", `CREATE TABLE t_tbl_pk (id INTEGER, v TEXT, PRIMARY KEY (id))`, map[string]bool{"id": false}},
+		// The table-constraint DESC form is still a rowid alias.
+		{
+			"t_tbl_pk_desc", `CREATE TABLE t_tbl_pk_desc (id INTEGER, v TEXT, PRIMARY KEY (id DESC))`,
+			map[string]bool{"id": false},
+		},
+		// The column-constraint DESC form is not a rowid alias (SQLite quirk).
+		{
+			"t_col_pk_desc", `CREATE TABLE t_col_pk_desc (id INTEGER PRIMARY KEY DESC, v TEXT)`,
+			map[string]bool{"id": true},
+		},
+		{"t_int", `CREATE TABLE t_int (id INT PRIMARY KEY, v TEXT)`, map[string]bool{"id": true}},
+		{"t_bigint", `CREATE TABLE t_bigint (id BIGINT PRIMARY KEY, v TEXT)`, map[string]bool{"id": true}},
+		{
+			"t_composite", `CREATE TABLE t_composite (a INTEGER, b INTEGER, PRIMARY KEY (a, b))`,
+			map[string]bool{"a": true, "b": true},
+		},
+		{"t_not_null", `CREATE TABLE t_not_null (id INT PRIMARY KEY NOT NULL, v TEXT)`, map[string]bool{"id": false}},
+		{
+			"t_without_rowid", `CREATE TABLE t_without_rowid (id INTEGER PRIMARY KEY, v TEXT) WITHOUT ROWID`,
+			map[string]bool{"id": false},
+		},
+	}
+
+	for _, tc := range testCases {
+		_, err = db.ExecContext(th.Context, tc.ddl)
+		require.NoError(t, err)
+	}
+
+	srcMeta, err := grip.SourceMetadata(th.Context, false)
+	require.NoError(t, err)
+
+	for _, tc := range testCases {
+		t.Run(tc.tbl, func(t *testing.T) {
+			t.Parallel()
+
+			tblMeta, err := grip.TableMetadata(th.Context, tc.tbl)
+			require.NoError(t, err)
+
+			srcTblMeta := srcMeta.Table(tc.tbl)
+			require.NotNil(t, srcTblMeta)
+
+			for colName, wantNullable := range tc.wantNullable {
+				col := tblMeta.Column(colName)
+				require.NotNil(t, col)
+				require.True(t, col.PrimaryKey)
+				require.Equal(t, wantNullable, col.Nullable, "TableMetadata: %s.%s", tc.tbl, colName)
+
+				col = srcTblMeta.Column(colName)
+				require.NotNil(t, col)
+				require.Equal(t, wantNullable, col.Nullable, "SourceMetadata: %s.%s", tc.tbl, colName)
+			}
+
+			// The non-key column is unaffected.
+			if col := tblMeta.Column("v"); col != nil {
+				require.True(t, col.Nullable)
+			}
+		})
+	}
+}
