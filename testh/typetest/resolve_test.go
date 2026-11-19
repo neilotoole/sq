@@ -18,13 +18,17 @@ func intWant() typetest.Want {
 	}
 }
 
+// intCase returns an INT case with the NotNull and Nullable variants. Tests
+// of other behavior use it, so it leaves out Defaulted, which needs an
+// expected default; tests of Defaulted set Variants themselves.
 func intCase(name string) typetest.Case {
 	return typetest.Case{
-		Name: name,
-		Decl: "INT",
-		Zero: int64(0),
-		Val:  int64(7),
-		Want: intWant(),
+		Name:     name,
+		Decl:     "INT",
+		Zero:     int64(0),
+		Val:      int64(7),
+		Want:     intWant(),
+		Variants: []typetest.Variant{typetest.NotNull, typetest.Nullable},
 	}
 }
 
@@ -442,4 +446,15 @@ func TestResolve_OverrideVariantsFirstMatch(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, cols, 1)
 	require.Equal(t, "int", cols[0].BaseType)
+}
+
+func TestResolve_DefaultVariants(t *testing.T) {
+	c := intCase("x").WithWantDefault("7")
+	c.Variants = nil
+	cols := mustResolve(t, c)
+	names := make([]string, len(cols))
+	for i, col := range cols {
+		names[i] = col.Name
+	}
+	require.Equal(t, []string{"col_x", "col_x_n", "col_x_d"}, names, "a case gets all three variants by default")
 }

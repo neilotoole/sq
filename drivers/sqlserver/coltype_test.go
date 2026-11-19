@@ -71,7 +71,7 @@ func TestMSLiteral(t *testing.T) {
 var msConfig = typetest.Config{
 	Handle:        sakila.MS,
 	RowIDDecl:     "INT NOT NULL PRIMARY KEY",
-	Cases:         typetest.WithDefaulted(msTypeCases),
+	Cases:         msTypeCases,
 	CheckSettings: checkMSSettings,
 	Literal:       msLiteral,
 }

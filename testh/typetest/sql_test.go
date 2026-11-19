@@ -37,10 +37,11 @@ func mustResolve(t *testing.T, cases ...typetest.Case) []typetest.Column {
 func geomCase() typetest.Case {
 	const expr = typetest.SQL("ST_GeomFromText('POINT(1 1)')")
 	return typetest.Case{
-		Name: "g",
-		Decl: "GEOMETRY",
-		Zero: expr,
-		Val:  expr,
+		Name:     "g",
+		Decl:     "GEOMETRY",
+		Variants: []typetest.Variant{typetest.NotNull, typetest.Nullable},
+		Zero:     expr,
+		Val:      expr,
 		Want: typetest.Want{
 			BaseType:   typetest.Is("geometry"),
 			ColumnType: typetest.Is("geometry"),

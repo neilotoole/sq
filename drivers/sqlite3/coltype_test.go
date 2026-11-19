@@ -69,7 +69,7 @@ func TestSL3Literal(t *testing.T) {
 var sl3Config = typetest.Config{
 	Handle:      sakila.SL3,
 	RowIDDecl:   "INTEGER NOT NULL PRIMARY KEY",
-	Cases:       typetest.WithDefaulted(sl3TypeCases),
+	Cases:       sl3TypeCases,
 	Literal:     sl3Literal,
 	DefaultExpr: sl3DefaultExpr,
 }

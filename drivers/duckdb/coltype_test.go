@@ -45,7 +45,7 @@ func TestDuckLiteral(t *testing.T) {
 var duckConfig = typetest.Config{
 	Handle:    sakila.Duck,
 	RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
-	Cases:     typetest.WithDefaulted(duckTypeCases),
+	Cases:     duckTypeCases,
 	Literal:   duckLiteral,
 	// Load the generated DDL in an odd time zone, so a time literal without
 	// an offset fails the check. See typetest.Config.DDLCheckSession.

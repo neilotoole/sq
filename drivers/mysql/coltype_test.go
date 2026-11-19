@@ -102,7 +102,7 @@ func TestMySQLLiteral(t *testing.T) {
 var mysqlConfig = typetest.Config{
 	Handle:          sakila.My,
 	RowIDDecl:       "INT NOT NULL PRIMARY KEY",
-	Cases:           typetest.WithDefaulted(mysqlTypeCases),
+	Cases:           mysqlTypeCases,
 	CheckSettings:   checkMySQLSettings,
 	Literal:         mysqlLiteral,
 	DefaultExpr:     mysqlDefaultExpr,
@@ -225,7 +225,7 @@ func TestColumnTypes_TIMESTAMP6(t *testing.T) {
 var mysqlTimestamp6Config = typetest.Config{
 	Handle:          sakila.My,
 	RowIDDecl:       "INT NOT NULL PRIMARY KEY",
-	Cases:           typetest.WithDefaulted([]typetest.Case{mysqlTimestamp6Case}),
+	Cases:           []typetest.Case{mysqlTimestamp6Case},
 	CheckSettings:   checkMySQLSettings,
 	Literal:         mysqlLiteral,
 	DefaultExpr:     mysqlDefaultExpr,

@@ -19,8 +19,11 @@ func TestNewCase(t *testing.T) {
 	require.Equal(t, typetest.Is("int(11)"), c.Want.ColumnType)
 	require.Equal(t, typetest.Is(kind.Int), c.Want.Kind)
 
-	cols := mustResolve(t, c)
-	require.Len(t, cols, 2)
+	_, err := typetest.Resolve([]typetest.Case{c}, "v9.1.0")
+	require.Error(t, err, "the Defaulted column needs an expected default")
+
+	cols := mustResolve(t, c.WithWantDefault("7"))
+	require.Len(t, cols, 3)
 }
 
 func TestCase_WithWant(t *testing.T) {
@@ -129,14 +132,6 @@ func TestCase_WithWantDefault(t *testing.T) {
 
 func TestCase_WithDefaultExpr(t *testing.T) {
 	require.Equal(t, "42", intCase("x").WithDefaultExpr("42").DefaultExpr)
-}
-
-func TestWithDefaulted(t *testing.T) {
-	in := []typetest.Case{intCase("a"), intCase("b").WithVariants(typetest.NotNull)}
-	got := typetest.WithDefaulted(in)
-	require.Equal(t, []typetest.Variant{typetest.NotNull, typetest.Nullable, typetest.Defaulted}, got[0].Variants)
-	require.Equal(t, []typetest.Variant{typetest.NotNull}, got[1].Variants, "an explicit set is kept")
-	require.Nil(t, in[0].Variants, "the input is not modified")
 }
 
 func TestCase_WithPerVariantDefaulted(t *testing.T) {

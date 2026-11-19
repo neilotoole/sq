@@ -68,7 +68,7 @@ func TestRQLiteral(t *testing.T) {
 var rqConfig = typetest.Config{
 	Handle:      sakila.RQ,
 	RowIDDecl:   "INTEGER NOT NULL PRIMARY KEY",
-	Cases:       typetest.WithDefaulted(rqTypeCases),
+	Cases:       rqTypeCases,
 	Literal:     rqLiteral,
 	DefaultExpr: rqDefaultExpr,
 }

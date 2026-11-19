@@ -65,7 +65,7 @@ func TestPgLiteral(t *testing.T) {
 var pgConfig = typetest.Config{
 	Handle:        sakila.Pg,
 	RowIDDecl:     "INTEGER NOT NULL PRIMARY KEY",
-	Cases:         typetest.WithDefaulted(pgTypeCases),
+	Cases:         pgTypeCases,
 	CheckSettings: checkPgSettings,
 	Literal:       pgLiteral,
 	// Load the generated DDL in an odd time zone, so a time literal without

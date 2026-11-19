@@ -50,7 +50,7 @@ var oraConfig = typetest.Config{
 	Handle:        sakila.Ora,
 	RowIDDecl:     "NUMBER(10) NOT NULL PRIMARY KEY",
 	FoldName:      strings.ToUpper,
-	Cases:         typetest.WithDefaulted(oraTypeCases),
+	Cases:         oraTypeCases,
 	CheckSettings: checkOraSettings,
 	Literal:       oraLiteral,
 	// Load the generated DDL in an odd time zone, so a time literal without

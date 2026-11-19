@@ -13,14 +13,15 @@
 // # Rows
 //
 // Each case is declared as one column per variant: by default a NOT NULL
-// column and a nullable one. Run inserts three rows into the table, and every
-// column gets a value in each:
+// column, a nullable one, and a NOT NULL one with a declared default. Run
+// inserts three rows into the table, giving every column but the defaulted
+// one a value in each:
 //
-//	row_id | NotNull column | Nullable column
-//	-------+----------------+--------------------------
-//	1      | Case.Zero      | Case.Zero
-//	2      | Case.Val       | Case.Val
-//	3      | Case.Val       | NULL (bound as NullInput)
+//	row_id | NotNull column | Nullable column           | Defaulted column
+//	-------+----------------+---------------------------+-----------------
+//	1      | Case.Zero      | Case.Zero                 | (left out)
+//	2      | Case.Val       | Case.Val                  | (left out)
+//	3      | Case.Val       | NULL (bound as NullInput) | (left out)
 //
 // Row 1 holds a zero value (0, "", the zero time) and row 2 a non-zero one,
 // usually an edge value such as the type's maximum, so a value that reads back
@@ -33,6 +34,14 @@
 // column's expected values for the three rows are Want.Zero, Want.Val (each
 // defaulting to its input) and, in row 3, Want.Val for NotNull and NULL for
 // Nullable. Column.In and Column.Want hold them after Resolve.
+//
+// The Defaulted column is never inserted, so it takes its default in every
+// row. The default is the SQL literal for Case.Val (Config.Literal, rewritten
+// by Config.DefaultExpr, or Case.DefaultExpr in its place), so the column's
+// expected value is the same in all three rows: Want.LiteralVal, defaulting
+// to Want.Val. Its expected default_value is required: set it with
+// Case.WithWantDefault. A type that can't take a default leaves Defaulted out
+// of Case.Variants, or of an Override's Variants on older servers.
 //
 // # Generated DDL
 //
@@ -123,7 +132,7 @@ func (v Variant) suffix() string {
 }
 
 // defaultVariants is the variants a case gets when Case.Variants is nil.
-var defaultVariants = []Variant{NotNull, Nullable}
+var defaultVariants = []Variant{NotNull, Nullable, Defaulted}
 
 // Opt is an optional expectation with an explicit presence flag, so that
 // "unset" is distinct from every value, including kind.Unknown (the zero

@@ -74,7 +74,7 @@ func TestRun_DuckDB(t *testing.T) {
 	typetest.Run(t, typetest.Config{
 		Handle:    sakila.Duck,
 		RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
-		Cases:     typetest.WithDefaulted(duckCases),
+		Cases:     duckCases,
 	})
 }
 
@@ -86,6 +86,6 @@ func TestRun_DuckDB_Dump(t *testing.T) {
 	typetest.Run(t, typetest.Config{
 		Handle:    sakila.Duck,
 		RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
-		Cases:     typetest.WithDefaulted(duckCases),
+		Cases:     duckCases,
 	})
 }

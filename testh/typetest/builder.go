@@ -125,17 +125,3 @@ func (c Case) WithDefaultExpr(expr string) Case {
 	c.DefaultExpr = expr
 	return c
 }
-
-// WithDefaulted returns a copy of cases in which each case with nil Variants
-// creates the Defaulted column too: NotNull, Nullable, Defaulted. A case with
-// its own Variants is unchanged. It lets a driver opt in to Defaulted before
-// it's a default variant.
-func WithDefaulted(cases []Case) []Case {
-	out := slices.Clone(cases)
-	for i := range out {
-		if out[i].Variants == nil {
-			out[i].Variants = []Variant{NotNull, Nullable, Defaulted}
-		}
-	}
-	return out
-}

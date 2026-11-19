@@ -51,7 +51,7 @@ var chConfig = typetest.Config{
 	RowIDDecl:     "Int32",
 	ColumnDecl:    chColumnDecl,
 	TableSuffix:   "ENGINE = MergeTree() ORDER BY row_id",
-	Cases:         withNullableColumnTypes(typetest.WithDefaulted(chTypeCases)),
+	Cases:         withNullableColumnTypes(chTypeCases),
 	CheckSettings: checkCHSettings,
 	Literal:       chLiteral,
 	// ClickHouse reads a DateTime literal in the session's time zone, and
