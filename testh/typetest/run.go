@@ -106,11 +106,10 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 	require.NoError(t, err)
 	t.Logf("%s: server version %s", cfg.Handle, serverVer)
 
-	cases := cfg.Cases
 	if dumpEnabled(t) {
-		cases = withDumpPlaceholderDefaults(cases)
+		cfg = dumpConfig(cfg)
 	}
-	cols, err := Resolve(cases, serverVer)
+	cols, err := Resolve(cfg.Cases, serverVer)
 	if err == nil {
 		err = resolveDefaultExprs(cfg, cols)
 	}

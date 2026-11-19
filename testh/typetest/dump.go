@@ -136,6 +136,14 @@ func dumpEnabled(t *testing.T) bool {
 // Defaulted column whose case sets none (see withDumpPlaceholderDefaults).
 const dumpPlaceholderDefault = "<unset: see the dump>"
 
+// dumpConfig returns a copy of cfg for dump mode, with its cases passed
+// through withDumpPlaceholderDefaults. Run uses it for every path, the ddl
+// subtest's rendering included.
+func dumpConfig(cfg Config) Config {
+	cfg.Cases = withDumpPlaceholderDefaults(cfg.Cases)
+	return cfg
+}
+
 // withDumpPlaceholderDefaults returns a copy of cases in which each case that
 // sets no expected default_value for its Defaulted column, in Want or
 // PerVariant.Defaulted, expects dumpPlaceholderDefault instead. Resolve
