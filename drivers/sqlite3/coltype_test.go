@@ -1,6 +1,7 @@
 package sqlite3_test
 
 import (
+	"encoding/hex"
 	"math"
 	"testing"
 
@@ -22,11 +23,30 @@ import (
 func TestColumnTypes(t *testing.T) {
 	t.Parallel()
 
-	typetest.Run(t, typetest.Config{
-		Handle:    sakila.SL3,
-		RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
-		Cases:     sl3TypeCases,
-	})
+	typetest.Run(t, sl3Config)
+}
+
+// TestColumnTypesDDL checks that testdata/coltypes.ddl matches the case
+// table. See typetest.CheckDDL.
+func TestColumnTypesDDL(t *testing.T) {
+	typetest.CheckDDL(t, "testdata/coltypes.ddl", "SQLite 3", typetest.DDLTable{Name: "coltypes", Config: sl3Config})
+}
+
+// sl3Config is the typetest configuration for SQLite.
+var sl3Config = typetest.Config{
+	Handle:    sakila.SL3,
+	RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
+	Cases:     sl3TypeCases,
+	Literal:   sl3Literal,
+}
+
+// sl3Literal renders the inputs SQLite writes differently from
+// typetest.DefaultLiteral: bytes, as a blob literal (X'7365').
+func sl3Literal(_ typetest.Column, v any) (string, bool) {
+	if b, ok := v.([]byte); ok && b != nil {
+		return "X'" + hex.EncodeToString(b) + "'", true
+	}
+	return "", false
 }
 
 var sl3TypeCases = []typetest.Case{

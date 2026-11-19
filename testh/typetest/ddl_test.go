@@ -50,6 +50,7 @@ func TestDefaultLiteral(t *testing.T) {
 }
 
 func TestRenderStatements(t *testing.T) {
+	var gotDecls []string
 	cfg := typetest.Config{
 		RowIDDecl: "INT NOT NULL PRIMARY KEY",
 		Cases: []typetest.Case{
@@ -57,9 +58,11 @@ func TestRenderStatements(t *testing.T) {
 			geomCase(),
 			intCase("gated").WithMinVer("v8.0.0"),
 		},
-		// The driver's func handles int64; everything else falls back to
-		// DefaultLiteral.
-		Literal: func(v any) (string, bool) {
+		// The driver's func handles int64 7; everything else falls back to
+		// DefaultLiteral. It's given the column, since some dialects write a
+		// value differently by column type.
+		Literal: func(col typetest.Column, v any) (string, bool) {
+			gotDecls = append(gotDecls, col.Case.Decl)
 			if i, ok := v.(int64); ok && i == 7 {
 				return "SEVEN", true
 			}
@@ -70,20 +73,65 @@ func TestRenderStatements(t *testing.T) {
 	stmts, err := typetest.RenderStatements(cfg, "t1", "v9.1.0")
 	require.NoError(t, err)
 	require.Equal(t, []string{
-		"CREATE TABLE t1 (row_id INT NOT NULL PRIMARY KEY, col_int INT NOT NULL, col_int_n INT NULL, " +
-			"col_g GEOMETRY NOT NULL, col_g_n GEOMETRY NULL, col_gated INT NOT NULL, col_gated_n INT NULL)",
-		"INSERT INTO t1 (row_id, col_int, col_int_n, col_g, col_g_n, col_gated, col_gated_n) VALUES " +
-			"(1, 0, 0, ST_GeomFromText('POINT(1 1)'), ST_GeomFromText('POINT(1 1)'), 0, 0)",
-		"INSERT INTO t1 (row_id, col_int, col_int_n, col_g, col_g_n, col_gated, col_gated_n) VALUES " +
-			"(2, SEVEN, SEVEN, ST_GeomFromText('POINT(1 1)'), ST_GeomFromText('POINT(1 1)'), SEVEN, SEVEN)",
-		"INSERT INTO t1 (row_id, col_int, col_int_n, col_g, col_g_n, col_gated, col_gated_n) VALUES " +
-			"(3, SEVEN, NULL, ST_GeomFromText('POINT(1 1)'), NULL, SEVEN, NULL)",
+		`CREATE TABLE t1 (
+  row_id INT NOT NULL PRIMARY KEY,
+  col_int INT NOT NULL,
+  col_int_n INT NULL,
+  col_g GEOMETRY NOT NULL,
+  col_g_n GEOMETRY NULL,
+  col_gated INT NOT NULL,
+  col_gated_n INT NULL
+)`,
+		`INSERT INTO t1 VALUES (
+  1, -- row_id
+  0, -- col_int
+  0, -- col_int_n
+  ST_GeomFromText('POINT(1 1)'), -- col_g
+  ST_GeomFromText('POINT(1 1)'), -- col_g_n
+  0, -- col_gated
+  0 -- col_gated_n
+)`,
+		`INSERT INTO t1 VALUES (
+  2, -- row_id
+  SEVEN, -- col_int
+  SEVEN, -- col_int_n
+  ST_GeomFromText('POINT(1 1)'), -- col_g
+  ST_GeomFromText('POINT(1 1)'), -- col_g_n
+  SEVEN, -- col_gated
+  SEVEN -- col_gated_n
+)`,
+		`INSERT INTO t1 VALUES (
+  3, -- row_id
+  SEVEN, -- col_int
+  NULL, -- col_int_n
+  ST_GeomFromText('POINT(1 1)'), -- col_g
+  NULL, -- col_g_n
+  SEVEN, -- col_gated
+  NULL -- col_gated_n
+)`,
 	}, stmts)
+	require.Contains(t, gotDecls, "GEOMETRY", "the literal func is given each value's column")
 
 	// On an older server, a case gated by MinVer is left out, as in Run.
 	stmts, err = typetest.RenderStatements(cfg, "t1", "v5.7.44")
 	require.NoError(t, err)
 	require.NotContains(t, stmts[0], "col_gated")
+}
+
+func TestRenderStatements_Suffix(t *testing.T) {
+	cfg := typetest.Config{
+		RowIDDecl:   "Int32",
+		ColumnDecl:  func(decl string, v typetest.Variant) string { return decl + "/" + v.String() },
+		TableSuffix: "ENGINE = MergeTree() ORDER BY row_id",
+		Cases:       []typetest.Case{intCase("int")},
+	}
+	stmts, err := typetest.RenderStatements(cfg, "t1", "v9.1.0")
+	require.NoError(t, err)
+	require.Equal(t, `CREATE TABLE t1 (
+  row_id Int32,
+  col_int INT/not_null,
+  col_int_n INT/nullable
+) ENGINE = MergeTree() ORDER BY row_id`, stmts[0])
 }
 
 func TestRenderStatements_UnrenderableInput(t *testing.T) {
@@ -98,11 +146,9 @@ func TestRenderDDL(t *testing.T) {
 	cfg := typetest.Config{RowIDDecl: "INT NOT NULL PRIMARY KEY", Cases: []typetest.Case{intCase("int")}}
 	got, err := typetest.RenderDDL("-- header\n", typetest.DDLTable{Name: "coltypes", Config: cfg})
 	require.NoError(t, err)
-	require.True(t, strings.HasPrefix(got, "-- header\n\n"))
-	require.Contains(t, got, "CREATE TABLE coltypes (row_id INT NOT NULL PRIMARY KEY, col_int INT NOT NULL, "+
-		"col_int_n INT NULL);\n")
-	require.Contains(t, got, "INSERT INTO coltypes (row_id, col_int, col_int_n) VALUES (3, 7, NULL);\n")
-	require.True(t, strings.HasSuffix(got, ";\n"))
+	require.True(t, strings.HasPrefix(got, "-- header\n\nCREATE TABLE coltypes (\n"))
+	require.Contains(t, got, "\n);\n\nINSERT INTO coltypes VALUES (\n  1, -- row_id\n")
+	require.True(t, strings.HasSuffix(got, "  NULL -- col_int_n\n);\n"))
 
 	// Every MinVer-gated case is included: the file is for the newest
 	// supported server version.
@@ -127,4 +173,11 @@ func TestCompareDDL(t *testing.T) {
 	err = typetest.CompareDDL(path, "CREATE TABLE x (b INT);\n", false)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), typetest.UpdateEnvar, "the error says how to regenerate")
+}
+
+func TestTimestampTZLiteral(t *testing.T) {
+	require.Equal(t, "'1989-11-09 00:00:00+00:00'",
+		typetest.TimestampTZLiteral(time.Date(1989, 11, 9, 0, 0, 0, 0, time.UTC)))
+	require.Equal(t, "'2017-07-07 07:07:07.123+00:00'",
+		typetest.TimestampTZLiteral(time.Date(2017, 7, 7, 0, 7, 7, 123000000, time.FixedZone("", -7*3600))))
 }

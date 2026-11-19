@@ -37,11 +37,13 @@ const UpdateEnvar = "SQ_TYPETEST_UPDATE"
 // than any real one, so every MinVer-gated case is included.
 const ddlServerVer = "v999.0.0"
 
-// LiteralFunc renders a Go input value as a SQL literal in the driver's
-// dialect. It returns ok false for a value it leaves to DefaultLiteral, so a
-// driver only handles what its dialect writes differently: typically bytes,
-// and sometimes booleans or times.
-type LiteralFunc func(v any) (lit string, ok bool)
+// LiteralFunc renders a Go input value v, for column col, as a SQL literal in
+// the driver's dialect. It returns ok false for a value it leaves to
+// DefaultLiteral, so a driver only handles what its dialect writes
+// differently: typically bytes, and sometimes booleans or times. The column
+// is there for dialects whose literal depends on the target type, such as a
+// timestamp with time zone needing an explicit offset.
+type LiteralFunc func(col Column, v any) (lit string, ok bool)
 
 // DefaultLiteral renders v as a SQL literal in the form most dialects
 // accept: NULL for nil, a SQL input as is, a quoted string with quotes
@@ -88,10 +90,19 @@ func DefaultLiteral(v any) (string, error) {
 	}
 }
 
-// literal renders v with cfg.Literal, falling back to DefaultLiteral.
-func literal(cfg Config, v any) (string, error) {
+// TimestampTZLiteral renders t as a quoted timestamp literal with an
+// explicit UTC offset, e.g. '2017-07-07 07:07:07.123+00:00', for a column
+// that stores a time zone: without the offset, the database would read the
+// literal in the session's time zone.
+func TimestampTZLiteral(t time.Time) string {
+	return "'" + t.UTC().Format("2006-01-02 15:04:05.999999999") + "+00:00'"
+}
+
+// literal renders v, for col, with cfg.Literal, falling back to
+// DefaultLiteral.
+func literal(cfg Config, col Column, v any) (string, error) {
 	if cfg.Literal != nil {
-		if lit, ok := cfg.Literal(v); ok {
+		if lit, ok := cfg.Literal(col, v); ok {
 			return lit, nil
 		}
 	}
@@ -99,9 +110,11 @@ func literal(cfg Config, v any) (string, error) {
 }
 
 // RenderStatements returns the statements that create table tbl for cfg's
-// cases on a server at serverVer, and insert its three rows: the CREATE TABLE
-// that Run executes, and one INSERT per row with each input written as a SQL
-// literal (see Config.Literal). The statements have no terminating semicolon.
+// cases on a server at serverVer, and insert its three rows: the same table
+// Run creates, and one INSERT per row with each input written as a SQL
+// literal (see Config.Literal). They're formatted for reading, one column or
+// value per line, each value commented with its column's name, and have no
+// terminating semicolon.
 func RenderStatements(cfg Config, tbl, serverVer string) ([]string, error) {
 	cols, err := Resolve(cfg.Cases, serverVer)
 	if err != nil {
@@ -113,23 +126,31 @@ func RenderStatements(cfg Config, tbl, serverVer string) ([]string, error) {
 		colDecl = DefaultColumnDecl
 	}
 
-	names := []string{rowIDCol}
+	var sb strings.Builder
+	sb.WriteString("CREATE TABLE " + tbl + " (\n  " + rowIDCol + " " + cfg.RowIDDecl)
 	for _, col := range cols {
-		names = append(names, col.Name)
+		sb.WriteString(",\n  " + col.Name + " " + colDecl(col.Case.Decl, col.Variant))
 	}
-	insertPrefix := "INSERT INTO " + tbl + " (" + strings.Join(names, ", ") + ") VALUES ("
+	sb.WriteString("\n)")
+	if cfg.TableSuffix != "" {
+		sb.WriteString(" " + cfg.TableSuffix)
+	}
+	stmts := []string{sb.String()}
 
-	stmts := []string{CreateTable(tbl, cfg.RowIDDecl, cols, colDecl, cfg.TableSuffix)}
 	for row := range 3 {
-		vals := []string{strconv.Itoa(row + 1)}
+		sb.Reset()
+		sb.WriteString("INSERT INTO " + tbl + " VALUES (\n  " + strconv.Itoa(row+1))
+		prevName := rowIDCol
 		for _, col := range cols {
-			lit, err := literal(cfg, col.In[row])
+			lit, err := literal(cfg, col, col.In[row])
 			if err != nil {
 				return nil, errz.Wrapf(err, "typetest: column %s (%s), row %d", col.Name, col.Case.Decl, row+1)
 			}
-			vals = append(vals, lit)
+			sb.WriteString(", -- " + prevName + "\n  " + lit)
+			prevName = col.Name
 		}
-		stmts = append(stmts, insertPrefix+strings.Join(vals, ", ")+")")
+		sb.WriteString(" -- " + prevName + "\n)")
+		stmts = append(stmts, sb.String())
 	}
 	return stmts, nil
 }
@@ -151,9 +172,8 @@ func RenderDDL(header string, tables ...DDLTable) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		sb.WriteString("\n")
 		for _, stmt := range stmts {
-			sb.WriteString(stmt + ";\n")
+			sb.WriteString("\n" + stmt + ";\n")
 		}
 	}
 	return sb.String(), nil
