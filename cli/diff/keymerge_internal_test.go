@@ -58,6 +58,17 @@ func TestPKMergeKey(t *testing.T) {
 	// nil metadata -> ineligible, no panic.
 	_, ok = pkMergeKey(nil, intPK)
 	require.False(t, ok)
+
+	// Nullable int PK on either side -> ineligible: a NULL key value can't be
+	// ordered or compared as an integer. SQLite allows NULL in a primary key
+	// column that isn't the rowid alias.
+	nullPKCol := col("payment_id", kind.Int, true)
+	nullPKCol.Nullable = true
+	nullPK := tbl(nullPKCol, col("amount", kind.Decimal, false))
+	_, ok = pkMergeKey(nullPK, intPK)
+	require.False(t, ok)
+	_, ok = pkMergeKey(intPK, nullPK)
+	require.False(t, ok)
 }
 
 func TestPKColIndexes(t *testing.T) {

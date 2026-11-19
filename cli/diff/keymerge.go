@@ -16,11 +16,13 @@ import (
 // pkMergeKey reports whether md1 and md2 share a primary key that is eligible
 // for key-aware row merging, and if so returns the ordered PK column names.
 //
-// v1 eligibility (see plan Global Constraints): both tables must expose a
-// non-empty primary key, the PK column names must match in order, and every PK
-// column must be integer-kind. Integer ordering is unambiguous across drivers,
-// so the DB-side ORDER BY is guaranteed to agree with compareIntKey. Non-int
-// PKs fall back to positional alignment.
+// Eligibility: both tables must expose a non-empty primary key, the PK column
+// names must match in order, and every PK column must be integer-kind and not
+// nullable. Integer ordering is unambiguous across drivers, so the DB-side
+// ORDER BY is guaranteed to agree with compareIntKey. A NULL key value can be
+// neither ordered consistently across drivers nor compared as an integer, so
+// a nullable PK column (which SQLite permits) is ineligible. Ineligible tables
+// fall back to positional alignment.
 func pkMergeKey(md1, md2 *metadata.Table) (pkColNames []string, ok bool) {
 	pk1 := md1.PKCols()
 	pk2 := md2.PKCols()
@@ -34,6 +36,9 @@ func pkMergeKey(md1, md2 *metadata.Table) (pkColNames []string, ok bool) {
 			return nil, false
 		}
 		if pk1[i].Kind != kind.Int || pk2[i].Kind != kind.Int {
+			return nil, false
+		}
+		if pk1[i].Nullable || pk2[i].Nullable {
 			return nil, false
 		}
 		names[i] = pk1[i].Name

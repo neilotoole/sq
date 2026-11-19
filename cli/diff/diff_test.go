@@ -608,6 +608,54 @@ func TestDiff_Data_PKAlignSpecialCharPK(t *testing.T) {
 		"no rows were removed from the right table; zero removed lines expected")
 }
 
+// TestDiff_Data_NullablePKFallsBack verifies that a table whose integer
+// primary key can hold NULL falls back to positional alignment instead of
+// aborting. SQLite allows NULL in a primary key column that isn't the rowid
+// alias, such as "id INT PRIMARY KEY". Key-aware merging can't order or compare
+// a NULL key, so before the fix the diff failed with exit code 2 ("PK value
+// ... is <nil>, want int64").
+//
+// The complementary case, an "INTEGER PRIMARY KEY" rowid alias without an
+// explicit NOT NULL still getting key-aware alignment, is covered by
+// TestDiff_Data_PKAlignSpecialCharPK.
+func TestDiff_Data_NullablePKFallsBack(t *testing.T) {
+	const tbl = "items"
+
+	th := testh.New(t)
+	srcLeft := source.Source{
+		Handle:   "@test_left",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + filepath.Join(tu.TempDir(t), "left.db"),
+	}
+	srcRight := source.Source{
+		Handle:   "@test_right",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + filepath.Join(tu.TempDir(t), "right.db"),
+	}
+
+	const createDDL = `CREATE TABLE "items" (id INT PRIMARY KEY, val TEXT)`
+	th.ExecSQL(&srcLeft, createDDL)
+	th.ExecSQL(&srcRight, createDDL)
+	th.ExecSQL(&srcLeft, `INSERT INTO "items" VALUES (1,'a'), (NULL,'z'), (3,'c')`)
+	th.ExecSQL(&srcRight, `INSERT INTO "items" VALUES (1,'a'), (2,'b'), (3,'c')`)
+
+	tr := testrun.New(th.Context, t, nil).Hush().Add(srcLeft, srcRight)
+	err := tr.Exec(
+		"diff", "--data", "--stop", "0",
+		srcLeft.Handle+"."+tbl,
+		srcRight.Handle+"."+tbl,
+	)
+
+	got := tr.Out.String()
+	t.Log("diff output:\n" + got)
+
+	require.Error(t, err, "diff must report differences (exit code 1)")
+	require.Equal(t, 1, errz.ExitCode(err),
+		"sq diff exits 1 when differences exist; exit 2 means the diff aborted")
+	require.Contains(t, got, "rows aligned by position",
+		"a nullable primary key must fall back to positional alignment")
+}
+
 // TestDiff_Data_HunkHeaderCounts verifies that the unified-diff hunk header
 // correctly counts per-side lines for single-sided pairs (added/removed rows).
 //
