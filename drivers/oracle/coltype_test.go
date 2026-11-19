@@ -94,7 +94,7 @@ var oraBytesZ = []byte{0}
 
 // Every case's Defaulted column expects default_value "".
 //
-// candidate issue: the driver reports no default_value for a column with a
+// candidate issue (#1388): the driver reports no default_value for a column with a
 // declared default. It reads USER_TAB_COLS.DATA_DEFAULT, but uses it only as
 // a virtual column's generation expression (GeneratedExpr).
 var oraTypeCases = []typetest.Case{
@@ -116,7 +116,7 @@ var oraTypeCases = []typetest.Case{
 		WithWantVal(decimal.New(math.MaxInt32, 0)).
 		WithWantDefault(""),
 
-	// candidate issue: FLOAT is kind float in inspect, but its query result
+	// candidate issue (#1388): FLOAT is kind float in inspect, but its query result
 	// kind is decimal, and its values come back as decimals.
 	typetest.NewCase("float", "FLOAT", fixt.FloatZ, fixt.Float, "FLOAT", "FLOAT(126)", kind.Float).
 		WithWant(typetest.Want{

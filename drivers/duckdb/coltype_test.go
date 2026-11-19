@@ -182,7 +182,7 @@ var duckTypeCases = []typetest.Case{
 		WithWantVal("1 year 2 months 3 days 04:05:06.789").
 		WithWantDefault("CAST('1 year 2 months 3 days 04:05:06.789' AS INTERVAL)"),
 
-	// candidate issue: UUID is kind text, but its values come back as a
+	// candidate issue (#1388): UUID is kind text, but its values come back as a
 	// string of the raw 16 bytes, not the UUID's text form.
 	typetest.NewCase("uuid", "UUID", "00000000-0000-0000-0000-000000000000", "77777777-7777-7777-7777-777777777777",
 		"UUID", "UUID", kind.Text).
@@ -190,7 +190,7 @@ var duckTypeCases = []typetest.Case{
 		WithWantVal(strings.Repeat("w", 16)).
 		WithWantDefault("'77777777-7777-7777-7777-777777777777'"),
 
-	// candidate issue: JSON values come back as the Go formatting of the
+	// candidate issue (#1388): JSON values come back as the Go formatting of the
 	// decoded value (map[val:7]), not as JSON text.
 	typetest.NewCase("json", "JSON", fixt.JSONZ, fixt.JSON, "JSON", "JSON", kind.Text).
 		WithWantZero("map[]").

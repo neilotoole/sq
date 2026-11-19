@@ -115,7 +115,7 @@ const rqFirstInexactInt = int64(1<<53 + 1)
 const untypedQueryErr = `converting driver.Value type string ("seven") to a int64`
 
 var rqTypeCases = []typetest.Case{
-	// candidate issue: rqlite's HTTP API returns integers as JSON numbers,
+	// #842 (item 6): rqlite's HTTP API returns integers as JSON numbers,
 	// which the driver decodes through float64, so integers beyond 2^53 lose
 	// precision: 2^53 + 1 reads back as 2^53. The cases use that value rather
 	// than math.MaxInt64, because math.MaxInt64 rounds to 2^63, which is out
@@ -168,7 +168,7 @@ var rqTypeCases = []typetest.Case{
 	typetest.NewCase("time", "TIME", fixt.TimeOfDayZ, fixt.TimeOfDay, "TIME", "TIME", kind.Time).
 		WithWantDefault("'07:07:07'"),
 
-	// candidate issue: JSON has no kind in inspect, but its query result kind
+	// candidate issue (#1388): JSON has no kind in inspect, but its query result kind
 	// is text.
 	typetest.NewCase("json", "JSON", fixt.JSONZ, fixt.JSON, "JSON", "JSON", kind.Unknown).
 		WithWant(typetest.Want{QueryKind: typetest.Is(kind.Text)}).
@@ -178,7 +178,7 @@ var rqTypeCases = []typetest.Case{
 	// define. Both take any value: here an integer in row 1 and the text
 	// "seven" in rows 2 and 3.
 	//
-	// candidate issue: unlike the sqlite3 driver, which infers an untyped
+	// candidate issue (#1388): unlike the sqlite3 driver, which infers an untyped
 	// column's type from its first value, rqlite reports no type and kind
 	// bytes, and querying the column fails. WIDGET has no kind in inspect,
 	// but its query result kind is float (int on SQLite), and the integer

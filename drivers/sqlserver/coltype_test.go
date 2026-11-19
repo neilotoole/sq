@@ -141,7 +141,7 @@ func TestColumnTypes_ROWVERSION(t *testing.T) {
 	require.NoError(t, err)
 
 	// INFORMATION_SCHEMA reports ROWVERSION by its old name, timestamp.
-	// candidate issue: it's kind int in inspect, but its query result kind is
+	// candidate issue (#1388): it's kind int in inspect, but its query result kind is
 	// bytes, and its values come back as 8 raw bytes.
 	want := typetest.Column{
 		Case:       &typetest.Case{Name: "rowversion", Decl: "ROWVERSION"},
@@ -363,7 +363,7 @@ var msTypeCases = []typetest.Case{
 		WithIssue("#1363").
 		WithWantDefault("(0x736576656E)"),
 
-	// candidate issue: UNIQUEIDENTIFIER is kind text, but its values come back
+	// candidate issue (#1388): UNIQUEIDENTIFIER is kind text, but its values come back
 	// as a string of the raw 16 bytes, not the GUID's text form.
 	typetest.NewCase("uniqueidentifier", "UNIQUEIDENTIFIER", "00000000-0000-0000-0000-000000000000",
 		"77777777-7777-7777-7777-777777777777", "uniqueidentifier", "uniqueidentifier", kind.Text).
@@ -378,7 +378,7 @@ var msTypeCases = []typetest.Case{
 	// SQL_VARIANT holds values of other types, each with its own base type.
 	// The Zero input is an integer and the Val input a string.
 	//
-	// candidate issue: the integer reads back as int64 from the NOT NULL
+	// candidate issue (#1388): the integer reads back as int64 from the NOT NULL
 	// column, but as the string "0" from the nullable column.
 	typetest.NewCase("sql_variant", "SQL_VARIANT", fixt.IntZ, fixt.Text, "sql_variant", "sql_variant(0)",
 		kind.Unknown).
@@ -386,7 +386,7 @@ var msTypeCases = []typetest.Case{
 		WithIssue("#1363").
 		WithWantDefault("(N'seven')"),
 
-	// candidate issue: the CLR types HIERARCHYID, GEOMETRY and GEOGRAPHY have
+	// candidate issue (#1388): the CLR types HIERARCHYID, GEOMETRY and GEOGRAPHY have
 	// no kind, and their values come back as a string of their raw
 	// serialized bytes.
 	typetest.NewCase("hierarchyid", "HIERARCHYID", typetest.SQL("hierarchyid::Parse('/')"),

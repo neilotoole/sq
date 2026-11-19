@@ -152,7 +152,7 @@ var sl3TypeCases = []typetest.Case{
 	typetest.NewCase("time", "TIME", fixt.TimeOfDayZ, fixt.TimeOfDay, "TIME", "TIME", kind.Time).
 		WithWantDefault("'07:07:07'"),
 
-	// candidate issue: JSON has no kind in inspect, but its query result kind
+	// candidate issue (#1388): JSON has no kind in inspect, but its query result kind
 	// is text.
 	typetest.NewCase("json", "JSON", fixt.JSONZ, fixt.JSON, "JSON", "JSON", kind.Unknown).
 		WithWant(typetest.Want{QueryKind: typetest.Is(kind.Text)}).
@@ -162,7 +162,7 @@ var sl3TypeCases = []typetest.Case{
 	// define. Both take any value: here an integer in row 1 and the text
 	// "seven" in rows 2 and 3.
 	//
-	// candidate issue: the untyped column's base_type and column_type are
+	// candidate issue (#1388): the untyped column's base_type and column_type are
 	// "integer", taken from its first stored value, though it has no declared
 	// type; its kind is int, yet a text value reads back as text. WIDGET has
 	// no kind in inspect, but its query result kind is int, taken from the

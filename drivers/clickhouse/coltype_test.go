@@ -164,7 +164,7 @@ var chTypeCases = []typetest.Case{
 	typetest.NewCase("uint32", "UInt32", fixt.IntZ, int64(math.MaxUint32), "UInt32", "UInt32", kind.Int).
 		WithWantDefault("4294967295"),
 
-	// candidate issue: querying a UInt64 column holding a value above
+	// candidate issue (#1388): querying a UInt64 column holding a value above
 	// math.MaxInt64 fails, since sq scans UInt64 into int64.
 	typetest.NewCase("uint64", "UInt64", fixt.IntZ, typetest.SQL("toUInt64('18446744073709551615')"), "UInt64",
 		"UInt64", kind.Int).
@@ -174,7 +174,7 @@ var chTypeCases = []typetest.Case{
 		}).
 		WithWantDefault("toUInt64('18446744073709551615')"),
 
-	// candidate issue: Int128 is kind text in inspect, and querying it fails:
+	// candidate issue (#1388): Int128 is kind text in inspect, and querying it fails:
 	// the driver returns a big.Int, which sq can't scan.
 	typetest.NewCase("int128", "Int128", fixt.IntZ, typetest.SQL("toInt128('170141183460469231731687303715884105727')"),
 		"Int128", "Int128", kind.Text).
@@ -189,7 +189,7 @@ var chTypeCases = []typetest.Case{
 	typetest.NewCase("float64", "Float64", fixt.FloatZ, fixt.Float, "Float64", "Float64", kind.Float).
 		WithWantDefault("'7.7'"),
 
-	// candidate issue: the NOT NULL Decimal columns' values (the NotNull and
+	// candidate issue (#1388): the NOT NULL Decimal columns' values (the NotNull and
 	// Defaulted variants) come back as strings, while the nullable column's
 	// come back as decimals.
 	typetest.NewCase("decimal_9_2", "Decimal(9, 2)", fixt.DecimalZ, chDecimal9_2Max, "Decimal(9, 2)",
@@ -225,11 +225,11 @@ var chTypeCases = []typetest.Case{
 	// LowCardinality(T) can't be wrapped in Nullable, so its nullable column
 	// is LowCardinality(Nullable(T)); see chColumnDecl.
 	//
-	// candidate issue: base_type is the wrapped type (String), while for
+	// candidate issue (#1388): base_type is the wrapped type (String), while for
 	// other parameterized types it keeps the parameters (Decimal(9, 2),
 	// FixedString(16)).
 	//
-	// candidate issue: the nullable LowCardinality(Nullable(String)) column
+	// candidate issue (#1388): the nullable LowCardinality(Nullable(String)) column
 	// is reported as not nullable, since the driver only recognizes a
 	// leading Nullable(, and querying it fails: the driver returns a *string,
 	// which sq can't scan.
@@ -252,7 +252,7 @@ var chTypeCases = []typetest.Case{
 		"DateTime('UTC')", kind.Datetime).
 		WithWantDefault("'2017-07-07 07:07:07'"),
 
-	// candidate issue: the milliseconds of a bound DateTime64(3) value are
+	// candidate issue (#1388): the milliseconds of a bound DateTime64(3) value are
 	// lost on insert: 07:07:07.123 reads back as 07:07:07. Loaded from the
 	// DDL file's literal, the value reads back intact, so the loss is in the
 	// write, not the read.
@@ -262,7 +262,7 @@ var chTypeCases = []typetest.Case{
 		WithWantLiteralVal(chDatetimeMillis).
 		WithWantDefault("'2017-07-07 07:07:07.123'"),
 
-	// candidate issue: IPv4 and IPv6 are kind text in inspect, but querying
+	// candidate issue (#1388): IPv4 and IPv6 are kind text in inspect, but querying
 	// them fails: the driver returns a net.IP, which sq can't scan.
 	typetest.NewCase("ipv4", "IPv4", "0.0.0.0", "192.168.0.1", "IPv4", "IPv4", kind.Text).
 		WithWant(typetest.Want{QueryErr: typetest.Is(chNetIPScanErr)}).
@@ -273,7 +273,7 @@ var chTypeCases = []typetest.Case{
 
 	// Composite types can't be wrapped in Nullable, so these have only the
 	// NOT NULL and Defaulted variants. Array values are flattened to comma-separated text:
-	// #545. candidate issue: querying a Map or Tuple column fails, since the
+	// #545. candidate issue (#1388): querying a Map or Tuple column fails, since the
 	// driver returns a Go map or slice, which sq can't scan.
 	typetest.NewCase("array_int32", "Array(Int32)", typetest.SQL("[]"), typetest.SQL("[1, 7]"), "Array(Int32)",
 		"Array(Int32)", kind.Text).

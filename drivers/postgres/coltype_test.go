@@ -176,7 +176,7 @@ var pgTypeCases = []typetest.Case{
 		kind.Float).
 		WithWantDefault("7.7"),
 
-	// candidate issue: MONEY is kind decimal in inspect, but its query result
+	// candidate issue (#1388): MONEY is kind decimal in inspect, but its query result
 	// kind is unknown, and its values come back as formatted text.
 	typetest.NewCase("money", "MONEY", fixt.MoneyZ, fixt.Money, "money", "money", kind.Decimal).
 		WithWant(typetest.Want{
@@ -228,7 +228,7 @@ var pgTypeCases = []typetest.Case{
 		WithIssue("#1365").
 		WithWantDefault("'2017-07-07 07:07:07.123'::timestamp without time zone"),
 
-	// candidate issue: TIMESTAMPTZ values come back in the local time zone of
+	// candidate issue (#1388): TIMESTAMPTZ values come back in the local time zone of
 	// the machine running sq, not UTC.
 	typetest.NewCase("timestamptz", "TIMESTAMPTZ", fixt.DatetimeZ, fixt.Datetime, "timestamptz",
 		"timestamp with time zone", kind.Datetime).
@@ -242,7 +242,7 @@ var pgTypeCases = []typetest.Case{
 		WithIssue("#1365").
 		WithWantDefault("'12:34:56.789'::time without time zone"),
 
-	// candidate issue: TIMETZ is kind time in inspect, but its query result
+	// candidate issue (#1388): TIMETZ is kind time in inspect, but its query result
 	// kind is unknown.
 	typetest.NewCase("timetz", "TIMETZ", fixt.TimeOfDayZ, fixt.TimeOfDay, "timetz", "time with time zone",
 		kind.Time).
@@ -293,7 +293,7 @@ var pgTypeCases = []typetest.Case{
 		kind.Text).
 		WithWantDefault("'07:07:07:07:07:07'::macaddr"),
 
-	// candidate issue: MACADDR8, TSQUERY and PG_LSN have no kind, while their
+	// candidate issue (#1388): MACADDR8, TSQUERY and PG_LSN have no kind, while their
 	// siblings MACADDR and TSVECTOR are text.
 	typetest.NewCase("macaddr8", "MACADDR8", "00:00:00:00:00:00:00:00", "07:07:07:07:07:07:07:07", "macaddr8",
 		"macaddr8", kind.Unknown).
@@ -318,7 +318,7 @@ var pgTypeCases = []typetest.Case{
 	typetest.NewCase("pg_lsn", "PG_LSN", "0/0", "7/7", "pg_lsn", "pg_lsn", kind.Unknown).
 		WithWantDefault("'7/7'::pg_lsn"),
 
-	// candidate issue: arrays and ranges have no kind. Their values come back
+	// candidate issue (#1388): arrays and ranges have no kind. Their values come back
 	// as Postgres's text form. An array's column_type is just ARRAY, without
 	// its element type: the information_schema data_type loss #1365
 	// describes.

@@ -128,7 +128,7 @@ const mysqlDDLPrelude = "SET time_zone = '+00:00'"
 // (0x736576656E). The exact version of the change is unknown: the images are
 // 5.7.44 and 8.4.10.
 //
-// candidate issue: on 5.x, default_value holds raw bytes, NULs and all.
+// candidate issue (#1388): on 5.x, default_value holds raw bytes, NULs and all.
 func binaryDefaultBefore8(def string) typetest.Override {
 	return typetest.Override{
 		Before:     "v8.0.0",
@@ -285,7 +285,7 @@ var mysqlTypeCases = []typetest.Case{
 		WithVersionOverrides(displayWidthBefore8019("bigint(20)")).
 		WithWantDefault("9223372036854775807"),
 
-	// candidate issue: the NOT NULL column wraps values above math.MaxInt64 to
+	// candidate issue (#1388): the NOT NULL column wraps values above math.MaxInt64 to
 	// negative int64 (the maximum reads back as -1), and querying the nullable
 	// column fails: the driver scans it as sql.Null[uint64], which sq doesn't
 	// handle.
@@ -299,7 +299,7 @@ var mysqlTypeCases = []typetest.Case{
 		}).
 		WithWantDefault("18446744073709551615"),
 
-	// candidate issue: BIT is reported as kind int, but its values come back as
+	// candidate issue (#1388): BIT is reported as kind int, but its values come back as
 	// a string of the raw bytes.
 	typetest.NewCase("bit_1", "BIT(1)", fixt.IntZ, int64(1), "bit", "bit(1)", kind.Int).
 		WithWantZero("\x00").
@@ -322,7 +322,7 @@ var mysqlTypeCases = []typetest.Case{
 		kind.Decimal).
 		WithWantDefault("9999999999"),
 
-	// FLOAT is single precision. candidate issue: the NOT NULL column returns
+	// FLOAT is single precision. candidate issue (#1388): the NOT NULL column returns
 	// the float32 value widened (7.699999809265137), while the nullable column
 	// returns 7.7.
 	typetest.NewCase("float", "FLOAT", fixt.FloatZ, fixt.Float, "float", "float", kind.Float).
@@ -345,7 +345,7 @@ var mysqlTypeCases = []typetest.Case{
 	// The TEXT, BLOB, JSON and spatial types take a default only as an
 	// expression (see mysqlDefaultExpr), from 8.0.13.
 	//
-	// candidate issue: an expression default's default_value is
+	// candidate issue (#1388): an expression default's default_value is
 	// information_schema's raw form of it, with a charset introducer and
 	// escaped quotes: _utf8mb4\'seven\' for the declared ('seven').
 	typetest.NewCase("tinytext", "TINYTEXT", fixt.TextZ, fixt.Text, "tinytext", "tinytext", kind.Text).
@@ -430,7 +430,7 @@ var mysqlTypeCases = []typetest.Case{
 		WithVersionOverrides(mysqlNoDefaultBefore8013).
 		WithWantDefault("_utf8mb4\\'{\"val\": 7}\\'"),
 
-	// candidate issue: spatial types have no kind, and their values come back
+	// candidate issue (#1388): spatial types have no kind, and their values come back
 	// as a string of MySQL's internal format (a 4-byte SRID, then WKB) rather
 	// than as WKB or text.
 	typetest.NewCase("geometry", "GEOMETRY", point11, point22, "geometry", "geometry", kind.Unknown).
