@@ -13,6 +13,7 @@ import (
 
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/stringz"
+	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/testh/tu"
 )
 
@@ -120,5 +121,71 @@ func TestCRFilterReader(t *testing.T) {
 		actual, err := io.ReadAll(filter)
 		require.Nil(t, err)
 		require.Equal(t, tc.want, string(actual))
+	}
+}
+
+func TestSkipBOM(t *testing.T) {
+	t.Parallel()
+
+	const bom = "\xef\xbb\xbf"
+
+	testCases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"bom_only", bom, ""},
+		{"partial_bom", "\xef\xbb", "\xef\xbb"},
+		{"bom_data", bom + "a,b\n", "a,b\n"},
+		{"no_bom", "a,b\n", "a,b\n"},
+		{"double_bom", bom + bom + "a", bom + "a"},
+		{"mid_file_bom", "a," + bom + "b", "a," + bom + "b"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := io.ReadAll(skipBOM(strings.NewReader(tc.in)))
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(got))
+		})
+	}
+}
+
+// TestDetectType_BOM verifies that type detection skips a leading UTF-8 BOM.
+// A BOM before a quoted first field is a parse error for encoding/csv, so
+// without the skip, detection fails for such a file when there's no file
+// extension to go on, e.g. when reading from stdin.
+func TestDetectType_BOM(t *testing.T) {
+	t.Parallel()
+
+	const bom = "\xef\xbb\xbf"
+
+	testCases := []struct {
+		name  string
+		typ   drivertype.Type
+		input string
+	}{
+		{"csv", drivertype.CSV, bom + "id,name,age\n1,alice,30\n2,bob,40\n"},
+		{"csv_quoted_header", drivertype.CSV, bom + "\"id\",\"name\",\"age\"\n1,alice,30\n2,bob,40\n"},
+		{"tsv", drivertype.TSV, bom + "id\tname\tage\n1\talice\t30\n2\tbob\t40\n"},
+		{"tsv_quoted_header", drivertype.TSV, bom + "\"id\"\t\"name\"\t\"age\"\n1\talice\t30\n2\tbob\t40\n"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			newRdrFn := func(context.Context) (io.ReadCloser, error) {
+				return io.NopCloser(strings.NewReader(tc.input)), nil
+			}
+
+			gotType, gotScore, err := detectType(context.Background(), tc.typ, newRdrFn)
+			require.NoError(t, err)
+			require.Equal(t, tc.typ, gotType)
+			require.Equal(t, scoreYes, gotScore)
+		})
 	}
 }

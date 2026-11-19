@@ -31,6 +31,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   [`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq), alongside the existing
   `ghcr.io/neilotoole/sq`. Both registries carry the same image. The image also now ships with SLSA
   build provenance and an SPDX SBOM, in addition to the existing cosign signature.
+- [#1369]: The [Oracle](https://sq.io/docs/drivers/oracle) driver is now tested against Oracle
+  21c, as well as 26ai. Earlier versions, including 19c, are not tested. See
+  [supported versions](https://sq.io/docs/drivers/oracle#supported-versions).
 
 ### Changed
 
@@ -81,6 +84,14 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 - [#1287]: On [Oracle](https://sq.io/docs/drivers/oracle), `sq inspect` now reports each column's
   `base_type`, the type name without length, precision or scale, such as `VARCHAR2` or
   `TIMESTAMP WITH TIME ZONE`. It was always empty.
+- [#1369]: On [Oracle](https://sq.io/docs/drivers/oracle) versions before 23ai,
+  [`--insert`](https://sq.io/docs/output#insert) of more than one row failed with
+  `ORA-00933: SQL command not properly ended`. This is fixed, and tested on 21c.
+- [#1375]: A CSV or TSV file that starts with a UTF-8 byte order mark, as written by Excel's
+  "CSV UTF-8" export, no longer has the mark prepended to the first column name. Previously,
+  selecting that column by name silently returned the column name as text. Such a file is now also
+  detected when it has a quoted header and no file extension (e.g. on stdin), and a file without a
+  header row no longer has its first data row mistaken for the header.
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1833,7 +1844,9 @@ change to the `sq` CLI in some time, and should make working with lots of source
 [#1285]: https://github.com/neilotoole/sq/issues/1285
 [#1286]: https://github.com/neilotoole/sq/issues/1286
 [#1287]: https://github.com/neilotoole/sq/issues/1287
+[#1369]: https://github.com/neilotoole/sq/issues/1369
 [#1300]: https://github.com/neilotoole/sq/issues/1300
+[#1375]: https://github.com/neilotoole/sq/pull/1375
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4

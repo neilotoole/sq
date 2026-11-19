@@ -97,7 +97,7 @@ scripts, so they never drift.
 | mysql      | `SQ_TEST_SRC__SAKILA_MY` | 3306 | latest, 9, 8, 5.7, 5.6                        |
 | sqlserver  | `SQ_TEST_SRC__SAKILA_MS` | 1433 | latest, 2022, 2019                            |
 | clickhouse | `SQ_TEST_SRC__SAKILA_CH` | 9000 | latest, 25                                    |
-| oracle     | `SQ_TEST_SRC__SAKILA_OR` | 1521 | latest, 23                                    |
+| oracle     | `SQ_TEST_SRC__SAKILA_OR` | 1521 | latest, 23, 21                                |
 | rqlite     | `SQ_TEST_SRC__SAKILA_RQ` | 4001 | latest, 10                                    |
 
 ## Running external engines locally
