@@ -15,10 +15,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
-- [`sq explore`](https://sq.io/docs/cmd/explore) — interactive TUI metadata
-  explorer. Browse the schema, columns, indexes, foreign keys, and a row
-  preview across every supported source type with keyboard-driven navigation.
-  Use `--emit-handle` (`-q`) to compose with the shell:
+- [`sq explore`](https://sq.io/docs/cmd/explore): interactive TUI metadata explorer. Browse the
+  schema, columns, indexes, foreign keys, and a row preview across every supported source type
+  with keyboard-driven navigation. Use `--emit-handle` (`-q`) to compose with the shell:
   `sq $(sq explore -q @src) --csv > rows.csv`.
 - [#1007]: The `sq` container image is now published to Docker Hub as
   [`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq), alongside the existing
