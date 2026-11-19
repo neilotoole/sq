@@ -45,7 +45,7 @@ func TestDuckLiteral(t *testing.T) {
 var duckConfig = typetest.Config{
 	Handle:    sakila.Duck,
 	RowIDDecl: "INTEGER NOT NULL PRIMARY KEY",
-	Cases:     duckTypeCases,
+	Cases:     typetest.WithDefaulted(duckTypeCases),
 	Literal:   duckLiteral,
 	// Load the generated DDL in an odd time zone, so a time literal without
 	// an offset fails the check. See typetest.Config.DDLCheckSession.
@@ -83,93 +83,124 @@ var (
 )
 
 var duckTypeCases = []typetest.Case{
-	typetest.NewCase("boolean", "BOOLEAN", fixt.BoolZ, fixt.Bool, "BOOLEAN", "BOOLEAN", kind.Bool),
+	typetest.NewCase("boolean", "BOOLEAN", fixt.BoolZ, fixt.Bool, "BOOLEAN", "BOOLEAN", kind.Bool).
+		WithWantDefault("true"),
 
-	typetest.NewCase("tinyint", "TINYINT", fixt.IntZ, int64(math.MaxInt8), "TINYINT", "TINYINT", kind.Int),
-	typetest.NewCase("smallint", "SMALLINT", fixt.IntZ, int64(math.MaxInt16), "SMALLINT", "SMALLINT", kind.Int),
-	typetest.NewCase("integer", "INTEGER", fixt.IntZ, int64(math.MaxInt32), "INTEGER", "INTEGER", kind.Int),
-	typetest.NewCase("bigint", "BIGINT", fixt.IntZ, int64(math.MaxInt64), "BIGINT", "BIGINT", kind.Int),
+	typetest.NewCase("tinyint", "TINYINT", fixt.IntZ, int64(math.MaxInt8), "TINYINT", "TINYINT", kind.Int).
+		WithWantDefault("127"),
+	typetest.NewCase("smallint", "SMALLINT", fixt.IntZ, int64(math.MaxInt16), "SMALLINT", "SMALLINT", kind.Int).
+		WithWantDefault("32767"),
+	typetest.NewCase("integer", "INTEGER", fixt.IntZ, int64(math.MaxInt32), "INTEGER", "INTEGER", kind.Int).
+		WithWantDefault("2147483647"),
+	typetest.NewCase("bigint", "BIGINT", fixt.IntZ, int64(math.MaxInt64), "BIGINT", "BIGINT", kind.Int).
+		WithWantDefault("9223372036854775807"),
 	typetest.NewCase("hugeint", "HUGEINT", typetest.SQL("0::HUGEINT"),
 		typetest.SQL("170141183460469231731687303715884105727::HUGEINT"), "HUGEINT", "HUGEINT", kind.Decimal).
 		WithWantZero(decimal.New(0, 0)).
-		WithWantVal(decimal.RequireFromString("170141183460469231731687303715884105727")),
-	typetest.NewCase("utinyint", "UTINYINT", fixt.IntZ, int64(math.MaxUint8), "UTINYINT", "UTINYINT", kind.Int),
+		WithWantVal(decimal.RequireFromString("170141183460469231731687303715884105727")).
+		WithWantDefault("CAST(170141183460469231731687303715884105727 AS HUGEINT)"),
+	typetest.NewCase("utinyint", "UTINYINT", fixt.IntZ, int64(math.MaxUint8), "UTINYINT", "UTINYINT", kind.Int).
+		WithWantDefault("255"),
 	typetest.NewCase("usmallint", "USMALLINT", fixt.IntZ, int64(math.MaxUint16), "USMALLINT", "USMALLINT",
-		kind.Int),
-	typetest.NewCase("uinteger", "UINTEGER", fixt.IntZ, int64(math.MaxUint32), "UINTEGER", "UINTEGER", kind.Int),
+		kind.Int).
+		WithWantDefault("65535"),
+	typetest.NewCase("uinteger", "UINTEGER", fixt.IntZ, int64(math.MaxUint32), "UINTEGER", "UINTEGER", kind.Int).
+		WithWantDefault("4294967295"),
 
 	// Go's database/sql can't bind a uint64 with the high bit set, so the
 	// UBIGINT maximum goes in as a SQL expression.
 	typetest.NewCase("ubigint", "UBIGINT", fixt.IntZ, typetest.SQL("18446744073709551615::UBIGINT"), "UBIGINT",
 		"UBIGINT", kind.Decimal).
 		WithWantZero(decimal.New(0, 0)).
-		WithWantVal(decimal.RequireFromString("18446744073709551615")),
+		WithWantVal(decimal.RequireFromString("18446744073709551615")).
+		WithWantDefault("CAST(18446744073709551615 AS UBIGINT)"),
 	typetest.NewCase("uhugeint", "UHUGEINT", typetest.SQL("0::UHUGEINT"),
 		typetest.SQL("340282366920938463463374607431768211455::UHUGEINT"), "UHUGEINT", "UHUGEINT", kind.Decimal).
 		WithWantZero(decimal.New(0, 0)).
-		WithWantVal(decimal.RequireFromString("340282366920938463463374607431768211455")),
+		WithWantVal(decimal.RequireFromString("340282366920938463463374607431768211455")).
+		WithWantDefault("CAST(340282366920938463463374607431768211455 AS UHUGEINT)"),
 
 	// FLOAT is single precision.
 	typetest.NewCase("float", "FLOAT", fixt.FloatZ, fixt.Float, "FLOAT", "FLOAT", kind.Float).
-		WithWantVal(float64(float32(fixt.Float))),
-	typetest.NewCase("double", "DOUBLE", fixt.FloatZ, fixt.Float, "DOUBLE", "DOUBLE", kind.Float),
+		WithWantVal(float64(float32(fixt.Float))).
+		WithWantDefault("7.7"),
+	typetest.NewCase("double", "DOUBLE", fixt.FloatZ, fixt.Float, "DOUBLE", "DOUBLE", kind.Float).
+		WithWantDefault("7.7"),
 
 	// DECIMAL is DECIMAL(18,3).
 	typetest.NewCase("decimal", "DECIMAL", fixt.DecimalZ, fixt.Decimal, "DECIMAL(18,3)", "DECIMAL(18,3)",
-		kind.Decimal),
+		kind.Decimal).
+		WithWantDefault("77.77"),
 	typetest.NewCase("decimal_5_2", "DECIMAL(5,2)", fixt.DecimalZ, duckDecimal5_2Max, "DECIMAL(5,2)",
-		"DECIMAL(5,2)", kind.Decimal),
+		"DECIMAL(5,2)", kind.Decimal).
+		WithWantDefault("999.99"),
 
-	typetest.NewCase("varchar", "VARCHAR", fixt.TextZ, fixt.Text, "VARCHAR", "VARCHAR", kind.Text),
+	typetest.NewCase("varchar", "VARCHAR", fixt.TextZ, fixt.Text, "VARCHAR", "VARCHAR", kind.Text).
+		WithWantDefault("'seven'"),
 
 	// DuckDB discards a VARCHAR length, so VARCHAR(16) is plain VARCHAR.
-	typetest.NewCase("varchar_16", "VARCHAR(16)", fixt.TextZ, "0123456789abcdef", "VARCHAR", "VARCHAR", kind.Text),
-	typetest.NewCase("blob", "BLOB", fixt.BytesZ, fixt.Bytes, "BLOB", "BLOB", kind.Bytes),
+	typetest.NewCase("varchar_16", "VARCHAR(16)", fixt.TextZ, "0123456789abcdef", "VARCHAR", "VARCHAR", kind.Text).
+		WithWantDefault("'0123456789abcdef'"),
+	typetest.NewCase("blob", "BLOB", fixt.BytesZ, fixt.Bytes, "BLOB", "BLOB", kind.Bytes).
+		WithWantDefault("CAST('\\x73\\x65\\x76\\x65\\x6e' AS BLOB)"),
 	typetest.NewCase("bit", "BIT", typetest.SQL("'0'::BIT"), typetest.SQL("'0101'::BIT"), "BIT", "BIT", kind.Text).
 		WithWantZero("0").
-		WithWantVal("0101"),
+		WithWantVal("0101").
+		WithWantDefault("CAST('0101' AS BIT)"),
 
-	typetest.NewCase("date", "DATE", fixt.DateZ, fixt.Date, "DATE", "DATE", kind.Date),
+	typetest.NewCase("date", "DATE", fixt.DateZ, fixt.Date, "DATE", "DATE", kind.Date).
+		WithWantDefault("'2017-07-07'"),
 
 	// TIME and TIMETZ values come back as a time.Time on 0001-01-01.
 	typetest.NewCase("time", "TIME", fixt.TimeOfDayZ, fixt.TimeOfDay, "TIME", "TIME", kind.Time).
 		WithWantZero(typetest.TimeOfDay(0, 0, 0, 0)).
-		WithWantVal(typetest.TimeOfDay(7, 7, 7, 0)),
+		WithWantVal(typetest.TimeOfDay(7, 7, 7, 0)).
+		WithWantDefault("'07:07:07'"),
 	typetest.NewCase("timetz", "TIMETZ", typetest.SQL("'00:00:00+00'::TIMETZ"), typetest.SQL("'07:07:07+00'::TIMETZ"),
 		"TIME WITH TIME ZONE", "TIME WITH TIME ZONE", kind.Time).
 		WithWantZero(typetest.TimeOfDay(0, 0, 0, 0)).
-		WithWantVal(typetest.TimeOfDay(7, 7, 7, 0)),
+		WithWantVal(typetest.TimeOfDay(7, 7, 7, 0)).
+		WithWantDefault("CAST('07:07:07+00' AS TIMETZ)"),
 	typetest.NewCase("timestamp", "TIMESTAMP", fixt.DatetimeZ, fixt.Datetime, "TIMESTAMP", "TIMESTAMP",
-		kind.Datetime),
+		kind.Datetime).
+		WithWantDefault("'2017-07-07 07:07:07'"),
 	typetest.NewCase("timestamp_ms", "TIMESTAMP_MS", fixt.DatetimeZ, duckTimestampMillis, "TIMESTAMP_MS",
-		"TIMESTAMP_MS", kind.Datetime),
+		"TIMESTAMP_MS", kind.Datetime).
+		WithWantDefault("'2017-07-07 07:07:07.123'"),
 	typetest.NewCase("timestamp_s", "TIMESTAMP_S", fixt.DatetimeZ, fixt.Datetime, "TIMESTAMP_S", "TIMESTAMP_S",
-		kind.Datetime),
+		kind.Datetime).
+		WithWantDefault("'2017-07-07 07:07:07'"),
 	typetest.NewCase("timestamp_ns", "TIMESTAMP_NS", fixt.DatetimeZ, fixt.Datetime, "TIMESTAMP_NS",
-		"TIMESTAMP_NS", kind.Datetime),
+		"TIMESTAMP_NS", kind.Datetime).
+		WithWantDefault("'2017-07-07 07:07:07'"),
 	typetest.NewCase("timestamptz", "TIMESTAMPTZ", fixt.DatetimeZ, fixt.Datetime, "TIMESTAMP WITH TIME ZONE",
-		"TIMESTAMP WITH TIME ZONE", kind.Datetime),
+		"TIMESTAMP WITH TIME ZONE", kind.Datetime).
+		WithWantDefault("'2017-07-07 07:07:07+00:00'"),
 	typetest.NewCase("interval", "INTERVAL", typetest.SQL("INTERVAL '0 seconds'"),
 		typetest.SQL("INTERVAL '1 year 2 months 3 days 04:05:06.789'"), "INTERVAL", "INTERVAL", kind.Text).
 		WithWantZero("00:00:00").
-		WithWantVal("1 year 2 months 3 days 04:05:06.789"),
+		WithWantVal("1 year 2 months 3 days 04:05:06.789").
+		WithWantDefault("CAST('1 year 2 months 3 days 04:05:06.789' AS INTERVAL)"),
 
 	// candidate issue: UUID is kind text, but its values come back as a
 	// string of the raw 16 bytes, not the UUID's text form.
 	typetest.NewCase("uuid", "UUID", "00000000-0000-0000-0000-000000000000", "77777777-7777-7777-7777-777777777777",
 		"UUID", "UUID", kind.Text).
 		WithWantZero(strings.Repeat("\x00", 16)).
-		WithWantVal(strings.Repeat("w", 16)),
+		WithWantVal(strings.Repeat("w", 16)).
+		WithWantDefault("'77777777-7777-7777-7777-777777777777'"),
 
 	// candidate issue: JSON values come back as the Go formatting of the
 	// decoded value (map[val:7]), not as JSON text.
 	typetest.NewCase("json", "JSON", fixt.JSONZ, fixt.JSON, "JSON", "JSON", kind.Text).
 		WithWantZero("map[]").
-		WithWantVal("map[val:7]"),
+		WithWantVal("map[val:7]").
+		WithWantDefault("'{\"val\": 7}'"),
 
 	// An inline ENUM reports its values in its type name.
 	typetest.NewCase("enum", "ENUM('alfa', 'bravo', 'charlie')", fixt.EnumAlfa, fixt.EnumBravo,
-		"ENUM('alfa', 'bravo', 'charlie')", "ENUM('alfa', 'bravo', 'charlie')", kind.Text),
+		"ENUM('alfa', 'bravo', 'charlie')", "ENUM('alfa', 'bravo', 'charlie')", kind.Text).
+		WithWantDefault("'bravo'"),
 
 	// The composite types come back as the Go formatting of the decoded
 	// value ([1 7], map[a:7 b:seven], OrderedMap{k: 7}) rather than as JSON:
@@ -179,7 +210,8 @@ var duckTypeCases = []typetest.Case{
 		"INTEGER[]", "INTEGER[]", kind.Text).
 		WithWantZero("[]").
 		WithWantVal("[1 7]").
-		WithIssue("#609"),
+		WithIssue("#609").
+		WithWantDefault("list_value(1, 7)"),
 	typetest.NewCase("float_array_3", "FLOAT[3]", typetest.SQL("[0, 0, 0]::FLOAT[3]"),
 		typetest.SQL("[1, 2, 3]::FLOAT[3]"), "FLOAT[3]", "FLOAT[3]", kind.Unknown).
 		WithWant(typetest.Want{
@@ -187,16 +219,19 @@ var duckTypeCases = []typetest.Case{
 			Zero:      typetest.Is[any]("[0 0 0]"),
 			Val:       typetest.Is[any]("[1 2 3]"),
 		}).
-		WithIssue("#1305"),
+		WithIssue("#1305").
+		WithWantDefault("CAST(list_value(1, 2, 3) AS FLOAT[3])"),
 	typetest.NewCase("struct", "STRUCT(a INTEGER, b VARCHAR)", typetest.SQL("{'a': 0, 'b': ''}"),
 		typetest.SQL("{'a': 7, 'b': 'seven'}"), "STRUCT(a INTEGER, b VARCHAR)", "STRUCT(a INTEGER, b VARCHAR)",
 		kind.Text).
 		WithWantZero("map[a:0 b:]").
 		WithWantVal("map[a:7 b:seven]").
-		WithIssue("#609"),
+		WithIssue("#609").
+		WithWantDefault("struct_pack(a := 7, b := 'seven')"),
 	typetest.NewCase("map", "MAP(VARCHAR, INTEGER)", typetest.SQL("MAP {}"), typetest.SQL("MAP {'k': 7}"),
 		"MAP(VARCHAR, INTEGER)", "MAP(VARCHAR, INTEGER)", kind.Text).
 		WithWantZero("OrderedMap{}").
 		WithWantVal("OrderedMap{k: 7}").
-		WithIssue("#609"),
+		WithIssue("#609").
+		WithWantDefault("\"map\"(list_value('k'), list_value(7))"),
 }
