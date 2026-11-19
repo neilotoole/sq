@@ -920,74 +920,88 @@ func TestDiff_Data_MissingTable(t *testing.T) {
 	}
 }
 
-// TestDiff_Data_HunkHeaderCounts verifies that the unified-diff hunk header
-// correctly counts per-side lines for single-sided pairs (added/removed rows).
+// TestDiff_Data_HunkHeaderCounts verifies the unified-diff hunk headers that
+// the native text and csv writers emit, against the exact headers GNU diff
+// produces for the same line sequences (one line per row). The expected values
+// were generated with "diff -U<n>" over files with one line per row.
 //
-// With PK-aligned diffs, an ADDED pair (Rec1()==nil) contributes zero lines to
-// the left "-" side and one line to the right "+" side. A REMOVED pair
-// (Rec2()==nil) is the inverse. The hunk header must reflect actual per-side
-// line counts, not the total number of pairs.
+// With key-aligned diffs, an ADDED pair (Rec1()==nil) contributes zero lines to
+// the left side and one to the right; a REMOVED pair is the inverse. The header
+// must carry per-side counts, and a zero-count range must use the GNU form, in
+// which the start is the line before the (empty) range: inserting after left
+// line 1 is "-1,0", and an empty side is "0,0". Tools such as patch(1) place
+// the change using that start, so an off-by-one there misplaces the row.
 //
-// Pre-fix, the writers used len(pairs) for BOTH sides and applied the
-// single-argument short form "@@ -N +N @@" for any one-pair hunk, regardless
-// of which side was nil. Post-fix:
-//
-//   - A pure-insertion hunk (left count = 0) must produce "@@ -N,0 +M @@".
-//   - A pure-deletion hunk (right count = 0) must produce "@@ -N +M,0 @@".
+// These cases each produce a single hunk. With multiple hunks, the left start
+// line drifts once the sides have different row counts (a known limitation,
+// tracked separately), so exact headers aren't asserted for that shape.
 func TestDiff_Data_HunkHeaderCounts(t *testing.T) {
 	const tbl = "items"
 
-	for _, format := range []string{"text", "csv"} {
-		format := format
-		t.Run(format, func(t *testing.T) {
-			t.Run("pure_insertion", func(t *testing.T) {
-				// Left: [1,3], Right: [1,2,3].
-				// Row 2 is absent from the left → it is an ADDED pair (Rec1()==nil).
-				// With --unified 0, there is exactly one hunk (for row 2).
-				// That hunk has leftCount=0 and rightCount=1.
-				// Expected header:   @@ -N,0 +M @@
-				// Pre-fix (buggy):   @@ -N +M @@
-				got := runDiffHunkHeader(
-					t, format, tbl,
-					`INSERT INTO "items" VALUES (1,'a'),(3,'c')`,
-					`INSERT INTO "items" VALUES (1,'a'),(2,'b'),(3,'c')`,
-				)
-				headers := parseHunkHeaders(got)
-				require.NotEmpty(t, headers,
-					"diff output must contain at least one hunk header")
-				require.True(t, anyHunkHeaderContains(headers, ",0 +"),
-					"pure-insertion hunk header must encode left count as 0 "+
-						"(e.g. @@ -N,0 +M @@); got: %v", headers)
-			})
+	testCases := []struct {
+		name        string
+		unified     int
+		leftInsert  string
+		rightInsert string
+		want        []string
+	}{
+		{
+			name:        "pure_insertion",
+			leftInsert:  `INSERT INTO "items" VALUES (1,'a'),(3,'c')`,
+			rightInsert: `INSERT INTO "items" VALUES (1,'a'),(2,'b'),(3,'c')`,
+			want:        []string{"@@ -1,0 +2 @@"},
+		},
+		{
+			name:        "pure_deletion",
+			leftInsert:  `INSERT INTO "items" VALUES (1,'a'),(2,'b'),(3,'c')`,
+			rightInsert: `INSERT INTO "items" VALUES (1,'a'),(3,'c')`,
+			want:        []string{"@@ -2 +1,0 @@"},
+		},
+		{
+			name:        "insert_at_top",
+			leftInsert:  `INSERT INTO "items" VALUES (2,'b'),(3,'c')`,
+			rightInsert: `INSERT INTO "items" VALUES (1,'a'),(2,'b'),(3,'c')`,
+			want:        []string{"@@ -0,0 +1 @@"},
+		},
+		{
+			name:       "right_empty",
+			leftInsert: `INSERT INTO "items" VALUES (1,'a'),(2,'b')`,
+			want:       []string{"@@ -1,2 +0,0 @@"},
+		},
+		{
+			name:        "changed",
+			leftInsert:  `INSERT INTO "items" VALUES (1,'a'),(2,'b'),(3,'c')`,
+			rightInsert: `INSERT INTO "items" VALUES (1,'a'),(2,'B'),(3,'c')`,
+			want:        []string{"@@ -2 +2 @@"},
+		},
+		{
+			// A changed row and an added row in one hunk, with context.
+			name:        "mixed_with_context",
+			unified:     1,
+			leftInsert:  `INSERT INTO "items" VALUES (1,'a'),(2,'b'),(4,'d')`,
+			rightInsert: `INSERT INTO "items" VALUES (1,'a'),(2,'B'),(3,'c'),(4,'d')`,
+			want:        []string{"@@ -1,3 +1,4 @@"},
+		},
+	}
 
-			t.Run("pure_deletion", func(t *testing.T) {
-				// Left: [1,2,3], Right: [1,3].
-				// Row 2 is absent from the right → it is a REMOVED pair (Rec2()==nil).
-				// With --unified 0, there is exactly one hunk (for row 2).
-				// That hunk has leftCount=1 and rightCount=0.
-				// Expected header:   @@ -N +M,0 @@
-				// Pre-fix (buggy):   @@ -N +M @@
-				got := runDiffHunkHeader(
-					t, format, tbl,
-					`INSERT INTO "items" VALUES (1,'a'),(2,'b'),(3,'c')`,
-					`INSERT INTO "items" VALUES (1,'a'),(3,'c')`,
-				)
-				headers := parseHunkHeaders(got)
-				require.NotEmpty(t, headers,
-					"diff output must contain at least one hunk header")
-				require.True(t, anyHunkHeaderContains(headers, ",0 @@"),
-					"pure-deletion hunk header must encode right count as 0 "+
-						"(e.g. @@ -N +M,0 @@); got: %v", headers)
-			})
+	for _, format := range []string{"text", "csv"} {
+		t.Run(format, func(t *testing.T) {
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					got := runDiffHunkHeader(t, format, tbl, tc.unified, tc.leftInsert, tc.rightInsert)
+					require.Equal(t, tc.want, parseHunkHeaders(got))
+				})
+			}
 		})
 	}
 }
 
 // runDiffHunkHeader creates two SQLite databases with the given table and
-// insert statements, runs sq diff --data --unified 0, and returns the raw diff
-// output. The table is created with an INTEGER PRIMARY KEY so the PK-aware
-// alignment path is exercised.
-func runDiffHunkHeader(t *testing.T, format, tbl, leftInsert, rightInsert string) string {
+// insert statements (an empty statement leaves that side's table empty), runs
+// sq diff --data --unified <unified>, and returns the raw diff output. The
+// table is created with an INTEGER PRIMARY KEY so the PK-aware alignment path
+// is exercised.
+func runDiffHunkHeader(t *testing.T, format, tbl string, unified int, leftInsert, rightInsert string) string {
 	t.Helper()
 	th := testh.New(t)
 
@@ -1008,11 +1022,15 @@ func runDiffHunkHeader(t *testing.T, format, tbl, leftInsert, rightInsert string
 	ddl := fmt.Sprintf(`CREATE TABLE "%s" ("id" INTEGER PRIMARY KEY, "val" TEXT)`, tbl)
 	th.ExecSQL(&srcLeft, ddl)
 	th.ExecSQL(&srcRight, ddl)
-	th.ExecSQL(&srcLeft, leftInsert)
-	th.ExecSQL(&srcRight, rightInsert)
+	if leftInsert != "" {
+		th.ExecSQL(&srcLeft, leftInsert)
+	}
+	if rightInsert != "" {
+		th.ExecSQL(&srcRight, rightInsert)
+	}
 
 	tr := testrun.New(th.Context, t, nil).Hush().Add(srcLeft, srcRight)
-	args := []string{"diff", "--data", "--unified", "0", "--stop", "0"}
+	args := []string{"diff", "--data", "--unified", strconv.Itoa(unified), "--stop", "0"}
 	if format != "text" {
 		args = append(args, "-f", format)
 	}
@@ -1037,15 +1055,4 @@ func parseHunkHeaders(output string) []string {
 		}
 	}
 	return headers
-}
-
-// anyHunkHeaderContains returns true if any of the given hunk headers contains
-// substr.
-func anyHunkHeaderContains(headers []string, substr string) bool {
-	for _, h := range headers {
-		if strings.Contains(h, substr) {
-			return true
-		}
-	}
-	return false
 }
