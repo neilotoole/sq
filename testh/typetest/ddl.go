@@ -146,7 +146,7 @@ func RenderStatements(cfg Config, tbl, serverVer string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = resolveDefaultExprs(cfg, cols); err != nil {
+	if err = ResolveDefaultExprs(cfg, cols); err != nil {
 		return nil, err
 	}
 
@@ -200,10 +200,12 @@ func RenderStatements(cfg Config, tbl, serverVer string) ([]string, error) {
 	return stmts, nil
 }
 
-// resolveDefaultExprs sets the DefaultExpr of each Defaulted column in cols:
-// its case's DefaultExpr if set, otherwise the SQL literal for the case's Val,
-// rewritten by cfg.DefaultExpr if that's set.
-func resolveDefaultExprs(cfg Config, cols []Column) error {
+// ResolveDefaultExprs sets the DefaultExpr of each Defaulted column in cols,
+// as returned by Resolve: its case's DefaultExpr if set, otherwise the SQL
+// literal for the case's Val (see Config.Literal), rewritten by
+// cfg.DefaultExpr if that's set. Run and RenderStatements call it; a caller
+// that builds a table itself with CreateTable must too.
+func ResolveDefaultExprs(cfg Config, cols []Column) error {
 	for i := range cols {
 		col := &cols[i]
 		if col.Variant != Defaulted {

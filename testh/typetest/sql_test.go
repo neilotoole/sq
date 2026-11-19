@@ -148,3 +148,16 @@ func TestCreateTable_Defaulted(t *testing.T) {
 	require.Equal(t, "CREATE TABLE t1 (row_id INT, col_a_d INT DEFAULT 7 NOT NULL)",
 		typetest.CreateTable("t1", "INT", cols, typetest.DefaultColumnDecl, ""))
 }
+
+func TestCreateTable_ResolveDefaultExprs(t *testing.T) {
+	// A caller outside Run builds the statement as Run does: Resolve, then
+	// ResolveDefaultExprs, then CreateTable.
+	cfg := typetest.Config{Cases: []typetest.Case{
+		intCase("a").WithVariants(typetest.NotNull, typetest.Defaulted).WithWantDefault("7"),
+	}}
+	cols, err := typetest.Resolve(cfg.Cases, "v9.1.0")
+	require.NoError(t, err)
+	require.NoError(t, typetest.ResolveDefaultExprs(cfg, cols))
+	require.Equal(t, "CREATE TABLE t1 (row_id INT, col_a INT NOT NULL, col_a_d INT DEFAULT 7 NOT NULL)",
+		typetest.CreateTable("t1", "INT", cols, typetest.DefaultColumnDecl, ""))
+}

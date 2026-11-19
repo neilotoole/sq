@@ -111,7 +111,7 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 	}
 	cols, err := Resolve(cfg.Cases, serverVer)
 	if err == nil {
-		err = resolveDefaultExprs(cfg, cols)
+		err = ResolveDefaultExprs(cfg, cols)
 	}
 	require.NoError(t, err)
 	require.NotEmpty(t, cols)

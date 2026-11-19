@@ -343,8 +343,8 @@ type Column struct {
 	Name string
 
 	// DefaultExpr is the default expression of a Defaulted column, set by
-	// Run and RenderStatements once the column's literal is rendered. It's
-	// empty for the other variants.
+	// ResolveDefaultExprs once the column's literal is rendered. It's empty
+	// for the other variants.
 	DefaultExpr string
 
 	BaseType   string

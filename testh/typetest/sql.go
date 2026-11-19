@@ -30,9 +30,10 @@ func DefaultColumnDecl(decl string, v Variant, defaultExpr string) string {
 
 // CreateTable returns the CREATE TABLE statement for tbl: the row_id column
 // declared as rowIDDecl, then cols in order, each declared via colDecl
-// (given the column's DefaultExpr), then
-// suffix if it's not empty (ClickHouse, for example, requires an ENGINE
-// clause).
+// (given the column's DefaultExpr), then suffix if it's not empty
+// (ClickHouse, for example, requires an ENGINE clause). cols must have been
+// passed through ResolveDefaultExprs: a Defaulted column's DefaultExpr is
+// empty until then.
 // Identifiers are not quoted: Resolve restricts column names to
 // [a-z0-9_], and tbl is expected to come from stringz.UniqTableName.
 func CreateTable(tbl, rowIDDecl string, cols []Column, colDecl func(decl string, v Variant, defaultExpr string) string,
