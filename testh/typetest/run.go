@@ -41,6 +41,10 @@ type Config struct {
 	// reported as written.
 	FoldName func(string) string
 
+	// Literal renders an input as a SQL literal in the driver's dialect, for
+	// the generated DDL file (see CheckDDL). Nil means DefaultLiteral only.
+	Literal LiteralFunc
+
 	// TableSuffix, if set, is appended to the CREATE TABLE statement, e.g.
 	// "ENGINE = MergeTree() ORDER BY row_id" for ClickHouse.
 	TableSuffix string
@@ -115,6 +119,36 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 	t.Run("select_all", func(t *testing.T) {
 		checkSelectAll(t, th, src, fold, serverVer, tbl, cols)
 	})
+
+	t.Run("ddl", func(t *testing.T) {
+		checkDDLLoads(t, th, src, cfg, fold, serverVer, cols)
+	})
+}
+
+// checkDDLLoads executes the statements of the generated DDL file (see
+// CheckDDL), rendered for this server's version under a table name of its
+// own, and runs the whole-table value checks against that table. It proves
+// the file loads on this server, and that each input's SQL literal reads back
+// as the same value as the bound input.
+func checkDDLLoads(t *testing.T, th *testh.Helper, src *source.Source, cfg Config, fold func(string) string,
+	serverVer string, cols []Column,
+) {
+	t.Helper()
+
+	tbl := stringz.UniqTableName("coltypes")
+	stmts, err := RenderStatements(cfg, tbl, serverVer)
+	require.NoError(t, err)
+
+	db := th.OpenDB(src)
+	for i, stmt := range stmts {
+		_, err = db.ExecContext(th.Context, stmt)
+		require.NoError(t, err, "server %s: generated DDL statement %d: %s", serverVer, i+1, stmt)
+		if i == 0 {
+			t.Cleanup(func() { th.DropTable(src, tablefq.From(tbl)) })
+		}
+	}
+
+	checkSelectAll(t, th, src, fold, serverVer, tbl, cols)
 }
 
 // TableToken stands for the test table's name in an expected default_value,
