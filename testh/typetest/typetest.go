@@ -65,8 +65,9 @@
 // value checks against the result. That proves the literals load on each
 // server version the tests run against, and read back as expected wherever
 // the loading session's time zone is. It doesn't run the committed file
-// itself, through a native client: a case gated by MinVer is in the file but
-// can fail on an older server. A row loaded from literals is expected to read
+// itself, through a native client: a case gated by MinVer, or a variant gated
+// by an Override's Variants, is in the file but can fail on an older server.
+// MySQL's file, for one, doesn't load on 5.x. A row loaded from literals is expected to read
 // back the same as the bound row, unless Want.LiteralZero or Want.LiteralVal
 // says otherwise: typically where the driver mangles a bound value that the
 // literal stores intact. A column with a QueryErr is queried on its own, and
@@ -283,6 +284,9 @@ type Case struct {
 	// DefaultExpr, if set, is the Defaulted column's default expression,
 	// used as is. Leave it empty for the SQL literal for Val, rewritten by
 	// Config.DefaultExpr if that's set: set it only where neither will do.
+	// The column's expected value still comes from Val (Want.LiteralVal, then
+	// Want.Val), so an expression that reads back as something else needs
+	// PerVariant.Defaulted's Val set to match.
 	DefaultExpr string
 
 	// MinVer, if set, excludes the case on servers older than this canonical

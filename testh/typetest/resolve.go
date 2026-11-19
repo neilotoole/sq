@@ -14,8 +14,10 @@ var caseNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 // Resolve returns the columns for cases on a server at serverVer, a
 // canonical semver such as "v8.0.36". Cases whose MinVer is greater than
-// serverVer are excluded. Each remaining case yields one column per variant,
-// in case order.
+// serverVer are excluded. Each remaining case yields one column per variant
+// it creates on serverVer, in case order: the variants of the first matching
+// VersionOverrides entry if it sets Variants, otherwise Case.Variants,
+// otherwise the default variants.
 //
 // A column's expectations start from the built-in fallbacks (QueryKind from
 // Kind, Default "", Zero and Val from the inputs, no QueryErr), then layer,
@@ -26,9 +28,11 @@ var caseNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 //
 // Resolve returns an error for a mistake in the case table, rather than
 // letting it surface as a confusing assertion failure: an invalid name or
-// semver, VersionOverrides out of order, colliding column names, a required
-// expectation left unset, a SQL input with no expected value, or an empty
-// QueryErr.
+// semver, VersionOverrides out of order, an empty or repeating variant list
+// (Case.Variants or Override.Variants), colliding column names, a required
+// expectation left unset (Default, for a Defaulted column), a SQL input with
+// no expected value, an empty QueryErr, or Zero or LiteralZero set for the
+// Defaulted variant, which has no Zero row.
 func Resolve(cases []Case, serverVer string) ([]Column, error) {
 	if !semver.IsValid(serverVer) {
 		return nil, errz.Errorf("typetest: invalid server version {%s}: must be a canonical semver",
