@@ -404,8 +404,10 @@ var mysqlTypeCases = []typetest.Case{
 		}).
 		WithWantDefault("2017-07-07 07:07:07"),
 
-	// TIMESTAMP(6) isn't here: it needs a table of its own on the 5.x images.
-	// See TestColumnTypes_TIMESTAMP6.
+	// The TIMESTAMP(6) type case isn't here: it needs a table of its own on
+	// the 5.x images. See TestColumnTypes_TIMESTAMP6. The expression case
+	// expr_current_timestamp_6 is here: its declared default keeps it from
+	// getting an implicit one.
 
 	typetest.NewCase("time", "TIME", fixt.TimeOfDayZ, fixt.TimeOfDay, "time", "time", kind.Time).
 		WithWantDefault("07:07:07"),

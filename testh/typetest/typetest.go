@@ -47,7 +47,7 @@
 // built by NewExprCase: a Defaulted column only, with Case.DefaultExpr set
 // and no inputs. Its expected value is a plain value where the expression
 // always gives the same value, and a Matcher, such as NotNullOf, where it
-// gives a new value each row. A Matcher checks only that the value isn't
+// gives a new value each row. NotNullOf checks only that the value isn't
 // NULL and has the right Go type, never what it is: nothing is compared
 // with the clock or the date.
 //
@@ -295,8 +295,8 @@ type Case struct {
 	// Config.DefaultExpr if that's set: set it only where neither will do.
 	// The column's expected value still comes from Val (Want.LiteralVal, then
 	// Want.Val), so an expression that reads back as something else needs
-	// PerVariant.Defaulted's Val set to match. NewExprCase sets it for an
-	// expression default.
+	// PerVariant.Defaulted's Val set to match. For an expression default,
+	// NewExprCase sets both DefaultExpr and Case.Want.Val.
 	DefaultExpr string
 
 	// MinVer, if set, excludes the case on servers older than this canonical

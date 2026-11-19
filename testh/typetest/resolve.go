@@ -31,8 +31,11 @@ var caseNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 // semver, VersionOverrides out of order, an empty or repeating variant list
 // (Case.Variants or Override.Variants), colliding column names, a required
 // expectation left unset (Default, for a Defaulted column), a SQL input with
-// no expected value, an empty QueryErr, or Zero or LiteralZero set for the
-// Defaulted variant, which has no Zero row.
+// no expected value, an empty QueryErr, Zero or LiteralZero set for the
+// Defaulted variant, which has no Zero row, or a misused Matcher: one as an
+// input (Zero, Val or NullInput), one that reaches a NotNull or Nullable
+// column through any layer, or one on a Defaulted column whose case doesn't
+// set DefaultExpr.
 func Resolve(cases []Case, serverVer string) ([]Column, error) {
 	if !semver.IsValid(serverVer) {
 		return nil, errz.Errorf("typetest: invalid server version {%s}: must be a canonical semver",
