@@ -300,7 +300,12 @@ Server versions and settings:
   8.0.19 reporting `int(11)` where newer servers report `int`.
 - `Config.CheckSettings` verifies the server settings the expectations assume
   (MySQL's `explicit_defaults_for_timestamp` and `sql_mode`, for example), so a
-  differently configured server fails with a message naming the setting.
+  differently configured server fails with a message naming the setting. If
+  the database reads a time literal in the session's time zone, it must also
+  check that the zone is UTC: the defaulted columns' default literals are read
+  when the table is created, on the connection `CheckSettings` gets, where
+  `Config.DDLPrelude` doesn't run. MySQL's check requires a `time_zone` of
+  `+00:00` or `UTC`, or `SYSTEM` on a server whose system time zone is UTC.
 
 A type that can't share the main table goes in a test of its own, in the
 same `coltype_test.go`, named `TestColumnTypes_<TYPE>`:

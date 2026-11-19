@@ -40,6 +40,12 @@ type Config struct {
 	// CheckSettings verifies the server settings that the expectations
 	// assume, on the connection that creates the table. It returns an error
 	// naming the setting if one doesn't match. Nil means no check.
+	//
+	// Where the database reads a time literal in the session's time zone, it
+	// must check that the zone is UTC: the Defaulted columns' default
+	// literals are read when the table is created, on that connection, and
+	// DDLPrelude doesn't run there (only in the generated DDL file and the
+	// ddl subtest). MySQL's check, for example, requires a UTC time_zone.
 	CheckSettings func(ctx context.Context, db sqlz.DB, serverVer string) error
 
 	// Handle is the source handle, e.g. sakila.My.
