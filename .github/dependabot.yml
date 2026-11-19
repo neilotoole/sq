@@ -9,6 +9,12 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+    ignore:
+      # usql v0.21.6 needs dburl's URL.GoDriver, which dburl removed in
+      # v0.36.0, so a standalone dburl bump breaks the build (#1348). A usql
+      # bump still raises dburl to whatever usql requires. Remove this entry
+      # in the same PR that upgrades usql past v0.21.6.
+      - dependency-name: "github.com/xo/dburl"
 
   # Isolated Go tool modules (see tools/README.md). Dependabot doesn't support
   # the go.mod tool directive yet
