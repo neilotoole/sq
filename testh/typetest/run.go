@@ -109,7 +109,7 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 	tbl := setupTable(th, src, cfg, serverVer, cols)
 	cols = expandTableToken(cols, fold(tbl))
 
-	if dumpEnabled() {
+	if dumpEnabled(t) {
 		dumpActual(t, th, src, fold, serverVer, tbl, cols)
 	}
 
@@ -144,9 +144,10 @@ func Run(t *testing.T, cfg Config) { //nolint:thelper // Run is the test body; f
 
 // checkDDLLoads executes the statements of the generated DDL file (see
 // CheckDDL), rendered for this server's version under a table name of its
-// own, and runs the whole-table value checks against that table. It proves
+// own, and runs the whole-table value checks against that table, then the
+// per-column check of each column with an expected query error. It proves
 // the file loads on this server, and that each input's SQL literal reads back
-// as the same value as the bound input.
+// as expected (see Want.LiteralVal), or fails to as the bound input does.
 func checkDDLLoads(t *testing.T, th *testh.Helper, src *source.Source, cfg Config, fold func(string) string,
 	serverVer string, cols []Column,
 ) {
@@ -186,6 +187,17 @@ func checkDDLLoads(t *testing.T, th *testh.Helper, src *source.Source, cfg Confi
 		litCols[i].Want = litCols[i].LiteralWant
 	}
 	checkSelectAll(t, th, src, fold, serverVer, tbl, litCols)
+
+	// checkSelectAll leaves out the columns with an expected query error.
+	// Query each of those on its own, as Run does for the bound table, so a
+	// literal that clears or changes the error fails too.
+	for _, col := range litCols {
+		if col.QueryErr.Set {
+			t.Run(col.Name+"/query", func(t *testing.T) {
+				checkColumnQuery(t, th, src, serverVer, tbl, col)
+			})
+		}
+	}
 }
 
 // TableToken stands for the test table's name in an expected default_value,

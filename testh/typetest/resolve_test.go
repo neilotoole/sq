@@ -333,3 +333,47 @@ func TestResolve_LiteralWant(t *testing.T) {
 	require.Equal(t, [3]any{int64(0), int64(7), int64(7)}, cols[0].LiteralWant)
 	require.Equal(t, [3]any{int64(-1), int64(7), nil}, cols[1].LiteralWant, "row 3 of a nullable column is NULL")
 }
+
+func TestResolve_LiteralWantFollowsLaterVal(t *testing.T) {
+	// The base case: the bound insert mangles 7 to 70, and the literal stores
+	// 7 intact.
+	base := intCase("x").WithWantVal(int64(70)).WithWantLiteralVal(int64(7))
+
+	// An override that sets Val alone says what both paths read back on that
+	// server: there, the literal row expects its Val too.
+	c := base.WithVersionOverrides(typetest.Override{
+		Before: "v9.0.0",
+		Want:   typetest.Want{Val: typetest.Is[any](int64(700))},
+	})
+	cols, err := typetest.Resolve([]typetest.Case{c}, "v8.0.0")
+	require.NoError(t, err)
+	require.Equal(t, int64(700), cols[0].Want[1])
+	require.Equal(t, int64(700), cols[0].LiteralWant[1], "a later Val alone carries LiteralVal with it")
+
+	// An override that sets both keeps them apart.
+	c = base.WithVersionOverrides(typetest.Override{
+		Before: "v9.0.0",
+		Want:   typetest.Want{Val: typetest.Is[any](int64(700)), LiteralVal: typetest.Is[any](int64(77))},
+	})
+	cols, err = typetest.Resolve([]typetest.Case{c}, "v8.0.0")
+	require.NoError(t, err)
+	require.Equal(t, int64(700), cols[0].Want[1])
+	require.Equal(t, int64(77), cols[0].LiteralWant[1])
+
+	// A later layer that sets LiteralVal alone changes only the literal row.
+	c = base
+	c.PerVariant = typetest.PerVariant{NotNull: typetest.Want{LiteralVal: typetest.Is[any](int64(8))}}
+	cols = mustResolve(t, c)
+	require.Equal(t, int64(70), cols[0].Want[1])
+	require.Equal(t, int64(8), cols[0].LiteralWant[1])
+
+	// The same holds for Zero and LiteralZero.
+	c = intCase("x").WithWantZero(int64(-1)).WithVersionOverrides(typetest.Override{
+		Before: "v9.0.0",
+		Want:   typetest.Want{Zero: typetest.Is[any](int64(-2))},
+	})
+	c.Want.LiteralZero = typetest.Is[any](int64(0))
+	cols, err = typetest.Resolve([]typetest.Case{c}, "v8.0.0")
+	require.NoError(t, err)
+	require.Equal(t, int64(-2), cols[0].LiteralWant[0])
+}

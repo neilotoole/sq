@@ -20,7 +20,8 @@ var caseNameRx = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 // Kind, Default "", Zero and Val from the inputs, no QueryErr), then layer,
 // field by field where set: Case.Want, Case.PerVariant for the variant, the
 // first VersionOverrides entry whose Before is greater than serverVer, then
-// that entry's PerVariant for the variant.
+// that entry's PerVariant for the variant. Want.LiteralVal describes the one
+// exception to field-by-field layering.
 //
 // Resolve returns an error for a mistake in the case table, rather than
 // letting it surface as a confusing assertion failure: an invalid name or
@@ -210,6 +211,16 @@ func layer(dst *Want, src Want) {
 	setIf(&dst.Default, src.Default)
 	setIf(&dst.Zero, src.Zero)
 	setIf(&dst.Val, src.Val)
+
+	// A layer that sets Zero or Val without its literal counterpart says
+	// what both paths read back, so an earlier layer's literal expectation
+	// no longer applies.
+	if src.Zero.Set && !src.LiteralZero.Set {
+		dst.LiteralZero = Opt[any]{}
+	}
+	if src.Val.Set && !src.LiteralVal.Set {
+		dst.LiteralVal = Opt[any]{}
+	}
 	setIf(&dst.LiteralZero, src.LiteralZero)
 	setIf(&dst.LiteralVal, src.LiteralVal)
 	setIf(&dst.QueryErr, src.QueryErr)

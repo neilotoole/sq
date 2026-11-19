@@ -48,7 +48,7 @@
 // The driver's TestColumnTypesDDL calls CheckDDL, which renders the file and
 // compares it with the one in testdata. It needs no database, so it runs
 // under -short, and a case table changed without regenerating the file fails
-// at once. Set UpdateEnvar to regenerate it.
+// at once. Set EnvUpdateDDL to true to regenerate it.
 //
 // Run's ddl subtest renders the same statements for the connected server's
 // version, executes them one by one through the Go driver, on a session set
@@ -60,7 +60,8 @@
 // can fail on an older server. A row loaded from literals is expected to read
 // back the same as the bound row, unless Want.LiteralZero or Want.LiteralVal
 // says otherwise: typically where the driver mangles a bound value that the
-// literal stores intact. Columns with a QueryErr aren't read back.
+// literal stores intact. A column with a QueryErr is queried on its own, and
+// expected to fail as it does in the bound table.
 package typetest
 
 import (
@@ -144,9 +145,10 @@ type Want struct {
 	// each input written as a SQL literal (see CheckDDL). They default to Zero
 	// and Val. Set one to record a value that the bound insert and the literal
 	// store differently: typically the driver mangling a bound value that the
-	// literal stores intact. The default is applied after layering, so a
-	// LiteralVal set in any layer beats a Val set in a later one: an override
-	// that changes Val for both paths must set LiteralVal too.
+	// literal stores intact. They layer as the other fields do, with one
+	// difference: a layer that sets Val but not LiteralVal (or Zero but not
+	// LiteralZero) clears the LiteralVal of earlier layers, since it says what
+	// both paths read back. A layer that sets both keeps them apart.
 	LiteralZero, LiteralVal Opt[any]
 
 	// BaseType is the expected base_type. Required after resolution.
