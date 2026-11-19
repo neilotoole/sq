@@ -129,7 +129,19 @@ CREATE TABLE coltypes (
   col_geometry_d GEOMETRY DEFAULT geometry::STGeomFromText('POINT(2 2)', 0) NOT NULL,
   col_geography GEOGRAPHY NOT NULL,
   col_geography_n GEOGRAPHY NULL,
-  col_geography_d GEOGRAPHY DEFAULT geography::STGeomFromText('POINT(2 2)', 4326) NOT NULL
+  col_geography_d GEOGRAPHY DEFAULT geography::STGeomFromText('POINT(2 2)', 4326) NOT NULL,
+  col_expr_getdate_d DATETIME DEFAULT GETDATE() NOT NULL,
+  col_expr_current_timestamp_d DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  col_expr_sysdatetime_d DATETIME2 DEFAULT SYSDATETIME() NOT NULL,
+  col_expr_sysutcdatetime_d DATETIME2 DEFAULT SYSUTCDATETIME() NOT NULL,
+  col_expr_sysdatetimeoffset_d DATETIMEOFFSET DEFAULT SYSDATETIMEOFFSET() NOT NULL,
+  col_expr_cast_getdate_date_d DATE DEFAULT CAST(GETDATE() AS DATE) NOT NULL,
+  col_expr_newid_d UNIQUEIDENTIFIER DEFAULT NEWID() NOT NULL,
+  col_expr_newsequentialid_d UNIQUEIDENTIFIER DEFAULT NEWSEQUENTIALID() NOT NULL,
+  col_expr_rand_d FLOAT DEFAULT RAND() NOT NULL,
+  col_expr_suser_sname_d NVARCHAR(128) DEFAULT SUSER_SNAME() NOT NULL,
+  col_expr_seven_d INT DEFAULT (1 + 6) NOT NULL,
+  col_expr_lower_d NVARCHAR(20) DEFAULT LOWER(N'SEVEN') NOT NULL
 );
 
 INSERT INTO coltypes (
