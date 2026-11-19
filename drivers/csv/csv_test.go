@@ -1,6 +1,7 @@
 package csv_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -262,6 +263,38 @@ func TestIngest_BOM(t *testing.T) {
 			require.Equal(t, [][]string{{"id", "name"}, {"1", "alice"}, {"2", "bob"}}, data)
 		})
 	}
+}
+
+// TestIngest_BOM_ExcelExport ingests a genuine Excel "CSV UTF-8 (Comma
+// delimited)" export of the sakila actor table. Excel writes a leading UTF-8
+// BOM and CRLF line endings, which must not leak into the column names or data.
+func TestIngest_BOM_ExcelExport(t *testing.T) {
+	ctx := context.Background()
+	fp := filepath.Join("testdata", "actor_excel_csv_utf8_bom.csv")
+
+	// Guard against the fixture losing its BOM, e.g. via an editor or a git
+	// line-ending conversion, which would make this test pass vacuously.
+	raw, err := os.ReadFile(fp)
+	require.NoError(t, err)
+	require.True(t, bytes.HasPrefix(raw, []byte("\xef\xbb\xbfactor_id,")), "fixture must start with a UTF-8 BOM")
+	require.True(t, bytes.Contains(raw, []byte("\r\n")), "fixture must have CRLF line endings")
+
+	tr := testrun.New(ctx, t, nil)
+	require.NoError(t, tr.Exec("add", fp, "--handle", "@actor_excel"))
+
+	tr = testrun.New(ctx, t, tr).Hush()
+	require.NoError(t, tr.Exec("--csv", ".data"))
+	data := tr.BindCSV()
+	require.Len(t, data, sakila.TblActorCount+1) // +1 for header row
+	require.Equal(t, []string{"actor_id", "first_name", "last_name", "last_update"}, data[0])
+	require.Equal(t, []string{"1", "PENELOPE", "GUINESS", "2006-02-15T04:34:33Z"}, data[1])
+
+	// Selecting the first column by name must return its values. Before the
+	// fix, the column was really named "\ufeffactor_id", and SQLite resolved
+	// the unknown identifier as the string literal "actor_id".
+	tr = testrun.New(ctx, t, tr).Hush()
+	require.NoError(t, tr.Exec("--csv", "--no-header", ".data | .actor_id | .[0:2]"))
+	require.Equal(t, [][]string{{"1"}, {"2"}}, tr.BindCSV())
 }
 
 func TestIngest_Kind_Timestamp(t *testing.T) {
