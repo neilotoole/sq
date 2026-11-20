@@ -19,6 +19,7 @@ import (
 	"github.com/neilotoole/sq/libsq/core/sqlz"
 	"github.com/neilotoole/sq/libsq/core/stringz"
 	"github.com/neilotoole/sq/libsq/core/tablefq"
+	"github.com/neilotoole/sq/libsq/driver"
 	"github.com/neilotoole/sq/libsq/source"
 	"github.com/neilotoole/sq/libsq/source/drivertype"
 	"github.com/neilotoole/sq/libsq/source/metadata"
@@ -637,6 +638,63 @@ func assertWidgetTable(t *testing.T, md *metadata.Table) {
 	require.Equal(t, []string{"INSERT"}, trg.Events)
 	require.NotEmpty(t, trg.Definition)
 	require.Nil(t, trg.Enabled, "SQLite triggers have no enabled state")
+}
+
+func TestTableMetadata_CaseInsensitiveName(t *testing.T) {
+	t.Parallel()
+
+	th := testh.New(t)
+	src := &source.Source{
+		Handle:   "@tblcase_sl3",
+		Type:     drivertype.SQLite,
+		Location: "sqlite3://" + tu.TempFile(t, "tblcase.db"),
+	}
+	th.Add(src)
+	grip := th.Open(src)
+	ctx := th.Context
+	db, err := grip.DB(ctx)
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(ctx, `
+CREATE TABLE t (id INTEGER);
+INSERT INTO t VALUES (1);
+CREATE TRIGGER t_ai AFTER INSERT ON t BEGIN SELECT 1; END;
+CREATE VIEW v AS SELECT id FROM t;
+CREATE VIRTUAL TABLE vt USING fts4(content);`)
+	require.NoError(t, err)
+
+	md, err := grip.TableMetadata(ctx, "T")
+	require.NoError(t, err)
+	require.Equal(t, "t", md.Name)
+	require.True(t, strings.HasSuffix(md.FQName, ".t"), md.FQName)
+	require.Equal(t, sqlz.TableTypeTable, md.TableType)
+	require.Equal(t, int64(1), md.RowCount)
+	require.Len(t, md.Columns, 1)
+	require.Equal(t, "id", md.Columns[0].Name)
+	require.Len(t, md.Triggers, 1)
+	require.Equal(t, "t_ai", md.Triggers[0].Name)
+
+	md, err = grip.TableMetadata(ctx, "vT")
+	require.NoError(t, err)
+	require.Equal(t, "vt", md.Name)
+	require.Equal(t, sqlz.TableTypeVirtual, md.TableType)
+
+	md, err = grip.TableMetadata(ctx, "V")
+	require.NoError(t, err)
+	require.Equal(t, "v", md.Name)
+	require.Equal(t, sqlz.TableTypeView, md.TableType)
+	require.NotEmpty(t, md.ViewDefinition)
+
+	md, err = grip.TableMetadata(ctx, "t")
+	require.NoError(t, err)
+	require.Equal(t, "t", md.Name)
+	require.Equal(t, int64(1), md.RowCount)
+
+	_, err = grip.TableMetadata(ctx, "missing")
+	require.Error(t, err)
+	require.True(t, errz.Has[*driver.NotExistError](err))
+	require.NotContains(t, err.Error(), "Scan error")
+	require.NotContains(t, err.Error(), "converting NULL")
 }
 
 // TestTableMetadata_ProblematicTableNames reproduces gh777: getTableMetadata
