@@ -3,6 +3,7 @@ package stringz_test
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"unicode"
@@ -586,4 +587,149 @@ func TestUniqTableName_Sanitize(t *testing.T) {
 	require.NotContains(t, got, "@")
 	require.NotContains(t, got, "/")
 	require.Equal(t, got, strings.ToLower(got))
+}
+
+func TestHasUniqTableNameSuffix(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		in   string
+		want bool
+	}{
+		// The name from the gh1160 flake report.
+		{"vdef_view__bhx8wuhv", true},
+		{"tbl__a1234567", true},
+		// UniqTableName falls back to "tbl" for an empty input.
+		{"tbl__abcdefgh", true},
+		// Sakila's permanent views and tables must never match.
+		{"actor_info", false},
+		{"customer_list", false},
+		{"film_list", false},
+		{"nicer_but_slower_film_list", false},
+		{"sales_by_film_category", false},
+		{"sales_by_store", false},
+		{"staff_list", false},
+		{"actor", false},
+		{"", false},
+		// Single underscore, not the double that UniqTableName appends.
+		{"vdef_view_bhx8wuhv", false},
+		// Uniq8's first rune is a letter, so a leading digit is not a match.
+		{"vdef_view__1bx8wuhv", false},
+		// Suffix must be exactly 8 runes.
+		{"vdef_view__bhx8wuh", false},
+		{"vdef_view__bhx8wuhvv", false},
+		// Oracle upper-cases unquoted identifiers, so its tests pass
+		// UniqTableName output through strings.ToUpper.
+		{"vdef_view__BHX8WUHV", true},
+		{"VIOT_VIEW__BHX8WUHV", true},
+		// Oracle names a view over a UniqTableName table by appending "_V".
+		{"VDEF_BASE__BHX8WUHV_V", true},
+		{"vdef_base__bhx8wuhv_v", true},
+		// Oracle's permanent Sakila views are upper-case and must never match.
+		{"ACTOR_INFO", false},
+		{"CUSTOMER_LIST", false},
+		{"NICER_BUT_SLOWER_FILM_LIST", false},
+		// "_V" is the only derived form allowed. Oracle's "_TRG" triggers and
+		// "_MV" materialized views are not counted as views by ListTableNames.
+		{"VDEF_BASE__BHX8WUHV_TRG", false},
+		{"VDEF_BASE__BHX8WUHV_MV", false},
+		// Must be a suffix, not a substring.
+		{"vdef_view__bhx8wuhv_x", false},
+		// "_V" must follow the token directly.
+		{"VDEF_BASE__BHX8WUHV_X_V", false},
+	}
+
+	for _, tc := range testCases {
+		require.Equal(t, tc.want, stringz.HasUniqTableNameSuffix(tc.in), tc.in)
+	}
+}
+
+// TestHasUniqTableNameSuffix_gh1160 replays the exact ListTableNames result
+// from the gh1160 flake, where a concurrently-created view from another test
+// package pushed the count from 7 to 8. This is the filter that
+// TestSQLDriver_ListTableNames_ArgSchemaNotEmpty applies; that test needs live
+// Sakila databases, so the filtering logic is covered here instead.
+func TestHasUniqTableNameSuffix_gh1160(t *testing.T) {
+	t.Parallel()
+
+	// Verbatim from the failure: "should have 7 item(s), but has 8".
+	got := []string{
+		"actor_info",
+		"customer_list",
+		"film_list",
+		"nicer_but_slower_film_list",
+		"sales_by_film_category",
+		"sales_by_store",
+		"staff_list",
+		"vdef_view__bhx8wuhv",
+	}
+
+	gotViews := slices.DeleteFunc(slices.Clone(got), stringz.HasUniqTableNameSuffix)
+
+	require.Len(t, gotViews, 7)
+	require.Equal(t, []string{
+		"actor_info",
+		"customer_list",
+		"film_list",
+		"nicer_but_slower_film_list",
+		"sales_by_film_category",
+		"sales_by_store",
+		"staff_list",
+	}, gotViews, "the seven permanent Sakila views must survive filtering")
+}
+
+// TestHasUniqTableNameSuffix_gh1160_Oracle covers the Oracle leg of
+// TestSQLDriver_ListTableNames_ArgSchemaNotEmpty. Oracle returns upper-case
+// view names, and its metadata tests create both an upper-cased
+// UniqTableName view and a "_V" view in the shared SAKILA schema. Both must
+// be filtered, leaving the seven permanent views.
+func TestHasUniqTableNameSuffix_gh1160_Oracle(t *testing.T) {
+	t.Parallel()
+
+	got := []string{
+		"ACTOR_INFO",
+		"CUSTOMER_LIST",
+		"FILM_LIST",
+		"NICER_BUT_SLOWER_FILM_LIST",
+		"SALES_BY_FILM_CATEGORY",
+		"SALES_BY_STORE",
+		"STAFF_LIST",
+		"VDEF_BASE__BHX8WUHV_V",
+		"VIOT_VIEW__KR2S5AGH",
+	}
+
+	gotViews := slices.DeleteFunc(slices.Clone(got), stringz.HasUniqTableNameSuffix)
+
+	require.Equal(t, []string{
+		"ACTOR_INFO",
+		"CUSTOMER_LIST",
+		"FILM_LIST",
+		"NICER_BUT_SLOWER_FILM_LIST",
+		"SALES_BY_FILM_CATEGORY",
+		"SALES_BY_STORE",
+		"STAFF_LIST",
+	}, gotViews, "the seven permanent Oracle Sakila views must survive filtering")
+}
+
+// TestHasUniqTableNameSuffix_MatchesGenerator guards the coupling between
+// UniqTableName and HasUniqTableNameSuffix: if the suffix format changes,
+// the predicate must change with it.
+func TestHasUniqTableNameSuffix_MatchesGenerator(t *testing.T) {
+	t.Parallel()
+
+	for _, tbl := range []string{"", "a", "vdef_view", "My@Tbl/Name", strings.Repeat("a", 88)} {
+		got := stringz.UniqTableName(tbl)
+		require.True(t, stringz.HasUniqTableNameSuffix(got),
+			"UniqTableName(%q) = %q, which HasUniqTableNameSuffix does not match", tbl, got)
+
+		// The Oracle forms derived from that value, as its metadata tests
+		// build them.
+		upper := strings.ToUpper(got)
+		require.True(t, stringz.HasUniqTableNameSuffix(upper),
+			"strings.ToUpper(UniqTableName(%q)) = %q, which HasUniqTableNameSuffix does not match",
+			tbl, upper)
+		require.True(t, stringz.HasUniqTableNameSuffix(upper+"_V"),
+			"strings.ToUpper(UniqTableName(%q)) + \"_V\" = %q, which HasUniqTableNameSuffix does not match",
+			tbl, upper+"_V")
+	}
 }
