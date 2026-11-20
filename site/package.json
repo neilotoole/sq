@@ -55,7 +55,7 @@
     "@fullhuman/postcss-purgecss": "^9.1",
     "@hyas/images": "^3",
     "@netlify/plugin-lighthouse": "^6.0.4",
-    "asciinema-player": "^3.18.0",
+    "asciinema-player": "^3.18.1",
     "autoprefixer": "^10.6.2",
     "bootstrap": "^5.3.9",
     "esbuild": "^0.28.2",
