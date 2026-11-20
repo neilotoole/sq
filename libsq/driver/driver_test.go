@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/mod/semver"
@@ -480,15 +481,8 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 	testCases := sakila.SQLAll()
 	for _, handle := range testCases {
 		t.Run(handle, func(t *testing.T) {
-			tu.SkipShort(t, handle == sakila.XLSX)
+			tu.SkipShort(t, !sakila.IsSQLEmbedded(handle))
 			t.Parallel()
-
-			if handle == sakila.RQ {
-				// rqlite reports integer columns (e.g. actor_id) as decimal,
-				// so it returns decimal.Decimal where this test expects int64.
-				// Pre-existing rqlite type-mapping quirk; tracked in #938.
-				t.Skipf("Skip %s: rqlite returns integer columns as decimal, not int64 (#938)", handle)
-			}
 
 			th, src, drvr, _, db := testh.NewWith(t, handle)
 
@@ -541,7 +535,22 @@ func TestSQLDriver_PrepareUpdateStmt(t *testing.T) { //nolint:tparallel
 
 			require.NoError(t, err)
 			require.Equal(t, 1, len(sink.Recs))
-			require.Equal(t, actorID, stringz.Val(sink.Recs[0][0]))
+			if handle == sakila.RQ {
+				// rqlite maps NUMERIC columns (such as actor_id in the Sakila
+				// rqlite image) to decimal.Decimal (#839, #938), while INTEGER
+				// columns surface as int64.
+				switch v := stringz.Val(sink.Recs[0][0]).(type) {
+				case int64:
+					require.Equal(t, actorID, v)
+				case decimal.Decimal:
+					require.True(t, v.Equal(decimal.NewFromInt(actorID)),
+						"actor_id got %s want %d", v, actorID)
+				default:
+					require.Failf(t, "unexpected actor_id type", "got %T", v)
+				}
+			} else {
+				require.Equal(t, actorID, stringz.Val(sink.Recs[0][0]))
+			}
 			require.Equal(t, wantVals[0], stringz.Val(sink.Recs[0][1]))
 			require.Equal(t, wantVals[1], stringz.Val(sink.Recs[0][2]))
 		})
