@@ -433,24 +433,7 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 			DefaultValue: dbCols[i].ColumnDefault.String,
 		}
 
-		// We want to output something like VARCHAR(255) for ColType
-
-		// REVISIT: This is all a bit messy and inconsistent with other drivers
-		var colLength *int64
-		switch {
-		case dbCols[i].CharMaxLength.Valid:
-			colLength = &dbCols[i].CharMaxLength.Int64
-		case dbCols[i].NumericPrecision.Valid:
-			colLength = &dbCols[i].NumericPrecision.Int64
-		case dbCols[i].DateTimePrecision.Valid:
-			colLength = &dbCols[i].DateTimePrecision.Int64
-		}
-
-		if colLength != nil {
-			cols[i].ColumnType = fmt.Sprintf("%s(%v)", dbCols[i].DataType, *colLength)
-		} else {
-			cols[i].ColumnType = dbCols[i].DataType
-		}
+		cols[i].ColumnType = formatColumnType(dbCols[i])
 
 		cols[i].Identity = dbCols[i].IsIdentity
 		cols[i].Generated = dbCols[i].IsComputed
@@ -530,6 +513,38 @@ func getTableMetadata(ctx context.Context, db sqlz.DB, tblCatalog,
 	}
 
 	return tblMeta, nil
+}
+
+// formatColumnType formats SQL Server's INFORMATION_SCHEMA type details as a
+// declared type. The metadata columns are populated for many types even when
+// those values are fixed implementation details rather than type parameters.
+func formatColumnType(c columnMeta) string {
+	dataType := c.DataType
+	switch strings.ToLower(dataType) {
+	case "char", "varchar", "nchar", "nvarchar", "binary", "varbinary":
+		if !c.CharMaxLength.Valid {
+			break
+		}
+		isVariableLength := strings.EqualFold(dataType, "varchar") ||
+			strings.EqualFold(dataType, "nvarchar") || strings.EqualFold(dataType, "varbinary")
+		if c.CharMaxLength.Int64 == -1 && isVariableLength {
+			return dataType + "(max)"
+		}
+		return fmt.Sprintf("%s(%d)", dataType, c.CharMaxLength.Int64)
+	case "decimal", "numeric":
+		if c.NumericPrecision.Valid && c.NumericScale.Valid {
+			return fmt.Sprintf("%s(%d,%d)", dataType, c.NumericPrecision.Int64, c.NumericScale.Int64)
+		}
+	case "datetime2", "time", "datetimeoffset":
+		if c.DateTimePrecision.Valid {
+			return fmt.Sprintf("%s(%d)", dataType, c.DateTimePrecision.Int64)
+		}
+	case "float":
+		if c.NumericPrecision.Valid {
+			return fmt.Sprintf("%s(%d)", dataType, c.NumericPrecision.Int64)
+		}
+	}
+	return dataType
 }
 
 // getMSSQLUniqueConstraints returns the UNIQUE constraints declared on
