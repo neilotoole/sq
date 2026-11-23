@@ -15,6 +15,18 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
 
 ### Added
 
+- [#698]: New [Databricks driver](https://sq.io/docs/drivers/databricks) 🐥, for Databricks SQL
+  warehouses (Unity Catalog), built on the official
+  [databricks-sql-go](https://github.com/databricks/databricks-sql-go) driver. Add a source with a
+  personal access token, then query, inspect and join it like any other source. The driver is
+  read-only: it does not create tables or insert rows, but [`sq sql`](https://sq.io/docs/cmd/sql)
+  still runs any statement.
+
+  ```shell
+  $ sq add -p 'databricks://token@HOST/sql/1.0/warehouses/ID?catalog=main' --handle @dbx
+  $ sq '@dbx.actor | .[0:5]'
+  ```
+
 - [#1007]: The `sq` container image is now published to Docker Hub as
   [`neilotoole/sq`](https://hub.docker.com/r/neilotoole/sq), alongside the existing
   `ghcr.io/neilotoole/sq`. Both registries carry the same image. The image also now ships with SLSA
@@ -1776,6 +1788,7 @@ change to the `sq` CLI in some time, and should make working with lots of source
 [#444]: https://github.com/neilotoole/sq/issues/444
 [#660]: https://github.com/neilotoole/sq/issues/660
 [#692]: https://github.com/neilotoole/sq/issues/692
+[#698]: https://github.com/neilotoole/sq/issues/698
 [#699]: https://github.com/neilotoole/sq/issues/699
 [#716]: https://github.com/neilotoole/sq/issues/716
 [#717]: https://github.com/neilotoole/sq/issues/717

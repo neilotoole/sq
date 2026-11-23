@@ -19,9 +19,10 @@ import (
 )
 
 // parseSourceLoc parses a source location string. dburl.Parse is used
-// for schemes dburl knows; rqlite falls back to net/url since
-// dburl does not recognize it. The returned *dburl.URL wraps the
-// parsed URL so callers can read User/Host/Path/RawQuery uniformly.
+// for schemes dburl knows; rqlite and databricks fall back to net/url,
+// since dburl does not recognize rqlite and mangles databricks. The
+// returned *dburl.URL wraps the parsed URL so callers can read
+// User/Host/Path/RawQuery uniformly.
 //
 // The location is first passed through location.StripSecrets: every
 // field parsed here can end up in shell-completion candidates echoed
@@ -45,10 +46,10 @@ import (
 func parseSourceLoc(loc string, typ drivertype.Type) (*dburl.URL, error) {
 	loc = location.StripSecrets(loc)
 	loc = sentinelizePlaceholderPassword(loc)
-	if typ == drivertype.Rqlite {
+	if typ == drivertype.Rqlite || typ == drivertype.Databricks {
 		u, err := url.Parse(loc)
 		if err != nil {
-			return nil, errz.New("parse rqlite location")
+			return nil, errz.Errorf("parse %s location", typ)
 		}
 		return &dburl.URL{URL: *u, OriginalScheme: u.Scheme}, nil
 	}

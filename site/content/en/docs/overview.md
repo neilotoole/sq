@@ -13,7 +13,7 @@ url: /docs/overview
 
 `sq` provides a [jq](https://jqlang.github.io/jq/)-style syntax to query, join,
 migrate, and export data from a variety of data sources, such as Postgres,
-SQLite, SQL Server, MySQL, ClickHouse, Oracle, Excel or CSV, with the
+SQLite, SQL Server, MySQL, ClickHouse, Oracle, Databricks, Excel or CSV, with the
 ability to fall back to actual SQL for trickier work. In essence, `sq` treats
 every data source as if it were a SQL database.
 `sq` also provides several handy commands such as `inspect`, `ping`, or `tbl copy`.

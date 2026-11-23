@@ -41,6 +41,9 @@ const (
 	// Oracle is for Oracle Database.
 	Oracle = Type("oracle")
 
+	// Databricks is for Databricks SQL warehouses.
+	Databricks = Type("databricks")
+
 	// CSV is for Comma-Separated Values.
 	CSV = Type("csv")
 

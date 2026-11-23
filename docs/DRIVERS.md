@@ -28,6 +28,10 @@ The SQL drivers divide again, by how the engine is reached:
 - **Client/server**: the engine is a separate process reached over the network.
   `sq` has six: `postgres`, `mysql`, `sqlserver`, `clickhouse`, `oracle` and
   `rqlite`.
+- **Cloud-only**: the engine is a managed service that has no local, containerized
+  equivalent. `sq` has one: [`databricks`](../drivers/databricks). It can't have a
+  `sakiladb` image, so its tests run against an in-process fake of the service
+  (see [Cloud-only drivers](#cloud-only-drivers)).
 
 > [!NOTE]
 > [`rqlite`](../drivers/rqlite) sits on the line but lands on the server side.
@@ -74,7 +78,8 @@ documentation as incomplete work. This is what keeps [sq.io](https://sq.io),
 3. **Tests**: integration tests; for SQL drivers, a `sakiladb/{driver}` image
    and handle in [`testh/sakila/sakila.go`](../testh/sakila/sakila.go) when
    applicable, and a `TestColumnTypes` using `testh/typetest` (see
-   [Column-type tests](#column-type-tests)).
+   [Column-type tests](#column-type-tests)). A cloud-only driver has no image: see
+   [Cloud-only drivers](#cloud-only-drivers).
 4. **sq.io docs**: new page
    `site/content/en/docs/drivers/{driver}.md` (follow an existing driver page;
    link from [`site/content/en/docs/drivers/_index.md`](../site/content/en/docs/drivers/_index.md)).
@@ -191,6 +196,31 @@ func TestSmoke(t *testing.T) {
 }
 ```
 
+#### Cloud-only drivers
+
+A managed cloud service can't be run in a container, so there is no `sakiladb`
+image for it, and no `@sakila_*` handle in
+[`testh/sakila/sakila.go`](../testh/sakila/sakila.go). The
+[`databricks`](../drivers/databricks) driver shows the substitute, in three tiers:
+
+1. **Unit tests** of the pieces that need no server: location parsing, type
+   mapping, SQL rendering.
+2. **An in-process fake** of the service's wire protocol, so that the real client
+   library runs against it. See
+   [`drivers/databricks/internal/thriftfake`](../drivers/databricks/internal/thriftfake).
+   The fake returns canned results per statement. It is not a query engine, so it
+   checks the driver's plumbing (connection, type mapping, record scanning, error
+   mapping, rendered SQL) but not what the SQL means to the real service. These run
+   everywhere, including under `go test -short` and on fork PRs.
+3. **A live test** against a real workspace, gated on an envar. The handle
+   `@databricks_test` takes its location from `SQ_TEST_SRC__DATABRICKS_TEST`, as
+   `@clickhouse_test` does from `SQ_TEST_SRC__CLICKHOUSE_TEST`. The test skips
+   itself when the envar is unset. No CI job sets it.
+
+Don't add a cloud-only driver's handle to the `sakila.SQLAll` family of sets
+until a Sakila dataset exists in the service and the driver can write, as the
+cross-driver tests in those sets create, insert into, and drop tables.
+
 #### Oracle (optional)
 
 Some packages (for example [`libsq/driver`](../libsq/driver)) run extra checks when
@@ -225,7 +255,7 @@ type system. Key considerations:
 - **Parameterized types**: Types like `Decimal(18,4)`, `FixedString(255)`, or
   `VARCHAR(100)` need prefix matching, not exact string comparison.
 - **Unrecognized types**: return `kind.Unknown` and log a warning naming the
-  type and column. Seven of the eight SQL drivers do this; ClickHouse is the
+  type and column. Eight of the nine SQL drivers do this; ClickHouse is the
   exception, falling back to `kind.Text` because its unrecognized types are
   usually composites it serializes as text anyway. Prefer `kind.Unknown`: it
   tells the rest of `sq` that the kind was not resolved, whereas `kind.Text`
@@ -433,9 +463,15 @@ SQL drivers must return a properly configured `dialect.Dialect` from the
 `Dialect()` method. Key settings include:
 
 - **Enquote function**: How to quote identifiers. Most drivers use
-  `stringz.DoubleQuote`; MySQL and ClickHouse use `stringz.BacktickQuote`;
-  Oracle double-quotes and uppercases, because it folds unquoted identifiers to
-  uppercase but stores quoted ones as written.
+  `stringz.DoubleQuote`; MySQL, ClickHouse and Databricks use
+  `stringz.BacktickQuote`; Oracle double-quotes and uppercases, because it folds
+  unquoted identifiers to uppercase but stores quoted ones as written.
+- **QuoteString function**: How to quote a string literal. It is optional, and
+  only Databricks sets it. The default, `stringz.SingleQuote`, doubles an
+  embedded single quote. Set it if your engine reads a literal differently. Spark
+  SQL, for one, treats backslash as an escape character and does not read `''` as
+  a quote, so a value such as `\' OR 1=1 --` would otherwise end the literal early.
+  Always render a literal through `Dialect.QuoteLiteral`, not `stringz.SingleQuote`.
 - **Placeholder style**: `?` positional (SQLite, rqlite, MySQL, ClickHouse),
   `$1` numbered (DuckDB, Postgres), `@p1` (SQL Server), or `:1` (Oracle).
 - **IntBool**: Whether the database uses integers (0/1) for boolean values.
@@ -445,7 +481,7 @@ SQL drivers must return a properly configured `dialect.Dialect` from the
 
 See the
 [dialect comparison table](./ARCHITECTURE.md#dialect-comparison-table) in
-ARCHITECTURE.md for all eight drivers side by side.
+ARCHITECTURE.md for all nine drivers side by side.
 
 ### Non-SQL drivers
 

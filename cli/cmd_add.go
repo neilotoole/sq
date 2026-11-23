@@ -113,6 +113,7 @@ minimum, the following drivers are bundled:
   mysql      MySQL
   clickhouse ClickHouse
   oracle     Oracle Database (experimental)
+  databricks Databricks SQL warehouse (experimental, read-only)
   csv        Comma-Separated Values
   tsv        Tab-Separated Values
   json       JSON
@@ -126,6 +127,11 @@ The clickhouse driver will automatically apply a default port if not
 specified: 9000 for non-secure, or 9440 for secure (when "secure=true"
 is in the connection string). This differs from the underlying clickhouse-go
 library, which does not apply a default port.
+
+The databricks location has the form below. The username is always "token", and
+the password is a personal access token. Use -p to be prompted for it.
+
+  databricks://token:PAT@HOST/sql/1.0/warehouses/WAREHOUSE_ID
 
 If there isn't already an active source, the newly added source becomes the
 active source (but the active group does not change). Otherwise you can
@@ -154,6 +160,9 @@ More examples:
 
   # Add an Oracle source (experimental)
   $ sq add 'oracle://user:pass@localhost:1521/ORCLPDB1'
+
+  # Add a Databricks source (experimental), prompting for the access token
+  $ sq add -p 'databricks://token@dbc-a1b2.cloud.databricks.com/sql/1.0/warehouses/abc123?catalog=main'
 
   # Add a SQLite DB, and immediately make it the active source
   $ sq add ./testdata/sqlite1.db --active

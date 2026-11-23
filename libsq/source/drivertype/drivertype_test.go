@@ -38,6 +38,7 @@ var typeCases = []struct {
 	{"MySQL", drivertype.MySQL, "mysql"},
 	{"ClickHouse", drivertype.ClickHouse, "clickhouse"},
 	{"Oracle", drivertype.Oracle, "oracle"},
+	{"Databricks", drivertype.Databricks, "databricks"},
 	{"CSV", drivertype.CSV, "csv"},
 	{"TSV", drivertype.TSV, "tsv"},
 	{"JSON", drivertype.JSON, "json"},

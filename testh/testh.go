@@ -25,6 +25,7 @@ import (
 	"github.com/neilotoole/sq/cli/run"
 	"github.com/neilotoole/sq/drivers/clickhouse"
 	"github.com/neilotoole/sq/drivers/csv"
+	"github.com/neilotoole/sq/drivers/databricks"
 	"github.com/neilotoole/sq/drivers/duckdb"
 	"github.com/neilotoole/sq/drivers/json"
 	"github.com/neilotoole/sq/drivers/mysql"
@@ -210,6 +211,7 @@ func (h *Helper) init() {
 		h.registry.AddProvider(drivertype.MySQL, &mysql.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.ClickHouse, &clickhouse.Provider{Log: h.Log()})
 		h.registry.AddProvider(drivertype.Oracle, &oracle.Provider{Log: h.Log()})
+		h.registry.AddProvider(drivertype.Databricks, &databricks.Provider{Log: h.Log()})
 
 		csvp := &csv.Provider{Log: h.Log(), Ingester: h.grips, Files: h.files}
 		h.registry.AddProvider(drivertype.CSV, csvp)
@@ -343,7 +345,7 @@ func (h *Helper) Source(handle string) *source.Source {
 	// If the handle refers to an external database, we will skip
 	// the test if the envar for the handle is not set.
 	// This includes sakila external sources and other external test sources like ClickHouse.
-	externalHandles := append(sakila.SQLAllExternal(), "@clickhouse_test")
+	externalHandles := append(sakila.SQLAllExternal(), "@clickhouse_test", "@databricks_test")
 	if stringz.InSlice(externalHandles, handle) {
 		// Skip the test if the envar for the handle is not set
 		handleEnvar := "SQ_TEST_SRC__" + strings.ToUpper(strings.TrimPrefix(handle, "@"))
@@ -456,7 +458,7 @@ func (h *Helper) SourceConfigured(handle string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	externalHandles := append(sakila.SQLAllExternal(), "@clickhouse_test")
+	externalHandles := append(sakila.SQLAllExternal(), "@clickhouse_test", "@databricks_test")
 	if !stringz.InSlice(externalHandles, handle) {
 		// Non-SQL and SQLite sources are always available.
 		return true

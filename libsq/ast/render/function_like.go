@@ -5,7 +5,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 // LikeMode identifies which substring-matching shape is being rendered.
@@ -190,7 +189,7 @@ func ParseLikePatternArgs(rc *Context, fn *ast.FuncNode) (colSQL, rhsSQL string,
 				fn.FuncName(),
 			)
 		}
-		return colSQL, stringz.SingleQuote(val), nil
+		return colSQL, rc.Dialect.QuoteLiteral(val), nil
 	}
 
 	rhsSQL, err = renderSelectorNode(rc.Dialect, rhsNode)
@@ -257,7 +256,7 @@ func RenderLikeOp(rc *Context, fn *ast.FuncNode, opts LikeOpts) (string, error) 
 		op = "LIKE"
 	}
 	pattern := buildLikePattern(lit, opts.Mode, opts.ExtraMeta)
-	litSQL := stringz.SingleQuote(pattern)
+	litSQL := rc.Dialect.QuoteLiteral(pattern)
 	if opts.IgnoreCase {
 		colSQL = "LOWER(" + colSQL + ")"
 		litSQL = "LOWER(" + litSQL + ")"

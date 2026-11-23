@@ -5,7 +5,6 @@ import (
 
 	"github.com/neilotoole/sq/libsq/ast"
 	"github.com/neilotoole/sq/libsq/core/errz"
-	"github.com/neilotoole/sq/libsq/core/stringz"
 )
 
 func doFunction(rc *Context, fn *ast.FuncNode) (string, error) {
@@ -92,7 +91,7 @@ func RenderFuncArg(rc *Context, node ast.Node) (string, error) {
 
 		if wasQuoted {
 			// The literal had quotes, so it's a regular string.
-			return stringz.SingleQuote(val), nil
+			return rc.Dialect.QuoteLiteral(val), nil
 		}
 		return val, nil
 	case *ast.ExprNode:

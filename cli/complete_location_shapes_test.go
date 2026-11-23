@@ -108,6 +108,23 @@ func TestDriverShape_ClickHouse(t *testing.T) {
 	require.Equal(t, driver.SegConnParams, shape.Segments[3].Kind)
 }
 
+func TestDriverShape_Databricks(t *testing.T) {
+	th := testh.New(t)
+	drvr, err := th.Registry().SQLDriverFor(drivertype.Databricks)
+	require.NoError(t, err)
+	shape := drvr.LocationShape()
+	require.NoError(t, shape.Validate())
+	require.Equal(t, drivertype.Databricks, shape.Type)
+	require.Equal(t, []string{"databricks"}, shape.Schemes)
+	require.Len(t, shape.Segments, 4)
+	require.Equal(t, driver.SegCredentials, shape.Segments[0].Kind)
+	require.True(t, shape.Segments[0].Optional) // OAuth M2M has no userinfo
+	require.Equal(t, driver.SegAuthority, shape.Segments[1].Kind)
+	require.Equal(t, driver.SegPathName, shape.Segments[2].Kind)
+	require.Equal(t, "http_path", shape.Segments[2].Placeholder)
+	require.Equal(t, driver.SegConnParams, shape.Segments[3].Kind)
+}
+
 func TestDriverShape_Oracle(t *testing.T) {
 	th := testh.New(t)
 	drvr, err := th.Registry().SQLDriverFor(drivertype.Oracle)
