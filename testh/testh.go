@@ -641,13 +641,12 @@ func (h *Helper) Insert(src *source.Source, tbl string, cols []string, records .
 			require.NoError(h.T, h.Context.Err())
 
 		case err = <-bi.ErrCh:
-			// Should not happen
-			if err != nil {
-				close(bi.RecordCh)
-				require.NoError(h.T, err)
-			} else {
-				break
-			}
+			// Should not happen: the inserter only finishes cleanly after
+			// RecordCh is closed, so it has stopped and cannot write the
+			// remaining records.
+			close(bi.RecordCh)
+			require.NoError(h.T, err)
+			require.FailNow(h.T, "batch insert finished before all records were sent")
 
 		case bi.RecordCh <- rec:
 		}
