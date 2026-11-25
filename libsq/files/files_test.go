@@ -98,6 +98,15 @@ func TestFiles_DriverType(t *testing.T) {
 		{loc: proj.Abs("drivers/json/testdata/actor.json"), wantType: drivertype.JSON},
 		{loc: proj.Abs("drivers/json/testdata/actor.jsona"), wantType: drivertype.JSONA},
 		{loc: proj.Abs("drivers/json/testdata/actor.jsonl"), wantType: drivertype.JSONL},
+		{loc: proj.Abs(sakila.PathParquetActor), wantType: drivertype.Parquet},
+		{loc: proj.Abs("drivers/parquet/testdata/actor.pq"), wantType: drivertype.Parquet},
+		{loc: proj.Abs("drivers/parquet/testdata/actor_parquet"), wantType: drivertype.Parquet},
+		{loc: "s3://my-bucket/path/to/actor.parquet", wantType: drivertype.Parquet},
+		{loc: "gs://my-bucket/actor.pq", wantType: drivertype.Parquet},
+		{loc: "hf://datasets/org/ds/data/train.parquet", wantType: drivertype.Parquet},
+		// Object-store content can't be sniffed (sq's files package can't
+		// read it), so a location without a known extension is an error.
+		{loc: "s3://my-bucket/path/to/actor", wantErr: true},
 	}
 
 	for _, tc := range testCases {
