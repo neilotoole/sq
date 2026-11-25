@@ -1,6 +1,7 @@
 package sqlserver
 
 import (
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -9,6 +10,54 @@ import (
 
 	"github.com/neilotoole/sq/libsq/driver"
 )
+
+func Test_formatColumnType(t *testing.T) {
+	valid := func(value int64) sql.NullInt64 { return sql.NullInt64{Int64: value, Valid: true} }
+	testCases := []struct {
+		name string
+		meta columnMeta
+		want string
+	}{
+		{
+			name: "varchar length", meta: columnMeta{DataType: "varchar", CharMaxLength: valid(16)}, want: "varchar(16)",
+		},
+		{
+			name: "nvarchar max", meta: columnMeta{DataType: "nvarchar", CharMaxLength: valid(-1)}, want: "nvarchar(max)",
+		},
+		{
+			name: "varbinary max", meta: columnMeta{DataType: "varbinary", CharMaxLength: valid(-1)}, want: "varbinary(max)",
+		},
+		{name: "fixed char", meta: columnMeta{DataType: "char", CharMaxLength: valid(4)}, want: "char(4)"},
+		{
+			name: "decimal scale", meta: columnMeta{DataType: "decimal", NumericPrecision: valid(10), NumericScale: valid(2)},
+			want: "decimal(10,2)",
+		},
+		{
+			name: "numeric zero scale",
+			meta: columnMeta{DataType: "numeric", NumericPrecision: valid(5), NumericScale: valid(0)},
+			want: "numeric(5,0)",
+		},
+		{
+			name: "datetime2 precision", meta: columnMeta{DataType: "datetime2", DateTimePrecision: valid(3)},
+			want: "datetime2(3)",
+		},
+		{name: "time precision", meta: columnMeta{DataType: "time", DateTimePrecision: valid(7)}, want: "time(7)"},
+		{name: "float precision", meta: columnMeta{DataType: "float", NumericPrecision: valid(53)}, want: "float(53)"},
+		{name: "int is bare", meta: columnMeta{DataType: "int", NumericPrecision: valid(10)}, want: "int"},
+		{name: "date is bare", meta: columnMeta{DataType: "date", DateTimePrecision: valid(0)}, want: "date"},
+		{name: "xml is bare", meta: columnMeta{DataType: "xml", CharMaxLength: valid(-1)}, want: "xml"},
+		{
+			name: "decimal without metadata is bare", meta: columnMeta{DataType: "decimal", NumericPrecision: valid(10)},
+			want: "decimal",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, formatColumnType(tc.meta))
+		})
+	}
+}
 
 func Test_placeholders(t *testing.T) {
 	testCases := []struct {
