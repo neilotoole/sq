@@ -80,6 +80,9 @@ Breaking changes are annotated with ☢️, and alpha/beta features with 🐥.
   selecting that column by name silently returned the column name as text. Such a file is now also
   detected when it has a quoted header and no file extension (e.g. on stdin), and a file without a
   header row no longer has its first data row mistaken for the header.
+- [#1392]: A JSON or JSONL file containing an integer too large for 64 bits, such as
+  `12345678901234567890`, no longer makes every query of the source fail with a scan error. The
+  column is now read as a float.
 
 ## [v0.55.0] - 2026-09-09
 
@@ -1834,6 +1837,7 @@ change to the `sq` CLI in some time, and should make working with lots of source
 [#1369]: https://github.com/neilotoole/sq/issues/1369
 [#1300]: https://github.com/neilotoole/sq/issues/1300
 [#1375]: https://github.com/neilotoole/sq/pull/1375
+[#1392]: https://github.com/neilotoole/sq/pull/1392
 [v0.15.2]: https://github.com/neilotoole/sq/releases/tag/v0.15.2
 [v0.15.3]: https://github.com/neilotoole/sq/compare/v0.15.2...v0.15.3
 [v0.15.4]: https://github.com/neilotoole/sq/compare/v0.15.3...v0.15.4
