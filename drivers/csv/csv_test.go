@@ -16,6 +16,7 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/neilotoole/sq/cli/testrun"
+	"github.com/neilotoole/sq/libsq/core/errz"
 	"github.com/neilotoole/sq/libsq/core/kind"
 	"github.com/neilotoole/sq/libsq/core/langz"
 	"github.com/neilotoole/sq/libsq/core/record"
@@ -261,6 +262,39 @@ func TestIngest_BOM(t *testing.T) {
 			require.NoError(t, tr.Exec("--csv", ".data"))
 			data := tr.BindCSV()
 			require.Equal(t, [][]string{{"id", "name"}, {"1", "alice"}, {"2", "bob"}}, data)
+		})
+	}
+}
+
+// TestIngest_Empty verifies that an empty CSV or TSV source yields an
+// error, not a panic, including when the header row is explicitly specified.
+func TestIngest_Empty(t *testing.T) {
+	testCases := []struct {
+		name    string
+		file    string
+		content string
+		args    []string
+	}{
+		{"csv", "empty.csv", "", nil},
+		{"tsv", "empty.tsv", "", nil},
+		{"csv_header", "empty_header.csv", "", []string{"--ingest.header"}},
+		{"csv_newline", "newline.csv", "\n", nil},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			fp := filepath.Join(t.TempDir(), tc.file)
+			require.NoError(t, os.WriteFile(fp, []byte(tc.content), 0o600))
+
+			tr := testrun.New(ctx, t, nil)
+			args := append([]string{"add", fp, "--handle", "@empty"}, tc.args...)
+			require.NoError(t, tr.Exec(args...))
+
+			tr = testrun.New(ctx, t, tr).Hush()
+			err := tr.Exec("--csv", ".data")
+			require.Error(t, err)
+			require.True(t, errz.Has[driver.EmptyDataError](err), "got: %v", err)
 		})
 	}
 }
